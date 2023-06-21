@@ -61,7 +61,7 @@ const Signin = () => {
       <CenteredBox className={classes.root}>
         {/* Grid to create a responsive container for input fields */}
         <Grid container justifyContent="center" alignItems="center" p={3}>
-          <Grid item xs={12} sm={12} md={7} lg={4} xl={4}>
+          <Grid item xs={12} sm={7} md={7} lg={4} xl={4}>
             {/* company logo (outside the shadowed box) */}
             <Box
               sx={{
