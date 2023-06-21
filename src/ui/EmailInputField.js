@@ -2,7 +2,7 @@ import { TextField } from '@mui/material';
 import React from 'react';
 import { useState } from 'react';
 
-function EmailInput({ id, label, placeHolder, value, onChange }) {
+function EmailInput({ id, placeHolder, value, onChange }) {
   
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -11,7 +11,7 @@ function EmailInput({ id, label, placeHolder, value, onChange }) {
     onChange(value);
 
     // Email validation logic
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@disraptor\.co\.za$/;
     if (!emailRegex.test(value)) {
       setErrorMessage('Invalid email address.');
     } else {
@@ -24,7 +24,7 @@ function EmailInput({ id, label, placeHolder, value, onChange }) {
     <TextField
       error={Boolean(errorMessage)}
       id={id}
-      label={label}
+      label='Email Address'
       fullWidth
       type="email"
       placeholder= {placeHolder}

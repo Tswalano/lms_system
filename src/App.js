@@ -1,10 +1,10 @@
-
-import Signin from "./pages/Signin";
+import ForgotPassword from "./pages/ForgotPassword";
+//import Signin from "./pages/Signin";
 
 function App() {
   return (
     <>
-      <Signin/>
+      <ForgotPassword />
     </>
   );
 }
