@@ -1,4 +1,4 @@
-import ApplyForLeave from "./pages/user/ApplyForLeave";
+import ApplyForLeave from "./pages/ApplyForLeave";
 //import Signin from "./pages/Signin";
 
 function App() {
