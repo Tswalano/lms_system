@@ -1,7 +1,12 @@
-import ApplyForLeave from "./pages/ApplyForLeave";
+import ForgotPassword from "./pages/ForgotPassword";
+//import Signin from "./pages/Signin";
 
 function App() {
-  return <>App</>;
+  return (
+    <>
+      <ForgotPassword />
+    </>
+  );
 }
 
 export default App;
