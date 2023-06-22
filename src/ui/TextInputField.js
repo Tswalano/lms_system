@@ -2,20 +2,34 @@ import { TextField } from "@mui/material";
 import React from "react";
 import { useState } from "react";
 
-function TextInput({ id, label, placeHolder }) {
-  const [errorMessage, setErrorMessage] = useState("");
+function TextInput({
+  id,
+  label,
+  value,
+  placeHolder,
+  isError,
+  errorMessage,
+  onChange,
+}) {
+  // handle the user input as it's entered
+  const handleInputChange = (event) => {
+    const value = event.target.value;
+    onChange(value);
+  };
 
   return (
     <>
       <TextField
-        error={Boolean(errorMessage)}
+        error={Boolean(isError || errorMessage)}
         id={id}
         label={label}
         fullWidth
         type="text"
+        value={value}
         placeholder={placeHolder}
-        helperText={errorMessage || " "}
-        sx={{ marginBottom: "10px" }}
+        helperText={isError ? errorMessage : ""}
+        onChange={handleInputChange}
+        sx={{ marginBottom: "15px" }}
       />
     </>
   );

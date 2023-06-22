@@ -7,7 +7,6 @@ import SubmitButton from "../ui/Button";
 import Logo from "../ui/Logo";
 import Link from "@mui/material/Link";
 import Heading from "../ui/Heading";
-import Paragraph from "../ui/Paragraph";
 
 // Styling for the vertically and horizontally centered container
 const CenteredBox = styled(Box)(({ theme }) => ({
@@ -28,9 +27,15 @@ const Signin = () => {
   // create the classes object of the style above
   const classes = useStyles();
 
-  // set state for the email and password inputs
+  // set state for the email input and error messages
   const [email, setEmail] = useState("");
+  const [isEmailError, setIsEmailError] = useState(false);
+  const [emailErrorMessage, setEmailErrorMessage] = useState("");
+
+  // set state for the password input and error messages
   const [password, setPassword] = useState("");
+  const [isPasswordError, setIsPasswordError] = useState(false);
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState("");
 
   const handleEmailChange = (value) => {
     setEmail(value);
@@ -82,7 +87,7 @@ const Signin = () => {
               }}
             >
               {/* Heading text */}
-              <Box sx={{ textAlign: "center" }}>
+              <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
                 <Heading text="Sign in to your account" />
               </Box>
               {/* Reusable email input field */}
@@ -91,6 +96,8 @@ const Signin = () => {
                 placeHolder="Enter your login email address"
                 value={email}
                 onChange={handleEmailChange}
+                isError={isEmailError}
+                errorMessage={emailErrorMessage}
               />
               {/* Reusable password input field */}
               <PasswordInput
@@ -99,6 +106,8 @@ const Signin = () => {
                 placeHolder="Enter your login password"
                 value={password}
                 onChange={handlePasswordChange}
+                isError={isPasswordError}
+                errorMessage={passwordErrorMessage}
               />
               {/* Reusable submit button */}
               <SubmitButton

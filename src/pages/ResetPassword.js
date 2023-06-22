@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { styled } from "@mui/system";
 import { Grid, Paper, Box, FormHelperText } from "@mui/material";
-import EmailInput from "../ui/EmailInputField";
 import SubmitButton from "../ui/Button";
 import Logo from "../ui/Logo";
 import Heading from "../ui/Heading";
@@ -15,65 +14,106 @@ const CenteredBox = styled(Box)(({ theme }) => ({
   justifyContent: "center",
   alignItems: "center",
   height: "100vh",
-}));
-
-// Create a padding for the root element in the index page, this padding will only be applied when this page is rendered
-const useStyles = styled((theme) => ({
-  root: {
-    padding: "20px",
-  },
+  paddingLeft: "20px",
+  paddingRight: "20px",
 }));
 
 // get the email from the storage session
 const email = sessionStorage.getItem("email");
-var errorMessage = "";
 
 function ResetPassword() {
-  // create the classes object of the style above
-  const classes = useStyles();
-
-  // set state for the code and passwords inputs
+  // set state for the code and passwords inputs and error messages
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isPasswordError, setIsPasswordError] = useState(false);
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState("");
 
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isConfirmPasswordError, setIsConfirmPasswordError] = useState(false);
+  const [confirmPasswordErrorMessage, setConfirmPasswordErrorMessage] =
+    useState("");
+
+  const [code, setCode] = useState("");
+  const [isCodeError, setIsCodeError] = useState(false);
+  const [codeErrorMessage, setCodeErrorMessage] = useState("");
+
+  // reg ex (patterns / formats) for  otp code
+  const codePattern = /^[0-9]+$/;
+
+  // OTP code input field
+  const handleOTPCode = (value) => {
+    setCode(value);
+    // handle OTP code input field errors
+    setIsCodeError(false);
+    setCodeErrorMessage("");
+
+    if (value === "") {
+      setIsCodeError(true);
+      setCodeErrorMessage("OTP Code cannot be empty");
+    } else if (!codePattern.test(code)) {
+      setIsCodeError(true);
+      setCodeErrorMessage("OTP Code cannot may only contain numbers");
+    } else {
+      setIsCodeError(false);
+      setCodeErrorMessage("");
+    }
+  };
+
+  // password input field change
   const handlePasswordChange = (value) => {
     setPassword(value);
+
     if (value !== confirmPassword) {
-      errorMessage = "Passwords don't match!";
+      setIsConfirmPasswordError(true);
+      setConfirmPasswordErrorMessage("Passwords don't match!");
     } else {
-      errorMessage = "";
+      setIsConfirmPasswordError(false);
+      setConfirmPasswordErrorMessage("");
     }
   };
 
+  // confirm password input field change
   const handleConfirmPasswordChange = (value) => {
     setConfirmPassword(value);
+    setIsConfirmPasswordError(false);
+    setConfirmPasswordErrorMessage("");
+
     if (value !== password) {
-      errorMessage = "Passwords don't match!";
-    } else {
-      errorMessage = "";
+      setIsConfirmPasswordError(true);
+      setConfirmPasswordErrorMessage("Passwords don't match!");
     }
   };
 
-  // handle the onclick event for the login button
+  // handle the submit button onclick event for the reset password button
   const handleResetPassword = (event) => {
     event.preventDefault();
 
-    // grab OTP code
-    var code = document.getElementById("code").value;
-
-    // reg ex (patterns / formats) for email, phone and password
+    // reg ex (patterns / formats) for  password
     const passwordRegex =
       /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9])(?!.*\s).{8,15}$/;
 
     if (
-      code !== "" &&
+      codePattern.test(code) &&
       passwordRegex.test(password) &&
       password === confirmPassword
     ) {
+      // set code error to false
+      setIsCodeError(false);
+      setCodeErrorMessage("");
       // delete the session storage
       sessionStorage.removeItem("email");
       alert("Passed");
-      // continue integrating
+      // continue integration
+    } else {
+      if (code === "") {
+        setIsCodeError(true);
+        setCodeErrorMessage("OTP Code cannot be empty");
+      } else if (!codePattern.test(code)) {
+        setIsCodeError(true);
+        setCodeErrorMessage("OTP Code cannot may only contain numbers");
+      } else {
+        setIsCodeError(false);
+        setCodeErrorMessage("");
+      }
     }
   };
 
@@ -101,6 +141,7 @@ function ResetPassword() {
                 padding: (theme) => theme.spacing(2),
                 width: "100%",
                 p: "30px",
+                overflow: "hidden",
               }}
             >
               {/* Heading text */}
@@ -120,9 +161,12 @@ function ResetPassword() {
 
               <TextInput
                 id="code"
-                label="Code"
+                label="OTP Code"
                 placeHolder="Enter verification code"
-                //value={code}
+                value={code}
+                isError={isCodeError}
+                errorMessage={codeErrorMessage}
+                onChange={handleOTPCode}
               />
 
               {/* Reusable password input field */}
@@ -132,6 +176,8 @@ function ResetPassword() {
                 placeHolder="Enter your new password"
                 value={password}
                 onChange={handlePasswordChange}
+                isError={isPasswordError}
+                errorMessage={passwordErrorMessage}
               />
 
               {/* Reusable password input field */}
@@ -141,13 +187,9 @@ function ResetPassword() {
                 placeHolder="Enter new password again"
                 value={confirmPassword}
                 onChange={handleConfirmPasswordChange}
+                isError={isConfirmPasswordError}
+                errorMessage={confirmPasswordErrorMessage}
               />
-              <FormHelperText
-                id="helper-text"
-                sx={{ color: "red", marginY: "0", marginX: "10px" }}
-              >
-                {errorMessage}
-              </FormHelperText>
 
               {/* Reusable submit button */}
               <SubmitButton
