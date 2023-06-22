@@ -1,13 +1,12 @@
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import MyComponent from "./pages/admin/ActOnLeave";
-import Signin from "./pages/Signin";
+import { adminNavBarItems } from "./components/Navbar/AdminSidenavItems";
+import Sidenav from "./components/Navbar/Sidenav";
+import Grid from "@mui/material/Grid";
 
 function App() {
   return (
-    <>
-      <ForgotPassword />
-    </>
+    <Grid container>
+      <Sidenav menuItems={adminNavBarItems} />
+    </Grid>
   );
 }
 
