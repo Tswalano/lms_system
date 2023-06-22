@@ -25,6 +25,8 @@ const useStyles = styled((theme) => ({
 function ForgotPassword() {
   // set state for the email inputs
   const [email, setEmail] = useState("");
+  const [isEmailError, setIsEmailError] = useState(false);
+  const [emailErrorMessage, setEmailErrorMessage] = useState("");
 
   // handle email input from user
   const handleEmailChange = (value) => {
@@ -87,6 +89,8 @@ function ForgotPassword() {
                 placeHolder="Enter your Disraptor email address"
                 value={email}
                 onChange={handleEmailChange}
+                isError={isEmailError}
+                errorMessage={emailErrorMessage}
               />
 
               {/* Reusable submit button */}

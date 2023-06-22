@@ -1,10 +1,16 @@
-import { TextField } from '@mui/material';
-import React from 'react';
-import { useState } from 'react';
+import { TextField } from "@mui/material";
+import React from "react";
+import { useState } from "react";
 
-function EmailInput({ id, placeHolder, value, onChange }) {
-  
-  const [errorMessage, setErrorMessage] = useState('');
+function EmailInput({
+  id,
+  placeHolder,
+  value,
+  onChange,
+  isError,
+  errorMessage,
+}) {
+  const [localError, setErrorMessage] = useState("");
 
   const handleEmailChange = (event) => {
     const value = event.target.value;
@@ -13,28 +19,28 @@ function EmailInput({ id, placeHolder, value, onChange }) {
     // Email validation logic
     const emailRegex = /^[a-zA-Z0-9._%+-]+@disraptor\.co\.za$/;
     if (!emailRegex.test(value)) {
-      setErrorMessage('Invalid email address.');
+      setErrorMessage("Invalid email address.");
     } else {
-      setErrorMessage('');
+      setErrorMessage("");
     }
   };
 
+  const emailErrorMessage = isError ? errorMessage : localError;
 
-  return (  
+  return (
     <TextField
-      error={Boolean(errorMessage)}
+      error={Boolean(isError || emailErrorMessage)}
       id={id}
-      label='Email Address'
+      label="Email Address"
       fullWidth
       type="email"
-      placeholder= {placeHolder}
+      placeholder={placeHolder}
       value={value}
-      helperText={errorMessage || ' '}
+      helperText={emailErrorMessage}
       onChange={handleEmailChange}
-      sx={{marginBottom:'10px'}}
+      sx={{ marginBottom: "15px" }}
     />
   );
-
 }
 
 export default EmailInput;
