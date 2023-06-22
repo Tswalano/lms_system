@@ -16,6 +16,7 @@ import Logo from "../../ui/Logo";
 import { Grid } from "@mui/material";
 import Home from "../../pages/admin/Home";
 import { Outlet, useNavigate } from "react-router-dom";
+import Dashboard from "../../pages/user/Dashboard";
 
 const drawerWidth = 270;
 
@@ -94,6 +95,8 @@ export default function Sidenav({ menuItems }) {
   const theme = useTheme();
   const [open, setOpen] = React.useState(false);
   const [isFirstTime, setIsFirsTime] = React.useState(true);
+  // set user role
+  const [isRoleAdmin, setUserRole] = React.useState(false);
   const navigate = useNavigate();
 
   const handleDrawerOpen = () => {
@@ -175,7 +178,7 @@ export default function Sidenav({ menuItems }) {
       </Drawer>
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <DrawerHeader />
-        {isFirstTime ? <Home /> : <Outlet />}
+        {isFirstTime ? isRoleAdmin ? <Home /> : <Dashboard /> : <Outlet />}
       </Box>
     </Box>
   );
