@@ -96,7 +96,7 @@ export default function Sidenav({ menuItems }) {
   const [open, setOpen] = React.useState(false);
   const [isFirstTime, setIsFirsTime] = React.useState(true);
   // set user role
-  const [isRoleAdmin, setUserRole] = React.useState(false);
+  const [isRoleAdmin, setUserRole] = React.useState(true);
   const navigate = useNavigate();
 
   const handleDrawerOpen = () => {
@@ -124,7 +124,7 @@ export default function Sidenav({ menuItems }) {
           >
             <MenuIcon />
           </IconButton>
-          <Grid item xs={5}>
+          <Grid item xs={10} md={6} lg={3}>
             <Box sx={{ width: "30%", height: "auto" }}>
               <Logo />
             </Box>

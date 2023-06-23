@@ -5,7 +5,7 @@ import Grid from "@mui/material/Grid";
 
 function App() {
   // set user role
-  const isRoleAdmin = false;
+  const isRoleAdmin = true;
 
   return (
     <Grid container>
