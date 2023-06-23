@@ -55,7 +55,7 @@ function ApplyForLeave() {
     setSelectedDate(date);
   };
 
-  const handleFileUpload = (file) =>{}
+  const handleFileUpload = (file) => {};
 
   // leave type options object
   const leaveTypeOptions = [
@@ -141,16 +141,23 @@ function ApplyForLeave() {
           </div>
         </Grid>
         <Grid item xs={18}>
-          <SubmitButton
-            id="loginButton"
-            label="Apply For Leave"
-            onClick={handleLogin}
-            style={{ width: "50%" }}
-          />
+          <Grid
+            container
+            item
+            xs={3}
+            sx={{ marginLeft: "auto", marginRight: "auto" }}
+          >
+            <SubmitButton
+              id="loginButton"
+              label="Apply For Leave"
+              onClick={handleLogin}
+              style={{ width: "50%" }}
+            />
+          </Grid>
         </Grid>
       </Grid>
     </Paper>
   );
-};
+}
 
 export default ApplyForLeave;
