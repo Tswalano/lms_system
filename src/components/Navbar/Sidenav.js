@@ -96,7 +96,7 @@ export default function Sidenav({ menuItems }) {
   const [open, setOpen] = React.useState(false);
   const [isFirstTime, setIsFirsTime] = React.useState(true);
   // set user role
-  const [isRoleAdmin, setUserRole] = React.useState(true);
+  const [isRoleAdmin, setUserRole] = React.useState(false);
   const navigate = useNavigate();
 
   const handleDrawerOpen = () => {

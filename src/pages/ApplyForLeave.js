@@ -70,11 +70,12 @@ function ApplyForLeave() {
   ];
 
   return (
-    //Leave Application Form : Heading, Leave type dropbox, Calendar, Upload documentn function, Comments  box and submit button.
     <>
+      {/*Leave Application Heading*/}
       <Box container={"div"} sx={{ textAlign: "center" }}>
         <Heading text="Leave Application" />
       </Box>
+      {/*Leave Type dropbox with leave type options*/}
       <Grid>
         <Grid item xs={3}>
           <Dropdown
@@ -88,6 +89,7 @@ function ApplyForLeave() {
           />
         </Grid>
       </Grid>
+      {/*Calendar for Start and End date*/}
       <div>
         <label>Start Date:</label>
         <input
@@ -96,6 +98,7 @@ function ApplyForLeave() {
           onChange={(e) => handleDateSelect(e.target.value)}
         />
       </div>
+      {/*Radiogroup for Half day and Full day*/}
       <div>
         <FormControl>
           <RadioGroup
@@ -116,12 +119,13 @@ function ApplyForLeave() {
           </RadioGroup>
         </FormControl>
       </div>
-      <div></div>
-      <TextField
-        label="Add comments here..."
-        placeholder="Enter text here"
-        variant="outlined"
-      />
+      <div>
+        <TextField
+          label="Add comments here..."
+          placeholder="Enter text here"
+          variant="outlined"
+        />
+      </div>
       <div>
         <label>Upload documents:</label>
         <FileUploadIcon>
