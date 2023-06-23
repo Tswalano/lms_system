@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { styled } from "@mui/system";
-import { Grid, Paper, Box, FormHelperText } from "@mui/material";
+import { Grid, Paper, Box } from "@mui/material";
 import SubmitButton from "../ui/Button";
 import Logo from "../ui/Logo";
 import Heading from "../ui/Heading";
