@@ -65,10 +65,12 @@ function ApplyForLeave() {
     { value: "Annual Leave", labelText: "Annual Leave" },
     { value: "Maternity Leave", labelText: "Maternity Leave" },
     { value: "Bereavement", labelText: "Bereavement" },
+    { value: "Family Responsibility", labelText: "Family Responsibility" },
     { value: "Paternity Leave", labelText: "Paternity Leave" },
   ];
 
   return (
+    //Leave Application Form : Heading, Leave type dropbox, Calendar, Upload documentn function, Comments  box and submit button.
     <>
       <Box container={"div"} sx={{ textAlign: "center" }}>
         <Heading text="Leave Application" />
@@ -87,7 +89,7 @@ function ApplyForLeave() {
         </Grid>
       </Grid>
       <div>
-        <label>Select a date:</label>
+        <label>Start Date:</label>
         <input
           type="date"
           value={selectedDate}
@@ -116,10 +118,10 @@ function ApplyForLeave() {
       </div>
       <div></div>
       <TextField
-      label="Example"
-      placeholder="Enter text here"
-      variant="outlined"
-    />
+        label="Add comments here..."
+        placeholder="Enter text here"
+        variant="outlined"
+      />
       <div>
         <label>Upload documents:</label>
         <FileUploadIcon>
