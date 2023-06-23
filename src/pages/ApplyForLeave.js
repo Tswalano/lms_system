@@ -9,6 +9,7 @@ import RadioGroup from "@mui/material/RadioGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
+import FileUploadIcon from "@mui/icons-material/FileUpload";
 
 const LeaveForm = () => {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -112,10 +113,14 @@ function ApplyForLeave() {
           </RadioGroup>
         </FormControl>
       </div>
+      <div></div>
 
       <div>
         <label>Upload documents:</label>
-        <input type="file" onChange={handleFileUpload} />
+        <FileUploadIcon>
+          {" "}
+          <input type="file" onChange={handleFileUpload} />
+        </FileUploadIcon>
       </div>
       <Grid container justify="center" alignItems="center">
         <Grid item xs={12} sm={6} md={4} lg={3} xl={2}>
