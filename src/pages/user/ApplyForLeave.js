@@ -55,7 +55,7 @@ function ApplyForLeave() {
     setSelectedDate(date);
   };
 
-  const handleFileUpload = (file) => {};
+  const handleFileUpload = (file) =>{}
 
   // leave type options object
   const leaveTypeOptions = [
@@ -68,14 +68,14 @@ function ApplyForLeave() {
   ];
 
   return (
-    <>
-      {/*Leave Application Heading*/}
-      <Box container={"div"} sx={{ textAlign: "center" }}>
-        <Heading text="Leave Application" />
-      </Box>
-      {/*Leave Type dropbox with leave type options*/}
-      <Grid>
-        <Grid item xs={3}>
+    <Paper elevation={3} style={{ padding: "20px", height: "100%" }}>
+      <Grid container spacing={2} justifyContent="center">
+        <Grid item xs={12}>
+          {/*Leave Application Heading*/}
+          <Heading text="Leave Application" />
+        </Grid>
+        <Grid item xs={12}>
+          {/*Leave Type dropbox with leave type options*/}
           <Dropdown
             id="leaveType"
             label="Leave Type"
@@ -86,62 +86,71 @@ function ApplyForLeave() {
             errorMessage={leaveTypeErrorMessage}
           />
         </Grid>
-      </Grid>
-      {/*Calendar for Start and End date*/}
-      <div>
-        <label>Start Date:</label>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => handleDateSelect(e.target.value)}
-        />
-      </div>
-      {/*Radiogroup for Half day and Full day*/}
-      <div>
-        <FormControl>
-          <RadioGroup
-            row
-            aria-labelledby="demo-row-radio-buttons-group-label"
-            name="row-radio-buttons-group"
-          >
-            <FormControlLabel
-              value="Half Day"
-              control={<Radio />}
-              label="Half Day"
+        <Grid item xs={12}>
+          {/*Calendar for Start and End date*/}
+          <div>
+            <label>Start Date:</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => handleDateSelect(e.target.value)}
             />
-            <FormControlLabel
-              value="Full Day"
-              control={<Radio />}
-              label="Full Day"
+          </div>
+        </Grid>
+        <Grid item xs={12}>
+          {/*Radiogroup for Half day and Full day*/}
+          <div>
+            <FormControl>
+              <RadioGroup
+                row
+                aria-labelledby="demo-row-radio-buttons-group-label"
+                name="row-radio-buttons-group"
+              >
+                <FormControlLabel
+                  value="Half Day"
+                  control={<Radio />}
+                  label="Half Day"
+                />
+                <FormControlLabel
+                  value="Full Day"
+                  control={<Radio />}
+                  label="Full Day"
+                />
+              </RadioGroup>
+            </FormControl>
+          </div>
+        </Grid>
+        <Grid item xs={12}>
+          <div>
+            <TextField
+              label="Add comments here..."
+              placeholder="Enter text here"
+              variant="outlined"
+              fullWidth
+              multiline
+              minRows={4}
             />
-          </RadioGroup>
-        </FormControl>
-      </div>
-      <div>
-        <TextField
-          label="Add comments here..."
-          placeholder="Enter text here"
-          variant="outlined"
-        />
-      </div>
-      <div>
-        <label>Upload documents:</label>
-        <FileUploadIcon>
-          {" "}
-          <input type="file" onChange={handleFileUpload} />
-        </FileUploadIcon>
-      </div>
-      <Grid container justify="center" alignItems="center">
-        <Grid item xs={12} sm={6} md={4} lg={3} xl={2}>
+          </div>
+        </Grid>
+        <Grid item xs={12}>
+          <div>
+            <label>Upload documents:</label>
+            <FileUploadIcon>
+              <input type="file" onChange={handleFileUpload} />
+            </FileUploadIcon>
+          </div>
+        </Grid>
+        <Grid item xs={18}>
           <SubmitButton
             id="loginButton"
             label="Apply For Leave"
             onClick={handleLogin}
+            style={{ width: "50%" }}
           />
         </Grid>
       </Grid>
-    </>
+    </Paper>
   );
-}
+};
 
 export default ApplyForLeave;
