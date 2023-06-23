@@ -4,6 +4,11 @@ import Heading from "../ui/Heading";
 import SubmitButton from "../ui/Button";
 import Paragraph from "../ui/Paragraph";
 import Dropdown from "../ui/DropBox";
+import Radio from "@mui/material/Radio";
+import RadioGroup from "@mui/material/RadioGroup";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormControl from "@mui/material/FormControl";
+import FormLabel from "@mui/material/FormLabel";
 
 const LeaveForm = () => {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -56,7 +61,9 @@ function ApplyForLeave() {
   const leaveTypeOptions = [
     { value: "Sick Leave", labelText: "Sick Leave" },
     { value: "Annual Leave", labelText: "Annual Leave" },
-    { value: "Efgfg Leave", labelText: "JJhhh Leave" },
+    { value: "Maternity Leave", labelText: "Maternity Leave" },
+    { value: "Bereavement", labelText: "Bereavement" },
+    { value: "Paternity Leave", labelText: "Paternity Leave" },
   ];
 
   return (
@@ -64,17 +71,18 @@ function ApplyForLeave() {
       <Box container={"div"} sx={{ textAlign: "center" }}>
         <Heading text="Leave Application" />
       </Box>
-
-      <Grid item xs={12}>
-        <Dropdown
-          id="leaveType"
-          label="Leave Type"
-          options={leaveTypeOptions}
-          value={leaveType}
-          onChange={handleDropdownChange}
-          isError={isLeaveTypeError}
-          errorMessage={leaveTypeErrorMessage}
-        />
+      <Grid>
+        <Grid item xs={3}>
+          <Dropdown
+            id="leaveType"
+            label="Leave Type"
+            options={leaveTypeOptions}
+            value={leaveType}
+            onChange={handleDropdownChange}
+            isError={isLeaveTypeError}
+            errorMessage={leaveTypeErrorMessage}
+          />
+        </Grid>
       </Grid>
       <div>
         <label>Select a date:</label>
@@ -85,13 +93,32 @@ function ApplyForLeave() {
         />
       </div>
       <div>
+        <FormControl>
+          <RadioGroup
+            row
+            aria-labelledby="demo-row-radio-buttons-group-label"
+            name="row-radio-buttons-group"
+          >
+            <FormControlLabel
+              value="Half Day"
+              control={<Radio />}
+              label="Half Day"
+            />
+            <FormControlLabel
+              value="Full Day"
+              control={<Radio />}
+              label="Full Day"
+            />
+          </RadioGroup>
+        </FormControl>
+      </div>
+
+      <div>
         <label>Upload documents:</label>
         <input type="file" onChange={handleFileUpload} />
       </div>
-      <Grid container>
-        <Grid item xs={10} sm={10} md={6} lg={4} xl={4}>
-          <Grid container></Grid>
-
+      <Grid container justify="center" alignItems="center">
+        <Grid item xs={12} sm={6} md={4} lg={3} xl={2}>
           <SubmitButton
             id="loginButton"
             label="Apply For Leave"
