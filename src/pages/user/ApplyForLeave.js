@@ -26,7 +26,7 @@ const LeaveForm = () => {
   setDocuments([]);
 };
 
-const handleLogin = (event) => {
+const handleSubmit = (event) => {
   event.preventDefault();
 };
 
@@ -70,9 +70,16 @@ function ApplyForLeave() {
   return (
     <Paper elevation={3} style={{ padding: "20px", height: "100%" }}>
       <Grid container spacing={2} justifyContent="center">
-        <Grid item xs={12}>
-          {/*Leave Application Heading*/}
-          <Heading text="Leave Application" />
+        <Grid item xs={4}>
+          <Grid
+            container
+            item
+            xs={6}
+            sx={{ marginLeft: "auto", marginRight: "auto" }}
+          >
+            {/*Leave Application Heading*/}
+            <Heading text="Leave Application" />
+          </Grid>
         </Grid>
         <Grid item xs={12}>
           {/*Leave Type dropbox with leave type options*/}
@@ -97,7 +104,7 @@ function ApplyForLeave() {
             />
           </div>
         </Grid>
-        <Grid item xs={12}>
+        <Grid item xs={3}>
           {/*Radiogroup for Half day and Full day*/}
           <div>
             <FormControl>
@@ -135,7 +142,7 @@ function ApplyForLeave() {
         <Grid item xs={12}>
           <div>
             <label>Upload documents:</label>
-            <FileUploadIcon>
+            <FileUploadIcon xs={2} sx={{ marginLeft: "auto" }}>
               <input type="file" onChange={handleFileUpload} />
             </FileUploadIcon>
           </div>
@@ -150,7 +157,7 @@ function ApplyForLeave() {
             <SubmitButton
               id="loginButton"
               label="Apply For Leave"
-              onClick={handleLogin}
+              onClick={handleSubmit}
               style={{ width: "50%" }}
             />
           </Grid>
