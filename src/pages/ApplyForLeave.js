@@ -10,6 +10,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
+import { TextField } from "@mui/material";
 
 const LeaveForm = () => {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -114,7 +115,11 @@ function ApplyForLeave() {
         </FormControl>
       </div>
       <div></div>
-
+      <TextField
+      label="Example"
+      placeholder="Enter text here"
+      variant="outlined"
+    />
       <div>
         <label>Upload documents:</label>
         <FileUploadIcon>
