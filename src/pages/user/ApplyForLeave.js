@@ -44,7 +44,7 @@ function ApplyForLeave() {
 
     if (value === "No value" || value === "") {
       setIsLeaveTypeError(true);
-      setLeaveTypeErrorMessage("Please select a valid leave type");
+      setLeaveTypeErrorMessage("Please select a leave type");
     } else {
       setIsLeaveTypeError(false);
       setLeaveTypeErrorMessage("");
