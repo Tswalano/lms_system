@@ -96,12 +96,24 @@ function ApplyForLeave() {
         <Grid item xs={12}>
           {/*Calendar for Start and End date*/}
           <div>
-            <label>Start Date:</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => handleDateSelect(e.target.value)}
-            />
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <label>Start Date:</label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => handleDateSelect(e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <label>Start Date:</label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => handleDateSelect(e.target.value)}
+                />
+              </Grid>
+            </Grid>
           </div>
         </Grid>
         <Grid item xs={3}>
