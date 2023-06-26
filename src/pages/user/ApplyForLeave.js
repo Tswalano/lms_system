@@ -106,7 +106,7 @@ function ApplyForLeave() {
                 />
               </Grid>
               <Grid item xs={12} md={6}>
-                <label>Start Date:</label>
+                <label>End Date:</label>
                 <input
                   type="date"
                   value={selectedDate}
@@ -154,9 +154,12 @@ function ApplyForLeave() {
         <Grid item xs={12}>
           <div>
             <label>Upload documents:</label>
-            <FileUploadIcon xs={2} sx={{ marginLeft: "auto" }}>
-              <input type="file" onChange={handleFileUpload} />
-            </FileUploadIcon>
+
+            <Grid item xs={12} style={{ textAlign: "right" }}>
+              <FileUploadIcon>
+                <input type="file" onChange={handleFileUpload} />
+              </FileUploadIcon>
+            </Grid>
           </div>
         </Grid>
         <Grid item xs={18}>
