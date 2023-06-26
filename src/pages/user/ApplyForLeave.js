@@ -156,9 +156,11 @@ function ApplyForLeave() {
             <label>Upload documents:</label>
 
             <Grid item xs={12} style={{ textAlign: "right" }}>
-              <FileUploadIcon>
-                <input type="file" onChange={handleFileUpload} />
-              </FileUploadIcon>
+              <Paper variant="outlined" style={{ padding: "10px" }}>
+                <FileUploadIcon>
+                  <input type="file" onChange={handleFileUpload} />
+                </FileUploadIcon>
+              </Paper>
             </Grid>
           </div>
         </Grid>
