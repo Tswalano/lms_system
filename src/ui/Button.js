@@ -1,11 +1,19 @@
-import React from 'react';
-import { Button } from '@mui/material';
+import React from "react";
+import { Button } from "@mui/material";
 
-const SubmitButton = ({ id, label, onClick }) => {
+const SubmitButton = ({ id, label, disabled }) => {
   return (
-    <Button fullWidth id={id} onClick={onClick} variant="contained" color="primary" sx={{color:"white"}}>
+    <Button
+      disabled={disabled}
+      fullWidth
+      id={id}
+      type="submit"
+      variant="contained"
+      color="primary"
+      sx={{ color: "white" }}
+    >
       {label}
-    </Button>    
+    </Button>
   );
 };
 

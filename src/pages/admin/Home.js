@@ -1,13 +1,13 @@
 import React from "react";
 import Heading from "../../ui/Heading";
-import { Grid } from "@mui/material";
+import { Paper } from "@mui/material";
 
 function Home() {
   return (
     <>
-      <Grid container>
-        <Heading text="This is a home page" />
-      </Grid>
+      <Paper sx={{ maxWidth: "100%", padding: "20px" }}>
+        <Heading text="This is a home page whefw fwyfvwef w" />
+      </Paper>
     </>
   );
 }

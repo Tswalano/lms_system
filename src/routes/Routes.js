@@ -6,10 +6,11 @@ import ManageLeave from "../pages/admin/ManageLeave";
 import ActOnLeave from "../pages/admin/ActOnLeave";
 import AddEmployee from "../pages/admin/AddEmployee";
 import App from "../App";
-import Signin from "../pages/Signin";
 import { Grid } from "@mui/material";
 import Dashboard from "../pages/user/Dashboard";
 import ApplyForLeave from "../pages/user/ApplyForLeave";
+import Signin from "../pages/onboarding/signin/Signin";
+import Profile from "../pages/onboarding/profile/Profile";
 
 export default function AppRoutes() {
   return (
@@ -18,6 +19,7 @@ export default function AppRoutes() {
         <Route path="signin" element={<Signin />} />
         <Route path="/" element={<PrivateRoute />}>
           <Route path="home" element={<Home />} />
+          <Route path="profile" element={<Profile />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="manage-employees" element={<ManageEmployee />} />
           <Route path="manage-leave" element={<ManageLeave />} />

@@ -8,9 +8,11 @@ function App() {
   const isRoleAdmin = true;
 
   return (
-    <Grid container>
-      <Sidenav menuItems={isRoleAdmin ? adminNavBarItems : userNavBarItems} />
-    </Grid>
+    <>
+      <Grid container>
+        <Sidenav menuItems={isRoleAdmin ? adminNavBarItems : userNavBarItems} />
+      </Grid>
+    </>
   );
 }
 
