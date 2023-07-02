@@ -1,8 +1,18 @@
+import { Box } from "@mui/material";
 import React from "react";
 
-function Logo() {
+function Logo({ width }) {
   return (
-    <img src=".././logo512.png" alt="Logo" width={"100%"} height={"auto"} />
+    <Box
+      sx={{
+        marginLeft: "auto",
+        marginRight: "auto",
+        paddingTop: "20px",
+        width: { width },
+      }}
+    >
+      <img src=".././logo512.png" alt="Logo" width={"100%"} height={"auto"} />
+    </Box>
   );
 }
 
