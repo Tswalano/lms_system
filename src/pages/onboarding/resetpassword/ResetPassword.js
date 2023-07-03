@@ -82,6 +82,7 @@ function ResetPassword() {
                 email +
                 ". Enter it below to reset your password."
               }
+              fontWeight="normal"
             />
           </Box>
           <form onSubmit={handleSubmit}>

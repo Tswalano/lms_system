@@ -61,7 +61,10 @@ function ForgotPassword() {
             <Heading text="Forgot Password" />
           </Box>
           <Box sx={{ textAlign: "left", paddingBottom: "20px" }}>
-            <Paragraph text="Enter your email below and a message will be sent to reset your password." />
+            <Paragraph
+              text="Enter your email below and a message will be sent to reset your password."
+              fontWeight="normal"
+            />
           </Box>
           <form onSubmit={handleSubmit}>
             <Grid container>
