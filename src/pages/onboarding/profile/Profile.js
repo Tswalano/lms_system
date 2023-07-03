@@ -70,7 +70,7 @@ function Profile() {
               onChange={handleChange}
               gridSizes={GridSizes.dashboardFieldSizes}
             />
-            <Grid item xs={12} sm={12} md={12}>
+            <Grid item xs={12}>
               <SubmitButton
                 disabled={isError}
                 label="Save Profile"

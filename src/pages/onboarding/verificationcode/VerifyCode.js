@@ -76,6 +76,7 @@ function VerifyCode() {
                 email +
                 ". Enter it below to confirm your account."
               }
+              fontWeight="normal"
             />
           </Box>
           <form onSubmit={handleSubmit}>

@@ -1,7 +1,7 @@
 import { Typography } from "@mui/material";
 import React from "react";
 
-function Paragraph({ text }) {
+function Paragraph({ text, fontWeight }) {
   return (
     <>
       <Typography
@@ -9,7 +9,7 @@ function Paragraph({ text }) {
         color={"dark"}
         sx={{
           fontFamily: "Geologica",
-          fontWeight: "normal",
+          fontWeight: { fontWeight },
           color: "#263238",
         }}
       >
