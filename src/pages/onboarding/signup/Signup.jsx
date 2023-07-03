@@ -1,0 +1,85 @@
+import React, { useState } from "react";
+import SubmitButton from "../../../ui/Button";
+import FormFieldMapper from "../../../components/form/FormFieldMapper";
+import SignupForm from "./FormConfig";
+import { handleFieldChange } from "../../../components/form/HandleFieldChange";
+import { GetFormValues } from "../../../components/form/GetFormValues";
+import CenteredBox from "../../../ui/CenteredBox";
+import PaperComponent from "../../../ui/Paper";
+import { Box, Grid } from "@mui/material";
+import Logo from "../../../ui/Logo";
+import Heading from "../../../ui/Heading";
+import {
+  validateEmail,
+  validatePassword,
+  validateConfirmPassword,
+} from "../../../components/form/Validations";
+import { useEffect } from "react";
+import { GridSizes } from "../../../components/form/GridSizes";
+
+function Signup() {
+  const [formValues, setFormValues] = useState({});
+
+  const handleInputChange = handleFieldChange(setFormValues);
+
+  const [isError, setIsError] = useState(true);
+
+  // Update the isError state based on the validation results
+  const handleValidation = () => {
+    // use your existing validation functions to validate email and password.
+    const isEmailValid = validateEmail(formValues.email);
+    const isPasswordValid = validatePassword(formValues.password);
+    const isConfirmPasswordValid = validateConfirmPassword(
+      formValues.password,
+      formValues.confirmPassword
+    );
+
+    // Set isError based on the validation results
+    setIsError(
+      isEmailValid !== null ||
+        isPasswordValid !== null ||
+        isConfirmPasswordValid !== null
+    );
+  };
+
+  useEffect(() => {
+    handleValidation();
+    // Run the validation when formValues state changes
+  }, [formValues]);
+
+  const handleSignupSubmit = async (event) => {
+    event.preventDefault();
+
+    const formValues = GetFormValues(event);
+    console.log(formValues);
+
+    // store session for email to be accessed on the next page
+    sessionStorage.setItem("email", formValues.email);
+  };
+
+  return (
+    <CenteredBox>
+      <Box sx={{ maxWidth: "600px" }}>
+        <Logo width="35%" />
+        <br />
+        <PaperComponent>
+          <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
+            <Heading text="Create a new account" />
+          </Box>
+          <form onSubmit={handleSignupSubmit}>
+            <Grid container>
+              <FormFieldMapper
+                formFields={SignupForm.formFields}
+                onChange={handleInputChange}
+                gridSizes={GridSizes.onbordingFieldSizes}
+              />
+              <SubmitButton disabled={isError} label="Sign up" type="submit" />
+            </Grid>
+          </form>
+        </PaperComponent>
+      </Box>
+    </CenteredBox>
+  );
+}
+
+export default Signup;
