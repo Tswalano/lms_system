@@ -11,12 +11,20 @@ import Dashboard from "../pages/user/Dashboard";
 import ApplyForLeave from "../pages/user/ApplyForLeave";
 import Signin from "../pages/onboarding/signin/Signin";
 import Profile from "../pages/onboarding/profile/Profile";
+import ForgotPassword from "../pages/onboarding/forgotpassword/ForgotPassword";
+import ResetPassword from "../pages/onboarding/resetpassword/ResetPassword";
+import VerifyCode from "../pages/onboarding/verificationcode/VerifyCode";
+import Signup from "../pages/onboarding/signup/Signup";
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="signin" element={<Signin />} />
+        <Route path="forgot-password" element={<ForgotPassword />} />
+        <Route path="reset-password" element={<ResetPassword />} />
+        <Route path="verify-account" element={<VerifyCode />} />
+        <Route path="signup" element={<Signup />} />
         <Route path="/" element={<PrivateRoute />}>
           <Route path="home" element={<Home />} />
           <Route path="profile" element={<Profile />} />
