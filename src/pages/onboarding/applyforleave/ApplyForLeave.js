@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SubmitButton from "../../../ui/Button";
-import SigninForm from "./FormConfig";
+import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
@@ -15,8 +15,9 @@ import {
   validatePassword,
 } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
+import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 
-function Signin() {
+function ApplyForLeave() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
 
@@ -57,16 +58,20 @@ function Signin() {
         <br />
         <PaperComponent>
           <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
-            <Heading text="Sign in to your account" />
+            <Heading text="Apply For Leave" />
           </Box>
           <form onSubmit={handleSubmit}>
             <Grid container>
               <FormFieldMapper
-                formFields={SigninForm.formFields}
+                formFields={ApplyForLeaveForm.formFields}
                 onChange={handleChange}
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
-              <SubmitButton disabled={isError} label="Sign in" type="submit" />
+              <SubmitButton
+                disabled={isError}
+                label="Apply For Leave"
+                type="submit"
+              />
             </Grid>
           </form>
         </PaperComponent>
@@ -75,4 +80,4 @@ function Signin() {
   );
 }
 
-export default Signin;
+export default ApplyForLeave;
