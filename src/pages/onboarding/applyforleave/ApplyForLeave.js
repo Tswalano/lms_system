@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SubmitButton from "../../../ui/Button";
-import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";

@@ -7,7 +7,7 @@ import FormControl from "@mui/material/FormControl";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
 import { TextField } from "@mui/material";
 import Heading from "../../ui/Heading";
-import Dropdown from "../../ui/DropBox";
+import Dropdown from "../../ui/Dropdown";
 import SubmitButton from "../../ui/Button";
 
 const LeaveForm = () => {
