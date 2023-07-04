@@ -6,7 +6,10 @@ import {
   MenuItem,
   FormHelperText,
 } from "@mui/material";
-import { validateSelect } from "../components/form/Validations";
+import {
+  validateApproveReject,
+  validateSelect,
+} from "../components/form/Validations";
 
 function Dropdown({ field, onChange }) {
   const [defaultErrorMessage, setDefaultError] = useState("");
@@ -16,6 +19,7 @@ function Dropdown({ field, onChange }) {
 
   const validationMap = {
     select: validateSelect,
+    approval: validateApproveReject,
     // Add more validation functions for other input types
   };
 

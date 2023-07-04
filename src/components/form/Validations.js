@@ -66,4 +66,17 @@ export const validateText = (value) => {
   return null; // No error
 };
 
+// Validates the Dropdownbox on ActOnLeave Page
+export const validateApproveReject = (value) => {
+  if (
+    value === "" ||
+    value === "Select option" ||
+    value !== "Approve" ||
+    value === "Reject"
+  ) {
+    return "Please select an option to either Approve/Deny the request";
+  }
+  return null;
+};
+
 // Add more validation functions for other input types

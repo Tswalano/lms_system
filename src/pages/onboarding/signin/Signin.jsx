@@ -15,6 +15,8 @@ import {
   validatePassword,
 } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
+import { signIn } from "../../../api/API";
+import APIUrl from "../../../api/ApiLinks";
 
 function Signin() {
   // declare the useState formValues object
@@ -47,6 +49,9 @@ function Signin() {
 
     const formValues = GetFormValues(event);
     console.log(formValues);
+
+    const endpoint = new APIUrl().signinAPI();
+    signIn(endpoint, formValues);
   };
 
   // render output

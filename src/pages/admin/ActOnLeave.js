@@ -11,6 +11,8 @@ import { GetFormValues } from "../../components/form/GetFormValues";
 import { styled } from "@mui/system";
 import { emphasize, createTheme, ThemeProvider } from "@mui/material/styles";
 import HomeIcon from "@mui/icons-material/Home";
+import { validateApproveReject } from "../../components/form/Validations";
+import { useEffect } from "react";
 
 function ActOnLeave() {
   const [empName, setEmpName] = useState("");
@@ -20,6 +22,7 @@ function ActOnLeave() {
   const [attachments, setAttachments] = useState("");
 
   const [formValues, setFormValues] = useState({});
+  const [isError, setIsError] = useState(false);
 
   const theme = createTheme({
     components: { MuiChip: { defaultProps: { color: "error" } } },
@@ -58,9 +61,22 @@ function ActOnLeave() {
     console.info("You clicked a breadcrumb.");
     //nav("/home");
   }
-
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
+
+  const handleValidation = () => {
+    // use your existing validation functions to approval
+    const isOptionValid = validateApproveReject(formValues.approval);
+
+    // Set isError based on the validation results
+    setIsError(isOptionValid !== null);
+  };
+
+  useEffect(() => {
+    handleValidation();
+    // Run the validation when formValues state changes
+  }, [formValues]);
+
   //Set values from the object
   if (!empName && !leaveType && !date && !comments && !attachments) {
     setEmpName("Yagnash Keeka");
@@ -91,6 +107,7 @@ function ActOnLeave() {
             width: "100%",
           }}
         >
+          {/* Breadcrumbs for directing the user to pages */}
           <Breadcrumbs aria-aria-label="breadcrumb">
             <StyledBreadcrumb
               component="a"
@@ -109,50 +126,64 @@ function ActOnLeave() {
           </Breadcrumbs>
           <PaperComponent>
             <Grid container>
+              {/* Shows Employee name */}
               <Grid item xs={4} paddingBottom={"3%"}>
                 <Paragraph text="Employee Names:" fontWeight={"bold"} />
               </Grid>
+              {/* Shows employees name from GET on axios */}
               <Grid item xs={8}>
                 <Paragraph text={empName} fontWeight={"normal"} />
               </Grid>
+              {/* Shows Leave Type */}
               <Grid item xs={4} paddingBottom={"3%"}>
                 <Paragraph text="Leave Type:" fontWeight={"bold"} />
               </Grid>
+              {/* Shows the type of leave from GET on axios */}
               <Grid item xs={8}>
                 <Paragraph text={leaveType} fontWeight={"normal"} />
               </Grid>
+              {/* Shows Date */}
               <Grid item xs={4} paddingBottom={"3%"}>
                 <Paragraph text="Date:" fontWeight={"bold"} />
               </Grid>
+              {/* Shows the date from GET on axios */}
               <Grid item xs={8}>
                 <Paragraph text={date} fontWeight={"normal"} />
               </Grid>
+              {/* Shows Comments */}
               <Grid item xs={4} paddingBottom={"4%"}>
                 <Paragraph text="Comments:" fontWeight={"bold"} />
               </Grid>
+              {/* Shows employees comments from GET on axios */}
               <Grid item xs={8}>
+                {/* sets a scroll box if it exceeds a certain height */}
                 <ScrollComments>
                   <Paragraph text={comments} fontWeight={"normal"} />
                 </ScrollComments>
               </Grid>
+              {/* Shows Attachments */}
               <Grid item xs={4} paddingBottom={"100px"}>
                 <Paragraph text="Attachments:" fontWeight={"bold"} />
               </Grid>
+              {/* Shows employees file attached from GET on axios */}
               <Grid item xs={8}>
                 <Paragraph text={attachments} fontWeight={"normal"} />
               </Grid>
               <Grid item xs={12}>
                 <form onSubmit={handleSubmit}>
                   <Grid>
+                    {/* Maps the dropdown box and TextField  */}
                     <FormFieldMapper
                       formFields={ActOnLeaveConfig.formFields}
                       onChange={handleChange}
                       gridSizes={GridSizes.onbordingFieldSizes}
                     />
                   </Grid>
+                  {/* Submit the approval of leave */}
                   <SubmitButton
                     label={"Act on Leave"}
                     type="submit"
+                    disabled={isError}
                   ></SubmitButton>
                 </form>
               </Grid>
