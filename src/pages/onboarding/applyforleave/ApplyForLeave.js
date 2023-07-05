@@ -9,10 +9,7 @@ import CenteredBox from "../../../ui/CenteredBox";
 import Heading from "../../../ui/Heading";
 import Logo from "../../../ui/Logo";
 import PaperComponent from "../../../ui/Paper";
-import {
-  validateEmail,
-  validatePassword,
-} from "../../../components/form/Validations";
+import { validateSelect } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 
@@ -29,11 +26,11 @@ function ApplyForLeave() {
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
-    const isEmailValid = validateEmail(formValues.email);
-    const isPasswordValid = validatePassword(formValues.password);
+
+    const isSelectValid = validateSelect(formValues.select);
 
     // Set isError based on the validation results
-    setIsError(isEmailValid !== null || isPasswordValid !== null);
+    setIsError(isSelectValid !== null);
   };
 
   useEffect(() => {
@@ -59,6 +56,7 @@ function ApplyForLeave() {
           <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
             <Heading text="Apply For Leave" />
           </Box>
+
           <form onSubmit={handleSubmit}>
             <Grid container>
               <FormFieldMapper
