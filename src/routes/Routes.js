@@ -30,7 +30,7 @@ export default function AppRoutes() {
           <Route path="profile" element={<Profile />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="manage-employees" element={<ManageEmployee />} />
-          <Route path="manage-leave" element={<ManageLeave />} />
+          <Route path="manage-leave" element={<ActOnLeave />} />
           <Route path="manage-leave/act-on-leave" element={<ActOnLeave />} />
           <Route
             path="manage-employees/add-employee"

@@ -11,7 +11,7 @@ import { GetFormValues } from "../../components/form/GetFormValues";
 import { styled } from "@mui/system";
 import { emphasize, createTheme, ThemeProvider } from "@mui/material/styles";
 import HomeIcon from "@mui/icons-material/Home";
-import { validateApproveReject } from "../../components/form/Validations";
+import { validateDropDown } from "../../components/form/Validations";
 import { useEffect } from "react";
 
 function ActOnLeave() {
@@ -66,7 +66,7 @@ function ActOnLeave() {
 
   const handleValidation = () => {
     // use your existing validation functions to approval
-    const isOptionValid = validateApproveReject(formValues.approval);
+    const isOptionValid = validateDropDown(formValues.approval);
 
     // Set isError based on the validation results
     setIsError(isOptionValid !== null);

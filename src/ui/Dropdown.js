@@ -7,7 +7,7 @@ import {
   FormHelperText,
 } from "@mui/material";
 import {
-  validateApproveReject,
+  validateDropDown,
   validateSelect,
 } from "../components/form/Validations";
 
@@ -19,7 +19,7 @@ function Dropdown({ field, onChange }) {
 
   const validationMap = {
     select: validateSelect,
-    approval: validateApproveReject,
+    approval: validateDropDown,
     // Add more validation functions for other input types
   };
 
