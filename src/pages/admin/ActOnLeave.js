@@ -162,11 +162,12 @@ function ActOnLeave() {
                 </ScrollComments>
               </Grid>
               {/* Shows Attachments */}
-              <Grid item xs={4} paddingBottom={"100px"}>
+              <Grid item xs={4} paddingBottom={"4%"}>
                 <Paragraph text="Attachments:" fontWeight={"bold"} />
               </Grid>
               {/* Shows employees file attached from GET on axios */}
-              <Grid item xs={8}>
+              {/* overflowwrap to wrap text */}
+              <Grid item xs={8} sx={{ overflowWrap: "break-word" }}>
                 <Paragraph text={attachments} fontWeight={"normal"} />
               </Grid>
               <Grid item xs={12}>
