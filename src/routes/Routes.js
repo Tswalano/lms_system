@@ -1,7 +1,6 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Home from "../pages/admin/Home";
-import ManageEmployee from "../pages/admin/ManageEmployees";
 import ManageLeave from "../pages/admin/ManageLeave";
 import ActOnLeave from "../pages/admin/ActOnLeave";
 import AddEmployee from "../pages/admin/AddEmployee";
@@ -15,6 +14,8 @@ import ForgotPassword from "../pages/onboarding/forgotpassword/ForgotPassword";
 import ResetPassword from "../pages/onboarding/resetpassword/ResetPassword";
 import VerifyCode from "../pages/onboarding/verificationcode/VerifyCode";
 import Signup from "../pages/onboarding/signup/Signup";
+import ManageEmployees from "../pages/admin/manageEmployees/ManageEmployees";
+import ManageEmployee from "../pages/admin/manageEmployees/ManageEmployee";
 
 export default function AppRoutes() {
   return (
@@ -29,8 +30,9 @@ export default function AppRoutes() {
           <Route path="home" element={<Home />} />
           <Route path="profile" element={<Profile />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="manage-employees" element={<ManageEmployee />} />
-          <Route path="manage-leave" element={<ActOnLeave />} />
+          <Route path="manage-employees" element={<ManageEmployees />} />
+          <Route path="manage-employee" element={<ManageEmployee />} />
+          <Route path="manage-leave" element={<ManageLeave />} />
           <Route path="manage-leave/act-on-leave" element={<ActOnLeave />} />
           <Route
             path="manage-employees/add-employee"

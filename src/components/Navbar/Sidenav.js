@@ -96,7 +96,7 @@ export default function Sidenav({ menuItems }) {
   const [open, setOpen] = React.useState(false);
   const [isFirstTime, setIsFirsTime] = React.useState(true);
   // set user role
-  const [isRoleAdmin, setUserRole] = React.useState(true);
+  const isRoleAdmin = true; //sessionStorage.getItem("isRoleAdmin");
   const navigate = useNavigate();
 
   const handleDrawerOpen = () => {
@@ -108,7 +108,7 @@ export default function Sidenav({ menuItems }) {
   };
 
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={{ display: "flex", flex: "100%" }}>
       <CssBaseline />
       <AppBar position="fixed" open={open} sx={{ background: "white" }}>
         <Toolbar>

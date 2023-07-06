@@ -79,7 +79,7 @@ function VerifyCode() {
               fontWeight="normal"
             />
           </Box>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} autocomplete="off">
             <Grid container>
               <FormFieldMapper
                 formFields={VerifyCodeConfig.formFields}
