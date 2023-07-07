@@ -9,7 +9,7 @@ import CenteredBox from "../../../ui/CenteredBox";
 import Heading from "../../../ui/Heading";
 import Logo from "../../../ui/Logo";
 import PaperComponent from "../../../ui/Paper";
-import { validateSelect } from "../../../components/form/Validations";
+import { validateDropDown } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 
@@ -27,7 +27,10 @@ function ApplyForLeave() {
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
 
-    const isSelectValid = validateSelect(formValues.select);
+    const isSelectValid = validateDropDown(
+      formValues.LeaveType,
+      formValues.leaveLength
+    );
 
     // Set isError based on the validation results
     setIsError(isSelectValid !== null);

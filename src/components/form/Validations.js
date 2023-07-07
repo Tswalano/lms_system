@@ -49,6 +49,14 @@ export const validateSelect = (value) => {
   return null;
 };
 
+export const validateDropDown = (value) => {
+  if (!value || value === "Select option") {
+    return "Please select an option to either Approve/Deny the request";
+  }
+
+  return null;
+};
+
 export const validatePhone = (value) => {
   const phonePattern = /^(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/;
   if (!phonePattern.test(value)) {

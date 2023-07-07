@@ -2,7 +2,7 @@ const ApplyForLeaveForm = {
   formFields: [
     {
       label: "Leave Type",
-      name: "Leave Type",
+      name: "LeaveType",
       type: "select",
       options: [
         { value: "Sick Leave", labelText: "Sick Leave" },
@@ -13,11 +13,11 @@ const ApplyForLeaveForm = {
         { value: "Paternity Leave", labelText: "Paternity Leave" },
       ],
     },
-    { label: "Start Date", name: "Start Date", type: "date" },
-    { label: "End Date", name: "End Date", type: "date" },
+    { label: "Start Date", name: "startDate", type: "date" },
+    { label: "End Date", name: "endDate", type: "date" },
     {
       label: "Leave Length",
-      name: "Leave Length",
+      name: "leaveLength",
       type: "select",
       options: [
         { value: "Half Day", labelText: "Half Day" },
