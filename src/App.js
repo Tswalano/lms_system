@@ -5,7 +5,7 @@ import Grid from "@mui/material/Grid";
 
 function App() {
   // set user role
-  const isRoleAdmin = true;
+  const isRoleAdmin = true; //sessionStorage.getItem("isRoleAdmin");
 
   return (
     <>

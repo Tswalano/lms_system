@@ -17,6 +17,7 @@ import {
 import ResetPasswordForm from "./ResetPasswordConfig";
 import { GridSizes } from "../../../components/form/GridSizes";
 import Paragraph from "../../../ui/Paragraph";
+import Link from "@mui/material/Link";
 
 // get the email from the storage session
 const email = sessionStorage.getItem("email");
@@ -54,6 +55,12 @@ function ResetPassword() {
     // Run the validation when formValues state changes
   }, [formValues]);
 
+  // handle send new code request
+  const sendNewCode = () => {
+    alert("request");
+    //
+  };
+
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -85,7 +92,7 @@ function ResetPassword() {
               fontWeight="normal"
             />
           </Box>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} autocomplete="off">
             <Grid container>
               <FormFieldMapper
                 formFields={ResetPasswordForm.formFields}
@@ -99,6 +106,12 @@ function ResetPassword() {
               />
             </Grid>
           </form>
+          <Grid container sx={{ paddingTop: "20px" }}>
+            <Paragraph text="Didn't receive a code? &nbsp;" />
+            <Link onClick={sendNewCode} href="" underline="none">
+              Send a new code
+            </Link>
+          </Grid>
         </PaperComponent>
       </Box>
     </CenteredBox>
