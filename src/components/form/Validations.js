@@ -71,6 +71,20 @@ export const validateDropDown = (value) => {
   if (!value || value === "Select option") {
     return "Please select an option to either Approve/Deny the request";
   }
+};
+export const validateDate = (value) => {
+  if (!value) {
+    return "Date is required.";
+  }
+
+  const selectedDate = new Date(value);
+  const currentDate = new Date();
+  currentDate.setHours(0, 0, 0, 0); // Set the time to the beginning of the day
+
+  if (selectedDate < currentDate) {
+    return "Selected date cannot be before today.";
+  }
+
   return null;
 };
 
