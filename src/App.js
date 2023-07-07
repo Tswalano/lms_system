@@ -6,7 +6,8 @@ import ApplyForLeave from "./pages/onboarding/applyforleave/ApplyForLeave";
 
 function App() {
   // set user role
-  const isRoleAdmin = false;
+
+  const isRoleAdmin = false; //sessionStorage.getItem("isRoleAdmin");
 
   return (
     <>

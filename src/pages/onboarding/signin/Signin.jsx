@@ -15,8 +15,14 @@ import {
   validatePassword,
 } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
+import { login, postFormData } from "../../../api/API";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 function Signin() {
+  // create a useNavigate hook
+  const navigate = useNavigate();
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
 
@@ -46,7 +52,79 @@ function Signin() {
     event.preventDefault();
 
     const formValues = GetFormValues(event);
-    console.log(formValues);
+    //console.log(formValues);
+
+    try {
+      const endPoint = new APIEndPoints().signinAPI();
+
+      //axios.post(endPoint, formValues).then((response) => {
+      //return response;
+
+      const response = await login(endPoint, formValues);
+      console.log(response.data);
+
+      if (response === 200) {
+        //
+        const token = response.data.token;
+        sessionStorage.setItem("token", token);
+        //
+        sessionStorage.setItem("isAuthenticated", true);
+        //
+        if (response.data.user["role"] === "admin") {
+          sessionStorage.setItem("isRoleAdmin", true);
+        } else {
+          sessionStorage.setItem("isRoleAdmin", false);
+        }
+        //
+        if (response.data.userProfileStatus === false) {
+          // route user to profile page
+          navigate("/profile");
+        } else {
+          // route user to dashboard
+          navigate("/");
+        }
+      } else if (response.status === 400) {
+        //
+        sessionStorage.setItem("isAuthenticated", false);
+        alert(response.data.message);
+      } else if (response.status === 401) {
+        //
+        sessionStorage.setItem("isAuthenticated", false);
+        alert(response.data.message);
+      } else if (response.status === 404) {
+        //
+        sessionStorage.setItem("isAuthenticated", false);
+        alert(response.data.message);
+      } else if (response.status === 400) {
+        //
+        sessionStorage.setItem("isAuthenticated", false);
+        alert(response.data.message);
+      }
+      //});
+      //
+    } catch (error) {
+      //console.log(error + " gergnerjg j wnfjuwnf wefnew fbweub");
+      if (error.response.status === 400) {
+        //
+        sessionStorage.setItem("isAuthenticated", false);
+        alert(error.response.data.message);
+      }
+      if (error.response.status === 401) {
+        //
+        sessionStorage.setItem("isAuthenticated", false);
+        alert(error.response.data.message);
+      }
+      if (error.response.status === 404) {
+        //
+        sessionStorage.setItem("isAuthenticated", false);
+        alert(error.response.data.message);
+      }
+      if (error.response.status === 400) {
+        //
+        sessionStorage.setItem("isAuthenticated", false);
+        alert(error.response.data.message);
+      }
+    }
   };
 
   // render output
@@ -59,7 +137,7 @@ function Signin() {
           <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
             <Heading text="Sign in to your account" />
           </Box>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} autocomplete="off">
             <Grid container>
               <FormFieldMapper
                 formFields={SigninForm.formFields}

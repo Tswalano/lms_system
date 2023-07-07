@@ -14,13 +14,13 @@ import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 import { validateStartDate } from "../../../components/form/Validations";
 import { validateEndDate } from "../../../components/form/Validations";
-
+//import { validateDate } from "../../../components/form/Validations";
+//import { DatePicker } from "@mui/x-date-pickers";
+import DatePicker from "../../../ui/DatePicker";
 
 function ApplyForLeave() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
-  
-  
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
@@ -34,15 +34,15 @@ function ApplyForLeave() {
     const isSelectValid = validateDropDown(
       formValues.LeaveType,
       formValues.leaveLength
-      
     );
     const isStartDate = validateStartDate(formValues.startDate);
     const isEndDate = validateEndDate(formValues.endDate);
+    // const isDate = validateDate(formValues.Date)
 
     // Set isError based on the validation results
-    setIsError(isSelectValid !== null ||isStartDate !==null||isEndDate !==null);
-    
-    
+    setIsError(
+      isSelectValid !== null || isStartDate !== null || isEndDate !== null
+    );
   };
 
   useEffect(() => {
