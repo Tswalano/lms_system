@@ -19,10 +19,6 @@ function ApplyForLeave() {
   const [formValues, setFormValues] = useState({});
   const [startDate, setStartDate] = useState("");
 
-  const handleDateSelect = (date) => {
-    setSelectedDate(date);
-  };
-
   const MyForm = () => {
     const [error, setError] = useState("");
 
