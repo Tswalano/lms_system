@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Home from "../pages/admin/Home";
 import ManageLeave from "../pages/admin/ManageLeave";
 import ActOnLeave from "../pages/admin/ActOnLeave";
-import AddEmployee from "../pages/admin/AddEmployee";
 import App from "../App";
 import { Grid } from "@mui/material";
 import Dashboard from "../pages/user/Dashboard";
@@ -16,6 +15,7 @@ import VerifyCode from "../pages/onboarding/verificationcode/VerifyCode";
 import Signup from "../pages/onboarding/signup/Signup";
 import ManageEmployees from "../pages/admin/manageEmployees/ManageEmployees";
 import ManageEmployee from "../pages/admin/manageEmployees/ManageEmployee";
+import AddEmployee from "../pages/admin/AdminAddEmployees/AddEmployee";
 
 export default function AppRoutes() {
   return (
@@ -32,6 +32,7 @@ export default function AppRoutes() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="manage-employees" element={<ManageEmployees />} />
           <Route path="manage-employee" element={<ManageEmployee />} />
+          <Route path="add-employee" element={<AddEmployee />} />
           <Route path="manage-leave" element={<ManageLeave />} />
           <Route path="manage-leave/act-on-leave" element={<ActOnLeave />} />
           <Route
