@@ -67,15 +67,13 @@ function AddEmployee() {
                 onChange={handleChange}
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
+              </Grid>
               <SubmitButton
                 disabled={isError}
                 label="Add Employee"
                 type="submit"
-              />
-              <Box sx={{ textAlign: "right", marginBottom: "80px" }}></Box>
-            </Grid>
+              />     
           </form>
-          <Box sx={{ textAlign: "right", marginBottom: "15%" }}></Box>
         </PaperComponent>
       </Box>
     </Grid>
