@@ -13,28 +13,20 @@ import { validateDropDown } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 import { validateStartDate } from "../../../components/form/Validations";
+import { validateEndDate } from "../../../components/form/Validations";
+
 
 function ApplyForLeave() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
-  const [startDate, setStartDate] = useState("");
-
-  const MyForm = () => {
-    const [error, setError] = useState("");
-
-    // Validation passed, do something with the start date
-    console.log(startDate);
-
-    // Reset form fields and error
-    setStartDate("");
-    setError("");
-  };
+  
+  
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
 
   // State to track form field error
-  const [isError, setIsError] = useState(false);
+  const [isError, setIsError] = useState(true);
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
@@ -42,12 +34,15 @@ function ApplyForLeave() {
     const isSelectValid = validateDropDown(
       formValues.LeaveType,
       formValues.leaveLength
+      
     );
-    const isStartDate = validateStartDate(formValues.date);
+    const isStartDate = validateStartDate(formValues.startDate);
+    const isEndDate = validateEndDate(formValues.endDate);
 
     // Set isError based on the validation results
-    setIsError(isSelectValid !== null);
-    setIsError(isStartDate !== null);
+    setIsError(isSelectValid !== null ||isStartDate !==null||isEndDate !==null);
+    
+    
   };
 
   useEffect(() => {

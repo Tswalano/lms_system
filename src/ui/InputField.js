@@ -7,6 +7,8 @@ import {
   validateCode,
   validatePhone,
   validateText,
+  validateStartDate,
+  validateEndDate,
 } from "../components/form/Validations";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -35,6 +37,8 @@ function Input({ field, onChange }) {
     firstName: validateText,
     lastName: validateText,
     jobTitle: validateText,
+    startDate: validateStartDate,
+    endDate: validateEndDate
 
     // Add more validation functions for other input fields
   };
