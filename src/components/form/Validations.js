@@ -71,7 +71,9 @@ export const validateDropDown = (value) => {
   if (!value || value === "Select option") {
     return "Please select an option to either Approve/Deny the request";
   }
+  return null;
 };
+
 export const validateDate = (value) => {
   if (!value) {
     return "Date is required.";
