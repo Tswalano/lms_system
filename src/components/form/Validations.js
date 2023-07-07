@@ -49,11 +49,17 @@ export const validateSelect = (value) => {
   return null;
 };
 
-export const validateDropDown = (value) => {
-  if (!value || value === "Select option") {
-    return "Please select an option to either Approve/Deny the request";
+export const validateStartDate = (value) => {
+  if (value === "") {
+    return "Please select your leave start date.";
   }
+  return null;
+};
 
+export const validateEndDate = (value) => {
+  if (value === "") {
+    return "Please select your leave end date.";
+  }
   return null;
 };
 
@@ -63,6 +69,14 @@ export const validatePhone = (value) => {
     return "Invalid phone number.";
   }
   return null; // No error
+};
+
+export const validateDropDown = (value) => {
+  if (!value || value === "Select option") {
+    return "Please select an option to either Approve/Deny the request";
+  }
+
+  return null;
 };
 
 export const validateText = (value) => {
