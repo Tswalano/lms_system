@@ -7,6 +7,7 @@ import { validateDate } from "../components/form/Validations";
 
 const validationMap = {
   date: validateDate,
+  endDate: validateDate,
   // Add the validation function for the date field
   // Add more validation functions for other input types
 };

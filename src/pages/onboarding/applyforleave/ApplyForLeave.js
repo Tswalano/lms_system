@@ -12,6 +12,9 @@ import PaperComponent from "../../../ui/Paper";
 import { validateDropDown } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
+import DatePicker from "../../../ui/DatePicker";
+import { validateDate } from "../../../components/form/Validations";
+
 
 function ApplyForLeave() {
   // declare the useState formValues object
@@ -21,19 +24,22 @@ function ApplyForLeave() {
   const handleChange = handleFieldChange(setFormValues);
 
   // State to track form field error
-  const [isError, setIsError] = useState(false);
+  const [isError, setIsError] = useState(true);
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
-
     const isSelectValid = validateDropDown(
       formValues.LeaveType,
       formValues.leaveLength
     );
 
+    const isDate = validateDate(formValues.date);
+    const isEndDate = validateDate(formValues.endDate);
+    // const isDate = validateDate(formValues.Date)
+
     // Set isError based on the validation results
-    setIsError(isSelectValid !== null);
+    setIsError(isSelectValid !== null || isDate !== null || isEndDate !== null);
   };
 
   useEffect(() => {
@@ -46,7 +52,6 @@ function ApplyForLeave() {
     event.preventDefault();
 
     const formValues = GetFormValues(event);
-    console.log(formValues);
   };
 
   // render output

@@ -49,12 +49,27 @@ export const validateSelect = (value) => {
   return null;
 };
 
+export const validateEndDate = (value) => {
+  if (!value) {
+    return "Please select your leave end date.";
+  }
+  return null;
+};
+
 export const validatePhone = (value) => {
   const phonePattern = /^(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/;
   if (!phonePattern.test(value)) {
     return "Invalid phone number.";
   }
   return null; // No error
+};
+
+export const validateDropDown = (value) => {
+  if (!value || value === "Select option") {
+    return "Please select an option from the list";
+  }
+
+  return null;
 };
 
 export const validateText = (value) => {
@@ -66,13 +81,7 @@ export const validateText = (value) => {
   return null; // No error
 };
 
-// Validates the Dropdownbox on ActOnLeave Page
-export const validateDropDown = (value) => {
-  if (!value || value === "Select option") {
-    return "Please select an option to either Approve/Deny the request";
-  }
-  return null;
-};
+
 
 export const validateDate = (value) => {
   if (!value) {
