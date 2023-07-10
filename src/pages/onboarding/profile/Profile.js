@@ -8,7 +8,7 @@ import {
   validateText,
 } from "../../../components/form/Validations";
 import { useEffect } from "react";
-import { Box, Button, Grid } from "@mui/material";
+import { Box, Grid } from "@mui/material";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import ProfileConfig from "./ProfileConfig";
 import { GridSizes } from "../../../components/form/GridSizes";
@@ -58,15 +58,10 @@ function Profile() {
   };
 
   return (
-    <Grid container>
+    <Box sx={{ width: "100%" }}>
       <PaperComponent>
         <Box sx={{ textAlign: "left" }}>
           <Heading text="Profile" />
-        </Box>
-        <Box sx={{ textAlign: "right", marginBottom: "20px" }}>
-          <Button color="primary" variant="contained" sx={{ color: "#fff" }}>
-            Change Password
-          </Button>
         </Box>
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
@@ -75,9 +70,7 @@ function Profile() {
               onChange={handleChange}
               gridSizes={GridSizes.dashboardFieldSizes}
             />
-            <Grid item xs={12} sm={12} md={6} lg={6} xl={6}></Grid>
-            <Grid item xs={12} sm={12} md={6} lg={6} xl={6}></Grid>
-            <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
+            <Grid item xs={12} sm={12} md={12}>
               <SubmitButton
                 disabled={isError}
                 label="Save Profile"
@@ -87,7 +80,7 @@ function Profile() {
           </Grid>
         </form>
       </PaperComponent>
-    </Grid>
+    </Box>
   );
 }
 
