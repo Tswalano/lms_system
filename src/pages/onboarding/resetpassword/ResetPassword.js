@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
-import SubmitButton from "../../../ui/Button";
+import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { Box, Grid } from "@mui/material";
-import CenteredBox from "../../../ui/CenteredBox";
-import Heading from "../../../ui/Heading";
-import Logo from "../../../ui/Logo";
-import PaperComponent from "../../../ui/Paper";
+import CenteredBox from "../../../components/ui/CenteredBox";
+import Heading from "../../../components/ui/Heading";
+import Logo from "../../../components/ui/Logo";
+import PaperComponent from "../../../components/ui/Paper";
 import {
   validateCode,
   validatePassword,
@@ -16,7 +16,7 @@ import {
 } from "../../../components/form/Validations";
 import ResetPasswordForm from "./ResetPasswordConfig";
 import { GridSizes } from "../../../components/form/GridSizes";
-import Paragraph from "../../../ui/Paragraph";
+import Paragraph from "../../../components/ui/Paragraph";
 import Link from "@mui/material/Link";
 
 // get the email from the storage session

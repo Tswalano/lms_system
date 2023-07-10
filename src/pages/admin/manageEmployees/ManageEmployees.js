@@ -1,11 +1,11 @@
 import { Box, Button, Grid, Link } from "@mui/material";
 import React from "react";
-import Heading from "../../../ui/Heading";
 import TableComponent from "../../../components/table/TableComponent";
 import EmployeesTable from "./EmployeesTableConfig";
 import { useNavigate } from "react-router-dom";
-import PaperComponent from "../../../ui/Paper";
-import Paragraph from "../../../ui/Paragraph";
+import Heading from "../../../components/ui/Heading";
+import PaperComponent from "../../../components/ui/Paper";
+import Paragraph from "../../../components/ui/Paragraph";
 
 function ManageEmployees() {
   // create a navigate hook
@@ -157,7 +157,7 @@ function ManageEmployees() {
       <Grid item xs={12}>
         <br />
         <br />
-        <Paragraph text="Employee's Table" fontWeight="bold" />
+        <Paragraph text="Employees Table" fontWeight="bold" />
         <br />
         <TableComponent
           columnsData={EmployeesTable.columnsData}

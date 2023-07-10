@@ -12,7 +12,7 @@ import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
-import Logo from "../../ui/Logo";
+import Logo from "../ui/Logo";
 import { Grid } from "@mui/material";
 import Home from "../../pages/admin/Home";
 import { Outlet, useNavigate } from "react-router-dom";

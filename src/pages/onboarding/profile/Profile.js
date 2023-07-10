@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import PaperComponent from "../../../ui/Paper";
+import PaperComponent from "../../../components/ui/Paper";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import {
@@ -12,8 +12,8 @@ import { Box, Button, Grid } from "@mui/material";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import ProfileForm from "./ProfileConfig";
 import { GridSizes } from "../../../components/form/GridSizes";
-import SubmitButton from "../../../ui/Button";
-import Heading from "../../../ui/Heading";
+import SubmitButton from "../../../components/ui/Button";
+import Heading from "../../../components/ui/Heading";
 
 function Profile() {
   // declare the useState formValues object

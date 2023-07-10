@@ -1,6 +1,6 @@
 import { Grid } from "@mui/material";
 import React from "react";
-import Heading from "../../ui/Heading";
+import Heading from "../../components/ui/Heading";
 
 function ApplyForLeave() {
   return (

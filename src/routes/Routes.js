@@ -15,7 +15,7 @@ import ResetPassword from "../pages/onboarding/resetpassword/ResetPassword";
 import VerifyCode from "../pages/onboarding/verificationcode/VerifyCode";
 import Signup from "../pages/onboarding/signup/Signup";
 import ManageEmployees from "../pages/admin/manageEmployees/ManageEmployees";
-import ManageEmployee from "../pages/admin/manageEmployees/ManageEmployee";
+import Employee from "../pages/admin/manageEmployees/Employee";
 
 export default function AppRoutes() {
   return (
@@ -31,7 +31,7 @@ export default function AppRoutes() {
           <Route path="profile" element={<Profile />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="manage-employees" element={<ManageEmployees />} />
-          <Route path="manage-employee" element={<ManageEmployee />} />
+          <Route path="employee" element={<Employee />} />
           <Route path="manage-leave" element={<ManageLeave />} />
           <Route path="manage-leave/act-on-leave" element={<ActOnLeave />} />
           <Route

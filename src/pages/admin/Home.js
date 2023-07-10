@@ -1,5 +1,5 @@
 import React from "react";
-import Heading from "../../ui/Heading";
+import Heading from "../../components/ui/Heading";
 import { Paper } from "@mui/material";
 
 function Home() {

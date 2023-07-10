@@ -1,6 +1,6 @@
 import React from "react";
-import Dropdown from "../../ui/Dropdown";
-import Input from "../../ui/InputField";
+import Dropdown from "../ui/Dropdown";
+import Input from "../ui/InputField";
 import { Grid } from "@mui/material";
 
 const FormFieldMapper = ({ formFields, onChange, gridSizes }) => {
