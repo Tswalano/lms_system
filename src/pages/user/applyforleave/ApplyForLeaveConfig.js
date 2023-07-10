@@ -13,8 +13,6 @@ const ApplyForLeaveForm = {
         { value: "Paternity Leave", labelText: "Paternity Leave" },
       ],
     },
-    { label: "Start Date", name: "date", type: "date" },
-    { label: "End Date", name: "endDate", type: "date" },
     {
       label: "Leave Length",
       name: "leaveLength",
@@ -24,6 +22,9 @@ const ApplyForLeaveForm = {
         { value: "Full Day", labelText: "Full Day" },
       ],
     },
+    { label: "Start Date", name: "date", type: "date" },
+    { label: "End Date", name: "endDate", type: "date" },
+
     { label: "Comment", name: "Comment", type: "text" },
     { label: "", name: "Upload File", type: "file" },
   ],
