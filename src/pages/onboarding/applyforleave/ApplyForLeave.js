@@ -12,10 +12,6 @@ import PaperComponent from "../../../ui/Paper";
 import { validateDropDown } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
-import { validateStartDate } from "../../../components/form/Validations";
-import { validateEndDate } from "../../../components/form/Validations";
-//import { validateDate } from "../../../components/form/Validations";
-//import { DatePicker } from "@mui/x-date-pickers";
 import DatePicker from "../../../ui/DatePicker";
 import { validateDate } from "../../../components/form/Validations";
 
@@ -36,7 +32,7 @@ function ApplyForLeave() {
       formValues.LeaveType,
       formValues.leaveLength
     );
-    const isStartDate = validateStartDate(formValues.startDate);
+
     const isDate = validateDate(formValues.date);
     const isEndDate = validateDate(formValues.endDate);
     // const isDate = validateDate(formValues.Date)
@@ -55,7 +51,6 @@ function ApplyForLeave() {
     event.preventDefault();
 
     const formValues = GetFormValues(event);
-    console.log(formValues);
   };
 
   // render output
