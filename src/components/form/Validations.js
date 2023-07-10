@@ -75,12 +75,9 @@ export const validateDropDown = (value) => {
 export const validateText = (value) => {
   if (!value) {
     return "Field required.";
-  
   }
   return null; // No error
 };
-
-
 
 export const validateDate = (value) => {
   if (!value) {

@@ -3,7 +3,7 @@ import { TextField, FormHelperText, FormControl } from "@mui/material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { validateDate } from "../components/form/Validations";
+import { validateDate } from "../form/Validations";
 
 const validationMap = {
   date: validateDate,

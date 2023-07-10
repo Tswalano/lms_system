@@ -1,10 +1,10 @@
 import { Box, Grid } from "@mui/material";
 import React, { useState } from "react";
-import PaperComponent from "../../../ui/Paper";
-import Paragraph from "../../../ui/Paragraph";
-import SubmitButton from "../../../ui/Button";
-import Heading from "../../../ui/Heading";
-import CenteredBox from "../../../ui/CenteredBox";
+import PaperComponent from "../../../components/ui/Paper";
+import Paragraph from "../../../components/ui/Paragraph";
+import SubmitButton from "../../../components/ui/Button";
+import Heading from "../../../components/ui/Heading";
+import CenteredBox from "../../../components/ui/CenteredBox";
 
 const ProfileSummary = () => {
   const [firstName, setFirstName] = useState("1");

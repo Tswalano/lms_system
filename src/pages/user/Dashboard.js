@@ -1,5 +1,5 @@
 import React from "react";
-import Heading from "../../ui/Heading";
+import Heading from "../../components/ui/Heading";
 import { Box, Grid } from "@mui/material";
 
 function Dashboard() {

@@ -1,8 +1,8 @@
 import React from "react";
-import Dropdown from "../../ui/Dropdown";
-import Input from "../../ui/InputField";
+import Dropdown from "../ui/Dropdown";
+import Input from "../ui/InputField";
 import { Grid } from "@mui/material";
-import DatePicker from "../../ui/DatePicker";
+import DatePicker from "../ui/DatePicker";
 
 const FormFieldMapper = ({ formFields, onChange, gridSizes }) => {
   const { xs, sm, md, lg, xl } = gridSizes;

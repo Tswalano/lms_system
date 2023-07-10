@@ -9,7 +9,7 @@ import {
   validateText,
   validateDate,
   validateEndDate,
-} from "../components/form/Validations";
+} from "../form/Validations";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import Visibility from "@mui/icons-material/Visibility";

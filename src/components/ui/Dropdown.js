@@ -6,15 +6,12 @@ import {
   MenuItem,
   FormHelperText,
 } from "@mui/material";
-import {
-  validateDropDown,
-  validateSelect,
-} from "../components/form/Validations";
+import { validateDropDown, validateSelect } from "../form/Validations";
 
 function Dropdown({ field, onChange }) {
   const [defaultErrorMessage, setDefaultError] = useState("");
   const [selectedValue, setSelectedValue] = useState("");
-  const {label, name, type, options } = field;
+  const { label, name, type, options } = field;
   //const menuOptions = Array.isArray(field.options) ? field.options : [];
 
   const validationMap = {

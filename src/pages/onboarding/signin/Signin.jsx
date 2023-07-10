@@ -1,15 +1,15 @@
 import React, { useState } from "react";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
-import SubmitButton from "../../../ui/Button";
+import SubmitButton from "../../../components/ui/Button";
 import SigninForm from "./FormConfig";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { Box, Grid } from "@mui/material";
-import CenteredBox from "../../../ui/CenteredBox";
-import Heading from "../../../ui/Heading";
-import Logo from "../../../ui/Logo";
-import PaperComponent from "../../../ui/Paper";
+import CenteredBox from "../../../components/ui/CenteredBox";
+import Heading from "../../../components/ui/Heading";
+import Logo from "../../../components/ui/Logo";
+import PaperComponent from "../../../components/ui/Paper";
 import {
   validateEmail,
   validatePassword,

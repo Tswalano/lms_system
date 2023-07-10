@@ -1,12 +1,10 @@
-import {Grid } from "@mui/material";
+import { Grid } from "@mui/material";
 import React from "react";
-import Paragraph from "../../../ui/Paragraph";
+import Paragraph from "../../../components/ui/Paragraph";
 import { Link, useNavigate } from "react-router-dom";
 import TableComponent from "../../../components/table/TableComponent";
-import {ManageActiveLeave, ManageLeaveConfig} from "./ManageLeaveConfig";
-import PaperComponent from "../../../ui/Paper";
-
-
+import { ManageActiveLeave, ManageLeaveConfig } from "./ManageLeaveConfig";
+import PaperComponent from "../../../components/ui/Paper";
 
 function ManageLeave() {
   const navigate = useNavigate("");
@@ -14,7 +12,7 @@ function ManageLeave() {
   const viewUser = (id) => {
     navigate("/manage-employee?id=" + id);
   };
-      const rowsData = [
+  const rowsData = [
     {
       Employee_ID: "1",
       name: "Phil",
@@ -142,11 +140,11 @@ function ManageLeave() {
       <Grid item xs={12}>
         <PaperComponent>
           <Paragraph text="Leave Requests" fontWeight="bold" />
-        <br />
-        <TableComponent
-          columnsData={ManageLeaveConfig.columnsData}
-          rowsData={rowsData}
-        />
+          <br />
+          <TableComponent
+            columnsData={ManageLeaveConfig.columnsData}
+            rowsData={rowsData}
+          />
         </PaperComponent>
       </Grid>
 

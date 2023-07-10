@@ -1,20 +1,19 @@
 import React, { useState } from "react";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
-import SubmitButton from "../../../ui/Button";
+import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { Box, Grid } from "@mui/material";
-import CenteredBox from "../../../ui/CenteredBox";
-import Heading from "../../../ui/Heading";
-import Logo from "../../../ui/Logo";
-import PaperComponent from "../../../ui/Paper";
+import CenteredBox from "../../../components/ui/CenteredBox";
+import Heading from "../../../components/ui/Heading";
+import Logo from "../../../components/ui/Logo";
+import PaperComponent from "../../../components/ui/Paper";
 import { validateDropDown } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
-import DatePicker from "../../../ui/DatePicker";
+import DatePicker from "../../../components/ui/DatePicker";
 import { validateDate } from "../../../components/form/Validations";
-
 
 function ApplyForLeave() {
   // declare the useState formValues object
@@ -56,32 +55,28 @@ function ApplyForLeave() {
 
   // render output
   return (
-    <CenteredBox>
-      <Box sx={{ maxWidth: "600px" }}>
-        <Logo width="35%" />
-        <br />
-        <PaperComponent>
-          <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
-            <Heading text="Apply For Leave" />
-          </Box>
-
-          <form onSubmit={handleSubmit}>
-            <Grid container>
-              <FormFieldMapper
-                formFields={ApplyForLeaveForm.formFields}
-                onChange={handleChange}
-                gridSizes={GridSizes.onbordingFieldSizes}
-              />
-              <SubmitButton
-                disabled={isError}
-                label="Apply For Leave"
-                type="submit"
-              />
-            </Grid>
-          </form>
-        </PaperComponent>
+    <Grid container>
+      <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
+        <Heading text="Apply For Leave" />
       </Box>
-    </CenteredBox>
+
+      <form onSubmit={handleSubmit}>
+        <Grid container spacing={2}>
+          <FormFieldMapper
+            formFields={ApplyForLeaveForm.formFields}
+            onChange={handleChange}
+            gridSizes={GridSizes.dashboardFieldSizes}
+          />
+          <Grid item xs={12} sm={12} md={12}>
+            <SubmitButton
+              disabled={isError}
+              label="Apply For Leave"
+              type="submit"
+            />
+          </Grid>
+        </Grid>
+      </form>
+    </Grid>
   );
 }
 

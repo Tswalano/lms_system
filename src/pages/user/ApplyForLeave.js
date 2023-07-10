@@ -6,9 +6,9 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import FormControl from "@mui/material/FormControl";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
 import { TextField } from "@mui/material";
-import Heading from "../../ui/Heading";
-import Dropdown from "../../ui/Dropdown";
-import SubmitButton from "../../ui/Button";
+import Heading from "../../components/ui/Heading";
+import Dropdown from "../../components/ui/Dropdown";
+import SubmitButton from "../../components/ui/Button";
 
 const LeaveForm = () => {
   const [selectedDate, setSelectedDate] = useState(null);

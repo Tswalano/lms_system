@@ -1,7 +1,7 @@
 import { Grid } from "@mui/material";
 import React from "react";
-import Heading from "../../ui/Heading";
-import Sidenav from "../Navbar/Sidenav"
+import Heading from "../../components/ui/Heading";
+import Sidenav from "../navbar/Sidenav";
 
 function ManageEmployee() {
   return (

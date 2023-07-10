@@ -1,8 +1,8 @@
 import { React, useState } from "react";
-import PaperComponent from "../../../ui/Paper";
+import PaperComponent from "../../../components/ui/Paper";
 import { Box, Grid, Breadcrumbs, Chip } from "@mui/material";
-import Paragraph from "../../../ui/Paragraph";
-import SubmitButton from "../../../ui/Button";
+import Paragraph from "../../../components/ui/Paragraph";
+import SubmitButton from "../../../components/ui/Button";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import ActOnLeaveConfig from "./ActOnLeaveConfig";
 import { GridSizes } from "../../../components/form/GridSizes";

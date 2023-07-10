@@ -1,11 +1,11 @@
 import { Box, Button, Grid, Link } from "@mui/material";
 import React from "react";
-import Heading from "../../../ui/Heading";
+import Heading from "../../../components/ui/Heading";
 import TableComponent from "../../../components/table/TableComponent";
 import EmployeesTableConfig from "./EmployeesTableConfig";
 import { useNavigate } from "react-router-dom";
-import PaperComponent from "../../../ui/Paper";
-import Paragraph from "../../../ui/Paragraph";
+import PaperComponent from "../../../components/ui/Paper";
+import Paragraph from "../../../components/ui/Paragraph";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 
 function ManageEmployees() {

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import PaperComponent from "../../../ui/Paper";
+import PaperComponent from "../../../components/ui/Paper";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { validateText } from "../../../components/form/Validations";
@@ -7,10 +7,10 @@ import { useEffect } from "react";
 import { Box, Grid } from "@mui/material";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import { GridSizes } from "../../../components/form/GridSizes";
-import SubmitButton from "../../../ui/Button";
-import Heading from "../../../ui/Heading";
+import SubmitButton from "../../../components/ui/Button";
+import Heading from "../../../components/ui/Heading";
 import AddEmployeeConfig from "./AddEmployeeConfig";
-import Paragraph from "../../../ui/Paragraph";
+import Paragraph from "../../../components/ui/Paragraph";
 
 function AddEmployee() {
   // declare the useState formValues object

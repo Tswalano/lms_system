@@ -25,7 +25,7 @@ const ApplyForLeaveForm = {
       ],
     },
     { label: "Comment", name: "Comment", type: "text" },
-    { label: "Upload File", name: "Upload File", type: "file" },
+    { label: "", name: "Upload File", type: "file" },
   ],
 };
 
