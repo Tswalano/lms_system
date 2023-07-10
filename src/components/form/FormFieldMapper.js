@@ -2,9 +2,9 @@ import React from "react";
 import Dropdown from "../ui/Dropdown";
 import Input from "../ui/InputField";
 import { Grid } from "@mui/material";
+import DatePicker from "../ui/DatePicker";
 
 const FormFieldMapper = ({ formFields, onChange, gridSizes }) => {
-  // declare grid size variables
   const { xs, sm, md, lg, xl } = gridSizes;
 
   const handleFieldChange = (fieldName, value) => {
@@ -19,6 +19,14 @@ const FormFieldMapper = ({ formFields, onChange, gridSizes }) => {
             <Dropdown
               field={field}
               options={field.options}
+              onChange={(value) => handleFieldChange(field.name, value)}
+            />
+          </Grid>
+        ) : field.type === "date" ? (
+          <Grid item xs={xs} sm={sm} md={md} lg={lg} xl={xl} key={index}>
+            <DatePicker
+              label={field.label}
+              value={field.value}
               onChange={(value) => handleFieldChange(field.name, value)}
             />
           </Grid>

@@ -2,20 +2,17 @@ import React, { useState } from "react";
 import PaperComponent from "../../../components/ui/Paper";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
-import {
-  validateEmail,
-  validatePhone,
-  validateText,
-} from "../../../components/form/Validations";
+import { validateText } from "../../../components/form/Validations";
 import { useEffect } from "react";
 import { Box, Grid } from "@mui/material";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
-import ProfileConfig from "./ProfileConfig";
 import { GridSizes } from "../../../components/form/GridSizes";
 import SubmitButton from "../../../components/ui/Button";
 import Heading from "../../../components/ui/Heading";
+import AddEmployeeConfig from "./AddEmployeeConfig";
+import Paragraph from "../../../components/ui/Paragraph";
 
-function Profile() {
+function AddEmployee() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
 
@@ -30,18 +27,9 @@ function Profile() {
     // use your existing validation functions to validate email and password.
     const isFirstNameValid = validateText(formValues.firstName);
     const isLastNameValid = validateText(formValues.lastName);
-    const isEmailValid = validateEmail(formValues.email);
-    const isPhoneValid = validatePhone(formValues.phone);
-    const isJobTitleValid = validateText(formValues.jobTitle);
 
     // Set isError based on the validation results
-    setIsError(
-      isFirstNameValid !== null ||
-        isLastNameValid !== null ||
-        isEmailValid !== null ||
-        isPhoneValid !== null ||
-        isJobTitleValid !== null
-    );
+    setIsError(isFirstNameValid !== null || isLastNameValid !== null);
   };
 
   useEffect(() => {
@@ -49,7 +37,7 @@ function Profile() {
     // Run the validation when formValues state changes
   }, [formValues]);
 
-  // handle form submition
+  // handle form submission
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -57,30 +45,38 @@ function Profile() {
   };
 
   return (
-    <Box sx={{ width: "100%" }}>
-      <PaperComponent>
-        <Box sx={{ textAlign: "left" }}>
-          <Heading text="Profile" />
-        </Box>
-        <form onSubmit={handleSubmit}>
-          <Grid container spacing={2}>
-            <FormFieldMapper
-              formFields={ProfileConfig.formFields}
-              onChange={handleChange}
-              gridSizes={GridSizes.dashboardFieldSizes}
-            />
-            <Grid item xs={12} sm={12} md={12}>
-              <SubmitButton
-                disabled={isError}
-                label="Save Profile"
-                type="submit"
+    <Grid
+      container
+      alignItems="center"
+      justifyContent="center"
+      style={{ height: "100vh" }}
+    >
+      <Box width="100%">
+        <PaperComponent>
+          <Box>
+            <Heading text="Add Employee" />
+            <Paragraph text="To add an employee, enter their details below." />
+            <Box sx={{ textAlign: "right", marginBottom: "60px" }}></Box>
+          </Box>
+
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={2}>
+              <FormFieldMapper
+                formFields={AddEmployeeConfig.formFields}
+                onChange={handleChange}
+                gridSizes={GridSizes.onbordingFieldSizes}
               />
             </Grid>
-          </Grid>
-        </form>
-      </PaperComponent>
-    </Box>
+            <SubmitButton
+              disabled={isError}
+              label="Add Employee"
+              type="submit"
+            />
+          </form>
+        </PaperComponent>
+      </Box>
+    </Grid>
   );
 }
 
-export default Profile;
+export default AddEmployee;

@@ -49,6 +49,13 @@ export const validateSelect = (value) => {
   return null;
 };
 
+export const validateEndDate = (value) => {
+  if (!value) {
+    return "Please select your leave end date.";
+  }
+  return null;
+};
+
 export const validatePhone = (value) => {
   const phonePattern = /^(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/;
   if (!phonePattern.test(value)) {
@@ -57,13 +64,35 @@ export const validatePhone = (value) => {
   return null; // No error
 };
 
+export const validateDropDown = (value) => {
+  if (!value || value === "Select option") {
+    return "Please select an option from the list";
+  }
+
+  return null;
+};
+
 export const validateText = (value) => {
-  if (value === "") {
+  if (!value) {
     return "Field required.";
-  } else {
-    return null;
   }
   return null; // No error
+};
+
+export const validateDate = (value) => {
+  if (!value) {
+    return "Date is required.";
+  }
+
+  const selectedDate = new Date(value);
+  const currentDate = new Date();
+  currentDate.setHours(0, 0, 0, 0); // Set the time to the beginning of the day
+
+  if (selectedDate < currentDate) {
+    return "Selected date cannot be before today.";
+  }
+
+  return null;
 };
 
 // Add more validation functions for other input types

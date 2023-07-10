@@ -1,21 +1,21 @@
 import React, { useState } from "react";
-import PaperComponent from "../../../components/ui/Paper";
-import { GetFormValues } from "../../../components/form/GetFormValues";
-import { handleFieldChange } from "../../../components/form/HandleFieldChange";
-import {
-  validateEmail,
-  validatePhone,
-  validateText,
-} from "../../../components/form/Validations";
-import { useEffect } from "react";
-import { Box, Grid } from "@mui/material";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
-import ProfileConfig from "./ProfileConfig";
-import { GridSizes } from "../../../components/form/GridSizes";
 import SubmitButton from "../../../components/ui/Button";
+import { useEffect } from "react";
+import { handleFieldChange } from "../../../components/form/HandleFieldChange";
+import { GetFormValues } from "../../../components/form/GetFormValues";
+import { Box, Grid } from "@mui/material";
+import CenteredBox from "../../../components/ui/CenteredBox";
 import Heading from "../../../components/ui/Heading";
+import Logo from "../../../components/ui/Logo";
+import PaperComponent from "../../../components/ui/Paper";
+import { validateDropDown } from "../../../components/form/Validations";
+import { GridSizes } from "../../../components/form/GridSizes";
+import ApplyForLeaveForm from "./ApplyForLeaveConfig";
+import DatePicker from "../../../components/ui/DatePicker";
+import { validateDate } from "../../../components/form/Validations";
 
-function Profile() {
+function ApplyForLeave() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
 
@@ -28,20 +28,17 @@ function Profile() {
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
-    const isFirstNameValid = validateText(formValues.firstName);
-    const isLastNameValid = validateText(formValues.lastName);
-    const isEmailValid = validateEmail(formValues.email);
-    const isPhoneValid = validatePhone(formValues.phone);
-    const isJobTitleValid = validateText(formValues.jobTitle);
+    const isSelectValid = validateDropDown(
+      formValues.LeaveType,
+      formValues.leaveLength
+    );
+
+    const isDate = validateDate(formValues.date);
+    const isEndDate = validateDate(formValues.endDate);
+    // const isDate = validateDate(formValues.Date)
 
     // Set isError based on the validation results
-    setIsError(
-      isFirstNameValid !== null ||
-        isLastNameValid !== null ||
-        isEmailValid !== null ||
-        isPhoneValid !== null ||
-        isJobTitleValid !== null
-    );
+    setIsError(isSelectValid !== null || isDate !== null || isEndDate !== null);
   };
 
   useEffect(() => {
@@ -56,31 +53,33 @@ function Profile() {
     const formValues = GetFormValues(event);
   };
 
+  // render output
   return (
-    <Box sx={{ width: "100%" }}>
+    <Grid container>
       <PaperComponent>
-        <Box sx={{ textAlign: "left" }}>
-          <Heading text="Profile" />
+        <Box sx={{ textAlign: "left", paddingBottom: "20px" }}>
+          <Heading text="Apply For Leave" />
         </Box>
+
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
             <FormFieldMapper
-              formFields={ProfileConfig.formFields}
+              formFields={ApplyForLeaveForm.formFields}
               onChange={handleChange}
               gridSizes={GridSizes.dashboardFieldSizes}
             />
             <Grid item xs={12} sm={12} md={12}>
               <SubmitButton
                 disabled={isError}
-                label="Save Profile"
+                label="Apply For Leave"
                 type="submit"
               />
             </Grid>
           </Grid>
         </form>
       </PaperComponent>
-    </Box>
+    </Grid>
   );
 }
 
-export default Profile;
+export default ApplyForLeave;

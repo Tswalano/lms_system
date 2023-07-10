@@ -96,6 +96,7 @@ export default function Sidenav({ menuItems }) {
   const [open, setOpen] = React.useState(false);
   const [isFirstTime, setIsFirsTime] = React.useState(true);
   // set user role
+  // const [isRoleAdmin, setUserRole] = React.useState(false);
   const isRoleAdmin = true; //sessionStorage.getItem("isRoleAdmin");
   const navigate = useNavigate();
 
@@ -178,7 +179,8 @@ export default function Sidenav({ menuItems }) {
       </Drawer>
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <DrawerHeader />
-        {isFirstTime ? isRoleAdmin ? <Home /> : <Dashboard /> : <Outlet />}
+        {/* {isFirstTime ? isRoleAdmin ? <Home /> : <Dashboard /> : <Outlet />} */}
+        <Outlet />
       </Box>
     </Box>
   );

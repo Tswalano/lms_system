@@ -1,4 +1,4 @@
-const EmployeesTable = {
+const EmployeesTableConfig = {
   columnsData: [
     { id: "firstName", label: "First Name", minWidth: 170 },
     { id: "lastName", label: "Last Name", minWidth: 170 },
@@ -9,4 +9,4 @@ const EmployeesTable = {
   ],
 };
 
-export default EmployeesTable;
+export default EmployeesTableConfig;
