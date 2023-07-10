@@ -14,7 +14,7 @@ const ApplyForLeaveForm = {
       ],
     },
     { label: "Start Date", name: "date", type: "date" },
-    { label: "End Date", name: "date", type: "date" },
+    { label: "End Date", name: "endDate", type: "date" },
     {
       label: "Leave Length",
       name: "leaveLength",

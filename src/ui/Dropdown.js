@@ -20,7 +20,6 @@ function Dropdown({ field, onChange }) {
   const validationMap = {
     select: validateSelect,
     LeaveType: validateDropDown,
-    leaveLength: validateDropDown,
   };
 
   const handleSelectOption = (event) => {

@@ -17,6 +17,7 @@ import { validateEndDate } from "../../../components/form/Validations";
 //import { validateDate } from "../../../components/form/Validations";
 //import { DatePicker } from "@mui/x-date-pickers";
 import DatePicker from "../../../ui/DatePicker";
+import { validateDate } from "../../../components/form/Validations";
 
 function ApplyForLeave() {
   // declare the useState formValues object
@@ -36,13 +37,12 @@ function ApplyForLeave() {
       formValues.leaveLength
     );
     const isStartDate = validateStartDate(formValues.startDate);
-    const isEndDate = validateEndDate(formValues.endDate);
+    const isDate = validateDate(formValues.date);
+    const isEndDate = validateDate(formValues.endDate);
     // const isDate = validateDate(formValues.Date)
 
     // Set isError based on the validation results
-    setIsError(
-      isSelectValid !== null || isStartDate !== null || isEndDate !== null
-    );
+    setIsError(isSelectValid !== null || isDate !== null || isEndDate !== null);
   };
 
   useEffect(() => {
