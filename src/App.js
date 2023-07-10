@@ -2,7 +2,7 @@ import { adminNavBarItems } from "./components/Navbar/AdminSidenavItems";
 import { userNavBarItems } from "./components/Navbar/UserSidenavItems";
 import Sidenav from "./components/Navbar/Sidenav";
 import Grid from "@mui/material/Grid";
-import ProfileSummary from "./pages/onboarding/profilesummary/ProfileSummary";
+
 
 function App() {
   // set user role

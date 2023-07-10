@@ -1,4 +1,4 @@
-const ProfileForm = {
+const ProfileConfig = {
   formFields: [
     { label: "First Name", name: "firstName", type: "text" },
     { label: "Last Name", name: "lastName", type: "text" },
@@ -8,4 +8,4 @@ const ProfileForm = {
   ],
 };
 
-export default ProfileForm;
+export default ProfileConfig;
