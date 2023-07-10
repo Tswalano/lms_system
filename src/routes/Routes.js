@@ -2,7 +2,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Home from "../pages/admin/Home";
 import ManageLeave from "../pages/admin/ManageLeave";
-import ActOnLeave from "../pages/admin/ActOnLeave";
+import ActOnLeave from "../pages/admin/ActOnLeave/ActOnLeave";
 import App from "../App";
 import { Grid } from "@mui/material";
 import Dashboard from "../pages/user/Dashboard";
