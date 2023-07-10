@@ -13,6 +13,7 @@ import { emphasize, createTheme, ThemeProvider } from "@mui/material/styles";
 import HomeIcon from "@mui/icons-material/Home";
 import { validateDropDown } from "../../components/form/Validations";
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 function ActOnLeave() {
   const [empName, setEmpName] = useState("");
@@ -24,17 +25,14 @@ function ActOnLeave() {
   const [formValues, setFormValues] = useState({});
   const [isError, setIsError] = useState(false);
 
+  const nav = useNavigate("");
+
   const theme = createTheme({
     components: { MuiChip: { defaultProps: { color: "error" } } },
   });
 
   const StyledBreadcrumb = styled(Chip)(({ theme }) => {
     const backgroundColor = "#1FE3A8";
-    // theme.palette.mode === "light"
-    //   ? //console.log(theme);
-    //     theme.palette.grey[100]
-    //   : theme.palette.grey[800];
-    console.log(theme);
     return {
       backgroundColor,
       height: theme.spacing(3),
@@ -56,10 +54,14 @@ function ActOnLeave() {
     overflowY: "auto",
   });
 
-  function handleClick(event) {
+  function handleHomeClick(event) {
     event.preventDefault();
-    console.info("You clicked a breadcrumb.");
-    //nav("/home");
+    nav("/home");
+  }
+
+  function handlePageClick(event) {
+    event.preventDefault();
+    nav("/manage-leave");
   }
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
@@ -77,7 +79,9 @@ function ActOnLeave() {
     // Run the validation when formValues state changes
   }, [formValues]);
 
+  //hardcoded values (temporary)
   //Set values from the object
+  //change to axios
   if (!empName && !leaveType && !date && !comments && !attachments) {
     setEmpName("Yagnash Keeka");
     setLeaveType("Yagnash Keeka");
@@ -94,7 +98,6 @@ function ActOnLeave() {
     event.preventDefault();
     //Feedback value is captured on values that is null
     const formValues = GetFormValues(event);
-    console.log(formValues);
     //try and catch error to do the integration and capture the form values.
     try {
     } catch (error) {}
@@ -114,15 +117,15 @@ function ActOnLeave() {
               href="#"
               label="Home"
               icon={<HomeIcon fontSize="small" />}
-              onClick={handleClick}
+              onClick={handleHomeClick}
             />
             <StyledBreadcrumb
               component="a"
               href="#"
               label="Manage Leave"
-              onClick={handleClick}
+              onClick={handlePageClick}
             />
-            <StyledBreadcrumb component="a" href="#" label="Act On Leave" />
+            <StyledBreadcrumb label="Act On Leave" />
           </Breadcrumbs>
           <PaperComponent>
             <Grid container>
