@@ -6,6 +6,7 @@ import EmployeesTable from "./EmployeesTableConfig";
 import { useNavigate } from "react-router-dom";
 import PaperComponent from "../../../ui/Paper";
 import Paragraph from "../../../ui/Paragraph";
+import FormFieldMapper from "../../../components/form/FormFieldMapper";
 
 function ManageEmployees() {
   // create a navigate hook
@@ -13,6 +14,10 @@ function ManageEmployees() {
 
   const viewUser = (id) => {
     navigate("/manage-employee?id=" + id);
+  };
+
+  const handleAddEmp = () => {
+    navigate("add-employee");
   };
 
   // create / retrieve employee data
@@ -143,6 +148,7 @@ function ManageEmployees() {
                       color="primary"
                       variant="contained"
                       sx={{ color: "#fff" }}
+                      onClick={handleAddEmp}
                     >
                       Add Employee
                     </Button>
