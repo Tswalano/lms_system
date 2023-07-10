@@ -6,7 +6,6 @@ import EmployeesTableConfig from "./EmployeesTableConfig";
 import { useNavigate } from "react-router-dom";
 import PaperComponent from "../../../components/ui/Paper";
 import Paragraph from "../../../components/ui/Paragraph";
-import FormFieldMapper from "../../../components/form/FormFieldMapper";
 
 function ManageEmployees() {
   // create a navigate hook
