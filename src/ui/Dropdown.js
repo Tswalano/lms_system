@@ -20,6 +20,8 @@ function Dropdown({ field, onChange }) {
   const validationMap = {
     select: validateSelect,
     LeaveType: validateDropDown,
+    approval: validateDropDown,
+    // Add more validation functions for other input types
   };
 
   const handleSelectOption = (event) => {

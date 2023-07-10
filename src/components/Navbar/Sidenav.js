@@ -179,7 +179,8 @@ export default function Sidenav({ menuItems }) {
       </Drawer>
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <DrawerHeader />
-        {isFirstTime ? isRoleAdmin ? <Home /> : <Dashboard /> : <Outlet />}
+        {/* {isFirstTime ? isRoleAdmin ? <Home /> : <Dashboard /> : <Outlet />} */}
+        <Outlet />
       </Box>
     </Box>
   );

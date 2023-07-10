@@ -10,7 +10,7 @@ import {
 import { useEffect } from "react";
 import { Box, Button, Grid } from "@mui/material";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
-import ProfileForm from "./ProfileConfig";
+import ProfileConfig from "./ProfileConfig";
 import { GridSizes } from "../../../components/form/GridSizes";
 import SubmitButton from "../../../ui/Button";
 import Heading from "../../../ui/Heading";
@@ -54,7 +54,7 @@ function Profile() {
     event.preventDefault();
 
     const formValues = GetFormValues(event);
-    console.log(formValues);
+    
   };
 
   return (
@@ -71,7 +71,7 @@ function Profile() {
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
             <FormFieldMapper
-              formFields={ProfileForm.formFields}
+              formFields={ProfileConfig.formFields}
               onChange={handleChange}
               gridSizes={GridSizes.dashboardFieldSizes}
             />

@@ -81,6 +81,8 @@ export const validateText = (value) => {
   return null; // No error
 };
 
+
+
 export const validateDate = (value) => {
   if (!value) {
     return "Date is required.";
