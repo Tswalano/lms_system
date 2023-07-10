@@ -2,7 +2,7 @@ import { Box, Button, Grid, Link } from "@mui/material";
 import React from "react";
 import Heading from "../../../ui/Heading";
 import TableComponent from "../../../components/table/TableComponent";
-import EmployeesTable from "./EmployeesTableConfig";
+import EmployeesTableConfig from "./EmployeesTableConfig";
 import { useNavigate } from "react-router-dom";
 import PaperComponent from "../../../ui/Paper";
 import Paragraph from "../../../ui/Paragraph";
@@ -166,7 +166,7 @@ function ManageEmployees() {
         <Paragraph text="Employee's Table" fontWeight="bold" />
         <br />
         <TableComponent
-          columnsData={EmployeesTable.columnsData}
+          columnsData={EmployeesTableConfig.columnsData}
           rowsData={rowsData}
         />
       </Grid>

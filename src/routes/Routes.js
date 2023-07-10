@@ -1,8 +1,9 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Home from "../pages/admin/Home";
-import ManageLeave from "../pages/admin/ManageLeave";
-import ActOnLeave from "../pages/admin/ActOnLeave/ActOnLeave";
+import ManageLeave from "../pages/admin/ManageLeave/ManageLeave";
+import ActOnLeave from "../pages/admin/ActOnLeave";
+import AddEmployee from "../pages/admin/AddEmployee";
 import App from "../App";
 import { Grid } from "@mui/material";
 import Dashboard from "../pages/user/Dashboard";
@@ -34,6 +35,7 @@ export default function AppRoutes() {
           <Route path="manage-employee" element={<ManageEmployee />} />
           <Route path="add-employee" element={<AddEmployee />} />
           <Route path="manage-leave" element={<ManageLeave />} />
+          <Route path="add-employee" element={<AddEmployee />} />
           <Route path="manage-leave/act-on-leave" element={<ActOnLeave />} />
           <Route
             path="manage-employees/add-employee"
