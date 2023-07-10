@@ -42,7 +42,6 @@ function AddEmployee() {
     event.preventDefault();
 
     const formValues = GetFormValues(event);
-    console.log(formValues);
   };
 
   return (
@@ -67,12 +66,12 @@ function AddEmployee() {
                 onChange={handleChange}
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
-              </Grid>
-              <SubmitButton
-                disabled={isError}
-                label="Add Employee"
-                type="submit"
-              />     
+            </Grid>
+            <SubmitButton
+              disabled={isError}
+              label="Add Employee"
+              type="submit"
+            />
           </form>
         </PaperComponent>
       </Box>

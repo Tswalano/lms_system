@@ -43,7 +43,6 @@ function ForgotPassword() {
     event.preventDefault();
 
     const formValues = GetFormValues(event);
-    console.log(formValues);
 
     // store session for email to be accessed on the next page
     sessionStorage.setItem("email", formValues.email);

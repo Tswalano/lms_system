@@ -58,10 +58,9 @@ export const validatePhone = (value) => {
 };
 
 export const validateText = (value) => {
-  if (value === "") {
+  if (!value) {
     return "Field required.";
-  } else {
-    return null;
+  
   }
   return null; // No error
 };
