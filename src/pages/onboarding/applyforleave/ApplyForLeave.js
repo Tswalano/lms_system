@@ -9,12 +9,11 @@ import CenteredBox from "../../../ui/CenteredBox";
 import Heading from "../../../ui/Heading";
 import Logo from "../../../ui/Logo";
 import PaperComponent from "../../../ui/Paper";
-import { validateEmail } from "../../../components/form/Validations";
-import ForgotPasswordForm from "./ForgotPasswordConfig";
+import { validateDropDown } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
-import Paragraph from "../../../ui/Paragraph";
+import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 
-function ForgotPassword() {
+function ApplyForLeave() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
 
@@ -27,10 +26,14 @@ function ForgotPassword() {
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
-    const isEmailValid = validateEmail(formValues.email);
+
+    const isSelectValid = validateDropDown(
+      formValues.LeaveType,
+      formValues.leaveLength
+    );
 
     // Set isError based on the validation results
-    setIsError(isEmailValid !== null);
+    setIsError(isSelectValid !== null);
   };
 
   useEffect(() => {
@@ -44,10 +47,6 @@ function ForgotPassword() {
 
     const formValues = GetFormValues(event);
     console.log(formValues);
-
-    // store session for email to be accessed on the next page
-    sessionStorage.setItem("email", formValues.email);
-    // continue integrating
   };
 
   // render output
@@ -57,25 +56,20 @@ function ForgotPassword() {
         <Logo width="35%" />
         <br />
         <PaperComponent>
-          <Box sx={{ textAlign: "center" }}>
-            <Heading text="Forgot Password" />
+          <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
+            <Heading text="Apply For Leave" />
           </Box>
-          <Box sx={{ textAlign: "left", paddingBottom: "20px" }}>
-            <Paragraph
-              text="Enter your email below and a message will be sent to reset your password."
-              fontWeight="normal"
-            />
-          </Box>
+
           <form onSubmit={handleSubmit}>
             <Grid container>
               <FormFieldMapper
-                formFields={ForgotPasswordForm.formFields}
+                formFields={ApplyForLeaveForm.formFields}
                 onChange={handleChange}
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
               <SubmitButton
                 disabled={isError}
-                label="Forgot Password"
+                label="Apply For Leave"
                 type="submit"
               />
             </Grid>
@@ -86,4 +80,4 @@ function ForgotPassword() {
   );
 }
 
-export default ForgotPassword;
+export default ApplyForLeave;
