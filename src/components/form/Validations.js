@@ -49,13 +49,6 @@ export const validateSelect = (value) => {
   return null;
 };
 
-export const validateStartDate = (value) => {
-  if (!value) {
-    return "Please select your leave start date.";
-  }
-  return null;
-};
-
 export const validateEndDate = (value) => {
   if (!value) {
     return "Please select your leave end date.";

@@ -15,6 +15,7 @@ import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 import DatePicker from "../../../ui/DatePicker";
 import { validateDate } from "../../../components/form/Validations";
 
+
 function ApplyForLeave() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
