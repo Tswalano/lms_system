@@ -56,26 +56,28 @@ function ApplyForLeave() {
   // render output
   return (
     <Grid container>
-      <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
-        <Heading text="Apply For Leave" />
-      </Box>
+      <PaperComponent>
+        <Box sx={{ textAlign: "left", paddingBottom: "20px" }}>
+          <Heading text="Apply For Leave" />
+        </Box>
 
-      <form onSubmit={handleSubmit}>
-        <Grid container spacing={2}>
-          <FormFieldMapper
-            formFields={ApplyForLeaveForm.formFields}
-            onChange={handleChange}
-            gridSizes={GridSizes.dashboardFieldSizes}
-          />
-          <Grid item xs={12} sm={12} md={12}>
-            <SubmitButton
-              disabled={isError}
-              label="Apply For Leave"
-              type="submit"
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={2}>
+            <FormFieldMapper
+              formFields={ApplyForLeaveForm.formFields}
+              onChange={handleChange}
+              gridSizes={GridSizes.dashboardFieldSizes}
             />
+            <Grid item xs={12} sm={12} md={12}>
+              <SubmitButton
+                disabled={isError}
+                label="Apply For Leave"
+                type="submit"
+              />
+            </Grid>
           </Grid>
-        </Grid>
-      </form>
+        </form>
+      </PaperComponent>
     </Grid>
   );
 }
