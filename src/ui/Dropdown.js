@@ -14,7 +14,7 @@ import {
 function Dropdown({ field, onChange }) {
   const [defaultErrorMessage, setDefaultError] = useState("");
   const [selectedValue, setSelectedValue] = useState("");
-  const { label, name, type, options } = field;
+  const {label, name, type, options } = field;
   //const menuOptions = Array.isArray(field.options) ? field.options : [];
 
   const validationMap = {
@@ -55,6 +55,7 @@ function Dropdown({ field, onChange }) {
           label={label}
           id={name}
           name={name}
+          type={type}
           onChange={handleSelectOption}
         >
           <MenuItem value="Select option">Select option</MenuItem>

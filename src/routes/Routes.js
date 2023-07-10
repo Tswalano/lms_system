@@ -7,7 +7,7 @@ import AddEmployee from "../pages/admin/AddEmployee";
 import App from "../App";
 import { Grid } from "@mui/material";
 import Dashboard from "../pages/user/Dashboard";
-import ApplyForLeave from "../pages/user/ApplyForLeave";
+import ApplyForLeave from "../pages/onboarding/applyforleave/ApplyForLeave";
 import Signin from "../pages/onboarding/signin/Signin";
 import Profile from "../pages/onboarding/profile/Profile";
 import ForgotPassword from "../pages/onboarding/forgotpassword/ForgotPassword";
