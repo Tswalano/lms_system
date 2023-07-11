@@ -40,15 +40,6 @@ export const validateCode = (value) => {
   return null; // No error
 };
 
-export const validateSelect = (value) => {
-  if (value === "" || value === "Select option") {
-    return "Please select a valid option.";
-  } else if (value === "Option 4") {
-    return "Option 4 is not a valid option.";
-  }
-  return null;
-};
-
 export const validateEndDate = (value) => {
   if (!value) {
     return "Please select your leave end date.";
@@ -65,7 +56,7 @@ export const validatePhone = (value) => {
 };
 
 export const validateDropDown = (value) => {
-  if (!value || value === "Select option") {
+  if (!value) {
     return "Please select an option from the list";
   }
 

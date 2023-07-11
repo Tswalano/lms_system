@@ -15,7 +15,7 @@ function Dropdown({ field, onChange }) {
   //const menuOptions = Array.isArray(field.options) ? field.options : [];
 
   const validationMap = {
-    select: validateSelect,
+    select: validateDropDown,
     LeaveType: validateDropDown,
     approval: validateDropDown,
     // Add more validation functions for other input types
@@ -26,8 +26,6 @@ function Dropdown({ field, onChange }) {
 
     if (value) {
       setSelectedValue(value || "");
-    } else {
-      setSelectedValue("Select option");
     }
 
     const validationFn = validationMap[name];
@@ -55,7 +53,6 @@ function Dropdown({ field, onChange }) {
           type={type}
           onChange={handleSelectOption}
         >
-          <MenuItem value="Select option">Select option</MenuItem>
           {options.map((option) => (
             <MenuItem key={option.value} value={option.value}>
               {option.labelText}
