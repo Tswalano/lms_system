@@ -16,6 +16,7 @@ import Signup from "../pages/onboarding/signup/Signup";
 import ManageEmployees from "../pages/admin/manageEmployees/ManageEmployees";
 import Employee from "../pages/admin/manageEmployees/Employee";
 import AddEmployee from "../pages/admin/AdminAddEmployees/AddEmployee";
+import { RouteGuard } from "./RouteGuard";
 
 export default function AppRoutes() {
   return (
@@ -32,7 +33,14 @@ export default function AppRoutes() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="manage-employees" element={<ManageEmployees />} />
           <Route path="employee" element={<Employee />} />
-          <Route path="manage-leave" element={<ManageLeave />} />
+          <Route
+            path="manage-leave"
+            element={
+              <RouteGuard>
+                <ManageLeave />
+              </RouteGuard>
+            }
+          />
           <Route path="add-employee" element={<AddEmployee />} />
           <Route path="manage-leave/act-on-leave" element={<ActOnLeave />} />
           <Route path="apply-for-leave" element={<ApplyForLeave />} />

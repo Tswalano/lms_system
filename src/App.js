@@ -1,17 +1,17 @@
-import { adminNavBarItems } from "./components/navbar/AdminSidenavItems";
-import { userNavBarItems } from "./components/navbar/UserSidenavItems";
-import Sidenav from "./components/navbar/Sidenav";
+import { adminNavBarItems } from "./components/Navbar/AdminSidenavItems";
+import { userNavBarItems } from "./components/Navbar/UserSidenavItems";
+import Sidenav from "./components/Navbar/Sidenav";
 import Grid from "@mui/material/Grid";
+import React, { useContext } from "react";
+import { AuthContext } from "./context/AuthContext";
 
 function App() {
   // set user role
-
-  const isRoleAdmin = false;
-
+  const ctx = useContext(AuthContext);
   return (
     <>
       <Grid container>
-        <Sidenav menuItems={isRoleAdmin ? adminNavBarItems : userNavBarItems} />
+        <Sidenav menuItems={ctx.isAdmin ? adminNavBarItems : userNavBarItems} />
       </Grid>
     </>
   );

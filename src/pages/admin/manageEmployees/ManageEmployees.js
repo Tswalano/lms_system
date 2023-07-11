@@ -16,7 +16,7 @@ function ManageEmployees() {
   };
 
   const handleAddEmp = () => {
-    navigate("add-employee");
+    navigate("/add-employee");
   };
 
   // create / retrieve employee data
