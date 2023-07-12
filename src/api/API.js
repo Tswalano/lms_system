@@ -44,21 +44,16 @@ export const signUpAndVerify = async (endpoint, formValues) => {
   }
 };
 
-function useAuth() {
-  const { token } = useContext(AuthContext);
-  return token;
-}
-
 //In both these methods create a return variable to return messages or success or errors
-export const postData = async (endpoint, formValues) => {
-  const ctx = new useAuth();
-  if (ctx !== null) {
+export const postData = async (endpoint, formValues, token) => {
+  if (token !== null) {
     try {
       const response = axios.post(endpoint, formValues, {
-        headers: { Authorization: "Bearer " + ctx.token },
+        headers: { Authorization: "Bearer " + token },
       });
       if (response.status === 200) {
         console.log(response.data.pmessage);
+        return true;
       }
     } catch (error) {
       // do something if there is an error
@@ -68,6 +63,7 @@ export const postData = async (endpoint, formValues) => {
         error.response.status === 404
       ) {
         console.log(error.response.data.message);
+        return false;
       }
     }
   } else {
