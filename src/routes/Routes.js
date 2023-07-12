@@ -16,7 +16,7 @@ import Signup from "../pages/onboarding/signup/Signup";
 import ManageEmployees from "../pages/admin/manageEmployees/ManageEmployees";
 import Employee from "../pages/admin/manageEmployees/Employee";
 import AddEmployee from "../pages/admin/AdminAddEmployees/AddEmployee";
-import { RouteGuard } from "./RouteGuard";
+import { RouteGuard, UserRouteGuard } from "./RouteGuard";
 
 export default function AppRoutes() {
   return (
@@ -31,7 +31,14 @@ export default function AppRoutes() {
           <Route path="home" element={<Home />} />
           <Route path="profile" element={<Profile />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="manage-employees" element={<ManageEmployees />} />
+          <Route
+            path="manage-employees"
+            element={
+              <RouteGuard>
+                <ManageEmployees />
+              </RouteGuard>
+            }
+          />
           <Route path="employee" element={<Employee />} />
           <Route
             path="manage-leave"
@@ -41,9 +48,30 @@ export default function AppRoutes() {
               </RouteGuard>
             }
           />
-          <Route path="add-employee" element={<AddEmployee />} />
-          <Route path="manage-leave/act-on-leave" element={<ActOnLeave />} />
-          <Route path="apply-for-leave" element={<ApplyForLeave />} />
+          <Route
+            path="add-employee"
+            element={
+              <RouteGuard>
+                <AddEmployee />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="manage-leave/act-on-leave"
+            element={
+              <RouteGuard>
+                <ActOnLeave />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="apply-for-leave"
+            element={
+              <UserRouteGuard>
+                <ApplyForLeave />
+              </UserRouteGuard>
+            }
+          />
         </Route>
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
