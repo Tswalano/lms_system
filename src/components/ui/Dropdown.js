@@ -6,7 +6,7 @@ import {
   MenuItem,
   FormHelperText,
 } from "@mui/material";
-import { validateDropDown, validateSelect } from "../form/Validations";
+import { validateDropDown } from "../form/Validations";
 
 function Dropdown({ field, onChange }) {
   const [defaultErrorMessage, setDefaultError] = useState("");
