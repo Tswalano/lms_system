@@ -6,7 +6,7 @@ export const AuthContext = createContext();
 // Create the AuthProvider component
 export const AuthProvider = ({ children }) => {
   // State to store the user token
-  const [token, setToken] = useState(null);
+  const [token, setToken] = useState("");
 
   // State to store the user role
   const [isAdmin, setIsAdmin] = useState(true);
@@ -17,8 +17,15 @@ export const AuthProvider = ({ children }) => {
   // Function to handle user sign in and set token and role
   const signIn = (userToken, userRole) => {
     setIsAuthenticated(userToken !== "" && userToken !== null);
+
+  // Function to handle user sign in and set token and role
+  const logIn = (userToken, userRole) => {
     setToken(userToken);
-    setIsAdmin(userRole === "admin");
+    if (userRole === "admin") {
+      setIsAdmin(true);
+    } else {
+      setIsAdmin(false);
+    }
   };
 
   // Function to handle user sign out
@@ -33,7 +40,7 @@ export const AuthProvider = ({ children }) => {
     token,
     isAuthenticated,
     isAdmin,
-    signIn,
+    logIn,
     signOut,
   };
 

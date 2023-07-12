@@ -1,10 +1,10 @@
 import { AuthContext } from "../context/AuthContext";
-import React, { useContext, useEffect } from "react";
+import React, { useContext } from "react";
 
 export const RouteGuard = ({ children }) => {
   const ctx = useContext(AuthContext);
 
-  if (ctx.isAdmin === true) {
+  if (ctx.isAdmin === false) {
     return children;
   }
 
