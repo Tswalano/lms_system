@@ -9,13 +9,16 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState("");
 
   // State to store the user role
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(true);
 
   // Function to handle user sign in and set token and role
   const logIn = (userToken, userRole) => {
     setToken(userToken);
-
-    setIsAdmin(userRole === userRole);
+    if (userRole === "admin") {
+      setIsAdmin(true);
+    } else {
+      setIsAdmin(false);
+    }
   };
 
   // Function to handle user sign out
