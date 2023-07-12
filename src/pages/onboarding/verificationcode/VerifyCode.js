@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
@@ -14,9 +14,12 @@ import VerifyCodeConfig from "./VerifyCodeConfig";
 import Paragraph from "../../../components/ui/Paragraph";
 import { GridSizes } from "../../../components/form/GridSizes";
 import Link from "@mui/material/Link";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { signUpAndVerify } from "../../../api/API";
+import { AuthContext } from "../../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 // get the email from the storage session
-const email = sessionStorage.getItem("email");
 
 function VerifyCode() {
   // declare the useState formValues object
@@ -27,6 +30,8 @@ function VerifyCode() {
 
   // State to track form field error
   const [isError, setIsError] = useState(false);
+
+  const navigate = useNavigate();
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
@@ -41,16 +46,23 @@ function VerifyCode() {
     handleValidation();
     // Run the validation when formValues state changes
   }, [formValues]);
-
+  const { userEmail } = useContext(AuthContext);
+  const ctx = useContext(AuthContext);
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     const formValues = GetFormValues(event);
-    console.log(formValues);
+    const email = ctx.email;
+    const values = { email, formValues };
 
-    // remove email session from forgot password page on reset password success
-    sessionStorage.removeItem("email");
+    console.log(values);
+
+    const endPoint = new APIEndPoints().otpApi();
+    const verified = await signUpAndVerify(endPoint, values);
+    if (verified) {
+      navigate("/profile");
+    }
   };
 
   // handle send new code request
@@ -73,7 +85,7 @@ function VerifyCode() {
             <Paragraph
               text={
                 "We have sent a code by email to " +
-                email +
+                ctx.email +
                 ". Enter it below to confirm your account."
               }
               fontWeight="normal"

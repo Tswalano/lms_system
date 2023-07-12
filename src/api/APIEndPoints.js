@@ -9,7 +9,7 @@ class APIEndPoints {
 
   signupAPI() {
     const signup =
-      "https://11qegqaxid.execute-api.us-east-1.amazonaws.com/dev/user-service/signup";
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/signup";
     return signup;
   }
 
@@ -21,7 +21,7 @@ class APIEndPoints {
 
   otpApi() {
     const otp =
-      "https://11qegqaxid.execute-api.us-east-1.amazonaws.com/dev/user-service/verify-otp";
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/verify-otp";
     return otp;
   }
 }

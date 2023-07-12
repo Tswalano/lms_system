@@ -8,6 +8,8 @@ export const AuthProvider = ({ children }) => {
   // State to store the user token
   const [token, setToken] = useState("");
 
+  const [email, setEmail] = useState("");
+
   // State to store the user role
   const [isAdmin, setIsAdmin] = useState(true);
 
@@ -21,6 +23,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const userEmail = (emailID) => {
+    setEmail(emailID);
+  };
+
   // Function to handle user sign out
   const signOut = () => {
     setToken(null);
@@ -30,8 +36,10 @@ export const AuthProvider = ({ children }) => {
   // Value object to be provided to consuming components
   const authContextValue = {
     token,
+    email,
     isAdmin,
     logIn,
+    userEmail,
     signOut,
   };
 

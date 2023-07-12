@@ -1,4 +1,6 @@
 import axios from "axios";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 
 export const signIn = async (endpoint, formValues, logIn) => {
   try {
@@ -12,11 +14,63 @@ export const signIn = async (endpoint, formValues, logIn) => {
       logIn(userToken, userRole);
     }
 
-    return; // Exit the function if successful
+    return true; // Exit the function if successful
   } catch (error) {
     // do something if there is an error
     if (error.response.status === 401 || error.response.status === 400) {
       console.log(error.response.data.message);
     }
+    return false;
+  }
+};
+
+export const signUpAndVerify = async (endpoint, formValues) => {
+  try {
+    const response = await axios.post(endpoint, formValues);
+
+    // do something if successful
+
+    if (response.status === 200) {
+      return true;
+    }
+
+    return; // Exit the function if successful
+  } catch (error) {
+    // do something if there is an error
+    if (error.response.status === 401 || error.response.status === 400) {
+      console.log(error.response.data.message);
+      return false;
+    }
+  }
+};
+
+function useAuth() {
+  const { token } = useContext(AuthContext);
+  return token;
+}
+
+//In both these methods create a return variable to return messages or success or errors
+export const postData = async (endpoint, formValues) => {
+  const ctx = new useAuth();
+  if (ctx !== null) {
+    try {
+      const response = axios.post(endpoint, formValues, {
+        headers: { Authorization: "Bearer " + ctx.token },
+      });
+      if (response.status === 200) {
+        console.log(response.data.pmessage);
+      }
+    } catch (error) {
+      // do something if there is an error
+      if (
+        error.response.status === 401 ||
+        error.response.status === 400 ||
+        error.response.status === 404
+      ) {
+        console.log(error.response.data.message);
+      }
+    }
+  } else {
+    console.log("token Invalid");
   }
 };

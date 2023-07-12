@@ -18,7 +18,7 @@ import { GridSizes } from "../../../components/form/GridSizes";
 // import { login, postFormData } from "../../../api/API";
 import { signIn } from "../../../api/API";
 import APIEndPoints from "../../../api/APIEndPoints";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
 
 function Signin() {
@@ -53,12 +53,13 @@ function Signin() {
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
-
     const formValues = GetFormValues(event);
-    //console.log(formValues);
 
     const endPoint = new APIEndPoints().signinAPI();
-    await signIn(endPoint, formValues, logIn);
+    const isLoggedIn = await signIn(endPoint, formValues, logIn);
+    if (isLoggedIn) {
+      navigate("/home");
+    }
   };
 
   // render output
@@ -79,6 +80,7 @@ function Signin() {
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
               <SubmitButton disabled={isError} label="Sign in" type="submit" />
+              <Link to={"/forgot-password"}>Forgot your password?</Link>
             </Grid>
           </form>
         </PaperComponent>

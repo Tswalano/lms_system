@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import SubmitButton from "../../../components/ui/Button";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SignupForm from "./FormConfig";
@@ -16,6 +16,10 @@ import {
 } from "../../../components/form/Validations";
 import { useEffect } from "react";
 import { GridSizes } from "../../../components/form/GridSizes";
+import { AuthContext } from "../../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { signUpAndVerify } from "../../../api/API";
 
 function Signup() {
   const [formValues, setFormValues] = useState({});
@@ -47,14 +51,22 @@ function Signup() {
     // Run the validation when formValues state changes
   }, [formValues]);
 
+  const { userEmail } = useContext(AuthContext);
+  const ctx = useContext(AuthContext);
+  const nav = useNavigate();
+
   const handleSignupSubmit = async (event) => {
     event.preventDefault();
 
     const formValues = GetFormValues(event);
     console.log(formValues);
+    userEmail(formValues.email);
+    console.log(ctx.email);
 
-    // store session for email to be accessed on the next page
-    sessionStorage.setItem("email", formValues.email);
+    const endPoint = new APIEndPoints().signupAPI();
+    await signUpAndVerify(endPoint, formValues);
+
+    nav("/verify-account");
   };
 
   return (
