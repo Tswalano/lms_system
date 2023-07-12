@@ -64,9 +64,10 @@ function Signup() {
     console.log(ctx.email);
 
     const endPoint = new APIEndPoints().signupAPI();
-    await signUpAndVerify(endPoint, formValues);
-
-    nav("/verify-account");
+    const signUpUser = await signUpAndVerify(endPoint, formValues);
+    if (signUpUser) {
+      nav("/verify-account");
+    }
   };
 
   return (
