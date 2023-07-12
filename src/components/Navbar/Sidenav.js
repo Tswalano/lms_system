@@ -14,9 +14,7 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Logo from "../ui/Logo";
 import { Grid } from "@mui/material";
-import Home from "../../pages/admin/Home";
 import { Outlet, useNavigate } from "react-router-dom";
-import Dashboard from "../../pages/user/Dashboard";
 
 const drawerWidth = 270;
 
@@ -94,10 +92,7 @@ const Drawer = styled(MuiDrawer, {
 export default function Sidenav({ menuItems }) {
   const theme = useTheme();
   const [open, setOpen] = React.useState(false);
-  const [isFirstTime, setIsFirsTime] = React.useState(true);
-  // set user role
-  // const [isRoleAdmin, setUserRole] = React.useState(false);
-  const isRoleAdmin = true; //sessionStorage.getItem("isRoleAdmin");
+  // navigation hook
   const navigate = useNavigate();
 
   const handleDrawerOpen = () => {
@@ -149,7 +144,7 @@ export default function Sidenav({ menuItems }) {
               key={item.id}
               disablePadding
               sx={{ display: "block" }}
-              onClick={() => navigate(item.route, setIsFirsTime(false))}
+              onClick={() => navigate(item.route)}
             >
               <ListItemButton
                 sx={{
@@ -177,10 +172,19 @@ export default function Sidenav({ menuItems }) {
           ))}
         </List>
       </Drawer>
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          background: "#f6f9ff",
+          height: "100vh",
+          overflow: "auto",
+        }}
+      >
         <DrawerHeader />
-        {/* {isFirstTime ? isRoleAdmin ? <Home /> : <Dashboard /> : <Outlet />} */}
         <Outlet />
+        <br />
       </Box>
     </Box>
   );

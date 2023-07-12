@@ -9,10 +9,14 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
 
   // State to store the user role
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(true);
+
+  // state to store the user auth status
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   // Function to handle user sign in and set token and role
   const signIn = (userToken, userRole) => {
+    setIsAuthenticated(userToken !== "" && userToken !== null);
     setToken(userToken);
     setIsAdmin(userRole === "admin");
   };
@@ -20,12 +24,14 @@ export const AuthProvider = ({ children }) => {
   // Function to handle user sign out
   const signOut = () => {
     setToken(null);
+    setIsAuthenticated(false);
     setIsAdmin(false);
   };
 
   // Value object to be provided to consuming components
   const authContextValue = {
     token,
+    isAuthenticated,
     isAdmin,
     signIn,
     signOut,
