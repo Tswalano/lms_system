@@ -15,12 +15,9 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   // Function to handle user sign in and set token and role
-  const signIn = (userToken, userRole) => {
-    setIsAuthenticated(userToken !== "" && userToken !== null);
-
-  // Function to handle user sign in and set token and role
   const logIn = (userToken, userRole) => {
     setToken(userToken);
+    setIsAuthenticated(userToken !== "" && userToken !== null);
     if (userRole === "admin") {
       setIsAdmin(true);
     } else {
