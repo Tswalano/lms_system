@@ -3,7 +3,7 @@ class APIEndPoints {
 
   signinAPI() {
     const signin =
-      "https://11qegqaxid.execute-api.us-east-1.amazonaws.com/dev/user-service/login";
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/login";
     return signin;
   }
 

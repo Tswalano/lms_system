@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SubmitButton from "../../../components/ui/Button";
 import SigninForm from "./FormConfig";
@@ -19,13 +19,15 @@ import { GridSizes } from "../../../components/form/GridSizes";
 import { signIn } from "../../../api/API";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { AuthContext } from "../../../context/AuthContext";
 
 function Signin() {
   // create a useNavigate hook
   const navigate = useNavigate();
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
+
+  const { logIn } = useContext(AuthContext);
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
@@ -56,79 +58,7 @@ function Signin() {
     //console.log(formValues);
 
     const endPoint = new APIEndPoints().signinAPI();
-    await signIn(endPoint, formValues);
-
-    // try {
-    //   const endPoint = new APIEndPoints().signinAPI();
-
-    //   //axios.post(endPoint, formValues).then((response) => {
-    //   //return response;
-
-    //   const response = await login(endPoint, formValues);
-    //   console.log(response.data);
-
-    //   if (response === 200) {
-    //     //
-    //     const token = response.data.token;
-    //     sessionStorage.setItem("token", token);
-    //     //
-    //     sessionStorage.setItem("isAuthenticated", true);
-    //     //
-    //     if (response.data.user["role"] === "admin") {
-    //       sessionStorage.setItem("isRoleAdmin", true);
-    //     } else {
-    //       sessionStorage.setItem("isRoleAdmin", false);
-    //     }
-    //     //
-    //     if (response.data.userProfileStatus === false) {
-    //       // route user to profile page
-    //       navigate("/profile");
-    //     } else {
-    //       // route user to dashboard
-    //       navigate("/");
-    //     }
-    //   } else if (response.status === 400) {
-    //     //
-    //     sessionStorage.setItem("isAuthenticated", false);
-    //     alert(response.data.message);
-    //   } else if (response.status === 401) {
-    //     //
-    //     sessionStorage.setItem("isAuthenticated", false);
-    //     alert(response.data.message);
-    //   } else if (response.status === 404) {
-    //     //
-    //     sessionStorage.setItem("isAuthenticated", false);
-    //     alert(response.data.message);
-    //   } else if (response.status === 400) {
-    //     //
-    //     sessionStorage.setItem("isAuthenticated", false);
-    //     alert(response.data.message);
-    //   }
-    //   //});
-    //   //
-    // } catch (error) {
-    //   //console.log(error + " gergnerjg j wnfjuwnf wefnew fbweub");
-    //   if (error.response.status === 400) {
-    //     //
-    //     sessionStorage.setItem("isAuthenticated", false);
-    //     alert(error.response.data.message);
-    //   }
-    //   if (error.response.status === 401) {
-    //     //
-    //     sessionStorage.setItem("isAuthenticated", false);
-    //     alert(error.response.data.message);
-    //   }
-    //   if (error.response.status === 404) {
-    //     //
-    //     sessionStorage.setItem("isAuthenticated", false);
-    //     alert(error.response.data.message);
-    //   }
-    //   if (error.response.status === 400) {
-    //     //
-    //     sessionStorage.setItem("isAuthenticated", false);
-    //     alert(error.response.data.message);
-    //   }
-    // }
+    await signIn(endPoint, formValues, logIn);
   };
 
   // render output
