@@ -3,7 +3,7 @@ import ActOnLeave from "./ActOnLeave";
 const ActOnLeaveConfig = {
   formFields: [
     {
-      label: "Approve/Reject",
+      label: "Approve / Reject",
       name: "approval",
       type: "select",
       options: [
@@ -12,7 +12,7 @@ const ActOnLeaveConfig = {
       ],
     },
     {
-      label: "Add Reason for feedback... (Optional)",
+      label: "Feedback Comment (Optional)",
       name: "feedback",
       type: "text",
     },

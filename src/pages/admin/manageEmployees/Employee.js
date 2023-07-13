@@ -36,10 +36,13 @@ function Employee() {
       <Grid container spacing={3}>
         {/* Employee details (overview) section */}
         <Grid item xs={12} sm={12} md={7} lg={7}>
-          <Paragraph
-            text={"Employee details " + employee_id}
+          <Typography
+            color="primary"
+            fontFamily="Geologica"
             fontWeight="normal"
-          />
+          >
+            {"Employee details " + employee_id}
+          </Typography>
           <div style={{ width: "85%" }}>
             <Divider />
           </div>
@@ -98,7 +101,13 @@ function Employee() {
           {/* Contact details section */}
           <Grid container sx={{ paddingY: "15px" }}>
             <Grid item xs={12}>
-              <Paragraph text={"Contact details"} fontWeight="normal" />
+              <Typography
+                color="primary"
+                fontFamily="Geologica"
+                fontWeight="normal"
+              >
+                {"Contact details"}
+              </Typography>
               <div style={{ width: "85%" }}>
                 <Divider />
               </div>
@@ -176,6 +185,49 @@ function Employee() {
                   Save Changes
                 </Button>
               </Grid>
+            </Grid>
+          </PaperComponent>
+
+          <br />
+          <PaperComponent>
+            <Typography
+              color="primary"
+              fontFamily="Geologica"
+              fontWeight="bold"
+            >
+              Leave Overview
+            </Typography>
+            <Divider />
+            <br />
+            <Grid container sx={{ paddingY: "6px" }}>
+              <Grid item xs={6}>
+                <Paragraph text="Pending Leave" fontWeight="bold" />
+              </Grid>
+              <Grid item xs={6}>
+                <Paragraph text="0" fontWeight="normal" />
+              </Grid>
+            </Grid>
+            <Grid container sx={{ paddingY: "6px" }}>
+              <Grid item xs={6}>
+                <Paragraph text="Active Leave" fontWeight="bold" />
+              </Grid>
+              <Grid item xs={6}>
+                <Paragraph text="0" fontWeight="normal" />
+              </Grid>
+            </Grid>
+            <Grid container sx={{ paddingY: "6px" }}>
+              <Grid item xs={6}>
+                <Paragraph text="Upcoming Leave" fontWeight="bold" />
+              </Grid>
+              <Grid item xs={6}>
+                <Paragraph text="1" fontWeight="normal" />
+              </Grid>
+            </Grid>
+
+            <Grid item xs={12} sx={{ paddingTop: "15px" }}>
+              <Button variant="contained" fullWidth>
+                View Leave History
+              </Button>
             </Grid>
           </PaperComponent>
         </Grid>

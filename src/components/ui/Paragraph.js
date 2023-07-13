@@ -9,7 +9,7 @@ function Paragraph({ text, fontWeight }) {
         sx={{
           fontFamily: "Geologica",
           fontWeight: { fontWeight },
-          color: "#616161",
+          color: "#455a64",
         }}
       >
         {text}

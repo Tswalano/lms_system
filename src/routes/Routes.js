@@ -20,6 +20,7 @@ import { RouteGuard, UserRouteGuard } from "./RouteGuard";
 // import { RouteGuard } from "./RouteGuard";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
+import ViewLeave from "../pages/admin/ManageLeave/ViewLeave";
 
 export default function AppRoutes() {
   return (
@@ -77,6 +78,14 @@ export default function AppRoutes() {
             element={
               <RouteGuard>
                 <ActOnLeave />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="manage-leave/view-leave"
+            element={
+              <RouteGuard>
+                <ViewLeave />
               </RouteGuard>
             }
           />

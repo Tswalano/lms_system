@@ -1,26 +1,22 @@
- export const ManageLeaveConfig = {
+export const LeaveRequestsTable = {
   columnsData: [
-    { id: "Employee_ID", label: "Employee_ID", minWidth: 170 },
-    { id: "name", label: "Name", minWidth: 170 },
-    { id: "surname", label: "Surname", minWidth: 170 },
-    { id: "email", label: "Email", minWidth: 170 },
-    { id: "phone", label: "Phone", minWidth: 170 },
+    { id: "name", label: "Employee Name", minWidth: 200 },
     { id: "leaveType", label: "Leave Type", minWidth: 170 },
-    { id: "view", label: "View", minWidth: 100 },
+    { id: "startDate", label: "Start Date", minWidth: 170 },
+    { id: "endDate", label: "End Date", minWidth: 170 },
+    { id: "leaveLength", label: "Leave Length", minWidth: 170 },
+    { id: "status", label: "Leave Status", minWidth: 170 },
+    { id: "open", label: "View", minWidth: 100 },
   ],
 };
 
-export const ManageActiveLeave = {
+export const ActiveLeaveTable = {
   columnsData: [
-    { id: "Employee_ID", label: "Employee_ID", minWidth: 170 },
-    { id: "name", label: "Name", minWidth: 170 },
-    { id: "surname", label: "Surname", minWidth: 170 },
-    { id: "email", label: "Email", minWidth: 170 },
-    { id: "phone", label: "Phone", minWidth: 170 },
-    { id: "jobTitle", label: "Job Title", minWidth: 170 },
+    { id: "name", label: "Employee Name", minWidth: 200 },
+    { id: "leaveType", label: "Leave Type", minWidth: 170 },
+    { id: "startDate", label: "Start Date", minWidth: 170 },
+    { id: "endDate", label: "End Date", minWidth: 170 },
+    { id: "status", label: "Leave Status", minWidth: 170 },
     { id: "view", label: "View", minWidth: 100 },
   ],
 };
-
-
-

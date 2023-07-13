@@ -1,10 +1,10 @@
-import { Grid } from "@mui/material";
+import { Box, Grid, Typography } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import Paragraph from "../../../components/ui/Paragraph";
-import { Link, useNavigate } from "react-router-dom";
 import TableComponent from "../../../components/table/TableComponent";
-import { ManageActiveLeave, ManageLeaveConfig } from "./ManageLeaveConfig";
-import PaperComponent from "../../../components/ui/Paper";
+import { ActiveLeaveTable, LeaveRequestsTable } from "./ManageLeaveConfig";
+import Breadcrumbs from "@mui/material/Breadcrumbs";
+import Link from "@mui/material/Link";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { getData } from "../../../api/API";
 import axios from "axios";
@@ -12,7 +12,7 @@ import axios from "axios";
 function ManageLeave() {
   const [rowsData, setRowsData] = useState([]);
   const [ID, setID] = useState();
-  const navigate = useNavigate("");
+  // const navigate = useNavigate("");
 
   // const viewUser = (id) => {
   //   navigate("/manage-leave/act-on-leave?id=" + id);
@@ -100,51 +100,59 @@ function ManageLeave() {
   // ];
 
   return (
-    <Grid container>
-      <Grid item xs={12}>
-        <PaperComponent>
-          <Paragraph text="Leave Requests" fontWeight="bold" />
-          <br />
-          <TableComponent
-            columnsData={ManageLeaveConfig.columnsData}
-            rowsData={rowsData.map((row) => ({
-              Employee_ID: row.User.id || "",
-              name: row.User.firstName || "",
-              surname: row.User.lastName || "",
-              email: row.User.email || "",
-              phone: row.User.phoneNumber || "",
-              leaveType: row.leave_type || "",
-              view: (
-                <Link to={"/manage-leave/act-on-leave?id=" + row.id}>View</Link>
-              ),
-            }))}
-          />
-        </PaperComponent>
-      </Grid>
+    <Box sx={{ width: "100%" }}>
+      <Breadcrumb />
+      <br />
+      <Paragraph text="Leave Requests" fontWeight="bold" />
+      <br />
+      <TableComponent
+        columnsData={LeaveRequestsTable.columnsData}
+        rowsData={rowsData.map((row) => ({
+          name: row.User.firstName + " " + row.User.lastName || "",
+          leaveType: row.leave_type || "",
+          startDate: row.start_date || "",
+          startDate: row.start_date || "",
+          leaveLength: "",
+          status: row.status || "",
+          open: (
+            <Link to={"/manage-leave/act-on-leave?id=" + row.id}>View</Link>
+          ),
+        }))}
+      />
 
-      <Grid item xs={12}>
-        <br />
-        <br />
-        <PaperComponent>
-          <Paragraph text="Active Leave" fontWeight="bold" />
-          <br />
-          <TableComponent
-            columnsData={ManageActiveLeave.columnsData}
-            rowsData={rowsData.map((row) => ({
-              Employee_ID: row.User.id || "",
-              name: row.User.firstName || "",
-              surname: row.User.lastName || "",
-              email: row.User.email || "",
-              phone: row.User.phoneNumber || "",
-              jobTitle: row.User.jobTitle || "",
-              view: (
-                <Link to={"/manage-leave/act-on-leave?id=" + row.id}>View</Link>
-              ),
-            }))}
-          />
-        </PaperComponent>
-      </Grid>
-    </Grid>
+      <br />
+      <br />
+      <Paragraph text="Active Leave" fontWeight="bold" />
+      <br />
+      <TableComponent
+        columnsData={ActiveLeaveTable.columnsData}
+        rowsData={rowsData.map((row) => ({
+          name: row.User.firstName + " " + row.User.lastName || "",
+          leaveType: row.leave_type || "",
+          startDate: row.start_date || "",
+          startDate: row.start_date || "",
+          status: row.status || "",
+          open: (
+            <Link to={"/manage-leave/act-on-leave?id=" + row.id}>View</Link>
+          ),
+        }))}
+      />
+    </Box>
+  );
+}
+
+function Breadcrumb() {
+  return (
+    <div role="presentation">
+      <Breadcrumbs aria-label="breadcrumb">
+        <Link underline="hover" color="inherit" href="/home">
+          Home
+        </Link>
+        <Typography color="primary" fontFamily="Geologica" fontWeight="normal">
+          Manage Leave
+        </Typography>
+      </Breadcrumbs>
+    </div>
   );
 }
 
