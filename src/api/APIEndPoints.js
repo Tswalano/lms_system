@@ -26,9 +26,15 @@ class APIEndPoints {
   }
 
   applyForLeave() {
-    const apply =
+    const leaveApply =
       "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/lms/apply-leave";
-    return apply;
+    return leaveApply;
+  }
+
+  getAllLeavesData() {
+    const getLeaves =
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/lms/getleave";
+    return getLeaves;
   }
 }
 export default APIEndPoints;
