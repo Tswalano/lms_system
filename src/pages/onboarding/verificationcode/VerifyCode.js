@@ -15,7 +15,7 @@ import Paragraph from "../../../components/ui/Paragraph";
 import { GridSizes } from "../../../components/form/GridSizes";
 import Link from "@mui/material/Link";
 import APIEndPoints from "../../../api/APIEndPoints";
-import { signUpAndVerify } from "../../../api/API";
+import { signIn, signUpAndVerify } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
@@ -41,6 +41,7 @@ function VerifyCode() {
     // Set isError based on the validation results
     setIsError(isCodeValid !== null);
   };
+  const { logIn } = useContext(AuthContext);
 
   useEffect(() => {
     handleValidation();
@@ -53,15 +54,27 @@ function VerifyCode() {
     event.preventDefault();
 
     const formValues = GetFormValues(event);
+    //Getting the Email and Password set in SignUp from AuthContext
     const email = ctx.email;
-    const values = { email, formValues };
+    const password = ctx.password;
+    //setting the otp to a varible to take values of otpfrom formValues
+    const otp = formValues.otp;
+    //setting the values
+    const values = { email, otp };
+
+    // setting the login details for email and password
+    const log_in = { email, password };
 
     console.log(values);
-
+    //getting Endpoints for optAPI and signIn API
     const endPoint = new APIEndPoints().otpApi();
+    const logInEndPoint = new APIEndPoints().signinAPI();
+    //Parsing the values for endPoint and values to verify user
     const verified = await signUpAndVerify(endPoint, values);
+    //Checks if user is verified
     if (verified) {
       navigate("/profile");
+      await signIn(logInEndPoint, log_in, logIn);
     }
   };
 
@@ -99,7 +112,7 @@ function VerifyCode() {
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
               <SubmitButton
-                disabled={isError}
+                // disabled={isError}
                 label="Confirm account"
                 type="submit"
               />

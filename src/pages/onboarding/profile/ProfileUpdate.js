@@ -1,15 +1,19 @@
 import React, { useState } from "react";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
-import { validateText } from "../../../components/form/Validations";
+import {
+  validateEmail,
+  validatePhone,
+  validateText,
+} from "../../../components/form/Validations";
 import { useEffect } from "react";
-import { Box, Grid } from "@mui/material";
+import { Box, Grid, Typography } from "@mui/material";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
+import ProfileConfig from "./ProfileConfig";
 import { GridSizes } from "../../../components/form/GridSizes";
 import SubmitButton from "../../../components/ui/Button";
-import AddEmployeeConfig from "./AddEmployeeConfig";
 
-function AddEmployee() {
+function ProfileUpdate() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
 
@@ -24,9 +28,18 @@ function AddEmployee() {
     // use your existing validation functions to validate email and password.
     const isFirstNameValid = validateText(formValues.firstName);
     const isLastNameValid = validateText(formValues.lastName);
+    const isEmailValid = validateEmail(formValues.email);
+    const isPhoneValid = validatePhone(formValues.phone);
+    const isJobTitleValid = validateText(formValues.jobTitle);
 
     // Set isError based on the validation results
-    setIsError(isFirstNameValid !== null || isLastNameValid !== null);
+    setIsError(
+      isFirstNameValid !== null ||
+        isLastNameValid !== null ||
+        isEmailValid !== null ||
+        isPhoneValid !== null ||
+        isJobTitleValid !== null
+    );
   };
 
   useEffect(() => {
@@ -34,33 +47,32 @@ function AddEmployee() {
     // Run the validation when formValues state changes
   }, [formValues]);
 
-  // handle form submission
+  // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     const formValues = GetFormValues(event);
   };
-
   return (
-    <Box width="100%">
+    <Box sx={{ width: "100%" }}>
       <form onSubmit={handleSubmit}>
         <Grid container>
           <FormFieldMapper
-            formFields={AddEmployeeConfig.formFields}
+            formFields={ProfileConfig.formFields}
             onChange={handleChange}
             gridSizes={GridSizes.onbordingFieldSizes}
           />
-        </Grid>
-        <Grid item xs={12} sm={12} md={12}>
-          <SubmitButton
-            disabled={isError}
-            label="Send Invitation"
-            type="submit"
-          />
+          <Grid item xs={12} sm={12} md={12}>
+            <SubmitButton
+              disabled={isError}
+              label="Save Profile"
+              type="submit"
+            />
+          </Grid>
         </Grid>
       </form>
     </Box>
   );
 }
 
-export default AddEmployee;
+export default ProfileUpdate;

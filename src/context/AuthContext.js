@@ -9,13 +9,18 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState("");
 
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   // State to store the user role
   const [isAdmin, setIsAdmin] = useState(true);
 
+  // state to store the user auth status
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
+
   // Function to handle user sign in and set token and role
   const logIn = (userToken, userRole) => {
     setToken(userToken);
+    setIsAuthenticated(userToken !== "" && userToken !== null);
     if (userRole === "admin") {
       setIsAdmin(true);
     } else {
@@ -27,9 +32,14 @@ export const AuthProvider = ({ children }) => {
     setEmail(emailID);
   };
 
+  const userPassword = (password) => {
+    setPassword(password);
+  };
+
   // Function to handle user sign out
   const signOut = () => {
     setToken(null);
+    setIsAuthenticated(false);
     setIsAdmin(false);
   };
 
@@ -37,9 +47,12 @@ export const AuthProvider = ({ children }) => {
   const authContextValue = {
     token,
     email,
+    isAuthenticated,
     isAdmin,
+    password,
     logIn,
     userEmail,
+    userPassword,
     signOut,
   };
 

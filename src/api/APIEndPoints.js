@@ -24,5 +24,11 @@ class APIEndPoints {
       "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/verify-otp";
     return otp;
   }
+
+  applyForLeave() {
+    const apply =
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/lms/apply-leave";
+    return apply;
+  }
 }
 export default APIEndPoints;

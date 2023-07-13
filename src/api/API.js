@@ -12,6 +12,7 @@ export const signIn = async (endpoint, formValues, logIn) => {
       const userToken = response.data.token;
       const userRole = response.data.user.role;
       logIn(userToken, userRole);
+      console.log(response.data.token);
     }
 
     return true; // Exit the function if successful
@@ -31,13 +32,18 @@ export const signUpAndVerify = async (endpoint, formValues) => {
     // do something if successful
 
     if (response.status === 200) {
+      console.log(response.data);
       return true;
     }
 
     return; // Exit the function if successful
   } catch (error) {
     // do something if there is an error
-    if (error.response.status === 401 || error.response.status === 400) {
+    if (
+      error.response.status === 401 ||
+      error.response.status === 400 ||
+      error.response.status === 500
+    ) {
       console.log(error.response.data.message);
       return false;
     }

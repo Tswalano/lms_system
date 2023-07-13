@@ -6,11 +6,10 @@ function Paragraph({ text, fontWeight }) {
     <>
       <Typography
         variant="body1"
-        color={"dark"}
         sx={{
           fontFamily: "Geologica",
           fontWeight: { fontWeight },
-          color: "#263238",
+          color: "#616161",
         }}
       >
         {text}

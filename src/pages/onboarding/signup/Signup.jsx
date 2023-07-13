@@ -52,6 +52,7 @@ function Signup() {
   }, [formValues]);
 
   const { userEmail } = useContext(AuthContext);
+  const { userPassword } = useContext(AuthContext);
   const ctx = useContext(AuthContext);
   const nav = useNavigate();
 
@@ -61,6 +62,7 @@ function Signup() {
     const formValues = GetFormValues(event);
     console.log(formValues);
     userEmail(formValues.email);
+    userPassword(formValues.password);
     console.log(ctx.email);
 
     const endPoint = new APIEndPoints().signupAPI();

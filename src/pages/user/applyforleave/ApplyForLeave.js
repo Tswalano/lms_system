@@ -5,15 +5,15 @@ import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { Box, Grid } from "@mui/material";
-import CenteredBox from "../../../components/ui/CenteredBox";
 import Heading from "../../../components/ui/Heading";
-import Logo from "../../../components/ui/Logo";
 import PaperComponent from "../../../components/ui/Paper";
 import { validateDropDown } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
-import DatePicker from "../../../components/ui/DatePicker";
 import { validateDate } from "../../../components/form/Validations";
+import Breadcrumbs from "@mui/material/Breadcrumbs";
+import Link from "@mui/material/Link";
+import Paragraph from "../../../components/ui/Paragraph";
 
 function ApplyForLeave() {
   // declare the useState formValues object
@@ -55,7 +55,9 @@ function ApplyForLeave() {
 
   // render output
   return (
-    <Grid container>
+    <Box sx={{ width: "100%" }}>
+      <Breadcrumb />
+      <br />
       <PaperComponent>
         <Box sx={{ textAlign: "left", paddingBottom: "20px" }}>
           <Heading text="Apply For Leave" />
@@ -78,7 +80,20 @@ function ApplyForLeave() {
           </Grid>
         </form>
       </PaperComponent>
-    </Grid>
+    </Box>
+  );
+}
+
+function Breadcrumb() {
+  return (
+    <div role="presentation">
+      <Breadcrumbs aria-label="breadcrumb">
+        <Link underline="hover" color="inherit" href="/dashboard">
+          Home
+        </Link>
+        <Paragraph text="Apply For Leave" fontWeight="normal" />
+      </Breadcrumbs>
+    </div>
   );
 }
 

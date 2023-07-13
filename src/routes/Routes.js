@@ -17,6 +17,9 @@ import ManageEmployees from "../pages/admin/manageEmployees/ManageEmployees";
 import Employee from "../pages/admin/manageEmployees/Employee";
 import AddEmployee from "../pages/admin/AdminAddEmployees/AddEmployee";
 import { RouteGuard, UserRouteGuard } from "./RouteGuard";
+// import { RouteGuard } from "./RouteGuard";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 
 export default function AppRoutes() {
   return (
@@ -27,10 +30,24 @@ export default function AppRoutes() {
         <Route path="reset-password" element={<ResetPassword />} />
         <Route path="verify-account" element={<VerifyCode />} />
         <Route path="signup" element={<Signup />} />
+        {/* Private routes */}
         <Route path="/" element={<PrivateRoute />}>
-          <Route path="home" element={<Home />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="dashboard" element={<Dashboard />} />
+          <Route
+            path="home"
+            element={
+              <RouteGuard>
+                <Home />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="manage-leave"
+            element={
+              <RouteGuard>
+                <ManageLeave />
+              </RouteGuard>
+            }
+          />
           <Route
             path="manage-employees"
             element={
@@ -39,12 +56,11 @@ export default function AppRoutes() {
               </RouteGuard>
             }
           />
-          <Route path="employee" element={<Employee />} />
           <Route
-            path="manage-leave"
+            path="manage-employees/employee"
             element={
               <RouteGuard>
-                <ManageLeave />
+                <Employee />
               </RouteGuard>
             }
           />
@@ -64,14 +80,10 @@ export default function AppRoutes() {
               </RouteGuard>
             }
           />
-          <Route
-            path="apply-for-leave"
-            element={
-              <UserRouteGuard>
-                <ApplyForLeave />
-              </UserRouteGuard>
-            }
-          />
+          {/* user pages */}
+          <Route path="profile" element={<Profile />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="apply-for-leave" element={<ApplyForLeave />} />
         </Route>
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
@@ -80,7 +92,8 @@ export default function AppRoutes() {
 }
 
 function PrivateRoute() {
-  const isAuthenticated = true;
+  const ctx = useContext(AuthContext);
+  const isAuthenticated = ctx.isAuthenticated;
 
   if (!isAuthenticated) {
     return <Navigate to="signin" replace />;
