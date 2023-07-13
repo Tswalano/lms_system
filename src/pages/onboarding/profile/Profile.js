@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import PaperComponent from "../../../components/ui/Paper";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
@@ -12,6 +12,7 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import ProfileUpdate from "./ProfileUpdate";
+import { AuthContext } from "../../../context/AuthContext";
 
 function Profile() {
   // add employee modal
@@ -49,7 +50,13 @@ function Profile() {
               <br />
               <br />
             </Box>
-            <Paragraph text={"Profile Overview"} fontWeight="normal" />
+            <Typography
+              color="primary"
+              fontFamily="Geologica"
+              fontWeight="normal"
+            >
+              {"Profile Overview"}
+            </Typography>
             <div style={{ width: "95%" }}>
               <Divider />
             </div>
@@ -91,7 +98,13 @@ function Profile() {
             {/* Contact details section */}
             <Grid container sx={{ paddingY: "15px" }}>
               <Grid item xs={12}>
-                <Paragraph text={"Contact details"} fontWeight="normal" />
+                <Typography
+                  color="primary"
+                  fontFamily="Geologica"
+                  fontWeight="normal"
+                >
+                  {"Contact details"}
+                </Typography>
                 <div style={{ width: "95%" }}>
                   <Divider />
                 </div>
@@ -166,10 +179,15 @@ function Profile() {
 }
 
 function Breadcrumb() {
+  const ctx = useContext(AuthContext);
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" href="/dashboard">
+        <Link
+          underline="hover"
+          color="inherit"
+          href={ctx.isAdmin ? "/home" : "/dashboard"}
+        >
           Home
         </Link>
         <Typography color="primary" fontFamily="Geologica" fontWeight="normal">

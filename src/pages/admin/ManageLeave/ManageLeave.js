@@ -1,164 +1,130 @@
-import { Grid } from "@mui/material";
+import { Box, Grid, Typography } from "@mui/material";
 import React from "react";
 import Paragraph from "../../../components/ui/Paragraph";
-import { Link, useNavigate } from "react-router-dom";
 import TableComponent from "../../../components/table/TableComponent";
-import { ManageActiveLeave, ManageLeaveConfig } from "./ManageLeaveConfig";
-import PaperComponent from "../../../components/ui/Paper";
+import { ActiveLeaveTable, LeaveRequestsTable } from "./ManageLeaveConfig";
+import Breadcrumbs from "@mui/material/Breadcrumbs";
+import Link from "@mui/material/Link";
 
 function ManageLeave() {
-  const navigate = useNavigate("");
-
-  const viewUser = (id) => {
-    navigate("/manage-employee?id=" + id);
-  };
-  const rowsData = [
+  const leaevRequestsRowsData = [
     {
-      Employee_ID: "1",
-      name: "Phil",
-      surname: "Maitisa",
-      email: "philemon.maitisa@disraptor.co.za",
-      phone: "0791119292",
+      name: "Phil Maitisa",
       leaveType: "Annual",
-      view: (
-        <Link href="" onClick={viewUser(1)}>
-          open
-        </Link>
-      ),
+      startDate: "21/07/2023",
+      endDate: "25/07/2023",
+      leaveLength: "Full Day",
+      status: "Pending",
+      open: <Link href="/manage-leave/act-on-leave?id=1">open</Link>,
     },
     {
-      Employee_ID: "2",
-      name: "Rebaone",
-      surname: "Makgabo",
-      email: "rebaone.makgabo@disraptor.co.za",
-      phone: "0818140244",
-      leaveType: "Maternity",
-      view: (
-        <Link href="" onClick={viewUser(2)}>
-          open
-        </Link>
-      ),
+      name: "Rebaone Makgabo",
+      leaveType: "Annual",
+      startDate: "21/07/2023",
+      endDate: "25/07/2023",
+      leaveLength: "Full Day",
+      status: "Pending",
+      open: <Link href="/manage-leave/act-on-leave?id=2">open</Link>,
     },
     {
-      Employee_ID: "3",
-      name: "Mayur",
-      surname: "Mistry",
-      email: "mayur.mistry@disraptor.co.za",
-      phone: "0668857412",
+      name: "Mayur Mistry",
       leaveType: "Emergency",
-      view: (
-        <Link href="" onClick={viewUser(3)}>
-          open
-        </Link>
-      ),
+      startDate: "21/07/2023",
+      endDate: "25/07/2023",
+      leaveLength: "Half Day",
+      status: "Pending",
+      open: <Link href="/manage-leave/act-on-leave?id=3">open</Link>,
     },
     {
-      Employee_ID: "4",
-      name: "Jino",
-      surname: "Rigney",
-      email: "jin.rigney@disraptor.co.za",
-      phone: "0784453698",
+      name: "Jino Rigney",
       leaveType: "Family Res",
-      view: (
-        <Link onClick={viewUser(4)} href="">
-          open
-        </Link>
-      ),
+      startDate: "21/07/2023",
+      endDate: "25/07/2023",
+      leaveLength: "Full Day",
+      status: "Pending",
+      open: <Link href="/manage-leave/act-on-leave?id=4">open</Link>,
     },
     {
-      Employee_ID: "5",
-      name: "Kgomotso",
-      surname: "Dungeni",
-      email: "kgomotso.dungeni@disraptor.co.za",
-      phone: "0834567283",
+      name: "Kgomotso Dungeni",
       leaveType: "Sick",
-      view: (
-        <Link onClick={viewUser(5)} href="">
-          open
-        </Link>
-      ),
+      startDate: "21/07/2023",
+      endDate: "25/07/2023",
+      leaveLength: "Full Day",
+      status: "Pending",
+      open: <Link href="/manage-leave/act-on-leave?id=5">open</Link>,
     },
   ];
 
-  const activeRows = [
+  const activeLeaveRows = [
     {
-      Employee_ID: "1",
-      name: "Phil",
-      surname: "Maitisa",
-      email: "philemon.maitisa@disraptor.co.za",
-      phone: "0791119292",
-      jobTitle: "Software Engineer",
-      view: (
-        <Link href="" onClick={viewUser(1)}>
-          open
-        </Link>
-      ),
+      name: "Phil Maitisa",
+      leaveType: "Annual",
+      startDate: "22/07/2023",
+      endDate: "25/07/2023",
+      status: "Active",
+      view: <Link href="manage-leave/view-leave?id=1">view</Link>,
     },
     {
-      Employee_ID: "2",
-      name: "Given",
-      surname: "Makofane",
-      email: "given.makofane@disraptor.co.za",
-      phone: "0791228585",
-      jobTitle: "Software Engineer",
-      view: (
-        <Link href="" onClick={viewUser(2)}>
-          open
-        </Link>
-      ),
+      name: "Given Makofane",
+      leaveType: "Emergency",
+      startDate: "22/07/2023",
+      endDate: "25/07/2023",
+      status: "Active",
+      view: <Link href="manage-leave/view-leave?id=2">view</Link>,
     },
     {
-      Employee_ID: "3",
-      name: "Thato",
-      surname: "Mamabolo",
-      email: "thato.mamabolo@disraptor.co.za",
-      phone: "0797292765",
-      jobTitle: "Software Engineer",
-      view: (
-        <Link href="" onClick={viewUser(3)}>
-          open
-        </Link>
-      ),
+      name: "Thato Mamabolo",
+      leaveType: "Sick",
+      startDate: "22/07/2023",
+      endDate: "25/07/2023",
+      status: "Active",
+      view: <Link href="manage-leave/view-leave?id=3">view</Link>,
     },
     {
-      Employee_ID: "4",
-      name: "Reolebogile",
-      surname: "Koji",
-      email: "reolebogile.koji@disraptor.co.za",
-      phone: "0897162826",
-      jobTitle: "Software Engineer",
-      view: (
-        <Link onClick={viewUser(4)} href="">
-          open
-        </Link>
-      ),
+      name: "Reba Makgabo",
+      leaveType: "Sick",
+      startDate: "22/07/2023",
+      endDate: "25/07/2023",
+      status: "Active",
+      view: <Link href="manage-leave/view-leave?id=4">view</Link>,
     },
   ];
 
   return (
-    <Grid container>
-      <Grid item xs={12}>
-        <PaperComponent>
-          <Paragraph text="Leave Requests" fontWeight="bold" />
-          <br />
-          <TableComponent
-            columnsData={ManageLeaveConfig.columnsData}
-            rowsData={rowsData}
-          />
-        </PaperComponent>
-      </Grid>
+    <Box sx={{ width: "100%" }}>
+      <Breadcrumb />
+      <br />
+      <Paragraph text="Leave Requests" fontWeight="bold" />
+      <div style={{ height: "8px" }}></div>
+      <TableComponent
+        columnsData={LeaveRequestsTable.columnsData}
+        rowsData={leaevRequestsRowsData}
+      />
 
-      <Grid item xs={12}>
-        <br />
-        <br />
-        <Paragraph text="Active Leave" fontWeight="bold" />
-        <br />
-        <TableComponent
-          columnsData={ManageActiveLeave.columnsData}
-          rowsData={activeRows}
-        />
-      </Grid>
-    </Grid>
+      <br />
+      <br />
+      <Paragraph text="Active Leave" fontWeight="bold" />
+      <div style={{ height: "8px" }}></div>
+      <TableComponent
+        columnsData={ActiveLeaveTable.columnsData}
+        rowsData={activeLeaveRows}
+      />
+    </Box>
+  );
+}
+
+function Breadcrumb() {
+  return (
+    <div role="presentation">
+      <Breadcrumbs aria-label="breadcrumb">
+        <Link underline="hover" color="inherit" href="/home">
+          Home
+        </Link>
+        <Typography color="primary" fontFamily="Geologica" fontWeight="normal">
+          Manage Leave
+        </Typography>
+      </Breadcrumbs>
+    </div>
   );
 }
 
