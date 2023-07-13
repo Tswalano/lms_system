@@ -4,8 +4,7 @@ import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
-import { Box, Grid } from "@mui/material";
-import Heading from "../../../components/ui/Heading";
+import { Box, Grid, Typography } from "@mui/material";
 import PaperComponent from "../../../components/ui/Paper";
 import { validateDropDown } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
@@ -13,7 +12,6 @@ import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 import { validateDate } from "../../../components/form/Validations";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
-import Paragraph from "../../../components/ui/Paragraph";
 
 function ApplyForLeave() {
   // declare the useState formValues object
@@ -59,10 +57,6 @@ function ApplyForLeave() {
       <Breadcrumb />
       <br />
       <PaperComponent>
-        <Box sx={{ textAlign: "left", paddingBottom: "20px" }}>
-          <Heading text="Apply For Leave" />
-        </Box>
-
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
             <FormFieldMapper
@@ -88,10 +82,12 @@ function Breadcrumb() {
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" href="/dashboard">
+        <Link underline="hover" color="inherit" href={"/dashboard"}>
           Home
         </Link>
-        <Paragraph text="Apply For Leave" fontWeight="normal" />
+        <Typography color="primary" fontFamily="Geologica" fontWeight="normal">
+          Apply For Leave
+        </Typography>
       </Breadcrumbs>
     </div>
   );

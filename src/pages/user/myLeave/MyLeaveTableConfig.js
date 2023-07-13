@@ -1,7 +1,20 @@
-export const columnsData = [
-  { id: "name", label: "Name", minWidth: 170 },
-  { id: "code", label: "ISO\u00a0Code", minWidth: 100 },
-  { id: "population", label: "Population", minWidth: 170 },
-  { id: "size", label: "Size\u00a0(km\u00b2)", minWidth: 170 },
-  { id: "density", label: "Density", minWidth: 170 },
-];
+export const MyLeaveRequestsTable = {
+  columnsData: [
+    { id: "leaveType", label: "Leave Type", minWidth: 170 },
+    { id: "startDate", label: "Start Date", minWidth: 170 },
+    { id: "endDate", label: "End Date", minWidth: 170 },
+    { id: "leaveLength", label: "Leave Length", minWidth: 170 },
+    { id: "status", label: "Leave Status", minWidth: 170 },
+    { id: "open", label: "View", minWidth: 100 },
+  ],
+};
+
+export const MyLeaveHistoryTable = {
+  columnsData: [
+    { id: "leaveType", label: "Leave Type", minWidth: 170 },
+    { id: "startDate", label: "Start Date", minWidth: 170 },
+    { id: "endDate", label: "End Date", minWidth: 170 },
+    { id: "status", label: "Leave Status", minWidth: 170 },
+    { id: "view", label: "View", minWidth: 100 },
+  ],
+};

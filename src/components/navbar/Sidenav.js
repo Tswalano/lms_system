@@ -16,7 +16,7 @@ import Logo from "../ui/Logo";
 import { Grid } from "@mui/material";
 import { Outlet, useNavigate } from "react-router-dom";
 
-const drawerWidth = 280;
+const drawerWidth = 270;
 
 const openedMixin = (theme) => ({
   width: drawerWidth,

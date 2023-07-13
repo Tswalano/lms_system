@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState("");
 
   // State to store the user role
-  const [isAdmin, setIsAdmin] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // state to store the user auth status
   const [isAuthenticated, setIsAuthenticated] = useState(true);

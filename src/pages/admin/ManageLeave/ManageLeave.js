@@ -7,7 +7,7 @@ import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
 
 function ManageLeave() {
-  const leaevRequestsRowsData = [
+  const leaveRequestsRowsData = [
     {
       name: "Phil Maitisa",
       leaveType: "Annual",
@@ -55,7 +55,7 @@ function ManageLeave() {
     },
   ];
 
-  const activeLeaveRows = [
+  const activeLeaveRowsData = [
     {
       name: "Phil Maitisa",
       leaveType: "Annual",
@@ -98,7 +98,7 @@ function ManageLeave() {
       <div style={{ height: "8px" }}></div>
       <TableComponent
         columnsData={LeaveRequestsTable.columnsData}
-        rowsData={leaevRequestsRowsData}
+        rowsData={leaveRequestsRowsData}
       />
 
       <br />
@@ -107,7 +107,7 @@ function ManageLeave() {
       <div style={{ height: "8px" }}></div>
       <TableComponent
         columnsData={ActiveLeaveTable.columnsData}
-        rowsData={activeLeaveRows}
+        rowsData={activeLeaveRowsData}
       />
     </Box>
   );
