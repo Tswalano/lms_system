@@ -18,7 +18,21 @@ function MyLeave() {
       endDate: "25/07/2023",
       leaveLength: "Full Day",
       status: "Pending",
-      open: <Link href="/my-leave/my-leave-request?id=1">open</Link>,
+      open: (
+        <Link
+          sx={{
+            paddingX: "20px",
+            paddingY: "5px",
+            background: "#2196f3",
+            borderRadius: "5px",
+            color: "white",
+          }}
+          underline="hover"
+          href="/my-leave/my-leave-request?id=1"
+        >
+          open
+        </Link>
+      ),
     },
     {
       leaveType: "Emergency",
@@ -26,7 +40,21 @@ function MyLeave() {
       endDate: "25/07/2023",
       leaveLength: "Half Day",
       status: "Pending",
-      open: <Link href="/my-leave/my-leave-request?id=3">open</Link>,
+      open: (
+        <Link
+          sx={{
+            paddingX: "20px",
+            paddingY: "5px",
+            background: "#2196f3",
+            borderRadius: "5px",
+            color: "white",
+          }}
+          underline="hover"
+          href="/my-leave/my-leave-request?id=3"
+        >
+          open
+        </Link>
+      ),
     },
     {
       leaveType: "Family Res",
@@ -34,7 +62,21 @@ function MyLeave() {
       endDate: "25/07/2023",
       leaveLength: "Full Day",
       status: "Pending",
-      open: <Link href="/my-leave/my-leave-request?id=4">open</Link>,
+      open: (
+        <Link
+          sx={{
+            paddingX: "20px",
+            paddingY: "5px",
+            background: "#2196f3",
+            borderRadius: "5px",
+            color: "white",
+          }}
+          underline="hover"
+          href="/my-leave/my-leave-request?id=4"
+        >
+          open
+        </Link>
+      ),
     },
     {
       leaveType: "Sick",
@@ -42,7 +84,21 @@ function MyLeave() {
       endDate: "25/07/2023",
       leaveLength: "Full Day",
       status: "Pending",
-      open: <Link href="/my-leave/my-leave-request?id=5">open</Link>,
+      open: (
+        <Link
+          sx={{
+            paddingX: "20px",
+            paddingY: "5px",
+            background: "#2196f3",
+            borderRadius: "5px",
+            color: "white",
+          }}
+          underline="hover"
+          href="/my-leave/my-leave-request?id=5"
+        >
+          open
+        </Link>
+      ),
     },
   ];
 
@@ -53,21 +109,63 @@ function MyLeave() {
       startDate: "22/07/2023",
       endDate: "25/07/2023",
       status: "Complete",
-      view: <Link href="my-leave/view-leave?id=1">view</Link>,
+      view: (
+        <Link
+          sx={{
+            paddingX: "20px",
+            paddingY: "5px",
+            background: "#2196f3",
+            borderRadius: "5px",
+            color: "white",
+          }}
+          underline="hover"
+          href="my-leave/view-leave?id=1"
+        >
+          view
+        </Link>
+      ),
     },
     {
       leaveType: "Emergency",
       startDate: "22/07/2023",
       endDate: "25/07/2023",
       status: "Complete",
-      view: <Link href="my-leave/view-leave?id=2">view</Link>,
+      view: (
+        <Link
+          sx={{
+            paddingX: "20px",
+            paddingY: "5px",
+            background: "#2196f3",
+            borderRadius: "5px",
+            color: "white",
+          }}
+          underline="hover"
+          href="my-leave/view-leave?id=2"
+        >
+          view
+        </Link>
+      ),
     },
     {
       leaveType: "Sick",
       startDate: "22/07/2023",
       endDate: "25/07/2023",
       status: "Complete",
-      view: <Link href="my-leave/view-leave?id=3">view</Link>,
+      view: (
+        <Link
+          sx={{
+            paddingX: "20px",
+            paddingY: "5px",
+            background: "#2196f3",
+            borderRadius: "5px",
+            color: "white",
+          }}
+          underline="hover"
+          href="my-leave/view-leave?id=3"
+        >
+          view
+        </Link>
+      ),
     },
   ];
 

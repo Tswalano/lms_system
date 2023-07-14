@@ -24,7 +24,21 @@ function ManageEmployees() {
       email: "philemon.maitisa@disraptor.co.za",
       phone: "0791119292",
       jobTitle: "Cloud & DevOps Engineer",
-      view: <Link href="/manage-employees/employee?id=1">open</Link>,
+      view: (
+        <Link
+          sx={{
+            paddingX: "20px",
+            paddingY: "5px",
+            background: "#2196f3",
+            borderRadius: "5px",
+            color: "white",
+          }}
+          underline="hover"
+          href="/manage-employees/employee?id=1"
+        >
+          open
+        </Link>
+      ),
     },
     {
       id: "2",
@@ -33,7 +47,21 @@ function ManageEmployees() {
       email: "mayur.mistry@disraptor.co.za",
       phone: "0668857412",
       jobTitle: "Cloud & DevOps Engineer",
-      view: <Link href="/manage-employees/employee?id=2">open</Link>,
+      view: (
+        <Link
+          sx={{
+            paddingX: "20px",
+            paddingY: "5px",
+            background: "#2196f3",
+            borderRadius: "5px",
+            color: "white",
+          }}
+          underline="hover"
+          href="/manage-employees/employee?id=2"
+        >
+          open
+        </Link>
+      ),
     },
     {
       id: "3",
@@ -42,7 +70,21 @@ function ManageEmployees() {
       email: "jino.rigney@disraptor.co.za",
       phone: "0784453698",
       jobTitle: "Cloud & DevOps Engineer",
-      view: <Link href="/manage-employees/employee?id=3">open</Link>,
+      view: (
+        <Link
+          sx={{
+            paddingX: "20px",
+            paddingY: "5px",
+            background: "#2196f3",
+            borderRadius: "5px",
+            color: "white",
+          }}
+          underline="hover"
+          href="/manage-employees/employee?id=3"
+        >
+          open
+        </Link>
+      ),
     },
     {
       id: "4",
@@ -51,7 +93,21 @@ function ManageEmployees() {
       email: "kgomotso.dungeni@disraptor.co.za",
       phone: "0187523369",
       jobTitle: "Cloud & DevOps Engineer",
-      view: <Link href="/manage-employees/employee?id=4">open</Link>,
+      view: (
+        <Link
+          sx={{
+            paddingX: "20px",
+            paddingY: "5px",
+            background: "#2196f3",
+            borderRadius: "5px",
+            color: "white",
+          }}
+          underline="hover"
+          href="/manage-employees/employee?id=4"
+        >
+          open
+        </Link>
+      ),
     },
     {
       id: "5",
@@ -60,7 +116,21 @@ function ManageEmployees() {
       email: "given.makofane@disraptor.co.za",
       phone: "0791228585",
       jobTitle: "Cloud & DevOps Engineer",
-      view: <Link href="/manage-employees/employee?id=5">open</Link>,
+      view: (
+        <Link
+          sx={{
+            paddingX: "20px",
+            paddingY: "5px",
+            background: "#2196f3",
+            borderRadius: "5px",
+            color: "white",
+          }}
+          underline="hover"
+          href="/manage-employees/employee?id=5"
+        >
+          open
+        </Link>
+      ),
     },
   ];
 

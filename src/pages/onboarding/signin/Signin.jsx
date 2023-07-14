@@ -71,7 +71,7 @@ function Signin() {
           <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
             <Heading text="Sign in to your account" />
           </Box>
-          <form onSubmit={handleSubmit} autocomplete="off">
+          <form onSubmit={handleSubmit} autoComplete="off">
             <Grid container>
               <FormFieldMapper
                 formFields={SigninForm.formFields}
