@@ -21,6 +21,7 @@ import { RouteGuard, UserRouteGuard } from "./RouteGuard";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import ViewLeave from "../pages/admin/ManageLeave/ViewLeave";
+import SignOut from "../pages/onboarding/signout/SignOut";
 
 export default function AppRoutes() {
   return (
@@ -31,6 +32,7 @@ export default function AppRoutes() {
         <Route path="reset-password" element={<ResetPassword />} />
         <Route path="verify-account" element={<VerifyCode />} />
         <Route path="signup" element={<Signup />} />
+        <Route path="signout" element={<SignOut/>}/>
         {/* Private routes */}
         <Route path="/" element={<PrivateRoute />}>
           <Route

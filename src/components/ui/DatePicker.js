@@ -5,15 +5,15 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { validateDate } from "../form/Validations";
 
-const validationMap = {
-  date: validateDate,
-  endDate: validateDate,
-  // Add the validation function for the date field
-  // Add more validation functions for other input types
-};
-
 function DateField({ label, value, onChange }) {
   const [defaultErrorMessage, setDefaultError] = useState("");
+
+  const validationMap = {
+    date: validateDate,
+    endDate: validateDate,
+    // Add the validation function for the date field
+    // Add more validation functions for other input types
+  };
 
   const handleDateChange = (newValue) => {
     const validationFn = validationMap["date"]; // Get the validation function for the date field

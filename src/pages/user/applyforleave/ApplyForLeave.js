@@ -54,21 +54,37 @@ function ApplyForLeave() {
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
-
-    const formValues = GetFormValues(event);
-
+    //const formValues = GetFormValues(event);
     const leave_type = formValues.LeaveType;
-    const leave_start = formValues.date;
-    const leave_end = formValues.leave_end;
+    const startDateFormat = new Date(formValues.date);
+    const endDateFormat = new Date(formValues.endDate);
+    //creating startDate Format
+    const leave_start =
+      startDateFormat.getDate() +
+      "/" +
+      startDateFormat.getMonth() +
+      "/" +
+      startDateFormat.getFullYear();
+    //Creating end Date format
+    const leave_end =
+      endDateFormat.getDate() +
+      "/" +
+      endDateFormat.getMonth() +
+      "/" +
+      endDateFormat.getFullYear();
+    //creating an array for data
     const arrData = { leave_type, leave_start, leave_end };
     const endpoint = new APIEndPoints().applyForLeave();
-    const postLeave = await postData(endpoint, arrData, ctx.token);
-    //Checks if leave submited is valid
+    const token =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImdpdmVuLm1ha29mYW5lQGRpc3JhcHRvci5jby56YSIsInJvbGUiOiJ1c2VyIiwidXNlciI6eyJpZCI6NCwiZmlyc3ROYW1lIjoidGVzdDIiLCJsYXN0TmFtZSI6ImtvZmkiLCJlbWFpbCI6ImdpdmVuLm1ha29mYW5lQGRpc3JhcHRvci5jby56YSIsInJvbGUiOiJ1c2VyIn0sImlhdCI6MTY4OTMxNjM5MCwiZXhwIjoxNjg5NDAyNzkwfQ.eNY9FrXqpqoI-YJAC3GQyLS3pn7ruw9LtQt4URsXTw0";
+
+    console.log(formValues.endDate);
+    const postLeave = await postData(endpoint, arrData, token);
+    //  Checks if leave submited is valid
     if (postLeave) {
       setLeaveValid("success");
-    } else {
-      setLeaveValid("error");
     }
+    console.log(arrData);
   };
 
   // render output

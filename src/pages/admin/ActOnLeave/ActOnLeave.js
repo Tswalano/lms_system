@@ -11,13 +11,15 @@ import { GetFormValues } from "../../../components/form/GetFormValues";
 import { validateDropDown } from "../../../components/form/Validations";
 // import { useEffect } from "react";
 import Link from "@mui/material/Link";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { getDataByID, putData } from "../../../api/API";
 
 function ActOnLeave() {
   // Create a URLSearchParams object with the current URL's query string
   const params = new URLSearchParams(window.location.search);
 
   // Access the value of employee id from query string
-  const employee_id = params.get("id");
+  const id = params.get("id");
   // declare useState variables
   const [empName, setEmpName] = useState("");
   const [leaveType, setLeaveType] = useState("");
@@ -26,6 +28,8 @@ function ActOnLeave() {
   const [leaveLength, setLeaveLength] = useState("");
   const [comments, setComments] = useState("");
   const [attachments, setAttachments] = useState("");
+
+  const [leaveData, setLeaveData] = useState([]);
 
   // form values for act on leave form
   const [formValues, setFormValues] = useState({});
@@ -42,30 +46,62 @@ function ActOnLeave() {
     setIsError(isOptionValid !== null);
   };
 
-  // useEffect(() => {
-  //   handleValidation();
-  //   // Run the validation when formValues state changes
-  // }, [formValues]);
+  useEffect(() => {
+    handleValidation();
+    // Run the validation when formValues state changes
+
+    const fetchLeaveData = async () => {
+      try {
+        const endpoint = new APIEndPoints().getLeaveByID();
+        const token =
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImdpdmVuLm1ha29mYW5lQGRpc3JhcHRvci5jby56YSIsInJvbGUiOiJ1c2VyIiwidXNlciI6eyJpZCI6NCwiZmlyc3ROYW1lIjoidGVzdCIsImxhc3ROYW1lIjoia29maSIsImVtYWlsIjoiZ2l2ZW4ubWFrb2ZhbmVAZGlzcmFwdG9yLmNvLnphIiwicm9sZSI6InVzZXIifSwiaWF0IjoxNjg5NTc4MzgwLCJleHAiOjE2ODk2NjQ3ODB9.MlGwUuZ56b_qF2GphCSM5J4N9xI0w5v-AXamz3_JWUg";
+        const leaveId = { id };
+        const data = await getDataByID(endpoint, leaveId, token);
+        if (data) {
+          console.log(data);
+          if (
+            !empName &&
+            !leaveType &&
+            !startDate &&
+            !comments &&
+            !attachments
+          ) {
+            setEmpName(data.User.firstName);
+            setLeaveType(data.leave_type);
+            setStartDate(data.start_date);
+            setEndDate(data.end_date);
+            setLeaveLength(data.duration);
+            setComments(
+              "For writers looking for a way to get their creative writing juices flowing, using a random paragraph can be a great way to do this. One of the great benefits of this tool is that nobody knows what is going to appear in the paragraph. This can be leveraged in a few different ways to force the writer to use creativity. For example, the random paragraph can be used as the beginning paragraph of a story that the writer must finish. I can also be used as a paragraph somewhere inside a short story, or for a more difficult creative challenge, it can be used as the ending paragraph. In every case, the writer is forced to use creativity to incorporate the random paragraph into the story."
+            );
+            setAttachments("https://disraptor.co.za/");
+          }
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchLeaveData();
+  }, [formValues]);
 
   //hardcoded values (temporary)
   //Set values from the object
   //change to axios
-  if (!empName && !leaveType && !startDate && !comments && !attachments) {
-    setEmpName("Yagnash Keeka");
-    setLeaveType("Annual Leave");
-    setStartDate("22/07/2023");
-    setEndDate("22/07/2023");
-    setLeaveLength("Full Day");
-    setComments(
-      "For writers looking for a way to get their creative writing juices flowing, using a random paragraph can be a great way to do this. One of the great benefits of this tool is that nobody knows what is going to appear in the paragraph. This can be leveraged in a few different ways to force the writer to use creativity. For example, the random paragraph can be used as the beginning paragraph of a story that the writer must finish. I can also be used as a paragraph somewhere inside a short story, or for a more difficult creative challenge, it can be used as the ending paragraph. In every case, the writer is forced to use creativity to incorporate the random paragraph into the story."
-    );
-    setAttachments("https://disraptor.co.za/");
-  }
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const status = formValues.approval;
+    const feedback = formValues.feedback;
     //Feedback value is captured on values that is null
-    const formValues = GetFormValues(event);
+    const endpoint = new APIEndPoints().applyForLeave();
+    const token =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImdpdmVuLm1ha29mYW5lQGRpc3JhcHRvci5jby56YSIsInJvbGUiOiJ1c2VyIiwidXNlciI6eyJpZCI6NCwiZmlyc3ROYW1lIjoidGVzdCIsImxhc3ROYW1lIjoia29maSIsImVtYWlsIjoiZ2l2ZW4ubWFrb2ZhbmVAZGlzcmFwdG9yLmNvLnphIiwicm9sZSI6InVzZXIifSwiaWF0IjoxNjg5NTc4MzgwLCJleHAiOjE2ODk2NjQ3ODB9.MlGwUuZ56b_qF2GphCSM5J4N9xI0w5v-AXamz3_JWUg";
+    const dataArr = { id, status, feedback };
+    const leaveRequest = await putData(endpoint, dataArr, token);
+    console.log(leaveRequest);
+    if (leaveRequest) {
+      console.log("applied");
+    }
     //try and catch error to do the integration and capture the form values.
     try {
     } catch (error) {}

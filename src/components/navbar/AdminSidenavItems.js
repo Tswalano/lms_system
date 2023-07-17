@@ -33,6 +33,6 @@ export const adminNavBarItems = [
     id: 4,
     icon: <Logout />,
     label: "Log out",
-    route: "logout",
+    route: "signout",
   },
 ];

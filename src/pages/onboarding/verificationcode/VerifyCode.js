@@ -73,8 +73,10 @@ function VerifyCode() {
     const verified = await signUpAndVerify(endPoint, values);
     //Checks if user is verified
     if (verified) {
-      navigate("/profile");
-      await signIn(logInEndPoint, log_in, logIn);
+      const login = await signIn(logInEndPoint, log_in, logIn);
+      if (login) {
+        navigate("/profile");
+      }
     }
   };
 

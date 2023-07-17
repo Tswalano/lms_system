@@ -27,24 +27,24 @@ export const userNavBarItems = [
     id: 3,
     icon: <FlakyIcon />,
     label: "My Leave",
-    route: "my-leave",
+    // route: "my-leave",
   },
   {
     id: 4,
     icon: <FlakyIcon />,
     label: "My Leave Documents",
-    route: "my-leave-documents",
+    // route: "my-leave-documents",
   },
   {
     id: 5,
     icon: <FlakyIcon />,
     label: "My Leave History",
-    route: "my-leave-history",
+    // route: "my-leave-history",
   },
   {
     id: 6,
     icon: <Logout />,
     label: "Log out",
-    route: "logout",
+    route: "signout",
   },
 ];

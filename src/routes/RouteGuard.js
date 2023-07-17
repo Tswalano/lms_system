@@ -4,7 +4,7 @@ import React, { useContext } from "react";
 export const RouteGuard = ({ children }) => {
   const ctx = useContext(AuthContext);
 
-  if (ctx.isAdmin === true) {
+  if (ctx.isAdmin === "admin") {
     return children;
   }
 

@@ -11,7 +11,11 @@ function App() {
   return (
     <>
       <Grid container>
-        <Sidenav menuItems={ctx.isAdmin ? adminNavBarItems : userNavBarItems} />
+        <Sidenav
+          menuItems={
+            ctx.isAdmin === "admin" ? adminNavBarItems : userNavBarItems
+          }
+        />
       </Grid>
     </>
   );

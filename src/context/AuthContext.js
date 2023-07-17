@@ -1,4 +1,4 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useEffect, useState } from "react";
 
 // Create the AuthContext
 export const AuthContext = createContext();
@@ -12,20 +12,26 @@ export const AuthProvider = ({ children }) => {
   const [password, setPassword] = useState("");
 
   // State to store the user role
-  const [isAdmin, setIsAdmin] = useState(true);
+  const [isAdmin, setIsAdmin] = useState();
 
   // state to store the user auth status
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState();
 
   // Function to handle user sign in and set token and role
   const logIn = (userToken, userRole) => {
     setToken(userToken);
     setIsAuthenticated(userToken !== "" && userToken !== null);
-    if (userRole === "admin") {
-      setIsAdmin(true);
+    // console.log(userRole);
+    setIsAdmin(userRole);
+
+    // console.log("AuthCon: " + isAdmin);
+    /*if (userRole === "admin") {
+      setIsAdmin("admin");
+      console.log("AuthCon: " + isAdmin);
     } else {
-      setIsAdmin(false);
-    }
+      setIsAdmin("user");
+      console.log("AuthCon: " + isAdmin);
+    }*/
   };
 
   const userEmail = (emailID) => {

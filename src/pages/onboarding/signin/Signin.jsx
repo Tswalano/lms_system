@@ -35,6 +35,9 @@ function Signin() {
   // State to track form field error
   const [isError, setIsError] = useState(false);
 
+  //initialise Auth Context
+  const ctx = useContext(AuthContext);
+
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
@@ -48,7 +51,14 @@ function Signin() {
   useEffect(() => {
     handleValidation();
     // Run the validation when formValues state changes
-  }, [formValues]);
+    if (ctx.isAdmin === "admin") {
+      navigate("/home");
+      console.log(ctx.isAdmin);
+    } else if (ctx.isAdmin === "user") {
+      navigate("/dashboard");
+    }
+
+  }, [formValues, ctx.isAdmin]);
 
   // handle form submition
   const handleSubmit = async (event) => {
@@ -56,10 +66,15 @@ function Signin() {
     const formValues = GetFormValues(event);
 
     const endPoint = new APIEndPoints().signinAPI();
-    const isLoggedIn = await signIn(endPoint, formValues, logIn);
-    if (isLoggedIn) {
-      navigate("/home");
-    }
+    // try {
+    const isLoggedIn = await signIn(endPoint, formValues);
+
+    ctx.logIn(isLoggedIn.token, isLoggedIn.user.role);
+    // const isAdmin = ctx.isAdmin;
+
+    // } catch (error) {
+    //   console.log(error);
+    // }
   };
 
   // render output
@@ -72,7 +87,7 @@ function Signin() {
           <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
             <Heading text="Sign in to your account" />
           </Box>
-          <form onSubmit={handleSubmit} autocomplete="off">
+          <form onSubmit={handleSubmit} autoComplete="off">
             <Grid container>
               <FormFieldMapper
                 formFields={SigninForm.formFields}

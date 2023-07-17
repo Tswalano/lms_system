@@ -7,7 +7,7 @@ const ActOnLeaveConfig = {
       name: "approval",
       type: "select",
       options: [
-        { value: "Approve", labelText: "Approve" },
+        { value: "approved", labelText: "Approve" },
         { value: "Reject", labelText: "Reject" },
       ],
     },
