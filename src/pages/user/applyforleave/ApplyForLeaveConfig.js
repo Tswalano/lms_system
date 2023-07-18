@@ -2,7 +2,7 @@ const ApplyForLeaveForm = {
   formFields: [
     {
       label: "Leave Type",
-      name: "LeaveType",
+      name: "leaveType",
       type: "select",
       options: [
         { value: "Sick Leave", labelText: "Sick Leave" },
@@ -22,11 +22,11 @@ const ApplyForLeaveForm = {
         { value: "Full Day", labelText: "Full Day" },
       ],
     },
-    { label: "Start Date", name: "date", type: "date" },
+    { label: "Start Date", name: "startDate", type: "date" },
     { label: "End Date", name: "endDate", type: "date" },
 
-    { label: "Comment", name: "Comment", type: "text" },
-    { label: "", name: "Upload File", type: "file" },
+    { label: "Leave Comment", name: "leaveComment", type: "text" },
+    { label: "", name: "leaveAttachement", type: "file" },
   ],
 };
 

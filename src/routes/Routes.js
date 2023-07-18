@@ -22,6 +22,9 @@ import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import ViewLeave from "../pages/admin/ManageLeave/ViewLeave";
 import SignOut from "../pages/onboarding/signout/SignOut";
+import MyLeave from "../pages/user/myLeave/MyLeave";
+import ViewMyLeave from "../pages/user/myLeave/ViewMyLeave";
+import MyLeaveRequest from "../pages/user/myLeave/MyLeaveRequest";
 
 export default function AppRoutes() {
   return (
@@ -95,6 +98,12 @@ export default function AppRoutes() {
           <Route path="profile" element={<Profile />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="apply-for-leave" element={<ApplyForLeave />} />
+          <Route path="my-leave" element={<MyLeave />} />
+          <Route path="my-leave/view-leave" element={<ViewMyLeave />} />
+          <Route
+            path="my-leave/my-leave-request"
+            element={<MyLeaveRequest />}
+          />
         </Route>
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>

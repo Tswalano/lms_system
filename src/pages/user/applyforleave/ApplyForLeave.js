@@ -93,10 +93,6 @@ function ApplyForLeave() {
       <Breadcrumb />
       <br />
       <PaperComponent>
-        <Box sx={{ textAlign: "left", paddingBottom: "20px" }}>
-          <Heading text="Apply For Leave" />
-        </Box>
-
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
             <FormFieldMapper
@@ -138,10 +134,12 @@ function Breadcrumb() {
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" href="/dashboard">
+        <Link underline="hover" color="inherit" href={"/dashboard"}>
           Home
         </Link>
-        <Paragraph text="Apply For Leave" fontWeight="normal" />
+        <Typography color="primary" fontFamily="Geologica" fontWeight="normal">
+          Apply For Leave
+        </Typography>
       </Breadcrumbs>
     </div>
   );

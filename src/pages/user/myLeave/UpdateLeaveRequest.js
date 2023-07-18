@@ -1,0 +1,74 @@
+import React, { useState, useEffect } from "react";
+import {
+  validateDropDown,
+  validateDate,
+} from "../../../components/form/Validations";
+import { Box, Grid } from "@mui/material";
+import FormFieldMapper from "../../../components/form/FormFieldMapper";
+import ApplyForLeaveForm from "../applyforleave/ApplyForLeaveConfig";
+import { GridSizes } from "../../../components/form/GridSizes";
+import { handleFieldChange } from "../../../components/form/HandleFieldChange";
+import { GetFormValues } from "../../../components/form/GetFormValues";
+import SubmitButton from "../../../components/ui/Button";
+
+function UpdateLeaveRequest() {
+  // declare the useState formValues object
+  const [formValues, setFormValues] = useState({});
+
+  // handle form field values on change
+  const handleChange = handleFieldChange(setFormValues);
+
+  // State to track form field error
+  const [isError, setIsError] = useState(true);
+
+  // Update the isError state based on the validation results
+  const handleValidation = () => {
+    // use your existing validation functions to validate email and password.
+    const isSelectValid = validateDropDown(
+      formValues.LeaveType,
+      formValues.leaveLength
+    );
+
+    const isDate = validateDate(formValues.date);
+    const isEndDate = validateDate(formValues.endDate);
+    // const isDate = validateDate(formValues.Date)
+
+    // Set isError based on the validation results
+    setIsError(isSelectValid !== null || isDate !== null || isEndDate !== null);
+  };
+
+  useEffect(() => {
+    handleValidation();
+    // Run the validation when formValues state changes
+  }, [formValues]);
+
+  // handle form submition
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    const formValues = GetFormValues(event);
+  };
+
+  return (
+    <Box sx={{ width: "100%" }}>
+      <form onSubmit={handleSubmit}>
+        <Grid container>
+          <FormFieldMapper
+            formFields={ApplyForLeaveForm.formFields}
+            onChange={handleChange}
+            gridSizes={GridSizes.onbordingFieldSizes}
+          />
+          <Grid item xs={12} sm={12} md={12}>
+            <SubmitButton
+              disabled={isError}
+              label="Edit Leave Request"
+              type="submit"
+            />
+          </Grid>
+        </Grid>
+      </form>
+    </Box>
+  );
+}
+
+export default UpdateLeaveRequest;
