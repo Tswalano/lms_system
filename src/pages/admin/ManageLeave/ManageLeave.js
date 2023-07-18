@@ -8,6 +8,7 @@ import APIEndPoints from "../../../api/APIEndPoints";
 import { getData } from "../../../api/API";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
+import LaunchIcon from "@mui/icons-material/Launch";
 
 function ManageLeave() {
   const [leaveRequestData, setLeaveRequestData] = useState([]);
@@ -20,8 +21,10 @@ function ManageLeave() {
     const fetchData = async () => {
       try {
         const endpoint = new APIEndPoints().getAllLeavesData();
-
-        const data = await getData(endpoint, ctx.token);
+        const token =
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InlhZ25hc2gua2Vla2FAZGlzcmFwdG9yLmNvLnphIiwicm9sZSI6InVzZXIiLCJ1c2VyIjp7ImlkIjo2NCwiZmlyc3ROYW1lIjpudWxsLCJsYXN0TmFtZSI6bnVsbCwiZW1haWwiOiJ5YWduYXNoLmtlZWthQGRpc3JhcHRvci5jby56YSIsInJvbGUiOiJ1c2VyIn0sImlhdCI6MTY4OTY3NzUwNCwiZXhwIjoxNjg5NzYzOTA0fQ.t-ZhY-Ow7sYd2RH3oxQXqQ6ayiu2ZRTLHMzOfB1oBqs";
+        const data = await getData(endpoint, token);
+        //checks the response
         if (data) {
           const leaveRequests = [];
           const activeLeaves = [];
@@ -39,7 +42,7 @@ function ManageLeave() {
                 status: data[i].status || "",
                 open: (
                   <Link to={"/manage-leave/act-on-leave?id=" + data[i].id}>
-                    View
+                    <LaunchIcon />
                   </Link>
                 ),
               });

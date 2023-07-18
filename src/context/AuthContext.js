@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState } from "react";
+import React, { createContext, useState } from "react";
 
 // Create the AuthContext
 export const AuthContext = createContext();
@@ -21,17 +21,8 @@ export const AuthProvider = ({ children }) => {
   const logIn = (userToken, userRole) => {
     setToken(userToken);
     setIsAuthenticated(userToken !== "" && userToken !== null);
-    // console.log(userRole);
-    setIsAdmin(userRole);
 
-    // console.log("AuthCon: " + isAdmin);
-    /*if (userRole === "admin") {
-      setIsAdmin("admin");
-      console.log("AuthCon: " + isAdmin);
-    } else {
-      setIsAdmin("user");
-      console.log("AuthCon: " + isAdmin);
-    }*/
+    setIsAdmin(userRole);
   };
 
   const userEmail = (emailID) => {

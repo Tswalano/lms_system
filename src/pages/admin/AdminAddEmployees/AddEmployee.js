@@ -29,16 +29,16 @@ function AddEmployee() {
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
     const isFirstNameValid = validateText(formValues.firstName);
-    const isLastNameValid = validateText(formValues.lastName);
+    const isLastNameValid = validateText(formValues.surname);
 
     // Set isError based on the validation results
-    setIsError(isFirstNameValid !== null || isLastNameValid !== null);
+    setIsError(isFirstNameValid !== null && isLastNameValid !== null);
   };
 
   useEffect(() => {
     handleValidation();
     // Run the validation when formValues state changes
-  }, [formValues]);
+  }, [formValues.firstname, formValues.surname]);
 
   // handle form submission
   const handleSubmit = async (event) => {
@@ -47,6 +47,7 @@ function AddEmployee() {
     const endpoint = new APIEndPoints().addNewEmployee();
     //posting data
     const addEmployee = await postData(endpoint, formValues, ctx.token);
+    console.log(formValues);
 
     if (addEmployee) {
       console.log("success");
