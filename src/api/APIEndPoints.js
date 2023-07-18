@@ -15,7 +15,7 @@ class APIEndPoints {
 
   profileAPI() {
     const profile =
-      "https://11qegqaxid.execute-api.us-east-1.amazonaws.com/dev/user-service/profile/";
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/profile";
     return profile;
   }
 
@@ -40,6 +40,12 @@ class APIEndPoints {
     const getLeaveByID =
       "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/lms/getleave/by-id";
     return getLeaveByID;
+  }
+
+  addNewEmployee() {
+    const addNewEmployee =
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/invite-emp";
+    return addNewEmployee;
   }
 }
 export default APIEndPoints;

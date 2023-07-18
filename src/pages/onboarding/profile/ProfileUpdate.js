@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import {
@@ -12,6 +12,9 @@ import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import ProfileConfig from "./ProfileConfig";
 import { GridSizes } from "../../../components/form/GridSizes";
 import SubmitButton from "../../../components/ui/Button";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { postData } from "../../../api/API";
+import { AuthContext } from "../../../context/AuthContext";
 
 function ProfileUpdate() {
   // declare the useState formValues object
@@ -22,6 +25,8 @@ function ProfileUpdate() {
 
   // State to track form field error
   const [isError, setIsError] = useState(true);
+
+  const ctx = useContext(AuthContext);
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
@@ -52,6 +57,12 @@ function ProfileUpdate() {
     event.preventDefault();
 
     const formValues = GetFormValues(event);
+    const endpoint = new APIEndPoints().profileAPI();
+
+    const updateProfile = await postData(endpoint, formValues, ctx.token);
+    if (updateProfile) {
+      console.log("Success");
+    }
   };
   return (
     <Box sx={{ width: "100%" }}>
