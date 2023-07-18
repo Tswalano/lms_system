@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { validateText } from "../../../components/form/Validations";
@@ -8,6 +8,9 @@ import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import { GridSizes } from "../../../components/form/GridSizes";
 import SubmitButton from "../../../components/ui/Button";
 import AddEmployeeConfig from "./AddEmployeeConfig";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { postData } from "../../../api/API";
+import { AuthContext } from "../../../context/AuthContext";
 
 function AddEmployee() {
   // declare the useState formValues object
@@ -18,6 +21,9 @@ function AddEmployee() {
 
   // State to track form field error
   const [isError, setIsError] = useState(true);
+
+  //Declaring usContext use stored values
+  const ctx = useContext(AuthContext);
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
@@ -37,8 +43,14 @@ function AddEmployee() {
   // handle form submission
   const handleSubmit = async (event) => {
     event.preventDefault();
+    //Getting endpoint
+    const endpoint = new APIEndPoints().addNewEmployee();
+    //posting data
+    const addEmployee = await postData(endpoint, formValues, ctx.token);
 
-    const formValues = GetFormValues(event);
+    if (addEmployee) {
+      console.log("success");
+    }
   };
 
   return (

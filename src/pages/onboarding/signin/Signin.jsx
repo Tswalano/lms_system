@@ -5,7 +5,7 @@ import SigninForm from "./FormConfig";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
-import { Box, Grid } from "@mui/material";
+import { Box, CircularProgress, Grid } from "@mui/material";
 import CenteredBox from "../../../components/ui/CenteredBox";
 import Heading from "../../../components/ui/Heading";
 import Logo from "../../../components/ui/Logo";
@@ -18,7 +18,7 @@ import { GridSizes } from "../../../components/form/GridSizes";
 // import { login, postFormData } from "../../../api/API";
 import { signIn } from "../../../api/API";
 import APIEndPoints from "../../../api/APIEndPoints";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
 
 function Signin() {
@@ -35,6 +35,9 @@ function Signin() {
   // State to track form field error
   const [isError, setIsError] = useState(false);
 
+  //initialise Auth Context
+  const ctx = useContext(AuthContext);
+
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
@@ -48,17 +51,23 @@ function Signin() {
   useEffect(() => {
     handleValidation();
     // Run the validation when formValues state changes
-  }, [formValues]);
-
+    if (ctx.isAdmin === "admin") {
+      navigate("/home");
+      console.log(ctx.isAdmin);
+    } else if (ctx.isAdmin === "user") {
+      navigate("/dashboard");
+    }
+  }, [formValues, ctx.isAdmin]);
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
-
     const formValues = GetFormValues(event);
-    //console.log(formValues);
 
     const endPoint = new APIEndPoints().signinAPI();
-    await signIn(endPoint, formValues, logIn);
+
+    const isLoggedIn = await signIn(endPoint, formValues);
+
+    ctx.logIn(isLoggedIn.token, isLoggedIn.user.role);
   };
 
   // render output
@@ -79,6 +88,7 @@ function Signin() {
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
               <SubmitButton disabled={isError} label="Sign in" type="submit" />
+              <Link to={"/forgot-password"}>Forgot your password?</Link>
             </Grid>
           </form>
         </PaperComponent>

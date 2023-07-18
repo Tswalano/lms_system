@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
@@ -14,9 +14,12 @@ import VerifyCodeConfig from "./VerifyCodeConfig";
 import Paragraph from "../../../components/ui/Paragraph";
 import { GridSizes } from "../../../components/form/GridSizes";
 import Link from "@mui/material/Link";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { signIn, signUpAndVerify } from "../../../api/API";
+import { AuthContext } from "../../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 // get the email from the storage session
-const email = sessionStorage.getItem("email");
 
 function VerifyCode() {
   // declare the useState formValues object
@@ -28,6 +31,8 @@ function VerifyCode() {
   // State to track form field error
   const [isError, setIsError] = useState(false);
 
+  const navigate = useNavigate();
+
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
@@ -36,21 +41,43 @@ function VerifyCode() {
     // Set isError based on the validation results
     setIsError(isCodeValid !== null);
   };
+  const { logIn } = useContext(AuthContext);
 
   useEffect(() => {
     handleValidation();
     // Run the validation when formValues state changes
   }, [formValues]);
-
+  const { userEmail } = useContext(AuthContext);
+  const ctx = useContext(AuthContext);
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     const formValues = GetFormValues(event);
-    console.log(formValues);
+    //Getting the Email and Password set in SignUp from AuthContext
+    const email = ctx.email;
+    const password = ctx.password;
+    //setting the otp to a varible to take values of otpfrom formValues
+    const otp = formValues.otp;
+    //setting the values
+    const values = { email, otp };
 
-    // remove email session from forgot password page on reset password success
-    sessionStorage.removeItem("email");
+    // setting the login details for email and password
+    const log_in = { email, password };
+
+    console.log(values);
+    //getting Endpoints for optAPI and signIn API
+    const endPoint = new APIEndPoints().otpApi();
+    const logInEndPoint = new APIEndPoints().signinAPI();
+    //Parsing the values for endPoint and values to verify user
+    const verified = await signUpAndVerify(endPoint, values);
+    //Checks if user is verified
+    if (verified) {
+      const login = await signIn(logInEndPoint, log_in, logIn);
+      if (login) {
+        navigate("/profile");
+      }
+    }
   };
 
   // handle send new code request
@@ -73,7 +100,7 @@ function VerifyCode() {
             <Paragraph
               text={
                 "We have sent a code by email to " +
-                email +
+                ctx.email +
                 ". Enter it below to confirm your account."
               }
               fontWeight="normal"
@@ -87,7 +114,7 @@ function VerifyCode() {
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
               <SubmitButton
-                disabled={isError}
+                // disabled={isError}
                 label="Confirm account"
                 type="submit"
               />

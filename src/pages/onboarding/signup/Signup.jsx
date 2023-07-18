@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import SubmitButton from "../../../components/ui/Button";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SignupForm from "./FormConfig";
@@ -16,6 +16,10 @@ import {
 } from "../../../components/form/Validations";
 import { useEffect } from "react";
 import { GridSizes } from "../../../components/form/GridSizes";
+import { AuthContext } from "../../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { signUpAndVerify } from "../../../api/API";
 
 function Signup() {
   const [formValues, setFormValues] = useState({});
@@ -23,6 +27,11 @@ function Signup() {
   const handleInputChange = handleFieldChange(setFormValues);
 
   const [isError, setIsError] = useState(true);
+
+  const { userEmail } = useContext(AuthContext);
+  const { userPassword } = useContext(AuthContext);
+  const ctx = useContext(AuthContext);
+  const nav = useNavigate();
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
@@ -52,9 +61,15 @@ function Signup() {
 
     const formValues = GetFormValues(event);
     console.log(formValues);
+    userEmail(formValues.email);
+    userPassword(formValues.password);
+    console.log(ctx.email);
 
-    // store session for email to be accessed on the next page
-    sessionStorage.setItem("email", formValues.email);
+    const endPoint = new APIEndPoints().signupAPI();
+    const signUpUser = await signUpAndVerify(endPoint, formValues);
+    if (signUpUser) {
+      nav("/verify-account");
+    }
   };
 
   return (

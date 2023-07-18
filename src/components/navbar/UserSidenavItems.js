@@ -2,6 +2,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import AccountCircle from "@mui/icons-material/AccountCircle";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import FlakyIcon from "@mui/icons-material/Flaky";
 import Logout from "@mui/icons-material/Logout";
 
 export const userNavBarItems = [
@@ -27,12 +28,24 @@ export const userNavBarItems = [
     id: 3,
     icon: <EventAvailableIcon />,
     label: "My Leave",
-    route: "my-leave",
+    // route: "my-leave",
   },
   {
     id: 4,
+    icon: <FlakyIcon />,
+    label: "My Leave Documents",
+    // route: "my-leave-documents",
+  },
+  {
+    id: 5,
+    icon: <FlakyIcon />,
+    label: "My Leave History",
+    // route: "my-leave-history",
+  },
+  {
+    id: 6,
     icon: <Logout />,
     label: "Log out",
-    route: "logout",
+    route: "signout",
   },
 ];

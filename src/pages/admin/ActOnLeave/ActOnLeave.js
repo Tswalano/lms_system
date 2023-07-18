@@ -1,4 +1,4 @@
-import { React, useState } from "react";
+import { React, useState, useEffect, useContext } from "react";
 import PaperComponent from "../../../components/ui/Paper";
 import { Box, Grid, Breadcrumbs, Typography, Divider } from "@mui/material";
 import Paragraph from "../../../components/ui/Paragraph";
@@ -9,15 +9,18 @@ import { GridSizes } from "../../../components/form/GridSizes";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { validateDropDown } from "../../../components/form/Validations";
-import { useEffect } from "react";
+// import { useEffect } from "react";
 import Link from "@mui/material/Link";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { getDataByID, putData } from "../../../api/API";
+import { AuthContext } from "../../../context/AuthContext";
 
 function ActOnLeave() {
   // Create a URLSearchParams object with the current URL's query string
   const params = new URLSearchParams(window.location.search);
 
   // Access the value of employee id from query string
-  const employee_id = params.get("id");
+  const id = params.get("id");
   // declare useState variables
   const [empName, setEmpName] = useState("");
   const [leaveType, setLeaveType] = useState("");
@@ -34,6 +37,9 @@ function ActOnLeave() {
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
 
+  //Declaring usContext use stored values
+  const ctx = useContext(AuthContext);
+
   const handleValidation = () => {
     // use your existing validation functions to approval
     const isOptionValid = validateDropDown(formValues.approval);
@@ -45,29 +51,56 @@ function ActOnLeave() {
   useEffect(() => {
     handleValidation();
     // Run the validation when formValues state changes
+
+    const fetchLeaveData = async () => {
+      try {
+        const endpoint = new APIEndPoints().getLeaveByID();
+        const leaveId = { id };
+        const data = await getDataByID(endpoint, leaveId, ctx.token);
+        //Checks if response is valid
+        if (data) {
+          console.log(data);
+          if (
+            !empName &&
+            !leaveType &&
+            !startDate &&
+            !comments &&
+            !attachments
+          ) {
+            setEmpName(data.User.firstName);
+            setLeaveType(data.leave_type);
+            setStartDate(data.start_date);
+            setEndDate(data.end_date);
+            setLeaveLength(data.duration);
+            setComments(
+              "For writers looking for a way to get their creative writing juices flowing, using a random paragraph can be a great way to do this. One of the great benefits of this tool is that nobody knows what is going to appear in the paragraph. This can be leveraged in a few different ways to force the writer to use creativity. For example, the random paragraph can be used as the beginning paragraph of a story that the writer must finish. I can also be used as a paragraph somewhere inside a short story, or for a more difficult creative challenge, it can be used as the ending paragraph. In every case, the writer is forced to use creativity to incorporate the random paragraph into the story."
+            );
+            setAttachments("https://disraptor.co.za/");
+          }
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchLeaveData();
   }, [formValues]);
 
   //hardcoded values (temporary)
   //Set values from the object
   //change to axios
-  if (!empName && !leaveType && !startDate && !comments && !attachments) {
-    setEmpName("Yagnash Keeka");
-    setLeaveType("Annual Leave");
-    setStartDate("22/07/2023");
-    setEndDate("22/07/2023");
-    setLeaveLength("Full Day");
-    setComments(
-      "For writers looking for a way to get their creative writing juices flowing, using a random paragraph can be a great way to do this. One of the great benefits of this tool is that nobody knows what is going to appear in the paragraph. This can be leveraged in a few different ways to force the writer to use creativity. For example, the random paragraph can be used as the beginning paragraph of a story that the writer must finish. I can also be used as a paragraph somewhere inside a short story, or for a more difficult creative challenge, it can be used as the ending paragraph. In every case, the writer is forced to use creativity to incorporate the random paragraph into the story."
-    );
-    setAttachments(
-      "https://www.dexform.com/download/sample-letter-from-your-doctor-or-other-service-provider"
-    );
-  }
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const status = formValues.approval;
+    const feedback = formValues.feedback;
     //Feedback value is captured on values that is null
-    const formValues = GetFormValues(event);
+    const endpoint = new APIEndPoints().applyForLeave();
+    const dataArr = { id, status, feedback };
+    const leaveRequest = await putData(endpoint, dataArr, ctx.token);
+    console.log(leaveRequest);
+    if (leaveRequest) {
+      console.log("applied");
+    }
     //try and catch error to do the integration and capture the form values.
     try {
     } catch (error) {}

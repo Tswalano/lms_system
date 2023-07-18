@@ -1,247 +1,93 @@
 import { Box, Typography } from "@mui/material";
-import React from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Paragraph from "../../../components/ui/Paragraph";
 import TableComponent from "../../../components/table/TableComponent";
 import { ActiveLeaveTable, LeaveRequestsTable } from "./ManageLeaveConfig";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
-import Link from "@mui/material/Link";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { getData } from "../../../api/API";
+import { Link } from "react-router-dom";
+import { AuthContext } from "../../../context/AuthContext";
 
 function ManageLeave() {
-  const leaveRequestsRowsData = [
-    {
-      id: "0",
-      name: "Phil Maitisa",
-      leaveType: "Annual",
-      startDate: "21/07/2023",
-      endDate: "25/07/2023",
-      leaveLength: "Full Day",
-      status: "Pending",
-      open: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="/manage-leave/act-on-leave?id=1"
-        >
-          open
-        </Link>
-      ),
-    },
-    {
-      id: "1",
-      name: "Rebaone Makgabo",
-      leaveType: "Annual",
-      startDate: "21/07/2023",
-      endDate: "25/07/2023",
-      leaveLength: "Full Day",
-      status: "Pending",
-      open: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="/manage-leave/act-on-leave?id=2"
-        >
-          open
-        </Link>
-      ),
-    },
-    {
-      id: "2",
-      name: "Mayur Mistry",
-      leaveType: "Emergency",
-      startDate: "21/07/2023",
-      endDate: "25/07/2023",
-      leaveLength: "Half Day",
-      status: "Pending",
-      open: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="/manage-leave/act-on-leave?id=3"
-        >
-          open
-        </Link>
-      ),
-    },
-    {
-      id: "3",
-      name: "Jino Rigney",
-      leaveType: "Family Res",
-      startDate: "21/07/2023",
-      endDate: "25/07/2023",
-      leaveLength: "Full Day",
-      status: "Pending",
-      open: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="/manage-leave/act-on-leave?id=4"
-        >
-          open
-        </Link>
-      ),
-    },
-    {
-      id: "4",
-      name: "Kgomotso Dungeni",
-      leaveType: "Sick",
-      startDate: "21/07/2023",
-      endDate: "25/07/2023",
-      leaveLength: "Full Day",
-      status: "Pending",
-      open: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="/manage-leave/act-on-leave?id=5"
-        >
-          open
-        </Link>
-      ),
-    },
-  ];
+  const [leaveRequestData, setLeaveRequestData] = useState([]);
+  const [activeLeaveData, setActiveLeaveData] = useState([]);
 
-  const activeLeaveRowsData = [
-    {
-      id: "0",
-      name: "Phil Maitisa",
-      leaveType: "Annual",
-      startDate: "22/07/2023",
-      endDate: "25/07/2023",
-      status: "Active",
-      view: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="manage-leave/view-leave?id=1"
-        >
-          view
-        </Link>
-      ),
-    },
-    {
-      id: "1",
-      name: "Given Makofane",
-      leaveType: "Emergency",
-      startDate: "22/07/2023",
-      endDate: "25/07/2023",
-      status: "Active",
-      view: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="manage-leave/view-leave?id=2"
-        >
-          view
-        </Link>
-      ),
-    },
-    {
-      id: "3",
-      name: "Thato Mamabolo",
-      leaveType: "Sick",
-      startDate: "22/07/2023",
-      endDate: "25/07/2023",
-      status: "Active",
-      view: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="manage-leave/view-leave?id=3"
-        >
-          view
-        </Link>
-      ),
-    },
-    {
-      id: "4",
-      name: "Reba Makgabo",
-      leaveType: "Sick",
-      startDate: "22/07/2023",
-      endDate: "25/07/2023",
-      status: "Active",
-      view: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="manage-leave/view-leave?id=4"
-        >
-          view
-        </Link>
-      ),
-    },
-  ];
+  //Declaring usContext use stored values
+  const ctx = useContext(AuthContext);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const endpoint = new APIEndPoints().getAllLeavesData();
+
+        const data = await getData(endpoint, ctx.token);
+        if (data) {
+          const leaveRequests = [];
+          const activeLeaves = [];
+          //For loop to check each object on whether the status is pending or approved.
+          for (let i = 0; i < data.length; i++) {
+            if (data[i].status === "pending") {
+              //psuhing data into the array
+              leaveRequests.push({
+                id: data[i].id,
+                name: data[i].User.firstName + " " + data[i].User.lastName,
+                leaveType: data[i].leave_type || "",
+                startDate: data[i].start_date || "",
+                endDate: data[i].end_date || "",
+                leaveLength: data[i].duration,
+                status: data[i].status || "",
+                open: (
+                  <Link to={"/manage-leave/act-on-leave?id=" + data[i].id}>
+                    View
+                  </Link>
+                ),
+              });
+            } else if (data[i].status === "approved") {
+              activeLeaves.push({
+                id: data[i].id,
+                name: data[i].User.firstName + " " + data[i].User.lastName,
+                leaveType: data[i].leave_type || "",
+                startDate: data[i].start_date || "",
+                endDate: data[i].end_date || "",
+                status: data[i].status || "",
+                view: (
+                  <Link to={"/manage-leave/act-on-leave?id=" + data[i].id}>
+                    View
+                  </Link>
+                ),
+              });
+            }
+          }
+          setLeaveRequestData(leaveRequests);
+          setActiveLeaveData(activeLeaves);
+        }
+      } catch (error) {
+        console.error("Error fetching leave data:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+  console.log(leaveRequestData);
 
   return (
     <Box sx={{ width: "100%" }}>
       <Breadcrumb />
       <br />
       <Paragraph text="Leave Requests" fontWeight="bold" />
-      <div style={{ height: "8px" }}></div>
+      <br />
       <TableComponent
         columnsData={LeaveRequestsTable.columnsData}
-        rowsData={leaveRequestsRowsData}
+        rowsData={leaveRequestData}
       />
 
       <br />
       <Paragraph text="Active Leave" fontWeight="bold" />
-      <div style={{ height: "8px" }}></div>
+      <br />
       <TableComponent
         columnsData={ActiveLeaveTable.columnsData}
-        rowsData={activeLeaveRowsData}
+        rowsData={activeLeaveData}
       />
     </Box>
   );

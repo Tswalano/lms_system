@@ -16,10 +16,12 @@ import Signup from "../pages/onboarding/signup/Signup";
 import ManageEmployees from "../pages/admin/manageEmployees/ManageEmployees";
 import Employee from "../pages/admin/manageEmployees/Employee";
 import AddEmployee from "../pages/admin/AdminAddEmployees/AddEmployee";
-import { RouteGuard } from "./RouteGuard";
+import { RouteGuard, UserRouteGuard } from "./RouteGuard";
+// import { RouteGuard } from "./RouteGuard";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import ViewLeave from "../pages/admin/ManageLeave/ViewLeave";
+import SignOut from "../pages/onboarding/signout/SignOut";
 import MyLeave from "../pages/user/myLeave/MyLeave";
 import ViewMyLeave from "../pages/user/myLeave/ViewMyLeave";
 import MyLeaveRequest from "../pages/user/myLeave/MyLeaveRequest";
@@ -33,6 +35,7 @@ export default function AppRoutes() {
         <Route path="reset-password" element={<ResetPassword />} />
         <Route path="verify-account" element={<VerifyCode />} />
         <Route path="signup" element={<Signup />} />
+        <Route path="signout" element={<SignOut/>}/>
         {/* Private routes */}
         <Route path="/" element={<PrivateRoute />}>
           <Route
