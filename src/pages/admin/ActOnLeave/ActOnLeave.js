@@ -1,4 +1,4 @@
-import { React, useState, useEffect } from "react";
+import { React, useState, useEffect, useContext } from "react";
 import PaperComponent from "../../../components/ui/Paper";
 import { Box, Grid, Breadcrumbs, Typography, Divider } from "@mui/material";
 import Paragraph from "../../../components/ui/Paragraph";
@@ -13,6 +13,7 @@ import { validateDropDown } from "../../../components/form/Validations";
 import Link from "@mui/material/Link";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { getDataByID, putData } from "../../../api/API";
+import { AuthContext } from "../../../context/AuthContext";
 
 function ActOnLeave() {
   // Create a URLSearchParams object with the current URL's query string
@@ -29,14 +30,15 @@ function ActOnLeave() {
   const [comments, setComments] = useState("");
   const [attachments, setAttachments] = useState("");
 
-  const [leaveData, setLeaveData] = useState([]);
-
   // form values for act on leave form
   const [formValues, setFormValues] = useState({});
   const [isError, setIsError] = useState(false);
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
+
+  //Declaring usContext use stored values
+  const ctx = useContext(AuthContext);
 
   const handleValidation = () => {
     // use your existing validation functions to approval
@@ -53,10 +55,9 @@ function ActOnLeave() {
     const fetchLeaveData = async () => {
       try {
         const endpoint = new APIEndPoints().getLeaveByID();
-        const token =
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImdpdmVuLm1ha29mYW5lQGRpc3JhcHRvci5jby56YSIsInJvbGUiOiJ1c2VyIiwidXNlciI6eyJpZCI6NCwiZmlyc3ROYW1lIjoidGVzdCIsImxhc3ROYW1lIjoia29maSIsImVtYWlsIjoiZ2l2ZW4ubWFrb2ZhbmVAZGlzcmFwdG9yLmNvLnphIiwicm9sZSI6InVzZXIifSwiaWF0IjoxNjg5NTc4MzgwLCJleHAiOjE2ODk2NjQ3ODB9.MlGwUuZ56b_qF2GphCSM5J4N9xI0w5v-AXamz3_JWUg";
         const leaveId = { id };
-        const data = await getDataByID(endpoint, leaveId, token);
+        const data = await getDataByID(endpoint, leaveId, ctx.token);
+        //Checks if response is valid
         if (data) {
           console.log(data);
           if (
@@ -94,10 +95,8 @@ function ActOnLeave() {
     const feedback = formValues.feedback;
     //Feedback value is captured on values that is null
     const endpoint = new APIEndPoints().applyForLeave();
-    const token =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImdpdmVuLm1ha29mYW5lQGRpc3JhcHRvci5jby56YSIsInJvbGUiOiJ1c2VyIiwidXNlciI6eyJpZCI6NCwiZmlyc3ROYW1lIjoidGVzdCIsImxhc3ROYW1lIjoia29maSIsImVtYWlsIjoiZ2l2ZW4ubWFrb2ZhbmVAZGlzcmFwdG9yLmNvLnphIiwicm9sZSI6InVzZXIifSwiaWF0IjoxNjg5NTc4MzgwLCJleHAiOjE2ODk2NjQ3ODB9.MlGwUuZ56b_qF2GphCSM5J4N9xI0w5v-AXamz3_JWUg";
     const dataArr = { id, status, feedback };
-    const leaveRequest = await putData(endpoint, dataArr, token);
+    const leaveRequest = await putData(endpoint, dataArr, ctx.token);
     console.log(leaveRequest);
     if (leaveRequest) {
       console.log("applied");

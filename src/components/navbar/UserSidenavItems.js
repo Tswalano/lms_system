@@ -2,6 +2,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import AccountCircle from "@mui/icons-material/AccountCircle";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import FlakyIcon from "@mui/icons-material/Flaky";
 import Logout from "@mui/icons-material/Logout";
 
 export const userNavBarItems = [

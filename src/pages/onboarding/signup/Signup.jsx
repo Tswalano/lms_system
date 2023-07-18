@@ -28,6 +28,11 @@ function Signup() {
 
   const [isError, setIsError] = useState(true);
 
+  const { userEmail } = useContext(AuthContext);
+  const { userPassword } = useContext(AuthContext);
+  const ctx = useContext(AuthContext);
+  const nav = useNavigate();
+
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
@@ -50,11 +55,6 @@ function Signup() {
     handleValidation();
     // Run the validation when formValues state changes
   }, [formValues]);
-
-  const { userEmail } = useContext(AuthContext);
-  const { userPassword } = useContext(AuthContext);
-  const ctx = useContext(AuthContext);
-  const nav = useNavigate();
 
   const handleSignupSubmit = async (event) => {
     event.preventDefault();

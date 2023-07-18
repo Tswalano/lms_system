@@ -4,7 +4,7 @@ import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
-import { Alert, AlertTitle, Box, Grid } from "@mui/material";
+import { Alert, AlertTitle, Box, Grid, Typography } from "@mui/material";
 import Heading from "../../../components/ui/Heading";
 import PaperComponent from "../../../components/ui/Paper";
 import { validateDropDown } from "../../../components/form/Validations";
@@ -29,6 +29,9 @@ function ApplyForLeave() {
   // State to track form field error
   const [isError, setIsError] = useState(true);
 
+  //Declaring usContext use stored values
+  const ctx = useContext(AuthContext);
+
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
@@ -50,7 +53,6 @@ function ApplyForLeave() {
     // Run the validation when formValues state changes
   }, [formValues]);
 
-  const ctx = useContext(AuthContext);
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -75,16 +77,12 @@ function ApplyForLeave() {
     //creating an array for data
     const arrData = { leave_type, leave_start, leave_end };
     const endpoint = new APIEndPoints().applyForLeave();
-    const token =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImdpdmVuLm1ha29mYW5lQGRpc3JhcHRvci5jby56YSIsInJvbGUiOiJ1c2VyIiwidXNlciI6eyJpZCI6NCwiZmlyc3ROYW1lIjoidGVzdDIiLCJsYXN0TmFtZSI6ImtvZmkiLCJlbWFpbCI6ImdpdmVuLm1ha29mYW5lQGRpc3JhcHRvci5jby56YSIsInJvbGUiOiJ1c2VyIn0sImlhdCI6MTY4OTMxNjM5MCwiZXhwIjoxNjg5NDAyNzkwfQ.eNY9FrXqpqoI-YJAC3GQyLS3pn7ruw9LtQt4URsXTw0";
 
-    console.log(formValues.endDate);
-    const postLeave = await postData(endpoint, arrData, token);
+    const postLeave = await postData(endpoint, arrData, ctx.token);
     //  Checks if leave submited is valid
     if (postLeave) {
       setLeaveValid("success");
     }
-    console.log(arrData);
   };
 
   // render output

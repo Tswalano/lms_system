@@ -22,6 +22,7 @@ function AddEmployee() {
   // State to track form field error
   const [isError, setIsError] = useState(true);
 
+  //Declaring usContext use stored values
   const ctx = useContext(AuthContext);
 
   // Update the isError state based on the validation results
@@ -42,9 +43,9 @@ function AddEmployee() {
   // handle form submission
   const handleSubmit = async (event) => {
     event.preventDefault();
-
+    //Getting endpoint
     const endpoint = new APIEndPoints().addNewEmployee();
-
+    //posting data
     const addEmployee = await postData(endpoint, formValues, ctx.token);
 
     if (addEmployee) {

@@ -5,7 +5,7 @@ import SigninForm from "./FormConfig";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
-import { Box, Grid } from "@mui/material";
+import { Box, CircularProgress, Grid } from "@mui/material";
 import CenteredBox from "../../../components/ui/CenteredBox";
 import Heading from "../../../components/ui/Heading";
 import Logo from "../../../components/ui/Logo";
@@ -57,24 +57,17 @@ function Signin() {
     } else if (ctx.isAdmin === "user") {
       navigate("/dashboard");
     }
-
   }, [formValues, ctx.isAdmin]);
-
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
     const formValues = GetFormValues(event);
 
     const endPoint = new APIEndPoints().signinAPI();
-    // try {
+
     const isLoggedIn = await signIn(endPoint, formValues);
 
     ctx.logIn(isLoggedIn.token, isLoggedIn.user.role);
-    // const isAdmin = ctx.isAdmin;
-
-    // } catch (error) {
-    //   console.log(error);
-    // }
   };
 
   // render output

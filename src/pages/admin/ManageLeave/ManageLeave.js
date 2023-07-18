@@ -1,34 +1,34 @@
-import { Box, Grid, Typography } from "@mui/material";
-import React, { useEffect, useState } from "react";
+import { Box, Typography } from "@mui/material";
+import React, { useContext, useEffect, useState } from "react";
 import Paragraph from "../../../components/ui/Paragraph";
 import TableComponent from "../../../components/table/TableComponent";
 import { ActiveLeaveTable, LeaveRequestsTable } from "./ManageLeaveConfig";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
-// import Link from "@mui/material/Link";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { getData } from "../../../api/API";
-import axios from "axios";
 import { Link } from "react-router-dom";
+import { AuthContext } from "../../../context/AuthContext";
 
 function ManageLeave() {
-  const [rowsData, setRowsData] = useState([]);
   const [leaveRequestData, setLeaveRequestData] = useState([]);
   const [activeLeaveData, setActiveLeaveData] = useState([]);
-  const [ID, setID] = useState();
+
+  //Declaring usContext use stored values
+  const ctx = useContext(AuthContext);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const endpoint = new APIEndPoints().getAllLeavesData();
-        const token =
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImdpdmVuLm1ha29mYW5lQGRpc3JhcHRvci5jby56YSIsInJvbGUiOiJ1c2VyIiwidXNlciI6eyJpZCI6NCwiZmlyc3ROYW1lIjoidGVzdCIsImxhc3ROYW1lIjoia29maSIsImVtYWlsIjoiZ2l2ZW4ubWFrb2ZhbmVAZGlzcmFwdG9yLmNvLnphIiwicm9sZSI6InVzZXIifSwiaWF0IjoxNjg5NTc4MzgwLCJleHAiOjE2ODk2NjQ3ODB9.MlGwUuZ56b_qF2GphCSM5J4N9xI0w5v-AXamz3_JWUg";
-        const data = await getData(endpoint, token);
+
+        const data = await getData(endpoint, ctx.token);
         if (data) {
           const leaveRequests = [];
           const activeLeaves = [];
+          //For loop to check each object on whether the status is pending or approved.
           for (let i = 0; i < data.length; i++) {
             if (data[i].status === "pending") {
-              //leaveRequests.push(data[i]);
+              //psuhing data into the array
               leaveRequests.push({
                 id: data[i].id,
                 name: data[i].User.firstName + " " + data[i].User.lastName,
