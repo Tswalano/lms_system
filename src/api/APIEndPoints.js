@@ -58,5 +58,16 @@ class APIEndPoints {
       "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/employee/by-id";
     return viewEmpByID;
   }
+
+  forgotPassword() {
+    const forgotPassword =
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/forgot-password";
+    return forgotPassword;
+  }
+  resetPassword() {
+    const resetPassword =
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/reset-password";
+    return resetPassword;
+  }
 }
 export default APIEndPoints;

@@ -15,6 +15,8 @@ import { GridSizes } from "../../../components/form/GridSizes";
 import Paragraph from "../../../components/ui/Paragraph";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { signUpAndVerify } from "../../../api/API";
 
 function ForgotPassword() {
   // declare the useState formValues object
@@ -47,9 +49,11 @@ function ForgotPassword() {
     event.preventDefault();
     // store session for email to be accessed on the next page
     ctx.userEmail(formValues.email);
-    navigate("/reset-password");
-
-    // continue integrating
+    const endpoint = new APIEndPoints().forgotPassword();
+    const forgotPassword = await signUpAndVerify(endpoint, formValues);
+    if (forgotPassword) {
+      navigate("/reset-password");
+    }
   };
 
   // render output

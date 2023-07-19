@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
@@ -18,6 +18,10 @@ import ResetPasswordForm from "./ResetPasswordConfig";
 import { GridSizes } from "../../../components/form/GridSizes";
 import Paragraph from "../../../components/ui/Paragraph";
 import Link from "@mui/material/Link";
+import { AuthContext } from "../../../context/AuthContext";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { signUpAndVerify } from "../../../api/API";
+import { useNavigate } from "react-router-dom";
 
 // get the email from the storage session
 const email = sessionStorage.getItem("email");
@@ -31,6 +35,9 @@ function ResetPassword() {
 
   // State to track form field error
   const [isError, setIsError] = useState(false);
+
+  const ctx = useContext(AuthContext);
+  const navigate = useNavigate();
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
@@ -52,6 +59,7 @@ function ResetPassword() {
 
   useEffect(() => {
     handleValidation();
+    console.log(ctx.email);
     // Run the validation when formValues state changes
   }, [formValues]);
 
@@ -64,12 +72,16 @@ function ResetPassword() {
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const endpoint = new APIEndPoints().resetPassword();
+    const email = "yagnash.keeka@disraptor.co.za ";
+    const verificationCode = formValues.code;
+    const newPassword = formValues.password;
+    const arrData = { email, verificationCode, newPassword };
 
-    const formValues = GetFormValues(event);
-    console.log(formValues);
-
-    // remove email session from forgot password page on reset password success
-    sessionStorage.removeItem("email");
+    const resetPassword = await signUpAndVerify(endpoint, arrData);
+    if (resetPassword) {
+      navigate("/signin");
+    }
   };
 
   // render output
@@ -86,7 +98,7 @@ function ResetPassword() {
             <Paragraph
               text={
                 "We have sent a password reset code by email to " +
-                email +
+                ctx.email +
                 ". Enter it below to reset your password."
               }
               fontWeight="normal"
