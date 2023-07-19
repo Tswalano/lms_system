@@ -73,7 +73,7 @@ function ResetPassword() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     const endpoint = new APIEndPoints().resetPassword();
-    const email = "yagnash.keeka@disraptor.co.za ";
+    const email = ctx.email;
     const verificationCode = formValues.code;
     const newPassword = formValues.password;
     const arrData = { email, verificationCode, newPassword };
