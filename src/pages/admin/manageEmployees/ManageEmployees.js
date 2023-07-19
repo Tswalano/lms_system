@@ -1,4 +1,4 @@
-import { Box, Button, Divider, Grid, Link, Typography } from "@mui/material";
+import { Box, Button, Divider, Grid, Typography } from "@mui/material";
 import React from "react";
 import Heading from "../../../components/ui/Heading";
 import TableComponent from "../../../components/table/TableComponent";
@@ -7,6 +7,7 @@ import PaperComponent from "../../../components/ui/Paper";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Paragraph from "../../../components/ui/Paragraph";
 // modal dialog
+import { Link } from "react-router-dom";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -24,7 +25,7 @@ function ManageEmployees() {
       email: "philemon.maitisa@disraptor.co.za",
       phone: "0791119292",
       jobTitle: "Cloud & DevOps Engineer",
-      view: <Link href="/manage-employees/employee?id=1">open</Link>,
+      view: <Link to="/manage-employees/employee?id=1">open</Link>,
     },
     {
       id: "2",
@@ -33,7 +34,7 @@ function ManageEmployees() {
       email: "mayur.mistry@disraptor.co.za",
       phone: "0668857412",
       jobTitle: "Cloud & DevOps Engineer",
-      view: <Link href="/manage-employees/employee?id=2">open</Link>,
+      view: <Link to="/manage-employees/employee?id=2">open</Link>,
     },
     {
       id: "3",
@@ -42,7 +43,7 @@ function ManageEmployees() {
       email: "jino.rigney@disraptor.co.za",
       phone: "0784453698",
       jobTitle: "Cloud & DevOps Engineer",
-      view: <Link href="/manage-employees/employee?id=3">open</Link>,
+      view: <Link to="/manage-employees/employee?id=3">open</Link>,
     },
     {
       id: "4",
@@ -51,7 +52,7 @@ function ManageEmployees() {
       email: "kgomotso.dungeni@disraptor.co.za",
       phone: "0187523369",
       jobTitle: "Cloud & DevOps Engineer",
-      view: <Link href="/manage-employees/employee?id=4">open</Link>,
+      view: <Link to="/manage-employees/employee?id=4">open</Link>,
     },
     {
       id: "5",
@@ -60,7 +61,7 @@ function ManageEmployees() {
       email: "given.makofane@disraptor.co.za",
       phone: "0791228585",
       jobTitle: "Cloud & DevOps Engineer",
-      view: <Link href="/manage-employees/employee?id=5">open</Link>,
+      view: <Link to="/manage-employees/employee?id=5">open</Link>,
     },
   ];
 
