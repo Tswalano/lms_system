@@ -1,14 +1,8 @@
-import {
-  Box,
-  Breadcrumbs,
-  Typography,
-  Link,
-  Grid,
-  Divider,
-} from "@mui/material";
+import { Box, Breadcrumbs, Typography, Grid, Divider } from "@mui/material";
 import React, { useState } from "react";
 import PaperComponent from "../../../components/ui/Paper";
 import Paragraph from "../../../components/ui/Paragraph";
+import { Link } from "react-router-dom";
 
 function ViewMyLeave() {
   // Create a URLSearchParams object with the current URL's query string
@@ -184,10 +178,10 @@ function Breadcrumb() {
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" href="/dashboard">
+        <Link underline="hover" color="inherit" to="/dashboard">
           Home
         </Link>
-        <Link underline="hover" color="inherit" href="/my-leave">
+        <Link underline="hover" color="inherit" to="/my-leave">
           My Leave
         </Link>
         <Typography color="primary" fontFamily="Geologica" fontWeight="normal">

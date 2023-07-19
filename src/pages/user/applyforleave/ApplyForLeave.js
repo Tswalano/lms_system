@@ -12,7 +12,7 @@ import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 import { validateDate } from "../../../components/form/Validations";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
-import Link from "@mui/material/Link";
+import { Link } from "react-router-dom";
 import Paragraph from "../../../components/ui/Paragraph";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { AuthContext } from "../../../context/AuthContext";
@@ -134,7 +134,7 @@ function Breadcrumb() {
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" href={"/dashboard"}>
+        <Link underline="hover" color="inherit" to={"/dashboard"}>
           Home
         </Link>
         <Typography color="primary" fontFamily="Geologica" fontWeight="normal">

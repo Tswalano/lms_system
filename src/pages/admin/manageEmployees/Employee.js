@@ -6,13 +6,13 @@ import {
   Divider,
   FormControlLabel,
   Grid,
-  Link,
   Radio,
   RadioGroup,
   Typography,
 } from "@mui/material";
 import Paragraph from "../../../components/ui/Paragraph";
 import PaperComponent from "../../../components/ui/Paper";
+import { Link } from "react-router-dom";
 
 function Employee() {
   // Create a URLSearchParams object with the current URL's query string
@@ -241,10 +241,10 @@ function Breadcrumb() {
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" href="/home">
+        <Link underline="hover" color="inherit" to="/home">
           Home
         </Link>
-        <Link underline="hover" color="inherit" href="/manage-employees">
+        <Link underline="hover" color="inherit" to="/manage-employees">
           Manage Employees
         </Link>
         <Typography color="primary" fontFamily="Geologica" fontWeight="normal">

@@ -10,10 +10,10 @@ import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { validateDropDown } from "../../../components/form/Validations";
 // import { useEffect } from "react";
-import Link from "@mui/material/Link";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { getDataByID, putData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
+import { Link } from "react-router-dom";
 
 function ActOnLeave() {
   // Create a URLSearchParams object with the current URL's query string
@@ -247,10 +247,10 @@ function Breadcrumb() {
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" href="/home">
+        <Link underline="hover" color="inherit" to="/home">
           Home
         </Link>
-        <Link underline="hover" color="inherit" href="/manage-leave">
+        <Link underline="hover" color="inherit" to="/manage-leave">
           Manage Leave
         </Link>
         <Typography color="primary" fontFamily="Geologica" fontWeight="normal">

@@ -42,7 +42,7 @@ function ManageLeave() {
                 status: data[i].status || "",
                 open: (
                   <Link to={"/manage-leave/act-on-leave?id=" + data[i].id}>
-                    <LaunchIcon />
+                    <LaunchIcon sx={{ color: "black" }} />
                   </Link>
                 ),
               });
@@ -101,7 +101,7 @@ function Breadcrumb() {
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" href="/home">
+        <Link underline="hover" color="inherit" to="/home">
           Home
         </Link>
         <Typography color="primary" fontFamily="Geologica" fontWeight="normal">
