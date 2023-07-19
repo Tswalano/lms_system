@@ -68,7 +68,7 @@ function Signin() {
       navigate("/home");
       // console.log(ctx.isAdmin);
     } else if (ctx.isAdmin === "user") {
-      navigate("/profile");
+      navigate("/dashboard");
     }
   }, [formValues, ctx.isAdmin]);
   // handle form submition
