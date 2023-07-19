@@ -2,12 +2,18 @@ import React, { useContext, useState } from "react";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import {
-  validateEmail,
   validatePhone,
   validateText,
 } from "../../../components/form/Validations";
 import { useEffect } from "react";
-import { Box, Grid, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Collapse,
+  Grid,
+  IconButton,
+  Typography,
+} from "@mui/material";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import ProfileConfig from "./ProfileConfig";
 import { GridSizes } from "../../../components/form/GridSizes";
@@ -15,6 +21,7 @@ import SubmitButton from "../../../components/ui/Button";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { postData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
+import CloseIcon from "@mui/icons-material/Close";
 
 function ProfileUpdate() {
   // declare the useState formValues object
@@ -25,6 +32,11 @@ function ProfileUpdate() {
 
   // State to track form field error
   const [isError, setIsError] = useState(true);
+  const [progress, setProgress] = useState(false);
+  const [open, setOpen] = useState(true);
+  const [alertMessage, setAlertMessage] = useState();
+  const [alertType, setAlertType] = useState();
+  const [response, setResponse] = useState(false);
 
   const ctx = useContext(AuthContext);
 
@@ -33,7 +45,6 @@ function ProfileUpdate() {
     // use your existing validation functions to validate email and password.
     const isFirstNameValid = validateText(formValues.firstName);
     const isLastNameValid = validateText(formValues.lastName);
-    const isEmailValid = validateEmail(formValues.email);
     const isPhoneValid = validatePhone(formValues.phone);
     const isJobTitleValid = validateText(formValues.jobTitle);
 
@@ -41,7 +52,6 @@ function ProfileUpdate() {
     setIsError(
       isFirstNameValid !== null ||
         isLastNameValid !== null ||
-        isEmailValid !== null ||
         isPhoneValid !== null ||
         isJobTitleValid !== null
     );
@@ -55,17 +65,54 @@ function ProfileUpdate() {
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    //progress
+    setProgress(true);
+
     const endpoint = new APIEndPoints().profileAPI();
 
-    const updateProfile = await postData(endpoint, formValues, ctx.token);
-    console.log(formValues);
-    console.log(ctx.token);
-    if (updateProfile) {
-      console.log("Success");
+    const response = await postData(endpoint, formValues, ctx.token);
+    if (response.status === 200) {
+      setAlertMessage(response.message);
+      setAlertType("success");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
+    } else {
+      // set error
+      setAlertMessage(response.message);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
     }
   };
   return (
     <Box sx={{ width: "100%" }}>
+      {response ? (
+        <Collapse in={open}>
+          <Alert
+            severity={alertType}
+            action={
+              <IconButton
+                aria-label="close"
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  setOpen(false);
+                }}
+              >
+                <CloseIcon fontSize="inherit" />
+              </IconButton>
+            }
+            sx={{ mb: 2 }}
+          >
+            {alertMessage}
+          </Alert>
+        </Collapse>
+      ) : (
+        <Box></Box>
+      )}
       <form onSubmit={handleSubmit}>
         <Grid container>
           <FormFieldMapper
@@ -78,6 +125,7 @@ function ProfileUpdate() {
               disabled={isError}
               label="Save Profile"
               type="submit"
+              progress={progress}
             />
           </Grid>
         </Grid>

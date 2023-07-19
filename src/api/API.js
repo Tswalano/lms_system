@@ -20,20 +20,28 @@ export const signUpAndVerify = async (endpoint, formValues) => {
   try {
     const response = await axios.post(endpoint, formValues);
     // do something if successful
-    if (response.status === 200) {
-      return true;
-    }
+    //if (response.status === 200) {
+    const responseData = {
+      status: (await response).status,
+      message: (await response).data.message,
+    };
+    return responseData;
+    //}
 
-    return; // Exit the function if successful
+    //return; // Exit the function if successful
   } catch (error) {
     // do something if there is an error
-    if (
+    /*if (
       error.response.status === 401 ||
       error.response.status === 400 ||
       error.response.status === 500
-    ) {
-      return error.response.data.message;
-    }
+    ) {*/
+    const responseData = {
+      status: (await error.response).status,
+      message: (await error.response).data.message,
+    };
+    return responseData;
+    //}
   }
 };
 
@@ -43,17 +51,18 @@ export const postData = async (endpoint, formValues, token) => {
     const response = axios.post(endpoint, formValues, {
       headers: { Authorization: "Bearer " + token },
     });
-    return true;
+    const responseData = {
+      status: (await response).status,
+      message: (await response).data.message,
+    };
+    return responseData;
   } catch (error) {
     // do something if there is an error
-    if (
-      error.response.status === 401 ||
-      error.response.status === 400 ||
-      error.response.status === 404 ||
-      error.response.status === 500
-    ) {
-      return error.response.data.message;
-    }
+    const responseData = {
+      status: (await error.response).status,
+      message: (await error.response).data.message,
+    };
+    return responseData;
   }
 };
 
@@ -65,6 +74,7 @@ export const putData = async (endpoint, formValues, token) => {
           headers: { Authorization: "Bearer " + token },
         });
         if (response.status === 200) {
+          console.log(response);
           return response;
         }
       } catch (error) {
@@ -75,7 +85,8 @@ export const putData = async (endpoint, formValues, token) => {
           error.response.status === 404 ||
           error.response.status === 500
         ) {
-          return false;
+          console.log(error);
+          return error;
         }
       }
     } else {

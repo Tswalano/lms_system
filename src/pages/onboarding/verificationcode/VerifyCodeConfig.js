@@ -1,5 +1,5 @@
 const VerifyCodeConfig = {
-  formFields: [{ label: "Verification code", name: "otp", type: "text" }],
+  formFields: [{ label: "Verification Code", name: "code", type: "text" }],
 };
 
 export default VerifyCodeConfig;

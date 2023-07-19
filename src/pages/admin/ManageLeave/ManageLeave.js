@@ -53,7 +53,7 @@ function ManageLeave() {
                 endDate: data[i].end_date || "",
                 status: data[i].status || "",
                 view: (
-                  <Link to={"/manage-leave/act-on-leave?id=" + data[i].id}>
+                  <Link to={"/manage-leave/view-leave?id=" + data[i].id}>
                     View
                   </Link>
                 ),

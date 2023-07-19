@@ -17,11 +17,17 @@ export const AuthProvider = ({ children }) => {
   // state to store the user auth status
   const [isAuthenticated, setIsAuthenticated] = useState();
 
+  const [isVerified, setVerification] = useState();
+
   // Function to handle user sign in and set token and role
   const logIn = (userToken, userRole) => {
     setToken(userToken);
     setIsAuthenticated(userToken);
     setIsAdmin(userRole);
+  };
+
+  const signup = (verified) => {
+    setVerification(verified);
   };
 
   const userEmail = (emailID) => {
@@ -46,7 +52,9 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     isAdmin,
     password,
+    isVerified,
     logIn,
+    signup,
     userEmail,
     userPassword,
     signOut,

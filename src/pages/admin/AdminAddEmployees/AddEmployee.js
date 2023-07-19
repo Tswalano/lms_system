@@ -3,7 +3,7 @@ import { GetFormValues } from "../../../components/form/GetFormValues";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { validateText } from "../../../components/form/Validations";
 import { useEffect } from "react";
-import { Box, Grid } from "@mui/material";
+import { Alert, Box, Collapse, Grid, IconButton } from "@mui/material";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import { GridSizes } from "../../../components/form/GridSizes";
 import SubmitButton from "../../../components/ui/Button";
@@ -11,6 +11,7 @@ import AddEmployeeConfig from "./AddEmployeeConfig";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { postData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
+import CloseIcon from "@mui/icons-material/Close";
 
 function AddEmployee() {
   // declare the useState formValues object
@@ -21,6 +22,11 @@ function AddEmployee() {
 
   // State to track form field error
   const [isError, setIsError] = useState(true);
+  const [progress, setProgress] = useState(false);
+  const [open, setOpen] = useState(true);
+  const [alertMessage, setAlertMessage] = useState();
+  const [alertType, setAlertType] = useState();
+  const [response, setResponse] = useState(false);
 
   //Declaring usContext use stored values
   const ctx = useContext(AuthContext);
@@ -43,19 +49,56 @@ function AddEmployee() {
   // handle form submission
   const handleSubmit = async (event) => {
     event.preventDefault();
+    //progress
+    setProgress(true);
     //Getting endpoint
     const endpoint = new APIEndPoints().addNewEmployee();
     //posting data
-    const addEmployee = await postData(endpoint, formValues, ctx.token);
+    const response = await postData(endpoint, formValues, ctx.token);
     console.log(formValues);
 
-    if (addEmployee) {
-      console.log("success");
+    if (response.status === 200) {
+      setAlertMessage(response.message);
+      setAlertType("success");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
+    } else {
+      // set error
+      setAlertMessage(response.message);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
     }
   };
 
   return (
     <Box width="100%">
+      {response ? (
+        <Collapse in={open}>
+          <Alert
+            severity={alertType}
+            action={
+              <IconButton
+                aria-label="close"
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  setOpen(false);
+                }}
+              >
+                <CloseIcon fontSize="inherit" />
+              </IconButton>
+            }
+            sx={{ mb: 2 }}
+          >
+            {alertMessage}
+          </Alert>
+        </Collapse>
+      ) : (
+        <Box></Box>
+      )}
       <form onSubmit={handleSubmit}>
         <Grid container>
           <FormFieldMapper
@@ -69,6 +112,7 @@ function AddEmployee() {
             disabled={isError}
             label="Send Invitation"
             type="submit"
+            progress={progress}
           />
         </Grid>
       </form>

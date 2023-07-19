@@ -4,7 +4,7 @@ import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
-import { Box, Grid } from "@mui/material";
+import { Alert, Box, Collapse, Grid, IconButton } from "@mui/material";
 import CenteredBox from "../../../components/ui/CenteredBox";
 import Heading from "../../../components/ui/Heading";
 import Logo from "../../../components/ui/Logo";
@@ -18,6 +18,7 @@ import APIEndPoints from "../../../api/APIEndPoints";
 import { signIn, signUpAndVerify } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import CloseIcon from "@mui/icons-material/Close";
 
 // get the email from the storage session
 
@@ -30,6 +31,13 @@ function VerifyCode() {
 
   // State to track form field error
   const [isError, setIsError] = useState(false);
+  const [progress, setProgress] = useState(false);
+  const [open, setOpen] = useState(true);
+  const [alertMessage, setAlertMessage] = useState();
+  const [alertType, setAlertType] = useState();
+  const [response, setResponse] = useState(false);
+
+  const ctx = useContext(AuthContext);
 
   const navigate = useNavigate();
 
@@ -53,18 +61,20 @@ function VerifyCode() {
     } else if (ctx.isAdmin === "user") {
       navigate("/dashboard");
     }
-  }, [formValues]);
-  const ctx = useContext(AuthContext);
+  }, [formValues, ctx]);
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    //progress
+    setProgress(true);
 
     const formValues = GetFormValues(event);
     //Getting the Email and Password set in SignUp from AuthContext
     const email = ctx.email;
     const password = ctx.password;
     //setting the otp to a varible to take values of otpfrom formValues
-    const otp = formValues.otp;
+    const otp = formValues.code;
     //setting the values
     const values = { email, otp };
 
@@ -76,11 +86,19 @@ function VerifyCode() {
     const endPoint = new APIEndPoints().otpApi();
     const logInEndPoint = new APIEndPoints().signinAPI();
     //Parsing the values for endPoint and values to verify user
-    const verified = await signUpAndVerify(endPoint, values);
+    const response = await signUpAndVerify(endPoint, values);
     //Checks if user is verified
-    if (verified) {
+
+    if (response.status === 200) {
       const login = await signIn(logInEndPoint, log_in);
       logIn(login.token, login.user.role);
+    } else {
+      // set error
+      setAlertMessage(response.message);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
     }
   };
 
@@ -96,6 +114,30 @@ function VerifyCode() {
       <Box sx={{ maxWidth: "600px" }}>
         <Logo width="35%" />
         <br />
+        {response ? (
+          <Collapse in={open}>
+            <Alert
+              severity={alertType}
+              action={
+                <IconButton
+                  aria-label="close"
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    setOpen(false);
+                  }}
+                >
+                  <CloseIcon fontSize="inherit" />
+                </IconButton>
+              }
+              sx={{ mb: 2 }}
+            >
+              {alertMessage}
+            </Alert>
+          </Collapse>
+        ) : (
+          <Box></Box>
+        )}
         <PaperComponent>
           <Box sx={{ textAlign: "center" }}>
             <Heading text="Confirm your account" />
@@ -110,7 +152,7 @@ function VerifyCode() {
               fontWeight="normal"
             />
           </Box>
-          <form onSubmit={handleSubmit} autocomplete="off">
+          <form onSubmit={handleSubmit}>
             <Grid container>
               <FormFieldMapper
                 formFields={VerifyCodeConfig.formFields}
@@ -118,13 +160,14 @@ function VerifyCode() {
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
               <SubmitButton
-                // disabled={isError}
+                disabled={isError}
                 label="Confirm account"
                 type="submit"
+                progress={progress}
               />
               <Grid container sx={{ paddingTop: "20px" }}>
                 <Paragraph text="Didn't receive a code? &nbsp;" />
-                <Link onClick={sendNewCode} href="" underline="none">
+                <Link onClick={sendNewCode} href="" underline="hover">
                   Send a new code
                 </Link>
               </Grid>

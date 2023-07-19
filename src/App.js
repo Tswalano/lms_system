@@ -17,7 +17,6 @@ function App() {
             ctx.isAdmin === "admin" ? adminNavBarItems : userNavBarItems
           }
         />
-        {/*<ProgressLoader />*/}
       </Grid>
     </>
   );

@@ -4,7 +4,15 @@ import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
-import { Alert, AlertTitle, Box, Grid, Typography } from "@mui/material";
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Collapse,
+  Grid,
+  IconButton,
+  Typography,
+} from "@mui/material";
 import Heading from "../../../components/ui/Heading";
 import PaperComponent from "../../../components/ui/Paper";
 import { validateDropDown } from "../../../components/form/Validations";
@@ -17,17 +25,23 @@ import Paragraph from "../../../components/ui/Paragraph";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { AuthContext } from "../../../context/AuthContext";
 import { postData } from "../../../api/API";
+import CloseIcon from "@mui/icons-material/Close";
 
 function ApplyForLeave() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
-  const [leaveValid, setLeaveValid] = useState({});
+  //const [leaveValid, setLeaveValid] = useState({});
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
 
   // State to track form field error
   const [isError, setIsError] = useState(true);
+  const [progress, setProgress] = useState(false);
+  const [open, setOpen] = useState(true);
+  const [alertMessage, setAlertMessage] = useState();
+  const [alertType, setAlertType] = useState();
+  const [response, setResponse] = useState(false);
 
   //Declaring usContext use stored values
   const ctx = useContext(AuthContext);
@@ -58,6 +72,9 @@ function ApplyForLeave() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    //progress
+    setProgress(true);
+
     const leave_type = formValues.leaveType;
     const startDateFormat = new Date(formValues.startDate);
     const endDateFormat = new Date(formValues.endDate);
@@ -79,11 +96,23 @@ function ApplyForLeave() {
     const arrData = { leave_type, leave_start, leave_end };
     const endpoint = new APIEndPoints().applyForLeave();
 
-    const postLeave = await postData(endpoint, arrData, ctx.token);
-    console.log(postLeave);
+    const response = await postData(endpoint, arrData, ctx.token);
+    //console.log(postLeave);
     //  Checks if leave submited is valid
-    if (postLeave) {
-      setLeaveValid("success");
+
+    if (response.status === 200) {
+      setAlertMessage(response.message);
+      setAlertType("success");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
+    } else {
+      // set error
+      setAlertMessage(response.message);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
     }
   };
 
@@ -93,6 +122,30 @@ function ApplyForLeave() {
       <Breadcrumb />
       <br />
       <PaperComponent>
+        {response ? (
+          <Collapse in={open}>
+            <Alert
+              severity={alertType}
+              action={
+                <IconButton
+                  aria-label="close"
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    setOpen(false);
+                  }}
+                >
+                  <CloseIcon fontSize="inherit" />
+                </IconButton>
+              }
+              sx={{ mb: 2 }}
+            >
+              {alertMessage}
+            </Alert>
+          </Collapse>
+        ) : (
+          <Box></Box>
+        )}
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
             <FormFieldMapper
@@ -105,23 +158,8 @@ function ApplyForLeave() {
                 disabled={isError}
                 label="Apply For Leave"
                 type="submit"
+                progress={progress}
               />
-              {/* Grid to create spacing on top so that there is space between the button and Success/Error Alert */}
-              <Grid marginTop={"2%"}>
-                {/* Showing Success/Error Message when applying for leave */}
-                {leaveValid === "success" && (
-                  <Alert severity="success">
-                    <AlertTitle>Success</AlertTitle>You have successfully
-                    applied for leave.
-                  </Alert>
-                )}
-                {leaveValid === "error" && (
-                  <Alert severity="error">
-                    <AlertTitle>Error</AlertTitle>
-                    Error in Applying for leave. Please try again
-                  </Alert>
-                )}
-              </Grid>
             </Grid>
           </Grid>
         </form>

@@ -5,14 +5,7 @@ import SigninForm from "./FormConfig";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
-import {
-  Alert,
-  Box,
-  CircularProgress,
-  Collapse,
-  Grid,
-  IconButton,
-} from "@mui/material";
+import { Alert, Box, Collapse, Grid, IconButton } from "@mui/material";
 import CenteredBox from "../../../components/ui/CenteredBox";
 import Heading from "../../../components/ui/Heading";
 import Logo from "../../../components/ui/Logo";
@@ -143,7 +136,9 @@ function Signin() {
                 type="submit"
                 progress={progress}
               />
-              <Link to={"/forgot-password"}>Forgot your password?</Link>
+              <Box sx={{ marginTop: "20px" }}>
+                <Link to={"/forgot-password"}>Forgot your password?</Link>
+              </Box>
             </Grid>
           </form>
         </PaperComponent>

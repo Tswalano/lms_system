@@ -53,21 +53,21 @@ function MyLeave() {
       startDate: "22/07/2023",
       endDate: "25/07/2023",
       status: "Complete",
-      view: <Link to="my-leave/view-leave?id=1">view</Link>,
+      view: <Link to="/my-leave/view-leave?id=1">view</Link>,
     },
     {
       leaveType: "Emergency",
       startDate: "22/07/2023",
       endDate: "25/07/2023",
       status: "Complete",
-      view: <Link to="my-leave/view-leave?id=2">view</Link>,
+      view: <Link to="/my-leave/view-leave?id=2">view</Link>,
     },
     {
       leaveType: "Sick",
       startDate: "22/07/2023",
       endDate: "25/07/2023",
       status: "Complete",
-      view: <Link to="my-leave/view-leave?id=3">view</Link>,
+      view: <Link to="/my-leave/view-leave?id=3">view</Link>,
     },
   ];
 
