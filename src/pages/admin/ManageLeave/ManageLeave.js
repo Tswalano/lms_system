@@ -21,9 +21,7 @@ function ManageLeave() {
     const fetchData = async () => {
       try {
         const endpoint = new APIEndPoints().getAllLeavesData();
-        const token =
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InlhZ25hc2gua2Vla2FAZGlzcmFwdG9yLmNvLnphIiwicm9sZSI6InVzZXIiLCJ1c2VyIjp7ImlkIjo2NCwiZmlyc3ROYW1lIjpudWxsLCJsYXN0TmFtZSI6bnVsbCwiZW1haWwiOiJ5YWduYXNoLmtlZWthQGRpc3JhcHRvci5jby56YSIsInJvbGUiOiJ1c2VyIn0sImlhdCI6MTY4OTY3NzUwNCwiZXhwIjoxNjg5NzYzOTA0fQ.t-ZhY-Ow7sYd2RH3oxQXqQ6ayiu2ZRTLHMzOfB1oBqs";
-        const data = await getData(endpoint, token);
+        const data = await getData(endpoint, ctx.token);
         //checks the response
         if (data) {
           const leaveRequests = [];
@@ -72,7 +70,6 @@ function ManageLeave() {
 
     fetchData();
   }, []);
-  console.log(leaveRequestData);
 
   return (
     <Box sx={{ width: "100%" }}>

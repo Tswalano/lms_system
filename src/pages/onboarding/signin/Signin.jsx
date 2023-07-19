@@ -53,7 +53,6 @@ function Signin() {
     // Run the validation when formValues state changes
     if (ctx.isAdmin === "admin") {
       navigate("/home");
-      console.log(ctx.isAdmin);
     } else if (ctx.isAdmin === "user") {
       navigate("/profile");
     }
