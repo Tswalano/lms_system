@@ -70,7 +70,6 @@ function ManageLeave() {
 
     fetchData();
   }, []);
-  console.log(leaveRequestData);
 
   return (
     <Box sx={{ width: "100%" }}>

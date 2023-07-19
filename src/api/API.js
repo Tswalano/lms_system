@@ -19,9 +19,7 @@ export const signIn = async (endpoint, formValues) => {
 export const signUpAndVerify = async (endpoint, formValues) => {
   try {
     const response = await axios.post(endpoint, formValues);
-
     // do something if successful
-
     if (response.status === 200) {
       return true;
     }
@@ -34,8 +32,7 @@ export const signUpAndVerify = async (endpoint, formValues) => {
       error.response.status === 400 ||
       error.response.status === 500
     ) {
-      console.log(error.response.data.message);
-      return false;
+      return error.response.data.message;
     }
   }
 };
@@ -55,7 +52,7 @@ export const postData = async (endpoint, formValues, token) => {
       error.response.status === 404 ||
       error.response.status === 500
     ) {
-      return false;
+      return error.response.data.message;
     }
   }
 };
@@ -82,10 +79,10 @@ export const putData = async (endpoint, formValues, token) => {
         }
       }
     } else {
-      console.log("token Invalid");
+      return "Token Invalid";
     }
-  } catch (e) {
-    console.log(e);
+  } catch (error) {
+    return error.response.data.message;
   }
 };
 
@@ -99,7 +96,6 @@ export const getDataByID = async (endpoint, id, token) => {
         return response.data;
       }
     } catch (error) {
-      console.log(error);
       // do something if there is an error
       if (
         error.response.status === 401 ||
@@ -107,11 +103,11 @@ export const getDataByID = async (endpoint, id, token) => {
         error.response.status === 404 ||
         error.response.status === 500
       ) {
-        return false;
+        return error.response.data.message;
       }
     }
   } catch (error) {
-    console.log(error);
+    return error;
   }
 };
 
@@ -126,7 +122,6 @@ export const getData = async (endpoint, token) => {
         return response.data;
       }
     } catch (error) {
-      console.log(error);
       // do something if there is an error
       if (
         error.response.status === 401 ||
@@ -134,10 +129,10 @@ export const getData = async (endpoint, token) => {
         error.response.status === 404 ||
         error.response.status === 500
       ) {
-        return false;
+        return error.response.data.message;
       }
     }
   } catch (error) {
-    console.log(error);
+    return error;
   }
 };
