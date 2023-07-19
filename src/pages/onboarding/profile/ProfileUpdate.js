@@ -55,11 +55,11 @@ function ProfileUpdate() {
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
-
-    const formValues = GetFormValues(event);
     const endpoint = new APIEndPoints().profileAPI();
 
     const updateProfile = await postData(endpoint, formValues, ctx.token);
+    console.log(formValues);
+    console.log(ctx.token);
     if (updateProfile) {
       console.log("Success");
     }
