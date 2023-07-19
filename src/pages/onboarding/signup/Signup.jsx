@@ -6,7 +6,7 @@ import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import CenteredBox from "../../../components/ui/CenteredBox";
 import PaperComponent from "../../../components/ui/Paper";
-import { Box, Grid } from "@mui/material";
+import { Alert, Box, Collapse, Grid, IconButton } from "@mui/material";
 import Logo from "../../../components/ui/Logo";
 import Heading from "../../../components/ui/Heading";
 import {
@@ -20,6 +20,7 @@ import { AuthContext } from "../../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { signUpAndVerify } from "../../../api/API";
+import CloseIcon from "@mui/icons-material/Close";
 
 function Signup() {
   const [formValues, setFormValues] = useState({});
@@ -27,6 +28,11 @@ function Signup() {
   const handleInputChange = handleFieldChange(setFormValues);
 
   const [isError, setIsError] = useState(true);
+  const [progress, setProgress] = useState(false);
+  const [open, setOpen] = useState(true);
+  const [alertMessage, setAlertMessage] = useState();
+  const [alertType, setAlertType] = useState();
+  const [response, setResponse] = useState(false);
 
   const { userEmail } = useContext(AuthContext);
   const { userPassword } = useContext(AuthContext);
@@ -53,11 +59,17 @@ function Signup() {
 
   useEffect(() => {
     handleValidation();
+    if (ctx.isVerified === true) {
+      nav("/verify-account");
+    }
     // Run the validation when formValues state changes
-  }, [formValues]);
+  }, [formValues, ctx.isVerified]);
 
   const handleSignupSubmit = async (event) => {
     event.preventDefault();
+
+    //progress
+    setProgress(true);
 
     const formValues = GetFormValues(event);
     console.log(formValues);
@@ -66,9 +78,16 @@ function Signup() {
     console.log(ctx.email);
 
     const endPoint = new APIEndPoints().signupAPI();
-    const signUpUser = await signUpAndVerify(endPoint, formValues);
-    if (signUpUser) {
-      nav("/verify-account");
+    const response = await signUpAndVerify(endPoint, formValues);
+    if (response.status === 200) {
+      ctx.signup(true);
+    } else {
+      // set error
+      setAlertMessage(response.message);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
     }
   };
 
@@ -77,6 +96,30 @@ function Signup() {
       <Box sx={{ maxWidth: "600px" }}>
         <Logo width="35%" />
         <br />
+        {response ? (
+          <Collapse in={open}>
+            <Alert
+              severity={alertType}
+              action={
+                <IconButton
+                  aria-label="close"
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    setOpen(false);
+                  }}
+                >
+                  <CloseIcon fontSize="inherit" />
+                </IconButton>
+              }
+              sx={{ mb: 2 }}
+            >
+              {alertMessage}
+            </Alert>
+          </Collapse>
+        ) : (
+          <Box></Box>
+        )}
         <PaperComponent>
           <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
             <Heading text="Create a new account" />
@@ -88,7 +131,12 @@ function Signup() {
                 onChange={handleInputChange}
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
-              <SubmitButton disabled={isError} label="Sign up" type="submit" />
+              <SubmitButton
+                disabled={isError}
+                label="Sign up"
+                type="submit"
+                progress={progress}
+              />
             </Grid>
           </form>
         </PaperComponent>

@@ -5,7 +5,7 @@ import SigninForm from "./FormConfig";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
-import { Box, CircularProgress, Grid } from "@mui/material";
+import { Alert, Box, Collapse, Grid, IconButton } from "@mui/material";
 import CenteredBox from "../../../components/ui/CenteredBox";
 import Heading from "../../../components/ui/Heading";
 import Logo from "../../../components/ui/Logo";
@@ -20,6 +20,7 @@ import { signIn } from "../../../api/API";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
+import CloseIcon from "@mui/icons-material/Close";
 
 function Signin() {
   // create a useNavigate hook
@@ -27,13 +28,18 @@ function Signin() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
 
-  const { logIn } = useContext(AuthContext);
+  //const { logIn } = useContext(AuthContext);
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
 
   // State to track form field error
   const [isError, setIsError] = useState(false);
+  const [progress, setProgress] = useState(false);
+  const [open, setOpen] = useState(true);
+  const [alertMessage, setAlertMessage] = useState();
+  const [alertType, setAlertType] = useState();
+  const [response, setResponse] = useState(false);
 
   //initialise Auth Context
   const ctx = useContext(AuthContext);
@@ -53,21 +59,34 @@ function Signin() {
     // Run the validation when formValues state changes
     if (ctx.isAdmin === "admin") {
       navigate("/home");
+      // console.log(ctx.isAdmin);
     } else if (ctx.isAdmin === "user") {
-      navigate("/profile");
+      navigate("/dashboard");
     }
   }, [formValues, ctx.isAdmin]);
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    //progress
+    setProgress(true);
+
     const formValues = GetFormValues(event);
 
     const endPoint = new APIEndPoints().signinAPI();
 
     const isLoggedIn = await signIn(endPoint, formValues);
 
-    ctx.logIn(isLoggedIn.token, isLoggedIn.user.role);
-    
+    if (isLoggedIn.token) {
+      ctx.logIn(isLoggedIn.token, isLoggedIn.user.role);
+    } else {
+      // set error
+      setAlertMessage(isLoggedIn);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
+    }
   };
 
   // render output
@@ -76,6 +95,30 @@ function Signin() {
       <Box sx={{ maxWidth: "600px" }}>
         <Logo width="35%" />
         <br />
+        {response ? (
+          <Collapse in={open}>
+            <Alert
+              severity={alertType}
+              action={
+                <IconButton
+                  aria-label="close"
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    setOpen(false);
+                  }}
+                >
+                  <CloseIcon fontSize="inherit" />
+                </IconButton>
+              }
+              sx={{ mb: 2 }}
+            >
+              {alertMessage}
+            </Alert>
+          </Collapse>
+        ) : (
+          <Box></Box>
+        )}
         <PaperComponent>
           <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
             <Heading text="Sign in to your account" />
@@ -87,9 +130,15 @@ function Signin() {
                 onChange={handleChange}
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
-              {}
-              <SubmitButton disabled={isError} label="Sign in" type="submit" />
-              <Link to={"/forgot-password"}>Forgot your password?</Link>
+              <SubmitButton
+                disabled={isError}
+                label="Sign in"
+                type="submit"
+                progress={progress}
+              />
+              <Box sx={{ marginTop: "20px" }}>
+                <Link to={"/forgot-password"}>Forgot your password?</Link>
+              </Box>
             </Grid>
           </form>
         </PaperComponent>

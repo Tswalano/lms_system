@@ -31,6 +31,7 @@ function Input({ field, onChange }) {
   const validationMap = {
     email: validateEmail,
     password: validatePassword,
+    currentPassword: validatePassword,
     confirmPassword: validateConfirmPassword,
     code: validateCode,
     phone: validatePhone,

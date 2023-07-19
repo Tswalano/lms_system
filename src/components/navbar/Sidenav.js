@@ -16,7 +16,7 @@ import Logo from "../ui/Logo";
 import { Grid } from "@mui/material";
 import { Outlet, useNavigate } from "react-router-dom";
 
-const drawerWidth = 270;
+const drawerWidth = 280;
 
 const openedMixin = (theme) => ({
   width: drawerWidth,
@@ -95,6 +95,10 @@ export default function Sidenav({ menuItems }) {
   // navigation hook
   const navigate = useNavigate();
 
+  // Create a URLSearchParams object with the current URL's query string
+  const urlPathObj = new URL(window.location.href);
+  const urlPath = urlPathObj.href;
+
   const handleDrawerOpen = () => {
     setOpen(true);
   };
@@ -143,10 +147,15 @@ export default function Sidenav({ menuItems }) {
             <ListItem
               key={item.id}
               disablePadding
-              sx={{ display: "block" }}
+              sx={{
+                display: "block",
+                backgroundColor: urlPath.includes(item.route) ? "#2196f3" : "",
+                opacity: urlPath.includes(item.route) ? "0.9" : "",
+              }}
               onClick={() => navigate(item.route)}
             >
               <ListItemButton
+                selected={urlPath.includes(item.route)}
                 sx={{
                   minHeight: 48,
                   justifyContent: open ? "initial" : "center",
@@ -159,13 +168,17 @@ export default function Sidenav({ menuItems }) {
                     mr: open ? 3 : "auto",
                     justifyContent: "center",
                     color: "white",
+                    //color: urlPath.includes(item.route) ? "white" : "#2196f3",
                   }}
                 >
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
                   primary={item.label}
-                  sx={{ opacity: open ? 1 : 0, color: "white" }}
+                  sx={{
+                    opacity: open ? 1 : 0,
+                    color: "white",
+                  }}
                 />
               </ListItemButton>
             </ListItem>

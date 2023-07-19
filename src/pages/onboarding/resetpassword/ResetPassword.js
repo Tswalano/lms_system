@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
-import { Box, Grid } from "@mui/material";
+import { Alert, Box, Collapse, Grid, IconButton, Link } from "@mui/material";
 import CenteredBox from "../../../components/ui/CenteredBox";
 import Heading from "../../../components/ui/Heading";
 import Logo from "../../../components/ui/Logo";
@@ -17,10 +17,10 @@ import {
 import ResetPasswordForm from "./ResetPasswordConfig";
 import { GridSizes } from "../../../components/form/GridSizes";
 import Paragraph from "../../../components/ui/Paragraph";
-import Link from "@mui/material/Link";
-
-// get the email from the storage session
-const email = sessionStorage.getItem("email");
+import { AuthContext } from "../../../context/AuthContext";
+import CloseIcon from "@mui/icons-material/Close";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { postData } from "../../../api/API";
 
 function ResetPassword() {
   // declare the useState formValues object
@@ -31,6 +31,13 @@ function ResetPassword() {
 
   // State to track form field error
   const [isError, setIsError] = useState(false);
+  const [progress, setProgress] = useState(false);
+  const [open, setOpen] = useState(true);
+  const [alertMessage, setAlertMessage] = useState();
+  const [alertType, setAlertType] = useState();
+  const [response, setResponse] = useState(false);
+
+  const ctx = useContext(AuthContext);
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
@@ -53,7 +60,7 @@ function ResetPassword() {
   useEffect(() => {
     handleValidation();
     // Run the validation when formValues state changes
-  }, [formValues]);
+  }, [formValues, ctx.email]);
 
   // handle send new code request
   const sendNewCode = () => {
@@ -65,8 +72,28 @@ function ResetPassword() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    //progress
+    setProgress(true);
+
     const formValues = GetFormValues(event);
-    console.log(formValues);
+
+    const endpoint = new APIEndPoints().profileAPI();
+
+    const response = await postData(endpoint, formValues, ctx.token);
+    if (response.status === 200) {
+      setAlertMessage(response.message);
+      setAlertType("success");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
+    } else {
+      // set error
+      setAlertMessage(response.message);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
+    }
 
     // remove email session from forgot password page on reset password success
     sessionStorage.removeItem("email");
@@ -78,6 +105,30 @@ function ResetPassword() {
       <Box sx={{ maxWidth: "600px" }}>
         <Logo width="35%" />
         <br />
+        {response ? (
+          <Collapse in={open}>
+            <Alert
+              severity={alertType}
+              action={
+                <IconButton
+                  aria-label="close"
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    setOpen(false);
+                  }}
+                >
+                  <CloseIcon fontSize="inherit" />
+                </IconButton>
+              }
+              sx={{ mb: 2 }}
+            >
+              {alertMessage}
+            </Alert>
+          </Collapse>
+        ) : (
+          <Box></Box>
+        )}
         <PaperComponent>
           <Box sx={{ textAlign: "center" }}>
             <Heading text="Reset Password" />
@@ -86,13 +137,13 @@ function ResetPassword() {
             <Paragraph
               text={
                 "We have sent a password reset code by email to " +
-                email +
+                ctx.email +
                 ". Enter it below to reset your password."
               }
               fontWeight="normal"
             />
           </Box>
-          <form onSubmit={handleSubmit} autocomplete="off">
+          <form onSubmit={handleSubmit}>
             <Grid container>
               <FormFieldMapper
                 formFields={ResetPasswordForm.formFields}
@@ -103,12 +154,13 @@ function ResetPassword() {
                 disabled={isError}
                 label="Reset Password"
                 type="submit"
+                progress={progress}
               />
             </Grid>
           </form>
           <Grid container sx={{ paddingTop: "20px" }}>
             <Paragraph text="Didn't receive a code? &nbsp;" />
-            <Link onClick={sendNewCode} href="" underline="none">
+            <Link onClick={sendNewCode} href="" underline="hover">
               Send a new code
             </Link>
           </Grid>
