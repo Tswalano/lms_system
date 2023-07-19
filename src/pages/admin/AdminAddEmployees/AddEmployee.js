@@ -47,7 +47,7 @@ function AddEmployee() {
     const endpoint = new APIEndPoints().addNewEmployee();
     //posting data
     const addEmployee = await postData(endpoint, formValues, ctx.token);
-    console.log(formValues);
+    console.log(addEmployee);
 
     if (addEmployee) {
       console.log("success");

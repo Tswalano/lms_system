@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import {
   Box,
@@ -13,16 +13,60 @@ import {
 import Paragraph from "../../../components/ui/Paragraph";
 import PaperComponent from "../../../components/ui/Paper";
 import { Link } from "react-router-dom";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { AuthContext } from "../../../context/AuthContext";
+import { postResponse } from "../../../api/API";
 
 function Employee() {
   // Create a URLSearchParams object with the current URL's query string
   const params = new URLSearchParams(window.location.search);
 
   // Access the value of employee id from query string
-  const employee_id = params.get("id");
+  const id = params.get("id");
 
   // create useState variables for manage role values
   const [role, setRole] = React.useState("admin");
+
+  const [firstName, setFirstName] = useState();
+  const [lastName, setLastName] = useState();
+  const [jobTitle, setJobTitle] = useState();
+  const [empID, setEmpID] = useState();
+  const [userRole, setUserRole] = useState();
+  const [phone, setPhone] = useState();
+  const [email, setEmail] = useState();
+
+  const ctx = useContext(AuthContext);
+
+  useEffect(() => {
+    const getData = async () => {
+      try {
+        const endpoint = new APIEndPoints().viewEmployeeByID();
+        const userID = { id };
+        const data = await postResponse(endpoint, userID, ctx.token);
+        console.log(data);
+        if (
+          !firstName ||
+          !lastName ||
+          !jobTitle ||
+          !empID ||
+          !userRole ||
+          !phone ||
+          !email
+        ) {
+          setFirstName(data.data.firstName);
+          setLastName(data.data.lastName);
+          setJobTitle(data.data.jobTitle);
+          setEmpID(data.data.id);
+          setUserRole(data.data.role);
+          setPhone(data.data.phoneNumber);
+          setEmail(data.data.email);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    getData();
+  }, []);
 
   // handle change of checking role boxes
   const handleChange = (event) => {
@@ -41,7 +85,7 @@ function Employee() {
             fontFamily="Geologica"
             fontWeight="normal"
           >
-            {"Employee details " + employee_id}
+            {"Employee details " + empID}
           </Typography>
           <div style={{ width: "85%" }}>
             <Divider />
@@ -54,17 +98,17 @@ function Employee() {
                 <Paragraph text="First Name" fontWeight="bold" />
               </Grid>
               <Grid item xs={7}>
-                <Paragraph text="Philemon" fontWeight="normal" />
+                <Paragraph text={firstName} fontWeight="normal" />
               </Grid>
             </Grid>
             <Grid container sx={{ paddingY: "6px" }}>
               {" "}
               {/* Employee Last Name */}
               <Grid item xs={5}>
-                <Paragraph text="Last Name" fontWeight="bold" />
+                <Paragraph text={"Last Name"} fontWeight="bold" />
               </Grid>
               <Grid item xs={7}>
-                <Paragraph text="Maitisa" fontWeight="normal" />
+                <Paragraph text={lastName} fontWeight="normal" />
               </Grid>
             </Grid>
             <Grid container sx={{ paddingY: "6px" }}>
@@ -74,10 +118,7 @@ function Employee() {
                 <Paragraph text="Job Title" fontWeight="bold" />
               </Grid>
               <Grid item xs={7}>
-                <Paragraph
-                  text="Cloud and DevOps Engineer"
-                  fontWeight="normal"
-                />
+                <Paragraph text={jobTitle} fontWeight="normal" />
               </Grid>
             </Grid>
             <Grid container sx={{ paddingY: "6px" }}>
@@ -86,7 +127,7 @@ function Employee() {
                 <Paragraph text="Employee ID" fontWeight="bold" />
               </Grid>
               <Grid item xs={7}>
-                <Paragraph text="0012" fontWeight="normal" />
+                <Paragraph text={empID} fontWeight="normal" />
               </Grid>
             </Grid>
             <Grid container sx={{ paddingY: "6px" }}>
@@ -94,7 +135,7 @@ function Employee() {
                 <Paragraph text="Role" fontWeight="bold" />
               </Grid>
               <Grid item xs={7}>
-                <Paragraph text="Admin" fontWeight="normal" />
+                <Paragraph text={userRole} fontWeight="normal" />
               </Grid>
             </Grid>
           </Grid>
@@ -119,8 +160,8 @@ function Employee() {
                   <Paragraph text="Phone" fontWeight="bold" />
                 </Grid>
                 <Grid item xs={7}>
-                  <a href="tel:0791119292" style={{ textDecoration: "none" }}>
-                    <Paragraph text="0791119292" fontWeight="normal" />
+                  <a href={phone} style={{ textDecoration: "none" }}>
+                    <Paragraph text={phone} fontWeight="normal" />
                   </a>
                 </Grid>
               </Grid>
@@ -130,14 +171,8 @@ function Employee() {
                   <Paragraph text="Email Address" fontWeight="bold" />
                 </Grid>
                 <Grid item xs={7}>
-                  <a
-                    href="mailto:philemon.maitisa@disraptor.co.za"
-                    style={{ textDecoration: "none" }}
-                  >
-                    <Paragraph
-                      text="philemon.maitisa@disraptor.co.za"
-                      fontWeight="normal"
-                    />
+                  <a href={email} style={{ textDecoration: "none" }}>
+                    <Paragraph text={email} fontWeight="normal" />
                   </a>
                 </Grid>
               </Grid>

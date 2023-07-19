@@ -1,5 +1,5 @@
 import { Box, Button, Divider, Grid, Typography } from "@mui/material";
-import React from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Heading from "../../../components/ui/Heading";
 import TableComponent from "../../../components/table/TableComponent";
 import EmployeesTableConfig from "./EmployeesTableConfig";
@@ -14,56 +14,36 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import AddEmployee from "../AdminAddEmployees/AddEmployee";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { getData } from "../../../api/API";
+import { AuthContext } from "../../../context/AuthContext";
 
 function ManageEmployees() {
   // create / retrieve employee data
-  const rowsData = [
-    {
-      id: "1",
-      firstName: "Phil",
-      lastName: "Maitisa",
-      email: "philemon.maitisa@disraptor.co.za",
-      phone: "0791119292",
-      jobTitle: "Cloud & DevOps Engineer",
-      view: <Link to="/manage-employees/employee?id=1">open</Link>,
-    },
-    {
-      id: "2",
-      firstName: "Mayur",
-      lastName: "Mistry",
-      email: "mayur.mistry@disraptor.co.za",
-      phone: "0668857412",
-      jobTitle: "Cloud & DevOps Engineer",
-      view: <Link to="/manage-employees/employee?id=2">open</Link>,
-    },
-    {
-      id: "3",
-      firstName: "Jino",
-      lastName: "Rigney",
-      email: "jino.rigney@disraptor.co.za",
-      phone: "0784453698",
-      jobTitle: "Cloud & DevOps Engineer",
-      view: <Link to="/manage-employees/employee?id=3">open</Link>,
-    },
-    {
-      id: "4",
-      firstName: "Kgomotso",
-      lastName: "Dungeni",
-      email: "kgomotso.dungeni@disraptor.co.za",
-      phone: "0187523369",
-      jobTitle: "Cloud & DevOps Engineer",
-      view: <Link to="/manage-employees/employee?id=4">open</Link>,
-    },
-    {
-      id: "5",
-      firstName: "Given",
-      lastName: "Makofane",
-      email: "given.makofane@disraptor.co.za",
-      phone: "0791228585",
-      jobTitle: "Cloud & DevOps Engineer",
-      view: <Link to="/manage-employees/employee?id=5">open</Link>,
-    },
-  ];
+  const [rowsData, setRowsData] = useState([]);
+  const ctx = useContext(AuthContext);
+  useEffect(() => {
+    const fetchData = async () => {
+      const endpoint = new APIEndPoints().viewAllEmployees();
+      const data = await getData(endpoint, ctx.token);
+      const employeesData = [];
+      for (let i = 0; i < data.length; i++) {
+        employeesData.push({
+          id: data[i].id,
+          firstName: data[i].firstName,
+          lastName: data[i].lastName,
+          email: data[i].email,
+          phone: data[i].phoneNumber,
+          jobTitle: data[i].jobTitle,
+          view: (
+            <Link to={"/manage-employees/employee?id=" + data[i].id}>View</Link>
+          ),
+        });
+      }
+      setRowsData(employeesData);
+    };
+    fetchData();
+  }, []);
 
   // add employee modal
   const [open, setOpen] = React.useState(false);

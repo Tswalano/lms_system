@@ -58,8 +58,6 @@ function ProfileUpdate() {
     const endpoint = new APIEndPoints().profileAPI();
 
     const updateProfile = await postData(endpoint, formValues, ctx.token);
-    console.log(formValues);
-    console.log(ctx.token);
     if (updateProfile) {
       console.log("Success");
     }

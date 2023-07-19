@@ -67,6 +67,7 @@ function Signin() {
     const isLoggedIn = await signIn(endPoint, formValues);
 
     ctx.logIn(isLoggedIn.token, isLoggedIn.user.role);
+    
   };
 
   // render output

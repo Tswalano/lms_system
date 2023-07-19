@@ -1,4 +1,4 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useState, useEffect } from "react";
 
 // Create the AuthContext
 export const AuthContext = createContext();
@@ -23,7 +23,17 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(userToken !== "" && userToken !== null);
 
     setIsAdmin(userRole);
+    localStorage.setItem("token", userToken);
+    localStorage.setItem("role", userRole);
   };
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
+    setToken(token);
+    setIsAdmin(role);
+    setIsAuthenticated(token !== "" && token !== null);
+  }, [token]);
 
   const userEmail = (emailID) => {
     setEmail(emailID);
@@ -38,6 +48,8 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setIsAuthenticated(false);
     setIsAdmin(false);
+    localStorage.setItem("token", null);
+    localStorage.setItem("role", null);
   };
 
   // Value object to be provided to consuming components

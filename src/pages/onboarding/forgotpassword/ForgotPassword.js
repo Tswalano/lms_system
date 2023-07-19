@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
@@ -13,6 +13,8 @@ import { validateEmail } from "../../../components/form/Validations";
 import ForgotPasswordForm from "./ForgotPasswordConfig";
 import { GridSizes } from "../../../components/form/GridSizes";
 import Paragraph from "../../../components/ui/Paragraph";
+import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../../context/AuthContext";
 
 function ForgotPassword() {
   // declare the useState formValues object
@@ -23,6 +25,8 @@ function ForgotPassword() {
 
   // State to track form field error
   const [isError, setIsError] = useState(false);
+  const navigate = useNavigate();
+  const ctx = useContext(AuthContext);
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
@@ -41,11 +45,10 @@ function ForgotPassword() {
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
-
-    const formValues = GetFormValues(event);
-
     // store session for email to be accessed on the next page
-    sessionStorage.setItem("email", formValues.email);
+    ctx.userEmail(formValues.email);
+    navigate("/reset-password");
+
     // continue integrating
   };
 

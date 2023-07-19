@@ -47,5 +47,16 @@ class APIEndPoints {
       "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/invite-emp";
     return addNewEmployee;
   }
+  viewAllEmployees() {
+    const viewAllEmployees =
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/employee";
+    return viewAllEmployees;
+  }
+
+  viewEmployeeByID() {
+    const viewEmpByID =
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/employee/by-id";
+    return viewEmpByID;
+  }
 }
 export default APIEndPoints;

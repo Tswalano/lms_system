@@ -57,6 +57,25 @@ export const postData = async (endpoint, formValues, token) => {
   }
 };
 
+export const postResponse = async (endpoint, formValues, token) => {
+  try {
+    const response = axios.post(endpoint, formValues, {
+      headers: { Authorization: "Bearer " + token },
+    });
+    return response;
+  } catch (error) {
+    // do something if there is an error
+    if (
+      error.response.status === 401 ||
+      error.response.status === 400 ||
+      error.response.status === 404 ||
+      error.response.status === 500
+    ) {
+      return error.response.data.message;
+    }
+  }
+};
+
 export const putData = async (endpoint, formValues, token) => {
   try {
     if (token !== null) {
