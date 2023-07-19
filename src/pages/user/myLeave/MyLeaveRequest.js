@@ -13,7 +13,7 @@ import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { validateDropDown } from "../../../components/form/Validations";
 import { useEffect } from "react";
-import Link from "@mui/material/Link";
+import { Link } from "react-router-dom";
 
 // modal dialog
 import Dialog from "@mui/material/Dialog";
@@ -225,10 +225,10 @@ function Breadcrumb() {
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" href="/dashboard">
+        <Link underline="hover" color="inherit" to="/dashboard">
           Home
         </Link>
-        <Link underline="hover" color="inherit" href="/my-leave">
+        <Link underline="hover" color="inherit" to="/my-leave">
           My Leave
         </Link>
         <Typography color="primary" fontFamily="Geologica" fontWeight="normal">

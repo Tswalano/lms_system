@@ -1,7 +1,7 @@
 import React from "react";
 import Heading from "../../components/ui/Heading";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
-import Link from "@mui/material/Link";
+import { Link } from "react-router-dom";
 import PaperComponent from "../../components/ui/Paper";
 import { Box, Typography } from "@mui/material";
 
@@ -21,7 +21,7 @@ function Breadcrumb() {
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" href="/home">
+        <Link underline="hover" color="inherit" to="/home">
           Home
         </Link>
         <Typography color="primary" fontFamily="Geologica" fontWeight="normal">

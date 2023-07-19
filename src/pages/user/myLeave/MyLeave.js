@@ -1,7 +1,7 @@
 import { Box, Typography } from "@mui/material";
 import React from "react";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
-import Link from "@mui/material/Link";
+import { Link } from "react-router-dom";
 import {
   MyLeaveHistoryTable,
   MyLeaveRequestsTable,
@@ -18,21 +18,7 @@ function MyLeave() {
       endDate: "25/07/2023",
       leaveLength: "Full Day",
       status: "Pending",
-      open: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="/my-leave/my-leave-request?id=1"
-        >
-          open
-        </Link>
-      ),
+      open: <Link to="/my-leave/my-leave-request?id=1">open</Link>,
     },
     {
       leaveType: "Emergency",
@@ -40,21 +26,7 @@ function MyLeave() {
       endDate: "25/07/2023",
       leaveLength: "Half Day",
       status: "Pending",
-      open: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="/my-leave/my-leave-request?id=3"
-        >
-          open
-        </Link>
-      ),
+      open: <Link to="/my-leave/my-leave-request?id=3">open</Link>,
     },
     {
       leaveType: "Family Res",
@@ -62,21 +34,7 @@ function MyLeave() {
       endDate: "25/07/2023",
       leaveLength: "Full Day",
       status: "Pending",
-      open: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="/my-leave/my-leave-request?id=4"
-        >
-          open
-        </Link>
-      ),
+      open: <Link to="/my-leave/my-leave-request?id=4">open</Link>,
     },
     {
       leaveType: "Sick",
@@ -84,21 +42,7 @@ function MyLeave() {
       endDate: "25/07/2023",
       leaveLength: "Full Day",
       status: "Pending",
-      open: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="/my-leave/my-leave-request?id=5"
-        >
-          open
-        </Link>
-      ),
+      open: <Link to="/my-leave/my-leave-request?id=5">open</Link>,
     },
   ];
 
@@ -109,63 +53,21 @@ function MyLeave() {
       startDate: "22/07/2023",
       endDate: "25/07/2023",
       status: "Complete",
-      view: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="my-leave/view-leave?id=1"
-        >
-          view
-        </Link>
-      ),
+      view: <Link to="my-leave/view-leave?id=1">view</Link>,
     },
     {
       leaveType: "Emergency",
       startDate: "22/07/2023",
       endDate: "25/07/2023",
       status: "Complete",
-      view: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="my-leave/view-leave?id=2"
-        >
-          view
-        </Link>
-      ),
+      view: <Link to="my-leave/view-leave?id=2">view</Link>,
     },
     {
       leaveType: "Sick",
       startDate: "22/07/2023",
       endDate: "25/07/2023",
       status: "Complete",
-      view: (
-        <Link
-          sx={{
-            paddingX: "20px",
-            paddingY: "5px",
-            background: "#2196f3",
-            borderRadius: "5px",
-            color: "white",
-          }}
-          underline="hover"
-          href="my-leave/view-leave?id=3"
-        >
-          view
-        </Link>
-      ),
+      view: <Link to="my-leave/view-leave?id=3">view</Link>,
     },
   ];
 
@@ -195,7 +97,7 @@ function Breadcrumb() {
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" href={"/dashboard"}>
+        <Link underline="hover" color="inherit" to={"/dashboard"}>
           Home
         </Link>
         <Typography color="primary" fontFamily="Geologica" fontWeight="normal">

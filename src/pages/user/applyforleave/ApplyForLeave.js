@@ -12,11 +12,11 @@ import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 import { validateDate } from "../../../components/form/Validations";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
-import Link from "@mui/material/Link";
+import { Link } from "react-router-dom";
 import Paragraph from "../../../components/ui/Paragraph";
 import APIEndPoints from "../../../api/APIEndPoints";
-import { postData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
+import { postData } from "../../../api/API";
 
 function ApplyForLeave() {
   // declare the useState formValues object
@@ -36,11 +36,11 @@ function ApplyForLeave() {
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
     const isSelectValid = validateDropDown(
-      formValues.LeaveType,
+      formValues.leaveType,
       formValues.leaveLength
     );
 
-    const isDate = validateDate(formValues.date);
+    const isDate = validateDate(formValues.startDate);
     const isEndDate = validateDate(formValues.endDate);
     // const isDate = validateDate(formValues.Date)
 
@@ -50,15 +50,16 @@ function ApplyForLeave() {
 
   useEffect(() => {
     handleValidation();
+
     // Run the validation when formValues state changes
   }, [formValues]);
 
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
-    //const formValues = GetFormValues(event);
-    const leave_type = formValues.LeaveType;
-    const startDateFormat = new Date(formValues.date);
+
+    const leave_type = formValues.leaveType;
+    const startDateFormat = new Date(formValues.startDate);
     const endDateFormat = new Date(formValues.endDate);
     //creating startDate Format
     const leave_start =
@@ -79,6 +80,7 @@ function ApplyForLeave() {
     const endpoint = new APIEndPoints().applyForLeave();
 
     const postLeave = await postData(endpoint, arrData, ctx.token);
+    console.log(postLeave);
     //  Checks if leave submited is valid
     if (postLeave) {
       setLeaveValid("success");
@@ -132,7 +134,7 @@ function Breadcrumb() {
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" href={"/dashboard"}>
+        <Link underline="hover" color="inherit" to={"/dashboard"}>
           Home
         </Link>
         <Typography color="primary" fontFamily="Geologica" fontWeight="normal">

@@ -27,7 +27,7 @@ class APIEndPoints {
 
   applyForLeave() {
     const leaveApply =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/lms/updateleave";
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/lms/apply-leave";
     return leaveApply;
   }
 

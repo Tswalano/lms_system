@@ -43,31 +43,20 @@ export const signUpAndVerify = async (endpoint, formValues) => {
 //To post data that require tokens
 export const postData = async (endpoint, formValues, token) => {
   try {
-    if (token !== null) {
-      try {
-        const response = axios.post(endpoint, formValues, {
-          headers: { Authorization: "Bearer " + token },
-        });
-        if (response.status === 200) {
-          console.log(response.data.pmessage);
-          return true;
-        }
-      } catch (error) {
-        // do something if there is an error
-        if (
-          error.response.status === 401 ||
-          error.response.status === 400 ||
-          error.response.status === 404 ||
-          error.response.status === 500
-        ) {
-          return false;
-        }
-      }
-    } else {
-      console.log("token Invalid");
+    const response = axios.post(endpoint, formValues, {
+      headers: { Authorization: "Bearer " + token },
+    });
+    return true;
+  } catch (error) {
+    // do something if there is an error
+    if (
+      error.response.status === 401 ||
+      error.response.status === 400 ||
+      error.response.status === 404 ||
+      error.response.status === 500
+    ) {
+      return false;
     }
-  } catch (e) {
-    console.log(e);
   }
 };
 

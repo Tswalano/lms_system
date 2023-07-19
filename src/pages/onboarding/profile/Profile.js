@@ -1,7 +1,7 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import PaperComponent from "../../../components/ui/Paper";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
-import Link from "@mui/material/Link";
+import { Link } from "react-router-dom";
 import { Box, Grid, Divider, Typography, Button } from "@mui/material";
 import Paragraph from "../../../components/ui/Paragraph";
 import UpdatePassword from "./UpdatePassword";
@@ -25,6 +25,7 @@ function Profile() {
   const handleClose = () => {
     setOpen(false);
   };
+
   return (
     <>
       <Box sx={{ width: "100%" }}>
@@ -180,13 +181,14 @@ function Profile() {
 
 function Breadcrumb() {
   const ctx = useContext(AuthContext);
+  useEffect(() => {}, [ctx.isAdmin]);
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
         <Link
           underline="hover"
           color="inherit"
-          href={ctx.isAdmin ? "/home" : "/dashboard"}
+          to={ctx.isAdmin === "admin" ? "/home" : "/dashboard"}
         >
           Home
         </Link>

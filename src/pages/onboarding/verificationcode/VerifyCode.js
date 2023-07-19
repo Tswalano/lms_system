@@ -46,8 +46,14 @@ function VerifyCode() {
   useEffect(() => {
     handleValidation();
     // Run the validation when formValues state changes
+
+    if (ctx.isAdmin === "admin") {
+      navigate("/home");
+      console.log(ctx.isAdmin);
+    } else if (ctx.isAdmin === "user") {
+      navigate("/dashboard");
+    }
   }, [formValues]);
-  const { userEmail } = useContext(AuthContext);
   const ctx = useContext(AuthContext);
   // handle form submition
   const handleSubmit = async (event) => {
@@ -73,10 +79,8 @@ function VerifyCode() {
     const verified = await signUpAndVerify(endPoint, values);
     //Checks if user is verified
     if (verified) {
-      const login = await signIn(logInEndPoint, log_in, logIn);
-      if (login) {
-        navigate("/profile");
-      }
+      const login = await signIn(logInEndPoint, log_in);
+      logIn(login.token, login.user.role);
     }
   };
 
