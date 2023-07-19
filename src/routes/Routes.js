@@ -35,7 +35,7 @@ export default function AppRoutes() {
         <Route path="reset-password" element={<ResetPassword />} />
         <Route path="verify-account" element={<VerifyCode />} />
         <Route path="signup" element={<Signup />} />
-        <Route path="signout" element={<SignOut/>}/>
+        <Route path="signout" element={<SignOut />} />
         {/* Private routes */}
         <Route path="/" element={<PrivateRoute />}>
           <Route

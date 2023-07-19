@@ -9,10 +9,10 @@ export const signIn = async (endpoint, formValues) => {
     // return true; // Exit the function if successful
   } catch (error) {
     // do something if there is an error
-    if (error.response.status === 401 || error.response.status === 400) {
-      console.log(error.response.data.message);
-    }
-    return false;
+    //if (error.response.status === 401 || error.response.status === 400) {
+    return error.response.data.message;
+    //}
+    //return false;
   }
 };
 //To post data from signUp and Verify page

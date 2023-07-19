@@ -20,9 +20,9 @@ export const AuthProvider = ({ children }) => {
   // Function to handle user sign in and set token and role
   const logIn = (userToken, userRole) => {
     setToken(userToken);
-    setIsAuthenticated(userToken !== "" && userToken !== null);
-    // console.log(userRole);
+    setIsAuthenticated(userToken);
     setIsAdmin(userRole);
+    console.log(userRole);
 
     // console.log("AuthCon: " + isAdmin);
     /*if (userRole === "admin") {
