@@ -14,6 +14,12 @@ import APIEndPoints from "../../../api/APIEndPoints";
 import { getDataByID } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
 
+//Formats the date and removes string and '0' values
+function dateFormat(dateValue) {
+  const date = new Date(dateValue);
+  return date.toISOString().split("T")[0];
+}
+
 function ViewLeave() {
   // Create a URLSearchParams object with the current URL's query string
   const params = new URLSearchParams(window.location.search);
@@ -45,8 +51,8 @@ function ViewLeave() {
         if (!empName) {
           setEmpName(data.User.firstName + " " + data.User.lastName);
           setLeaveType(data.leave_type);
-          setStartDate(data.start_date);
-          setEndDate(data.end_date);
+          setStartDate(dateFormat(data.start_date));
+          setEndDate(dateFormat(data.end_date));
           setLeaveLength(data.duration);
           setComments("Require Days off (Not Implemented)");
           setAttachments(

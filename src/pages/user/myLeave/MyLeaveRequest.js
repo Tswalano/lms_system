@@ -27,6 +27,11 @@ import APIEndPoints from "../../../api/APIEndPoints";
 import { getDataByID } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
 
+function dateFormat(dateValue) {
+  const date = new Date(dateValue);
+  return date.toISOString().split("T")[0];
+}
+
 function ActOnLeave() {
   // Create a URLSearchParams object with the current URL's query string
   const params = new URLSearchParams(window.location.search);
@@ -86,8 +91,8 @@ function ActOnLeave() {
       if (data) {
         if (!leaveType && !startDate && !comments && !attachments) {
           setLeaveType(data.leave_type);
-          setStartDate(data.start_date);
-          setEndDate(data.end_date);
+          setStartDate(dateFormat(data.start_date));
+          setEndDate(dateFormat(data.end_date));
           setLeaveLength(data.duration);
           setLeaveStatus(data.status);
           setComments("Comments needs to be added still");

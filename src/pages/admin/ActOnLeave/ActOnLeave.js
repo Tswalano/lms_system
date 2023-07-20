@@ -26,6 +26,12 @@ import { AuthContext } from "../../../context/AuthContext";
 import { Link } from "react-router-dom";
 import CloseIcon from "@mui/icons-material/Close";
 
+//Formats the date and removes string and '0' values
+function dateFormat(dateValue) {
+  const date = new Date(dateValue);
+  return date.toISOString().split("T")[0];
+}
+
 function ActOnLeave() {
   // Create a URLSearchParams object with the current URL's query string
   const params = new URLSearchParams(window.location.search);
@@ -86,8 +92,8 @@ function ActOnLeave() {
           ) {
             setEmpName(data.User.firstName + " " + data.User.lastName);
             setLeaveType(data.leave_type);
-            setStartDate(data.start_date);
-            setEndDate(data.end_date);
+            setStartDate(dateFormat(data.start_date));
+            setEndDate(dateFormat(data.end_date));
             setLeaveLength(data.duration);
             setComments("Leave comment");
             setAttachments("https://disraptor.co.za/");
