@@ -86,6 +86,7 @@ function ManageEmployees() {
         <br />
         <Grid container spacing={3}>
           <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
+            {isLoading ? <LinearProgress /> : null}
             <PaperComponent>
               <Grid container>
                 <Grid item xs={2}>
@@ -103,7 +104,6 @@ function ManageEmployees() {
                 </Grid>
               </Grid>
             </PaperComponent>
-            {isLoading ? <LinearProgress /> : null}
           </Grid>
           <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
             <PaperComponent>

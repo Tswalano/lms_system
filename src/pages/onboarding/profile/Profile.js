@@ -160,7 +160,7 @@ function Profile() {
                     <Paragraph text="Phone" fontWeight="bold" />
                   </Grid>
                   <Grid item xs={7}>
-                    <a href={phone} style={{ textDecoration: "none" }}>
+                    <a href={`tel:${phone}`} style={{ textDecoration: "none" }}>
                       <Paragraph text={phone} fontWeight="normal" />
                     </a>
                   </Grid>
@@ -171,7 +171,10 @@ function Profile() {
                     <Paragraph text="Email Address" fontWeight="bold" />
                   </Grid>
                   <Grid item xs={7}>
-                    <a href={email} style={{ textDecoration: "none" }}>
+                    <a
+                      href={`mailto:${email}`}
+                      style={{ textDecoration: "none" }}
+                    >
                       <Paragraph text={email} fontWeight="normal" />
                     </a>
                   </Grid>
