@@ -17,8 +17,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { signIn } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
-import APIEndPoints from "../../../api/APIEndPoints";
 import { signUpAndVerify } from "../../../api/API";
+import { useNavigate } from "react-router-dom";
 
 function ForgotPassword() {
   // declare the useState formValues object
@@ -34,6 +34,8 @@ function ForgotPassword() {
   const [alertMessage, setAlertMessage] = useState();
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
+
+  const navigate = useNavigate();
 
   const ctx = useContext(AuthContext);
 
@@ -60,17 +62,18 @@ function ForgotPassword() {
 
     const formValues = GetFormValues(event);
 
-    const endPoint = new APIEndPoints().forgotPasswordAPI();
+    const endPoint = new APIEndPoints().forgotPassword();
 
     const isLoggedIn = await signIn(endPoint, formValues);
 
-    if (formValues.email === "jdjjdj") {
+    if (isLoggedIn) {
       ctx.userEmail(formValues.email);
       setAlertMessage(response.message);
       setAlertType("success");
       setProgress(false);
       setResponse(true);
       setOpen(true);
+      navigate("/reset-password");
     } else {
       // set error
       setAlertMessage(response.message);

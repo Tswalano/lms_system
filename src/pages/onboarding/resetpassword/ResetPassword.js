@@ -19,11 +19,9 @@ import { GridSizes } from "../../../components/form/GridSizes";
 import Paragraph from "../../../components/ui/Paragraph";
 import { AuthContext } from "../../../context/AuthContext";
 import CloseIcon from "@mui/icons-material/Close";
-import { AuthContext } from "../../../context/AuthContext";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { signUpAndVerify } from "../../../api/API";
 import { useNavigate } from "react-router-dom";
-import APIEndPoints from "../../../api/APIEndPoints";
 import { postData } from "../../../api/API";
 
 function ResetPassword() {
@@ -40,6 +38,8 @@ function ResetPassword() {
   const [alertMessage, setAlertMessage] = useState();
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
+
+  const navigate = useNavigate();
 
   const ctx = useContext(AuthContext);
 
@@ -92,6 +92,7 @@ function ResetPassword() {
       setProgress(false);
       setResponse(true);
       setOpen(true);
+      navigate("/signin");
     } else {
       // set error
       setAlertMessage(response.message);
@@ -143,7 +144,7 @@ function ResetPassword() {
             <Paragraph
               text={
                 "We have sent a password reset code by email to " +
-                ctx.ctx.email +
+                ctx.email +
                 ". Enter it below to reset your password."
               }
               fontWeight="normal"
