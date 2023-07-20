@@ -7,7 +7,7 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TablePagination from "@mui/material/TablePagination";
 import TableRow from "@mui/material/TableRow";
-import { CircularProgress } from "@mui/material";
+import { CircularProgress, LinearProgress } from "@mui/material";
 
 export default function TableComponent({ columnsData, rowsData, isLoading }) {
   const [page, setPage] = React.useState(0);
@@ -25,6 +25,7 @@ export default function TableComponent({ columnsData, rowsData, isLoading }) {
   return (
     <Paper elevation={3} sx={{ width: "100%", overflow: "hidden" }}>
       <TableContainer sx={{ maxHeight: 440 }}>
+        {isLoading && <LinearProgress />}
         <Table stickyHeader aria-label="sticky table">
           <TableHead>
             <TableRow>
@@ -61,20 +62,6 @@ export default function TableComponent({ columnsData, rowsData, isLoading }) {
                   </TableRow>
                 );
               })}
-            {isLoading && (
-              <div
-                style={{
-                  position: "absolute",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  left: 0,
-                  right: 0,
-                }}
-              >
-                <CircularProgress />
-              </div>
-            )}
           </TableBody>
         </Table>
       </TableContainer>
