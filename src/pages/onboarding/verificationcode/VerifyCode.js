@@ -57,7 +57,6 @@ function VerifyCode() {
 
     if (ctx.isAdmin === "admin") {
       navigate("/home");
-      console.log(ctx.isAdmin);
     } else if (ctx.isAdmin === "user") {
       navigate("/dashboard");
     }
@@ -81,7 +80,6 @@ function VerifyCode() {
     // setting the login details for email and password
     const log_in = { email, password };
 
-    console.log(values);
     //getting Endpoints for optAPI and signIn API
     const endPoint = new APIEndPoints().otpApi();
     const logInEndPoint = new APIEndPoints().signinAPI();

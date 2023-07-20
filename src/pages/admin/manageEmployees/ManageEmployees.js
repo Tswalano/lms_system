@@ -4,6 +4,7 @@ import {
   CircularProgress,
   Divider,
   Grid,
+  LinearProgress,
   Typography,
 } from "@mui/material";
 import React, { useContext, useEffect, useState } from "react";
@@ -29,6 +30,8 @@ import LaunchIcon from "@mui/icons-material/Launch";
 function ManageEmployees() {
   // create / retrieve employee data
   const [rowsData, setRowsData] = useState([]);
+  const [totalEmployees, setTotalEmployees] = useState();
+  const [incompleteProfile, setIncompleteProfile] = useState();
   const ctx = useContext(AuthContext);
   const [isLoading, setISLoading] = useState(false);
   useEffect(() => {
@@ -37,6 +40,7 @@ function ManageEmployees() {
       const endpoint = new APIEndPoints().viewAllEmployees();
       const data = await getData(endpoint, ctx.token);
       const employeesData = [];
+      const emptyProfiles = [];
       for (let i = 0; i < data.length; i++) {
         employeesData.push({
           id: data[i].id,
@@ -51,9 +55,15 @@ function ManageEmployees() {
             </Link>
           ),
         });
+
+        if (data[i].firstName === null) {
+          emptyProfiles.push(data[i]);
+        }
       }
       setISLoading(false);
       setRowsData(employeesData);
+      setTotalEmployees(employeesData.length);
+      setIncompleteProfile(emptyProfiles.length);
     };
     fetchData();
   }, []);
@@ -79,18 +89,21 @@ function ManageEmployees() {
             <PaperComponent>
               <Grid container>
                 <Grid item xs={2}>
-                  <Heading text="10" />
+                  <Heading text={totalEmployees} />
                 </Grid>
                 <Grid item xs={10}>
                   <Paragraph text={"Total number"} fontWeight="bold" />
                   <Paragraph text={"of employees"} fontWeight="bold" />
                   <Box sx={{ color: "#9e9e9e" }}>
-                    <span style={{ fontWeight: "bold" }}>2</span> incomplete
-                    profiles
+                    <span style={{ fontWeight: "bold" }}>
+                      {incompleteProfile}
+                    </span>{" "}
+                    incomplete profiles
                   </Box>
                 </Grid>
               </Grid>
             </PaperComponent>
+            {isLoading ? <LinearProgress /> : null}
           </Grid>
           <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
             <PaperComponent>

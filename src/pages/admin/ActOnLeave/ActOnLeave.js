@@ -101,7 +101,12 @@ function ActOnLeave() {
         }
         setIsLoading(false);
       } catch (error) {
-        console.log(error);
+        // set error
+        setAlertMessage(response.message);
+        setAlertType("error");
+        setProgress(false);
+        setResponse(true);
+        setOpen(true);
       }
     };
     fetchLeaveData();
@@ -137,7 +142,13 @@ function ActOnLeave() {
     }
     //try and catch error to do the integration and capture the form values.
     try {
-    } catch (error) {}
+    } catch (error) {
+      setAlertMessage(error);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
+    }
   };
 
   return (
