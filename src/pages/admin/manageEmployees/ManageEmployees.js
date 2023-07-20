@@ -1,4 +1,11 @@
-import { Box, Button, Divider, Grid, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Divider,
+  Grid,
+  Typography,
+} from "@mui/material";
 import React, { useContext, useEffect, useState } from "react";
 import Heading from "../../../components/ui/Heading";
 import TableComponent from "../../../components/table/TableComponent";
@@ -17,13 +24,16 @@ import AddEmployee from "../AdminAddEmployees/AddEmployee";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { getData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
+import LaunchIcon from "@mui/icons-material/Launch";
 
 function ManageEmployees() {
   // create / retrieve employee data
   const [rowsData, setRowsData] = useState([]);
   const ctx = useContext(AuthContext);
+  const [isLoading, setISLoading] = useState(false);
   useEffect(() => {
     const fetchData = async () => {
+      setISLoading(true);
       const endpoint = new APIEndPoints().viewAllEmployees();
       const data = await getData(endpoint, ctx.token);
       const employeesData = [];
@@ -36,10 +46,13 @@ function ManageEmployees() {
           phone: data[i].phoneNumber,
           jobTitle: data[i].jobTitle,
           view: (
-            <Link to={"/manage-employees/employee?id=" + data[i].id}>View</Link>
+            <Link to={"/manage-employees/employee?id=" + data[i].id}>
+              <LaunchIcon sx={{ color: "#0BADDE" }} />
+            </Link>
           ),
         });
       }
+      setISLoading(false);
       setRowsData(employeesData);
     };
     fetchData();
@@ -117,6 +130,7 @@ function ManageEmployees() {
         <TableComponent
           columnsData={EmployeesTableConfig.columnsData}
           rowsData={rowsData}
+          isLoading={isLoading}
         />
       </Box>
 

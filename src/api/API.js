@@ -93,7 +93,6 @@ export const putData = async (endpoint, formValues, token) => {
           headers: { Authorization: "Bearer " + token },
         });
         if (response.status === 200) {
-          console.log(response);
           return response;
         }
       } catch (error) {

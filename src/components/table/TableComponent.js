@@ -7,8 +7,9 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TablePagination from "@mui/material/TablePagination";
 import TableRow from "@mui/material/TableRow";
+import { CircularProgress } from "@mui/material";
 
-export default function TableComponent({ columnsData, rowsData }) {
+export default function TableComponent({ columnsData, rowsData, isLoading }) {
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
 
@@ -60,6 +61,20 @@ export default function TableComponent({ columnsData, rowsData }) {
                   </TableRow>
                 );
               })}
+            {isLoading && (
+              <div
+                style={{
+                  position: "absolute",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  left: 0,
+                  right: 0,
+                }}
+              >
+                <CircularProgress />
+              </div>
+            )}
           </TableBody>
         </Table>
       </TableContainer>

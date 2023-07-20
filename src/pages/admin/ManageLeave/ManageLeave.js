@@ -14,11 +14,14 @@ function ManageLeave() {
   const [leaveRequestData, setLeaveRequestData] = useState([]);
   const [activeLeaveData, setActiveLeaveData] = useState([]);
 
+  const [isLoading, setISLoading] = useState(false);
+
   //Declaring usContext use stored values
   const ctx = useContext(AuthContext);
 
   useEffect(() => {
     const fetchData = async () => {
+      setISLoading(true);
       try {
         const endpoint = new APIEndPoints().getAllLeavesData();
         const data = await getData(endpoint, ctx.token);
@@ -40,7 +43,7 @@ function ManageLeave() {
                 status: data[i].status || "",
                 open: (
                   <Link to={"/manage-leave/act-on-leave?id=" + data[i].id}>
-                    <LaunchIcon sx={{ color: "black" }} />
+                    <LaunchIcon sx={{ color: "#0BADDE" }} />
                   </Link>
                 ),
               });
@@ -54,7 +57,7 @@ function ManageLeave() {
                 status: data[i].status || "",
                 view: (
                   <Link to={"/manage-leave/view-leave?id=" + data[i].id}>
-                    View
+                    <LaunchIcon sx={{ color: "#0BADDE" }} />
                   </Link>
                 ),
               });
@@ -62,6 +65,7 @@ function ManageLeave() {
           }
           setLeaveRequestData(leaveRequests);
           setActiveLeaveData(activeLeaves);
+          setISLoading(false);
         }
       } catch (error) {
         console.error("Error fetching leave data:", error);
@@ -80,6 +84,7 @@ function ManageLeave() {
       <TableComponent
         columnsData={LeaveRequestsTable.columnsData}
         rowsData={leaveRequestData}
+        isLoading={isLoading}
       />
 
       <br />
@@ -88,6 +93,7 @@ function ManageLeave() {
       <TableComponent
         columnsData={ActiveLeaveTable.columnsData}
         rowsData={activeLeaveData}
+        isLoading={isLoading}
       />
     </Box>
   );

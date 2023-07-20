@@ -31,6 +31,12 @@ class APIEndPoints {
     return leaveApply;
   }
 
+  approveLeave() {
+    const approveLeave =
+      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/lms/updateleave";
+    return approveLeave;
+  }
+
   getAllLeavesData() {
     const getLeaves =
       "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/lms/getleave";

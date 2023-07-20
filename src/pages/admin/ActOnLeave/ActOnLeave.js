@@ -20,7 +20,7 @@ import { GetFormValues } from "../../../components/form/GetFormValues";
 import { validateDropDown } from "../../../components/form/Validations";
 // import { useEffect } from "react";
 import APIEndPoints from "../../../api/APIEndPoints";
-import { getDataByID, putData } from "../../../api/API";
+import { getDataByID, postData, putData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
 import { Link } from "react-router-dom";
 import CloseIcon from "@mui/icons-material/Close";
@@ -109,15 +109,11 @@ function ActOnLeave() {
     const status = formValues.approval;
     const feedback = formValues.feedback;
     //Feedback value is captured on values that is null
-    const endpoint = new APIEndPoints().applyForLeave();
+    const endpoint = new APIEndPoints().approveLeave();
     const dataArr = { id, status, feedback };
     const response = await putData(endpoint, dataArr, ctx.token);
-    /*console.log(leaveRequest);
-    if (leaveRequest) {
-      console.log("applied");
-    }*/
-    if (response.code === 200) {
-      setAlertMessage(response.message);
+    if (response.status === 200) {
+      setAlertMessage(response.data.message);
       setAlertType("success");
       setProgress(false);
       setResponse(true);
