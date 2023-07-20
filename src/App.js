@@ -4,6 +4,7 @@ import Sidenav from "./components/navbar/Sidenav";
 import Grid from "@mui/material/Grid";
 import React, { useContext } from "react";
 import { AuthContext } from "./context/AuthContext";
+import ProgressLoader from "./components/progressBar/Progress";
 
 function App() {
   // set user role

@@ -28,19 +28,7 @@ export const userNavBarItems = [
     id: 3,
     icon: <EventAvailableIcon />,
     label: "My Leave",
-    // route: "my-leave",
-  },
-  {
-    id: 4,
-    icon: <FlakyIcon />,
-    label: "My Leave Documents",
-    // route: "my-leave-documents",
-  },
-  {
-    id: 5,
-    icon: <FlakyIcon />,
-    label: "My Leave History",
-    // route: "my-leave-history",
+    route: "my-leave",
   },
   {
     id: 6,

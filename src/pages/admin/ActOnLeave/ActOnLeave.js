@@ -1,6 +1,15 @@
 import { React, useState, useEffect, useContext } from "react";
 import PaperComponent from "../../../components/ui/Paper";
-import { Box, Grid, Breadcrumbs, Typography, Divider } from "@mui/material";
+import {
+  Box,
+  Grid,
+  Breadcrumbs,
+  Typography,
+  Divider,
+  Collapse,
+  Alert,
+  IconButton,
+} from "@mui/material";
 import Paragraph from "../../../components/ui/Paragraph";
 import SubmitButton from "../../../components/ui/Button";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
@@ -14,6 +23,7 @@ import APIEndPoints from "../../../api/APIEndPoints";
 import { getDataByID, putData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
 import { Link } from "react-router-dom";
+import CloseIcon from "@mui/icons-material/Close";
 
 function ActOnLeave() {
   // Create a URLSearchParams object with the current URL's query string
@@ -33,6 +43,11 @@ function ActOnLeave() {
   // form values for act on leave form
   const [formValues, setFormValues] = useState({});
   const [isError, setIsError] = useState(false);
+  const [progress, setProgress] = useState(false);
+  const [open, setOpen] = useState(true);
+  const [alertMessage, setAlertMessage] = useState();
+  const [alertType, setAlertType] = useState();
+  const [response, setResponse] = useState(false);
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
@@ -72,9 +87,7 @@ function ActOnLeave() {
             setStartDate(data.start_date);
             setEndDate(data.end_date);
             setLeaveLength(data.duration);
-            setComments(
-              "For writers looking for a way to get their creative writing juices flowing, using a random paragraph can be a great way to do this. One of the great benefits of this tool is that nobody knows what is going to appear in the paragraph. This can be leveraged in a few different ways to force the writer to use creativity. For example, the random paragraph can be used as the beginning paragraph of a story that the writer must finish. I can also be used as a paragraph somewhere inside a short story, or for a more difficult creative challenge, it can be used as the ending paragraph. In every case, the writer is forced to use creativity to incorporate the random paragraph into the story."
-            );
+            setComments("Leave comment");
             setAttachments("https://disraptor.co.za/");
           }
         }
@@ -91,15 +104,31 @@ function ActOnLeave() {
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
+    //progress
+    setProgress(true);
     const status = formValues.approval;
     const feedback = formValues.feedback;
     //Feedback value is captured on values that is null
     const endpoint = new APIEndPoints().applyForLeave();
     const dataArr = { id, status, feedback };
-    const leaveRequest = await putData(endpoint, dataArr, ctx.token);
-    console.log(leaveRequest);
+    const response = await putData(endpoint, dataArr, ctx.token);
+    /*console.log(leaveRequest);
     if (leaveRequest) {
       console.log("applied");
+    }*/
+    if (response.code === 200) {
+      setAlertMessage(response.message);
+      setAlertType("success");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
+    } else {
+      // set error
+      setAlertMessage(response.message);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
     }
     //try and catch error to do the integration and capture the form values.
     try {
@@ -218,6 +247,30 @@ function ActOnLeave() {
             </Grid>
             <Grid container paddingY={"20px"}>
               <Grid item xs={12}>
+                {response ? (
+                  <Collapse in={open}>
+                    <Alert
+                      severity={alertType}
+                      action={
+                        <IconButton
+                          aria-label="close"
+                          color="inherit"
+                          size="small"
+                          onClick={() => {
+                            setOpen(false);
+                          }}
+                        >
+                          <CloseIcon fontSize="inherit" />
+                        </IconButton>
+                      }
+                      sx={{ mb: 2 }}
+                    >
+                      {alertMessage}
+                    </Alert>
+                  </Collapse>
+                ) : (
+                  <Box></Box>
+                )}
                 <form onSubmit={handleSubmit}>
                   <Grid container>
                     {/* Maps the dropdown box and TextField  */}
@@ -232,7 +285,8 @@ function ActOnLeave() {
                     label={"Act on Leave"}
                     type="submit"
                     disabled={isError}
-                  ></SubmitButton>
+                    progress={progress}
+                  />
                 </form>
               </Grid>
             </Grid>
