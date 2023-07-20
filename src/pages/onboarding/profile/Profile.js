@@ -2,7 +2,14 @@ import React, { useState, useContext, useEffect } from "react";
 import PaperComponent from "../../../components/ui/Paper";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import { Link } from "react-router-dom";
-import { Box, Grid, Divider, Typography, Button } from "@mui/material";
+import {
+  Box,
+  Grid,
+  Divider,
+  Typography,
+  Button,
+  LinearProgress,
+} from "@mui/material";
 import Paragraph from "../../../components/ui/Paragraph";
 import UpdatePassword from "./UpdatePassword";
 import EditNoteIcon from "@mui/icons-material/EditNote";
@@ -13,10 +20,47 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import ProfileUpdate from "./ProfileUpdate";
 import { AuthContext } from "../../../context/AuthContext";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { postResponse } from "../../../api/API";
+import jwtDecode from "jwt-decode";
 
 function Profile() {
   // add employee modal
   const [open, setOpen] = React.useState(false);
+
+  const [firstName, setFirstName] = useState();
+  const [lastName, setLastName] = useState();
+  const [jobTitle, setJobTitle] = useState();
+  const [phone, setPhone] = useState();
+  const [email, setEmail] = useState();
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  const ctx = useContext(AuthContext);
+
+  useEffect(() => {
+    console.log(ctx.token);
+    const getData = async () => {
+      try {
+        const endpoint = new APIEndPoints().viewEmployeeByID();
+        const id = jwtDecode(ctx.token).user.id;
+        const getID = { id };
+
+        const data = await postResponse(endpoint, getID, ctx.token);
+        if (!firstName || !lastName || !jobTitle || !phone || !email) {
+          setFirstName(data.data.firstName);
+          setLastName(data.data.lastName);
+          setJobTitle(data.data.jobTitle);
+          setPhone(data.data.phoneNumber);
+          setEmail(data.data.email);
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    getData();
+  }, []);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -60,6 +104,7 @@ function Profile() {
             </Typography>
             <div style={{ width: "95%" }}>
               <Divider />
+              {isLoading ? <LinearProgress /> : null}
             </div>
             <Grid container sx={{ padding: "15px", overflow: "hidden" }}>
               <Grid container sx={{ paddingY: "6px" }}>
@@ -69,7 +114,7 @@ function Profile() {
                   <Paragraph text="First Name" fontWeight="bold" />
                 </Grid>
                 <Grid item xs={7}>
-                  <Paragraph text="Philemon" fontWeight="normal" />
+                  <Paragraph text={firstName} fontWeight="normal" />
                 </Grid>
               </Grid>
               <Grid container sx={{ paddingY: "6px" }}>
@@ -79,7 +124,7 @@ function Profile() {
                   <Paragraph text="Last Name" fontWeight="bold" />
                 </Grid>
                 <Grid item xs={7}>
-                  <Paragraph text="Maitisa" fontWeight="normal" />
+                  <Paragraph text={lastName} fontWeight="normal" />
                 </Grid>
               </Grid>
               <Grid container sx={{ paddingY: "6px" }}>
@@ -89,10 +134,7 @@ function Profile() {
                   <Paragraph text="Job Title" fontWeight="bold" />
                 </Grid>
                 <Grid item xs={7}>
-                  <Paragraph
-                    text="Cloud and DevOps Engineer"
-                    fontWeight="normal"
-                  />
+                  <Paragraph text={jobTitle} fontWeight="normal" />
                 </Grid>
               </Grid>
             </Grid>
@@ -108,6 +150,7 @@ function Profile() {
                 </Typography>
                 <div style={{ width: "95%" }}>
                   <Divider />
+                  {isLoading ? <LinearProgress /> : null}
                 </div>
               </Grid>
               <Grid container sx={{ padding: "15px", overflow: "hidden" }}>
@@ -117,8 +160,8 @@ function Profile() {
                     <Paragraph text="Phone" fontWeight="bold" />
                   </Grid>
                   <Grid item xs={7}>
-                    <a href="tel:0791119292" style={{ textDecoration: "none" }}>
-                      <Paragraph text="0791119292" fontWeight="normal" />
+                    <a href={phone} style={{ textDecoration: "none" }}>
+                      <Paragraph text={phone} fontWeight="normal" />
                     </a>
                   </Grid>
                 </Grid>
@@ -128,14 +171,8 @@ function Profile() {
                     <Paragraph text="Email Address" fontWeight="bold" />
                   </Grid>
                   <Grid item xs={7}>
-                    <a
-                      href="mailto:philemon.maitisa@disraptor.co.za"
-                      style={{ textDecoration: "none" }}
-                    >
-                      <Paragraph
-                        text="philemon.maitisa@disraptor.co.za"
-                        fontWeight="normal"
-                      />
+                    <a href={email} style={{ textDecoration: "none" }}>
+                      <Paragraph text={email} fontWeight="normal" />
                     </a>
                   </Grid>
                 </Grid>

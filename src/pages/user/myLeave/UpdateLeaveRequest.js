@@ -84,9 +84,9 @@ function UpdateLeaveRequest() {
     const arrData = { leave_type, leave_start, leave_end };
     const endpoint = new APIEndPoints().applyForLeave();
 
-    //const response = await postData(endpoint, arrData, ctx.token);
+    const response = await postData(endpoint, arrData, ctx.token);
 
-    if (formValues.leaveType === "Rigney@123") {
+    if (response.status === 200) {
       setAlertMessage("Successful");
       setAlertType("success");
       setProgress(false);

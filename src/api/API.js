@@ -9,10 +9,7 @@ export const signIn = async (endpoint, formValues) => {
     // return true; // Exit the function if successful
   } catch (error) {
     // do something if there is an error
-    //if (error.response.status === 401 || error.response.status === 400) {
     return error.response.data.message;
-    //}
-    //return false;
   }
 };
 //To post data from signUp and Verify page
@@ -20,7 +17,6 @@ export const signUpAndVerify = async (endpoint, formValues) => {
   try {
     const response = await axios.post(endpoint, formValues);
     // do something if successful
-    //if (response.status === 200) {
     const responseData = {
       status: (await response).status,
       message: (await response).data.message,
@@ -31,11 +27,6 @@ export const signUpAndVerify = async (endpoint, formValues) => {
     //return; // Exit the function if successful
   } catch (error) {
     // do something if there is an error
-    /*if (
-      error.response.status === 401 ||
-      error.response.status === 400 ||
-      error.response.status === 500
-    ) {*/
     const responseData = {
       status: (await error.response).status,
       message: (await error.response).data.message,

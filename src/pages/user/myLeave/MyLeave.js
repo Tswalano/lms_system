@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import React from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import { Link } from "react-router-dom";
 import {
@@ -8,68 +8,67 @@ import {
 } from "./MyLeaveTableConfig";
 import Paragraph from "../../../components/ui/Paragraph";
 import TableComponent from "../../../components/table/TableComponent";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { getData } from "../../../api/API";
+import { AuthContext } from "../../../context/AuthContext";
+import jwtDecode from "jwt-decode";
+import LaunchIcon from "@mui/icons-material/Launch";
 
 function MyLeave() {
-  // my leave requests rows data
-  const myLeaveRequestsRowsData = [
-    {
-      leaveType: "Annual",
-      startDate: "21/07/2023",
-      endDate: "25/07/2023",
-      leaveLength: "Full Day",
-      status: "Pending",
-      open: <Link to="/my-leave/my-leave-request?id=1">open</Link>,
-    },
-    {
-      leaveType: "Emergency",
-      startDate: "21/07/2023",
-      endDate: "25/07/2023",
-      leaveLength: "Half Day",
-      status: "Pending",
-      open: <Link to="/my-leave/my-leave-request?id=3">open</Link>,
-    },
-    {
-      leaveType: "Family Res",
-      startDate: "21/07/2023",
-      endDate: "25/07/2023",
-      leaveLength: "Full Day",
-      status: "Pending",
-      open: <Link to="/my-leave/my-leave-request?id=4">open</Link>,
-    },
-    {
-      leaveType: "Sick",
-      startDate: "21/07/2023",
-      endDate: "25/07/2023",
-      leaveLength: "Full Day",
-      status: "Pending",
-      open: <Link to="/my-leave/my-leave-request?id=5">open</Link>,
-    },
-  ];
+  const [myLeaveRequestsRowsData, setMyLeaveRequestsRowsData] = useState([]);
+  const [myLeaveHistoryRowsData, setMyLeaveHistoryRowsData] = useState([]);
+  const [isLoading, setISLoading] = useState(true);
 
-  // my leave history rows data
-  const myLeaveHistoryRowsData = [
-    {
-      leaveType: "Annual",
-      startDate: "22/07/2023",
-      endDate: "25/07/2023",
-      status: "Complete",
-      view: <Link to="/my-leave/view-leave?id=1">view</Link>,
-    },
-    {
-      leaveType: "Emergency",
-      startDate: "22/07/2023",
-      endDate: "25/07/2023",
-      status: "Complete",
-      view: <Link to="/my-leave/view-leave?id=2">view</Link>,
-    },
-    {
-      leaveType: "Sick",
-      startDate: "22/07/2023",
-      endDate: "25/07/2023",
-      status: "Complete",
-      view: <Link to="/my-leave/view-leave?id=3">view</Link>,
-    },
-  ];
+  const ctx = useContext(AuthContext);
+
+  useEffect(() => {
+    const id = jwtDecode(ctx.token).user.id;
+    const fetchData = async () => {
+      const endpoint = new APIEndPoints().getAllLeavesData();
+      const data = await getData(endpoint, ctx.token);
+      if (data) {
+        const leaveRequest = [];
+        const leaveHistory = [];
+        for (let i = 0; i < data.length; i++) {
+          if (data[i].User.id === id) {
+            if (data[i].status === "pending") {
+              leaveRequest.push({
+                id: data[i].id,
+                leaveType: data[i].leave_type,
+                startDate: data[i].start_date,
+                endDate: data[i].end_date,
+                leaveLength: data[i].duration,
+                status: data[i].status,
+                open: (
+                  <Link to={"/my-leave/my-leave-request?id=" + data[i].id}>
+                    <LaunchIcon sx={{ color: "#0BADDE" }} />
+                  </Link>
+                ),
+              });
+            } else if ((data[i].status = "approved")) {
+              leaveHistory.push({
+                id: data[i].id,
+                leaveType: data[i].leave_type,
+                startDate: data[i].start_date,
+                endDate: data[i].end_date,
+                leaveLength: data[i].duration,
+                status: "Complete",
+                view: (
+                  <Link to={"/my-leave/my-leave-request?id=" + data[i].id}>
+                    <LaunchIcon sx={{ color: "#0BADDE" }} />
+                  </Link>
+                ),
+              });
+            }
+          }
+        }
+        setMyLeaveRequestsRowsData(leaveRequest);
+        setMyLeaveHistoryRowsData(leaveHistory);
+        setISLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   return (
     <Box sx={{ width: "100%" }}>
@@ -80,6 +79,7 @@ function MyLeave() {
       <TableComponent
         columnsData={MyLeaveRequestsTable.columnsData}
         rowsData={myLeaveRequestsRowsData}
+        isLoading={isLoading}
       />
       <br />
       <br />
@@ -88,6 +88,7 @@ function MyLeave() {
       <TableComponent
         columnsData={MyLeaveHistoryTable.columnsData}
         rowsData={myLeaveHistoryRowsData}
+        isLoading={isLoading}
       />
     </Box>
   );

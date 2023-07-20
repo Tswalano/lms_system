@@ -9,6 +9,7 @@ import {
   Collapse,
   Alert,
   IconButton,
+  LinearProgress,
 } from "@mui/material";
 import Paragraph from "../../../components/ui/Paragraph";
 import SubmitButton from "../../../components/ui/Button";
@@ -49,6 +50,8 @@ function ActOnLeave() {
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
 
+  const [isLoading, setIsLoading] = useState(true);
+
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
 
@@ -74,7 +77,6 @@ function ActOnLeave() {
         const data = await getDataByID(endpoint, leaveId, ctx.token);
         //Checks if response is valid
         if (data) {
-          console.log(data);
           if (
             !empName &&
             !leaveType &&
@@ -91,6 +93,7 @@ function ActOnLeave() {
             setAttachments("https://disraptor.co.za/");
           }
         }
+        setIsLoading(false);
       } catch (error) {
         console.log(error);
       }
@@ -147,6 +150,7 @@ function ActOnLeave() {
                 Leave Request Details
               </Typography>
               <Divider />
+              {isLoading ? <LinearProgress /> : null}
               <Box paddingTop={"20px"}></Box>
             </Grid>
             {/* Shows Employee name */}

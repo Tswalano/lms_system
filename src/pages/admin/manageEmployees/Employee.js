@@ -6,6 +6,7 @@ import {
   Divider,
   FormControlLabel,
   Grid,
+  LinearProgress,
   Radio,
   RadioGroup,
   Typography,
@@ -35,6 +36,8 @@ function Employee() {
   const [phone, setPhone] = useState();
   const [email, setEmail] = useState();
 
+  const [isLoading, setIsLoading] = useState(true);
+
   const ctx = useContext(AuthContext);
 
   useEffect(() => {
@@ -43,7 +46,6 @@ function Employee() {
         const endpoint = new APIEndPoints().viewEmployeeByID();
         const userID = { id };
         const data = await postResponse(endpoint, userID, ctx.token);
-        console.log(data);
         if (
           !firstName ||
           !lastName ||
@@ -61,6 +63,7 @@ function Employee() {
           setPhone(data.data.phoneNumber);
           setEmail(data.data.email);
         }
+        setIsLoading(false);
       } catch (error) {
         console.log(error);
       }
@@ -85,10 +88,11 @@ function Employee() {
             fontFamily="Geologica"
             fontWeight="normal"
           >
-            {"Employee details " + empID}
+            {"Employee details "}
           </Typography>
           <div style={{ width: "85%" }}>
             <Divider />
+            {isLoading ? <LinearProgress /> : null}
           </div>
           <Grid container sx={{ padding: "15px", overflow: "hidden" }}>
             <Grid container sx={{ paddingY: "6px" }}>
@@ -151,6 +155,7 @@ function Employee() {
               </Typography>
               <div style={{ width: "85%" }}>
                 <Divider />
+                {isLoading ? <LinearProgress /> : null}
               </div>
             </Grid>
             <Grid container sx={{ padding: "15px", overflow: "hidden" }}>
