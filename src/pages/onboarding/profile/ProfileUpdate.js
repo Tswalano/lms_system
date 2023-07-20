@@ -22,6 +22,7 @@ import APIEndPoints from "../../../api/APIEndPoints";
 import { postData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
 import CloseIcon from "@mui/icons-material/Close";
+import { useNavigate } from "react-router-dom";
 
 function ProfileUpdate() {
   // declare the useState formValues object
@@ -39,6 +40,8 @@ function ProfileUpdate() {
   const [response, setResponse] = useState(false);
 
   const ctx = useContext(AuthContext);
+
+  const navigate = useNavigate();
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
@@ -65,7 +68,6 @@ function ProfileUpdate() {
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
-
     //progress
     setProgress(true);
 
@@ -78,6 +80,7 @@ function ProfileUpdate() {
       setProgress(false);
       setResponse(true);
       setOpen(true);
+      navigate("/profile");
     } else {
       // set error
       setAlertMessage(response.message);

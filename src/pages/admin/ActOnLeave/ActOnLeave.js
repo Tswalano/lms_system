@@ -84,7 +84,7 @@ function ActOnLeave() {
             !comments &&
             !attachments
           ) {
-            setEmpName(data.User.firstName);
+            setEmpName(data.User.firstName + " " + data.User.lastName);
             setLeaveType(data.leave_type);
             setStartDate(data.start_date);
             setEndDate(data.end_date);

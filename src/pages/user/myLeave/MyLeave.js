@@ -22,7 +22,9 @@ function MyLeave() {
   const ctx = useContext(AuthContext);
 
   useEffect(() => {
-    const id = jwtDecode(ctx.token).user.id;
+    const token =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InlhZ25hc2gua2Vla2FAZGlzcmFwdG9yLmNvLnphIiwicm9sZSI6InVzZXIiLCJ1c2VyIjp7ImlkIjo2NCwiZmlyc3ROYW1lIjoiWWFnbmFzaCIsImxhc3ROYW1lIjoiS2Vla2EiLCJlbWFpbCI6InlhZ25hc2gua2Vla2FAZGlzcmFwdG9yLmNvLnphIiwicm9sZSI6InVzZXIifSwiaWF0IjoxNjg5ODUzNjM4LCJleHAiOjE2ODk5NDAwMzh9.tYWrP1SS3aLd5WdG_3fKanOXDfwBbllrLWnKi9-Negg";
+    let userID = jwtDecode(token);
     const fetchData = async () => {
       const endpoint = new APIEndPoints().getAllLeavesData();
       const data = await getData(endpoint, ctx.token);
@@ -30,7 +32,8 @@ function MyLeave() {
         const leaveRequest = [];
         const leaveHistory = [];
         for (let i = 0; i < data.length; i++) {
-          if (data[i].User.id === id) {
+          if (data[i]?.User?.id === userID.user.id) {
+            console.log(data[i]);
             if (data[i].status === "pending") {
               leaveRequest.push({
                 id: data[i].id,

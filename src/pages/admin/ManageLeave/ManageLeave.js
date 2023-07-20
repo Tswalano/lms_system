@@ -33,14 +33,15 @@ function ManageLeave() {
           for (let i = 0; i < data.length; i++) {
             if (data[i].status === "pending") {
               //psuhing data into the array
+              console.log(data[i]);
               leaveRequests.push({
                 id: data[i].id,
-                name: data[i].User.firstName + " " + data[i].User.lastName,
-                leaveType: data[i].leave_type || "",
-                startDate: data[i].start_date || "",
-                endDate: data[i].end_date || "",
+                name: data[i]?.User?.firstName + " " + data[i]?.User?.lastName,
+                leaveType: data[i].leave_type,
+                startDate: data[i].start_date,
+                endDate: data[i].end_date,
                 leaveLength: data[i].duration,
-                status: data[i].status || "",
+                status: data[i].status,
                 open: (
                   <Link to={"/manage-leave/act-on-leave?id=" + data[i].id}>
                     <LaunchIcon sx={{ color: "#0BADDE" }} />

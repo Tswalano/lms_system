@@ -80,19 +80,21 @@ function ApplyForLeave() {
     const endDateFormat = new Date(formValues.endDate);
     //creating startDate Format
     const leave_start =
-      startDateFormat.getDate() +
+      startDateFormat.getFullYear() +
       "/" +
-      startDateFormat.getMonth() +
+      (startDateFormat.getMonth() + 1) +
       "/" +
-      startDateFormat.getFullYear();
+      startDateFormat.getDate();
     //Creating end Date format
     const leave_end =
-      endDateFormat.getDate() +
+      endDateFormat.getFullYear() +
       "/" +
-      endDateFormat.getMonth() +
+      (startDateFormat.getMonth() + 1) +
       "/" +
-      endDateFormat.getFullYear();
+      endDateFormat.getDate();
     //creating an array for data
+
+    console.log("start " + leave_start + "end" + leave_end);
     const arrData = { leave_type, leave_start, leave_end };
     const endpoint = new APIEndPoints().applyForLeave();
 

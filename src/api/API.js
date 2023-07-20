@@ -138,9 +138,7 @@ export const getData = async (endpoint, token) => {
       headers: { Authorization: "Bearer " + token },
     });
     try {
-      if (response.status === 200) {
-        return response.data;
-      }
+      return response.data;
     } catch (error) {
       // do something if there is an error
       if (
