@@ -10,6 +10,11 @@ import { Link } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
 import LaunchIcon from "@mui/icons-material/Launch";
 
+function dateFormat(dateValue) {
+  const date = new Date(dateValue);
+  return date.toISOString().split("T")[0];
+}
+
 function ManageLeave() {
   const [leaveRequestData, setLeaveRequestData] = useState([]);
   const [activeLeaveData, setActiveLeaveData] = useState([]);
@@ -38,8 +43,8 @@ function ManageLeave() {
                 id: data[i].id,
                 name: data[i]?.User?.firstName + " " + data[i]?.User?.lastName,
                 leaveType: data[i].leave_type,
-                startDate: data[i].start_date,
-                endDate: data[i].end_date,
+                startDate: dateFormat(data[i].start_date),
+                endDate: dateFormat(data[i].end_date),
                 leaveLength: data[i].duration,
                 status: data[i].status,
                 open: (
@@ -53,8 +58,8 @@ function ManageLeave() {
                 id: data[i].id,
                 name: data[i].User.firstName + " " + data[i].User.lastName,
                 leaveType: data[i].leave_type || "",
-                startDate: data[i].start_date || "",
-                endDate: data[i].end_date || "",
+                startDate: dateFormat(data[i].start_date) || "",
+                endDate: dateFormat(data[i].end_date) || "",
                 status: data[i].status || "",
                 view: (
                   <Link to={"/manage-leave/view-leave?id=" + data[i].id}>

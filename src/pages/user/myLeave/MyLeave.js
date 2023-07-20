@@ -14,6 +14,11 @@ import { AuthContext } from "../../../context/AuthContext";
 import jwtDecode from "jwt-decode";
 import LaunchIcon from "@mui/icons-material/Launch";
 
+function dateFormat(dateValue) {
+  const date = new Date(dateValue);
+  return date.toISOString().split("T")[0];
+}
+
 function MyLeave() {
   const [myLeaveRequestsRowsData, setMyLeaveRequestsRowsData] = useState([]);
   const [myLeaveHistoryRowsData, setMyLeaveHistoryRowsData] = useState([]);
@@ -38,8 +43,8 @@ function MyLeave() {
               leaveRequest.push({
                 id: data[i].id,
                 leaveType: data[i].leave_type,
-                startDate: data[i].start_date,
-                endDate: data[i].end_date,
+                startDate: dateFormat(data[i].start_date),
+                endDate: dateFormat(data[i].end_date),
                 leaveLength: data[i].duration,
                 status: data[i].status,
                 open: (
@@ -52,8 +57,8 @@ function MyLeave() {
               leaveHistory.push({
                 id: data[i].id,
                 leaveType: data[i].leave_type,
-                startDate: data[i].start_date,
-                endDate: data[i].end_date,
+                startDate: dateFormat(data[i].start_date),
+                endDate: dateFormat(data[i].end_date),
                 leaveLength: data[i].duration,
                 status: "Complete",
                 view: (
