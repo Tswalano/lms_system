@@ -56,7 +56,7 @@ function VerifyCode() {
     // Run the validation when formValues state changes
 
     if (ctx.isAdmin === "admin") {
-      navigate("/home");
+      navigate("/profile");
     } else if (ctx.isAdmin === "user") {
       navigate("/dashboard");
     }
