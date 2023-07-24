@@ -27,9 +27,7 @@ function MyLeave() {
   const ctx = useContext(AuthContext);
 
   useEffect(() => {
-    const token =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InlhZ25hc2gua2Vla2FAZGlzcmFwdG9yLmNvLnphIiwicm9sZSI6InVzZXIiLCJ1c2VyIjp7ImlkIjo2NCwiZmlyc3ROYW1lIjoiWWFnbmFzaCIsImxhc3ROYW1lIjoiS2Vla2EiLCJlbWFpbCI6InlhZ25hc2gua2Vla2FAZGlzcmFwdG9yLmNvLnphIiwicm9sZSI6InVzZXIifSwiaWF0IjoxNjg5ODUzNjM4LCJleHAiOjE2ODk5NDAwMzh9.tYWrP1SS3aLd5WdG_3fKanOXDfwBbllrLWnKi9-Negg";
-    let userID = jwtDecode(token);
+    const userID = jwtDecode(ctx.token)?.user?.id;
     const fetchData = async () => {
       const endpoint = new APIEndPoints().getAllLeavesData();
       const data = await getData(endpoint, ctx.token);
@@ -37,8 +35,7 @@ function MyLeave() {
         const leaveRequest = [];
         const leaveHistory = [];
         for (let i = 0; i < data.length; i++) {
-          if (data[i]?.User?.id === userID.user.id) {
-            console.log(data[i]);
+          if (data[i]?.User?.id === userID) {
             if (data[i].status === "pending") {
               leaveRequest.push({
                 id: data[i].id,
@@ -62,7 +59,7 @@ function MyLeave() {
                 leaveLength: data[i].duration,
                 status: "Complete",
                 view: (
-                  <Link to={"/my-leave/my-leave-request?id=" + data[i].id}>
+                  <Link to={"/my-leave/view-leave?id=" + data[i].id}>
                     <LaunchIcon sx={{ color: "#0BADDE" }} />
                   </Link>
                 ),

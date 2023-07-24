@@ -13,7 +13,7 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Logo from "../ui/Logo";
-import { Grid } from "@mui/material";
+import { Grid, Tooltip } from "@mui/material";
 import { Outlet, useNavigate } from "react-router-dom";
 
 const drawerWidth = 280;
@@ -112,18 +112,20 @@ export default function Sidenav({ menuItems }) {
       <CssBaseline />
       <AppBar position="fixed" open={open} sx={{ background: "white" }}>
         <Toolbar>
-          <IconButton
-            color="primary"
-            aria-label="open drawer"
-            onClick={handleDrawerOpen}
-            edge="start"
-            sx={{
-              marginRight: 5,
-              ...(open && { display: "none" }),
-            }}
-          >
-            <MenuIcon />
-          </IconButton>
+          <Tooltip title="Open">
+            <IconButton
+              color="primary"
+              aria-label="open drawer"
+              onClick={handleDrawerOpen}
+              edge="start"
+              sx={{
+                marginRight: 5,
+                ...(open && { display: "none" }),
+              }}
+            >
+              <MenuIcon />
+            </IconButton>
+          </Tooltip>
           <Grid item xs={10} md={6} lg={3}>
             <Box sx={{ width: "30%", height: "auto" }}>
               <Logo />
@@ -133,13 +135,24 @@ export default function Sidenav({ menuItems }) {
       </AppBar>
       <Drawer variant="permanent" open={open}>
         <DrawerHeader>
-          <IconButton
-            onClick={handleDrawerClose}
-            color="default"
-            sx={{ background: "#2196f3" }}
-          >
-            {theme.direction === "rtl" ? <MenuIcon /> : <MenuIcon />}
-          </IconButton>
+          <Tooltip title="Close">
+            <IconButton
+              onClick={handleDrawerClose}
+              color="default"
+              sx={{
+                background: "#E3F2FD",
+                left: theme.spacing(2),
+                position: "absolute",
+                ":hover": {
+                  backgroundColor: "#E3F2FD",
+                  boxShadow:
+                    "0px 2px 4px rgba(0, 0, 0, 0.12), 0px 2px 3px rgba(0, 0, 0, 0.24)",
+                },
+              }}
+            >
+              {theme.direction === "rtl" ? <MenuIcon /> : <MenuIcon />}
+            </IconButton>
+          </Tooltip>
         </DrawerHeader>
 
         <List>

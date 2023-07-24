@@ -24,7 +24,7 @@ import { AuthContext } from "../../../context/AuthContext";
 import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
 
-function ProfileUpdate() {
+function ProfileUpdate(onSuccess) {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
 
