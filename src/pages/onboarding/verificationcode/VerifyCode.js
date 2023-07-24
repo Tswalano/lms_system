@@ -58,7 +58,7 @@ function VerifyCode() {
     if (ctx.isAdmin === "admin") {
       navigate("/profile");
     } else if (ctx.isAdmin === "user") {
-      navigate("/dashboard");
+      navigate("/profile");
     }
   }, [formValues, ctx]);
   // handle form submition
