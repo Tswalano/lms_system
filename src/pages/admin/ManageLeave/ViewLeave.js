@@ -176,6 +176,7 @@ function ViewLeave() {
                 Leave Feedback
               </Typography>
               <Divider />
+              {isLoading ? <LinearProgress /> : null}
             </Grid>
           </Grid>
           {/* Shows Leave approval status */}

@@ -1,15 +1,30 @@
-import { Box, Breadcrumbs, Typography, Grid, Divider } from "@mui/material";
-import React, { useState } from "react";
+import {
+  Box,
+  Breadcrumbs,
+  Typography,
+  Grid,
+  Divider,
+  LinearProgress,
+} from "@mui/material";
+import React, { useContext, useEffect, useState } from "react";
 import PaperComponent from "../../../components/ui/Paper";
 import Paragraph from "../../../components/ui/Paragraph";
 import { Link } from "react-router-dom";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { getDataByID } from "../../../api/API";
+import { AuthContext } from "../../../context/AuthContext";
+
+function dateFormat(dateValue) {
+  const date = new Date(dateValue);
+  return date.toISOString().split("T")[0];
+}
 
 function ViewMyLeave() {
   // Create a URLSearchParams object with the current URL's query string
   const params = new URLSearchParams(window.location.search);
 
   // Access the value of employee id from query string
-  const employee_id = params.get("id");
+  const id = params.get("id");
   // declare useState variables
   const [leaveType, setLeaveType] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -21,22 +36,34 @@ function ViewMyLeave() {
   const [status, setStatus] = useState("");
   const [feedback, setFeedback] = useState("");
 
-  //change to axios
-  if (!leaveType) {
-    setLeaveType("Annual Leave");
-    setStartDate("22/07/2023");
-    setEndDate("22/07/2023");
-    setLeaveLength("Full Day");
-    setComments(
-      "For writers looking for a way to get their creative writing juices flowing, using a random paragraph can be a great way to do this. One of the great benefits of this tool is that nobody knows what is going to appear in the paragraph. This can be leveraged in a few different ways to force the writer to use creativity. For example, the random paragraph can be used as the beginning paragraph of a story that the writer must finish. I can also be used as a paragraph somewhere inside a short story, or for a more difficult creative challenge, it can be used as the ending paragraph. In every case, the writer is forced to use creativity to incorporate the random paragraph into the story."
-    );
-    setAttachments(
-      "https://www.dexform.com/download/sample-letter-from-your-doctor-or-other-service-provider"
-    );
-    setApproval("Approved");
-    setStatus("Active");
-    setFeedback("None");
-  }
+  const [isLoading, setIsLoading] = useState(true);
+  const ctx = useContext(AuthContext);
+
+  useEffect(() => {
+    const fetchLeaveData = async () => {
+      const endpoint = new APIEndPoints().getLeaveByID();
+      const leaveID = { id };
+      const data = await getDataByID(endpoint, leaveID, ctx.token);
+      //checks if response is valid
+      if (data) {
+        if (!leaveType) {
+          setLeaveType(data.leave_type);
+          setStartDate(dateFormat(data.start_date));
+          setEndDate(dateFormat(data.end_date));
+          setLeaveLength(data.duration);
+          setComments("Comments Still need to be implemented");
+          setAttachments(
+            "https://www.dexform.com/download/sample-letter-from-your-doctor-or-other-service-provider"
+          );
+          setApproval("Approved");
+          setStatus(data.status);
+          setFeedback(data.feedback);
+        }
+        setIsLoading(false);
+      }
+    };
+    fetchLeaveData();
+  }, []);
 
   return (
     <Box sx={{ width: "100%" }}>
@@ -53,6 +80,7 @@ function ViewMyLeave() {
               Leave Request Details
             </Typography>
             <Divider />
+            {isLoading ? <LinearProgress /> : null}
             <Box paddingTop={"20px"}></Box>
           </Grid>
           {/* Shows Leave Type */}
@@ -135,6 +163,7 @@ function ViewMyLeave() {
                 Leave Feedback
               </Typography>
               <Divider />
+              {isLoading ? <LinearProgress /> : null}
             </Grid>
           </Grid>
           {/* Shows Leave approval status */}
