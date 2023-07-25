@@ -108,7 +108,7 @@ export default function Sidenav({ menuItems }) {
   };
 
   return (
-    <Box sx={{ display: "flex", flex: "100%" }}>
+    <Box id="sideNav" sx={{ display: "flex", flex: "100%" }}>
       <CssBaseline />
       <AppBar position="fixed" open={open} sx={{ background: "white" }}>
         <Toolbar>

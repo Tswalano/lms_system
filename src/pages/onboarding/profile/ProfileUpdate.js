@@ -23,6 +23,7 @@ import { postData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
 import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
+import jwtDecode from "jwt-decode";
 
 function ProfileUpdate(onSuccess) {
   // declare the useState formValues object
@@ -62,6 +63,7 @@ function ProfileUpdate(onSuccess) {
 
   useEffect(() => {
     handleValidation();
+    console.log(jwtDecode(ctx.token));
     // Run the validation when formValues state changes
   }, [formValues]);
 
@@ -72,8 +74,16 @@ function ProfileUpdate(onSuccess) {
     setProgress(true);
 
     const endpoint = new APIEndPoints().profileAPI();
+    //Getting data from config file
+    const firstName = formValues.firstName;
+    const lastName = formValues.lastName;
+    const email = jwtDecode(ctx.token).email;
+    const phone = formValues.phone;
+    const jobTitle = formValues.jobTitle;
+    //creating an array of data
+    const arrData = { firstName, lastName, email, phone, jobTitle };
 
-    const response = await postData(endpoint, formValues, ctx.token);
+    const response = await postData(endpoint, arrData, ctx.token);
     if (response.status === 200) {
       setAlertMessage(response.message);
       setAlertType("success");

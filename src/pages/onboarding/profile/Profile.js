@@ -9,6 +9,8 @@ import {
   Typography,
   Button,
   LinearProgress,
+  Alert,
+  AlertTitle,
 } from "@mui/material";
 import Paragraph from "../../../components/ui/Paragraph";
 import UpdatePassword from "./UpdatePassword";
@@ -34,11 +36,30 @@ function Profile() {
   const [phone, setPhone] = useState();
   const [email, setEmail] = useState();
 
+  const [isValuesEmpty, setIsValuesEmpty] = useState(false);
+
   const [isLoading, setIsLoading] = useState(true);
 
   const ctx = useContext(AuthContext);
-
+  const sideNav = document.getElementById("sideNav");
+  const editProfile = document.getElementById("editProfile");
   useEffect(() => {
+    if (sideNav && editProfile) {
+      if (
+        firstName === "Yagnash" ||
+        lastName === null ||
+        jobTitle === null ||
+        phone === null ||
+        email === null
+      ) {
+        sideNav.style.pointerEvents = "none";
+        editProfile.style.pointerEvents = "auto";
+        setIsValuesEmpty(true);
+      } else {
+        setIsValuesEmpty(false);
+      }
+    }
+
     const getData = async () => {
       try {
         const endpoint = new APIEndPoints().viewEmployeeByID();
@@ -59,7 +80,7 @@ function Profile() {
       }
     };
     getData();
-  }, []);
+  }, [firstName, lastName, jobTitle, phone, email]);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -85,6 +106,7 @@ function Profile() {
               }}
             >
               <Button
+                id="editProfile"
                 variant="contained"
                 endIcon={<EditNoteIcon />}
                 onClick={handleClickOpen}
@@ -94,6 +116,13 @@ function Profile() {
               <br />
               <br />
             </Box>
+            {isValuesEmpty ? (
+              <Alert severity="info">
+                <AlertTitle>Profile not updated</AlertTitle>
+                Please update your profile —{" "}
+                <strong>Edit Profile {<EditNoteIcon />}</strong>
+              </Alert>
+            ) : null}
             <Typography
               color="primary"
               fontFamily="Geologica"
@@ -105,6 +134,7 @@ function Profile() {
               <Divider />
               {isLoading ? <LinearProgress /> : null}
             </div>
+
             <Grid container sx={{ padding: "15px", overflow: "hidden" }}>
               <Grid container sx={{ paddingY: "6px" }}>
                 {" "}
