@@ -15,7 +15,7 @@ import APIEndPoints from "../../../api/APIEndPoints";
 import { AuthContext } from "../../../context/AuthContext";
 import { postData } from "../../../api/API";
 
-function UpdateLeaveRequest() {
+function UpdateLeaveRequest({ handleModalClose }) {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
 
@@ -89,9 +89,12 @@ function UpdateLeaveRequest() {
     if (response.status === 200) {
       setAlertMessage("Successful");
       setAlertType("success");
-      setProgress(false);
       setResponse(true);
       setOpen(true);
+      setTimeout(() => {
+        setProgress(false);
+        handleModalClose();
+      }, 2000);
     } else {
       // set error
       setAlertMessage("Unsuccessful");

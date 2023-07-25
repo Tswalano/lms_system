@@ -25,9 +25,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
 import jwtDecode from "jwt-decode";
 
-function ProfileUpdate({ handleModalClose }) {
+function ProfileUpdate({ handleModalClose, initialValues }) {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
+  const [populatedValues, setPopulatedValues] = useState({});
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
@@ -62,6 +63,15 @@ function ProfileUpdate({ handleModalClose }) {
   useEffect(() => {
     handleValidation();
     // Run the validation when formValues state changes
+    setPopulatedValues({
+      firstName: initialValues.firstName || "",
+      lastName: initialValues.lastName || "",
+      phone: initialValues.phone || "",
+      jobTitle: initialValues.jobTitle || "",
+    });
+    console.log("====================================");
+    console.log(formValues);
+    console.log("====================================");
   }, [formValues]);
 
   // handle form submition
