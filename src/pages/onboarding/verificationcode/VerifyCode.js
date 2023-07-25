@@ -57,8 +57,10 @@ function VerifyCode() {
 
     if (ctx.isAdmin === "admin") {
       navigate("/profile");
+      ctx.removeLoginInfo();
     } else if (ctx.isAdmin === "user") {
       navigate("/profile");
+      ctx.removeLoginInfo();
     }
   }, [formValues, ctx]);
   // handle form submition
@@ -67,8 +69,6 @@ function VerifyCode() {
 
     //progress
     setProgress(true);
-
-    const formValues = GetFormValues(event);
     //Getting the Email and Password set in SignUp from AuthContext
     const email = ctx.email;
     const password = ctx.password;

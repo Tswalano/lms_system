@@ -48,6 +48,11 @@ export const AuthProvider = ({ children }) => {
     setPassword(password);
   };
 
+  const removeLoginInfo = () => {
+    setEmail(null);
+    setPassword(null);
+  };
+
   // Function to handle user sign out
   const signOut = () => {
     setToken(null);
@@ -70,6 +75,7 @@ export const AuthProvider = ({ children }) => {
     userEmail,
     userPassword,
     signOut,
+    removeLoginInfo,
   };
 
   return (
