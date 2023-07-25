@@ -1,4 +1,4 @@
-import * as React from "react";
+/*import * as React from "react";
 import { styled, useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import MuiDrawer from "@mui/material/Drawer";
@@ -214,4 +214,164 @@ export default function Sidenav({ menuItems }) {
       </Box>
     </Box>
   );
+}*/
+
+import * as React from "react";
+import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
+import CssBaseline from "@mui/material/CssBaseline";
+import Divider from "@mui/material/Divider";
+import Drawer from "@mui/material/Drawer";
+import IconButton from "@mui/material/IconButton";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import MenuIcon from "@mui/icons-material/Menu";
+import Toolbar from "@mui/material/Toolbar";
+import { Outlet, useNavigate } from "react-router-dom";
+import { Grid } from "@mui/material";
+import Logo from "../ui/Logo";
+
+const drawerWidth = 240;
+
+function Sidenav({ menuItems }) {
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+
+  const navigate = useNavigate();
+
+  // Create a URLSearchParams object with the current URL's query string
+  const urlPathObj = new URL(window.location.href);
+  const urlPath = urlPathObj.href;
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const drawer = (
+    <div>
+      <Toolbar />
+      <Divider />
+      <List>
+        {menuItems.map((item) => (
+          <ListItem
+            key={item.id}
+            disablePadding
+            onClick={() => navigate(item.route)}
+            sx={{
+              backgroundColor: urlPath.includes(item.route) ? "#fff" : "",
+            }}
+          >
+            <ListItemButton>
+              <ListItemIcon
+                sx={{
+                  color: urlPath.includes(item.route) ? "#2196f3" : "#fff",
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                sx={{
+                  color: urlPath.includes(item.route) ? "#2196f3" : "#fff",
+                }}
+                primary={item.label}
+              />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+    </div>
+  );
+
+  return (
+    <Box
+      id="sideNav"
+      sx={{ display: "flex", flex: "100%", overflow: "hidden" }}
+    >
+      <CssBaseline />
+      <AppBar
+        position="fixed"
+        sx={{
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          ml: { sm: `${drawerWidth}px` },
+          backgroundColor: "#fff",
+        }}
+      >
+        <Toolbar>
+          <IconButton
+            aria-label="open drawer"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ mr: 2, display: { sm: "none" }, color: "#2196f3" }}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Grid item xs={10} md={6} lg={3}>
+            <Box sx={{ width: "30%", height: "auto" }}>
+              <Logo />
+            </Box>
+          </Grid>
+        </Toolbar>
+      </AppBar>
+      <Box
+        component="nav"
+        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+      >
+        {/* The implementation can be swapped with js to avoid SEO duplication of links. */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true, // Better open performance on mobile.
+          }}
+          sx={{
+            display: { xs: "block", sm: "none" },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: drawerWidth,
+              backgroundColor: "#2196f3",
+            },
+          }}
+        >
+          {drawer}
+        </Drawer>
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: "none", sm: "block" },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: drawerWidth,
+              backgroundColor: "#2196f3",
+            },
+          }}
+          open
+        >
+          {drawer}
+        </Drawer>
+      </Box>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          overflow: "auto",
+          height: "100vh",
+          background: "#f6f9ff",
+          width: {
+            xs: "100vw",
+            sm: `calc(100vw - ${drawerWidth}px)`,
+          },
+        }}
+      >
+        <Toolbar />
+        <Outlet />
+        <br />
+      </Box>
+    </Box>
+  );
 }
+
+export default Sidenav;

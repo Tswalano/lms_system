@@ -35,6 +35,7 @@ function Profile() {
   const [jobTitle, setJobTitle] = useState();
   const [phone, setPhone] = useState();
   const [email, setEmail] = useState();
+  const [profileData, setProfileData] = useState({});
 
   const [isValuesEmpty, setIsValuesEmpty] = useState(false);
 
@@ -250,7 +251,7 @@ function Profile() {
               phone: phone,
               jobTitle: jobTitle,
             }}
-          />
+          profileData={profileData} />
         </DialogContent>
         <Divider />
         <DialogActions>

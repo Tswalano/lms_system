@@ -25,10 +25,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
 import jwtDecode from "jwt-decode";
 
-function ProfileUpdate({ handleModalClose, initialValues }) {
+function ProfileUpdate({ profileData,  handleModalClose }) {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
-  const [populatedValues, setPopulatedValues] = useState({});
+  const { firstName, lastName, jobTitle, phone } = profileData;
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
@@ -40,6 +40,13 @@ function ProfileUpdate({ handleModalClose, initialValues }) {
   const [alertMessage, setAlertMessage] = useState();
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
+
+  // populate profileData to input fields
+  //console.log({ firstName, lastName, jobTitle, phone });
+  /*document.getElementById("firstName").value = firstName;
+  document.getElementById("lastName").value = lastName;
+  document.getElementById("jobTitle").value = jobTitle;
+  document.getElementById("phone").value = phone;*/
 
   const ctx = useContext(AuthContext);
 
@@ -62,6 +69,7 @@ function ProfileUpdate({ handleModalClose, initialValues }) {
 
   useEffect(() => {
     handleValidation();
+    //console.log(jwtDecode(ctx.token));
     // Run the validation when formValues state changes
     setPopulatedValues({
       firstName: initialValues.firstName || "",
