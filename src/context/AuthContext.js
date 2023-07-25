@@ -1,5 +1,4 @@
 import React, { createContext, useState, useEffect } from "react";
-import jwtDecode from "jwt-decode";
 
 // Create the AuthContext
 export const AuthContext = createContext();
@@ -34,18 +33,10 @@ export const AuthProvider = ({ children }) => {
     const role = localStorage.getItem("role");
     const email = localStorage.getItem("email");
     const password = localStorage.getItem("pass");
-    //checks if token is valid, if not signs the user out
-    if (jwtDecode(token).exp < Date.now() / 1000) {
-      setToken(null);
-      setIsAdmin(false);
-      localStorage.setItem("token", null);
-      localStorage.setItem("role", null);
-      setIsAuthenticated(false);
-    } else {
-      setToken(token);
-      setIsAdmin(role);
-      setIsAuthenticated(token !== "" && token !== null);
-    }
+
+    setToken(token);
+    setIsAdmin(role);
+    setIsAuthenticated(token !== "" && token !== null);
     setEmail(email);
     setPassword(password);
   }, [token]);
