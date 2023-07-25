@@ -70,12 +70,8 @@ function Signup() {
 
     //progress
     setProgress(true);
-
-    const formValues = GetFormValues(event);
-    console.log(formValues);
     userEmail(formValues.email);
     userPassword(formValues.password);
-    console.log(ctx.email);
 
     const endPoint = new APIEndPoints().signupAPI();
     const response = await signUpAndVerify(endPoint, formValues);

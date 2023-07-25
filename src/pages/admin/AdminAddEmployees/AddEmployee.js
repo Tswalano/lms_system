@@ -55,7 +55,6 @@ function AddEmployee() {
     const endpoint = new APIEndPoints().addNewEmployee();
     //posting data
     const response = await postData(endpoint, formValues, ctx.token);
-    console.log(formValues);
 
     if (response.status === 200) {
       setAlertMessage(response.message);

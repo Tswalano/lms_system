@@ -39,7 +39,6 @@ function Profile() {
   const ctx = useContext(AuthContext);
 
   useEffect(() => {
-    console.log(ctx.token);
     const getData = async () => {
       try {
         const endpoint = new APIEndPoints().viewEmployeeByID();
@@ -56,7 +55,7 @@ function Profile() {
         }
         setIsLoading(false);
       } catch (error) {
-        console.log(error);
+        return error;
       }
     };
     getData();

@@ -94,7 +94,6 @@ export const putData = async (endpoint, formValues, token) => {
           error.response.status === 404 ||
           error.response.status === 500
         ) {
-          console.log(error);
           return error;
         }
       }

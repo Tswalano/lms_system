@@ -63,7 +63,6 @@ function ResetPassword() {
 
   useEffect(() => {
     handleValidation();
-    console.log(ctx.email);
     // Run the validation when formValues state changes
   }, [formValues, ctx.email]);
 
