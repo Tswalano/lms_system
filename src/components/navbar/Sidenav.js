@@ -230,8 +230,9 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import MenuIcon from "@mui/icons-material/Menu";
 import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
 import { Outlet, useNavigate } from "react-router-dom";
+import { Grid } from "@mui/material";
+import Logo from "../ui/Logo";
 
 const drawerWidth = 240;
 
@@ -259,13 +260,23 @@ function Sidenav({ menuItems }) {
             disablePadding
             onClick={() => navigate(item.route)}
             sx={{
-              backgroundColor: urlPath.includes(item.route) ? "#2196f3" : "",
-              opacity: urlPath.includes(item.route) ? "0.5" : "",
+              backgroundColor: urlPath.includes(item.route) ? "#fff" : "",
             }}
           >
             <ListItemButton>
-              <ListItemIcon sx={{ color: "#fff" }}>{item.icon}</ListItemIcon>
-              <ListItemText sx={{ color: "#fff" }} primary={item.label} />
+              <ListItemIcon
+                sx={{
+                  color: urlPath.includes(item.route) ? "#2196f3" : "#fff",
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                sx={{
+                  color: urlPath.includes(item.route) ? "#2196f3" : "#fff",
+                }}
+                primary={item.label}
+              />
             </ListItemButton>
           </ListItem>
         ))}
@@ -292,18 +303,15 @@ function Sidenav({ menuItems }) {
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: "none" }, color: "#263238" }}
+            sx={{ mr: 2, display: { sm: "none" }, color: "#2196f3" }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography
-            variant="h6"
-            noWrap
-            component="div"
-            sx={{ color: "#263238" }}
-          >
-            E-Commerce Platform
-          </Typography>
+          <Grid item xs={10} md={6} lg={3}>
+            <Box sx={{ width: "30%", height: "auto" }}>
+              <Logo />
+            </Box>
+          </Grid>
         </Toolbar>
       </AppBar>
       <Box

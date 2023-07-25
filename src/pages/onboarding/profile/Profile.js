@@ -35,6 +35,7 @@ function Profile() {
   const [jobTitle, setJobTitle] = useState();
   const [phone, setPhone] = useState();
   const [email, setEmail] = useState();
+  const [profileData, setProfileData] = useState({});
 
   const [isValuesEmpty, setIsValuesEmpty] = useState(false);
 
@@ -66,14 +67,20 @@ function Profile() {
         const id = jwtDecode(ctx.token).user.id;
         const getID = { id };
 
-        const data = await postResponse(endpoint, getID, ctx.token);
+        const response = await postResponse(endpoint, getID, ctx.token);
         if (!firstName || !lastName || !jobTitle || !phone || !email) {
-          setFirstName(data.data.firstName);
-          setLastName(data.data.lastName);
-          setJobTitle(data.data.jobTitle);
-          setPhone(data.data.phoneNumber);
-          setEmail(data.data.email);
+          setFirstName(response.data.firstName);
+          setLastName(response.data.lastName);
+          setJobTitle(response.data.jobTitle);
+          setPhone(response.data.phoneNumber);
+          setEmail(response.data.email);
         }
+        setProfileData({
+          firstName: firstName,
+          lastName: lastName,
+          jobTitle: jobTitle,
+          phone: phone,
+        });
         setIsLoading(false);
       } catch (error) {
         return error;
@@ -237,7 +244,7 @@ function Profile() {
         </DialogTitle>
         <Divider />
         <DialogContent>
-          <ProfileUpdate />
+          <ProfileUpdate profileData={profileData} />
         </DialogContent>
         <Divider />
         <DialogActions>
