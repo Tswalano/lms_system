@@ -23,7 +23,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import ProfileUpdate from "./ProfileUpdate";
 import { AuthContext } from "../../../context/AuthContext";
 import APIEndPoints from "../../../api/APIEndPoints";
-import { postResponse } from "../../../api/API";
+import { getData, postResponse } from "../../../api/API";
 import jwtDecode from "jwt-decode";
 
 function Profile() {
@@ -79,8 +79,10 @@ function Profile() {
         return error;
       }
     };
-    getData();
-  }, [firstName, lastName, jobTitle, phone, email]);
+    if (!open) {
+      getData();
+    }
+  }, [firstName, lastName, jobTitle, phone, email, open]);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -88,6 +90,8 @@ function Profile() {
 
   const handleClose = () => {
     setOpen(false);
+    setIsLoading(true);
+    getData();
   };
 
   return (
@@ -237,7 +241,7 @@ function Profile() {
         </DialogTitle>
         <Divider />
         <DialogContent>
-          <ProfileUpdate />
+          <ProfileUpdate handleModalClose={handleClose} />
         </DialogContent>
         <Divider />
         <DialogActions>

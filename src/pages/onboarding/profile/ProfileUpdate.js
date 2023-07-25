@@ -25,7 +25,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
 import jwtDecode from "jwt-decode";
 
-function ProfileUpdate() {
+function ProfileUpdate({ handleModalClose }) {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
 
@@ -61,7 +61,6 @@ function ProfileUpdate() {
 
   useEffect(() => {
     handleValidation();
-    console.log(jwtDecode(ctx.token));
     // Run the validation when formValues state changes
   }, [formValues]);
 
@@ -86,9 +85,12 @@ function ProfileUpdate() {
     if (response.status === 200) {
       setAlertMessage(response.message);
       setAlertType("success");
-      setProgress(false);
       setResponse(true);
       setOpen(true);
+      setTimeout(() => {
+        setProgress(false);
+        handleModalClose();
+      }, 2000);
     } else {
       // set error
       setAlertMessage(response.message);
