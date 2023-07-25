@@ -46,7 +46,7 @@ function Profile() {
   useEffect(() => {
     if (sideNav && editProfile) {
       if (
-        firstName === "Yagnash" ||
+        firstName === null ||
         lastName === null ||
         jobTitle === null ||
         phone === null ||
