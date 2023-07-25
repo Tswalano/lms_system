@@ -38,7 +38,6 @@ function ManageLeave() {
           for (let i = 0; i < data.length; i++) {
             if (data[i].status === "pending") {
               //psuhing data into the array
-              console.log(data[i]);
               leaveRequests.push({
                 id: data[i].id,
                 name: data[i]?.User?.firstName + " " + data[i]?.User?.lastName,
@@ -74,7 +73,7 @@ function ManageLeave() {
           setISLoading(false);
         }
       } catch (error) {
-        console.error("Error fetching leave data:", error);
+        return "Error fetching leave data:", error;
       }
     };
 

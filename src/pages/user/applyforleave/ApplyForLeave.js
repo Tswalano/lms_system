@@ -94,12 +94,10 @@ function ApplyForLeave() {
       endDateFormat.getDate();
     //creating an array for data
 
-    console.log("start " + leave_start + "end" + leave_end);
     const arrData = { leave_type, leave_start, leave_end };
     const endpoint = new APIEndPoints().applyForLeave();
 
     const response = await postData(endpoint, arrData, ctx.token);
-    //console.log(postLeave);
     //  Checks if leave submited is valid
 
     if (response.status === 200) {

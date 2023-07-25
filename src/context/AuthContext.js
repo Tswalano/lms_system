@@ -31,9 +31,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
+    const email = localStorage.getItem("email");
+    const password = localStorage.getItem("pass");
     setToken(token);
     setIsAdmin(role);
     setIsAuthenticated(token !== "" && token !== null);
+    setEmail(email);
+    setPassword(password);
   }, [token]);
 
   const signup = (verified) => {
@@ -42,10 +46,19 @@ export const AuthProvider = ({ children }) => {
 
   const userEmail = (emailID) => {
     setEmail(emailID);
+    localStorage.setItem("email", emailID);
   };
 
   const userPassword = (password) => {
     setPassword(password);
+    localStorage.setItem("pass", password);
+  };
+
+  const removeLoginInfo = () => {
+    setEmail(null);
+    setPassword(null);
+    localStorage.setItem("email", null);
+    localStorage.setItem("pass", password);
   };
 
   // Function to handle user sign out
@@ -70,6 +83,7 @@ export const AuthProvider = ({ children }) => {
     userEmail,
     userPassword,
     signOut,
+    removeLoginInfo,
   };
 
   return (

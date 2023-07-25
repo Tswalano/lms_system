@@ -65,7 +65,7 @@ function Employee() {
         }
         setIsLoading(false);
       } catch (error) {
-        console.log(error);
+        return error;
       }
     };
     getData();
