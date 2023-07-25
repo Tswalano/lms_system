@@ -25,7 +25,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
 import jwtDecode from "jwt-decode";
 
-function ProfileUpdate(onSuccess) {
+function ProfileUpdate() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
 
@@ -41,8 +41,6 @@ function ProfileUpdate(onSuccess) {
   const [response, setResponse] = useState(false);
 
   const ctx = useContext(AuthContext);
-
-  const navigate = useNavigate();
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
@@ -70,6 +68,7 @@ function ProfileUpdate(onSuccess) {
   // handle form submition
   const handleSubmit = async (event) => {
     event.preventDefault();
+
     //progress
     setProgress(true);
 
@@ -90,7 +89,6 @@ function ProfileUpdate(onSuccess) {
       setProgress(false);
       setResponse(true);
       setOpen(true);
-      navigate("/profile");
     } else {
       // set error
       setAlertMessage(response.message);
