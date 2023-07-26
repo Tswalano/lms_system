@@ -12,6 +12,7 @@ import {
   Collapse,
   Grid,
   IconButton,
+  TextField,
   Typography,
 } from "@mui/material";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
@@ -24,14 +25,14 @@ import { AuthContext } from "../../../context/AuthContext";
 import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
 import jwtDecode from "jwt-decode";
+import EditField from "../../../components/ui/EditField";
 
 function ProfileUpdate({ profileData }) {
   // declare the useState formValues object
-  const [formValues, setFormValues] = useState({});
-  const { firstName, lastName, jobTitle, phone } = profileData;
-
-  // handle form field values on change
-  const handleChange = handleFieldChange(setFormValues);
+  const [firstName, setFirstName] = useState(profileData.firstName);
+  const [lastName, setLastName] = useState(profileData.lastName);
+  const [jobTitle, setJobTitle] = useState(profileData.jobTitle);
+  const [phone, setPhone] = useState(profileData.phone);
 
   // State to track form field error
   const [isError, setIsError] = useState(true);
@@ -41,22 +42,15 @@ function ProfileUpdate({ profileData }) {
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
 
-  // populate profileData to input fields
-  //console.log({ firstName, lastName, jobTitle, phone });
-  /*document.getElementById("firstName").value = firstName;
-  document.getElementById("lastName").value = lastName;
-  document.getElementById("jobTitle").value = jobTitle;
-  document.getElementById("phone").value = phone;*/
-
   const ctx = useContext(AuthContext);
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
-    const isFirstNameValid = validateText(formValues.firstName);
-    const isLastNameValid = validateText(formValues.lastName);
-    const isPhoneValid = validatePhone(formValues.phone);
-    const isJobTitleValid = validateText(formValues.jobTitle);
+    const isFirstNameValid = validateText(firstName);
+    const isLastNameValid = validateText(lastName);
+    const isPhoneValid = validatePhone(phone);
+    const isJobTitleValid = validateText(jobTitle);
 
     // Set isError based on the validation results
     setIsError(
@@ -69,9 +63,14 @@ function ProfileUpdate({ profileData }) {
 
   useEffect(() => {
     handleValidation();
+    // declare the useState formValues object
+    setFirstName(profileData.firstName);
+    setLastName(profileData.lastName);
+    setJobTitle(profileData.jobTitle);
+    setPhone(profileData.phone);
     //console.log(jwtDecode(ctx.token));
     // Run the validation when formValues state changes
-  }, [formValues]);
+  }, [firstName, lastName, phone, jobTitle, profileData]);
 
   // handle form submition
   const handleSubmit = async (event) => {
@@ -81,13 +80,8 @@ function ProfileUpdate({ profileData }) {
     setProgress(true);
 
     const endpoint = new APIEndPoints().profileAPI();
-    //Getting data from config file
-    const firstName = formValues.firstName;
-    const lastName = formValues.lastName;
+
     const email = jwtDecode(ctx.token).email;
-    const phone = formValues.phone;
-    const jobTitle = formValues.jobTitle;
-    //creating an array of data
     const arrData = { firstName, lastName, email, phone, jobTitle };
 
     const response = await postData(endpoint, arrData, ctx.token);
@@ -106,6 +100,38 @@ function ProfileUpdate({ profileData }) {
       setOpen(true);
     }
   };
+
+  // formfields
+  const formFields = [
+    {
+      name: "firstName",
+      label: "First Name",
+      type: "text",
+      value: firstName,
+      onChange: setFirstName,
+    },
+    {
+      name: "lastName",
+      label: "Last Name",
+      type: "text",
+      value: lastName,
+      onChange: setLastName,
+    },
+    {
+      name: "phone",
+      label: "Phone Number",
+      type: "phone",
+      value: phone,
+      onChange: setPhone,
+    },
+    {
+      name: "jobTitle",
+      label: "Job Title",
+      type: "text",
+      value: jobTitle,
+      onChange: setJobTitle,
+    },
+  ];
   return (
     <Box sx={{ width: "100%" }}>
       {response ? (
@@ -132,21 +158,17 @@ function ProfileUpdate({ profileData }) {
       ) : (
         <Box></Box>
       )}
-      <form onSubmit={handleSubmit}>
-        <Grid container>
-          <FormFieldMapper
-            formFields={ProfileConfig.formFields}
-            onChange={handleChange}
-            gridSizes={GridSizes.onbordingFieldSizes}
+      <form onSubmit={handleSubmit} style={{ width: "100%" }}>
+        <Grid item xs={12} sm={12} md={12}>
+          {formFields.map((field, index) => {
+            return <EditField key={index} field={field} />;
+          })}
+          <SubmitButton
+            disabled={isError}
+            label="Save Profile"
+            type="submit"
+            progress={progress}
           />
-          <Grid item xs={12} sm={12} md={12}>
-            <SubmitButton
-              disabled={isError}
-              label="Save Profile"
-              type="submit"
-              progress={progress}
-            />
-          </Grid>
         </Grid>
       </form>
     </Box>

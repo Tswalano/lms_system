@@ -75,6 +75,7 @@ function Profile() {
           setPhone(response.data.phoneNumber);
           setEmail(response.data.email);
         }
+
         setProfileData({
           firstName: firstName,
           lastName: lastName,
@@ -86,7 +87,14 @@ function Profile() {
         return error;
       }
     };
+
     getData();
+    setProfileData({
+      firstName: firstName,
+      lastName: lastName,
+      jobTitle: jobTitle,
+      phone: phone,
+    });
   }, [firstName, lastName, jobTitle, phone, email]);
 
   const handleClickOpen = () => {
@@ -238,7 +246,7 @@ function Profile() {
       </Box>
 
       {/* add employee modal dialog */}
-      <Dialog open={open} onClose={handleClose}>
+      <Dialog open={open} maxWidth="sm" fullWidth onClose={handleClose}>
         <DialogTitle sx={{ color: "#2196f3", fontWeight: "bold" }}>
           Edit Profile
         </DialogTitle>
