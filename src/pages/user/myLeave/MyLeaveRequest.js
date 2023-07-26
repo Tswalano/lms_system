@@ -32,7 +32,7 @@ function dateFormat(dateValue) {
   return date.toISOString().split("T")[0];
 }
 
-function ActOnLeave() {
+function MyLeaveRequest() {
   // Create a URLSearchParams object with the current URL's query string
   const params = new URLSearchParams(window.location.search);
 
@@ -82,27 +82,28 @@ function ActOnLeave() {
     } catch (error) {}
   };
 
-  useEffect(() => {
-    const fetchLeaveData = async () => {
-      const endpoint = new APIEndPoints().getLeaveByID();
-      const leaveID = { id };
-      const data = await getDataByID(endpoint, leaveID, ctx.token);
-      //checks if response is valid
-      if (data) {
-        if (!leaveType && !startDate && !comments && !attachments) {
-          setLeaveType(data.leave_type);
-          setStartDate(dateFormat(data.start_date));
-          setEndDate(dateFormat(data.end_date));
-          setLeaveLength(data.duration);
-          setLeaveStatus(data.status);
-          setComments("Comments needs to be added still");
-          setAttachments(
-            "https://www.dexform.com/download/sample-letter-from-your-doctor-or-other-service-provider"
-          );
-        }
-        setISLoading(false);
+  const fetchLeaveData = async () => {
+    const endpoint = new APIEndPoints().getLeaveByID();
+    const leaveID = { id };
+    const data = await getDataByID(endpoint, leaveID, ctx.token);
+    //checks if response is valid
+    if (data) {
+      if (!leaveType && !startDate && !comments && !attachments) {
+        setLeaveType(data.leave_type);
+        setStartDate(dateFormat(data.start_date));
+        setEndDate(dateFormat(data.end_date));
+        setLeaveLength(data.duration);
+        setLeaveStatus(data.status);
+        setComments("Comments needs to be added still");
+        setAttachments(
+          "https://www.dexform.com/download/sample-letter-from-your-doctor-or-other-service-provider"
+        );
       }
-    };
+      setISLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchLeaveData();
   }, []);
 
@@ -116,6 +117,8 @@ function ActOnLeave() {
 
   const handleClose = () => {
     setOpen(false);
+    fetchLeaveData();
+    setISLoading(true);
   };
 
   return (
@@ -233,7 +236,7 @@ function ActOnLeave() {
         </DialogTitle>
         <Divider />
         <DialogContent>
-          <UpdateLeaveRequest />
+          <UpdateLeaveRequest handleModalClose={handleClose} />
         </DialogContent>
         <Divider />
         <DialogActions>
@@ -262,4 +265,4 @@ function Breadcrumb() {
   );
 }
 
-export default ActOnLeave;
+export default MyLeaveRequest;

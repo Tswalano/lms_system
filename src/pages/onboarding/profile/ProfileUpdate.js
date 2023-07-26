@@ -27,7 +27,7 @@ import { useNavigate } from "react-router-dom";
 import jwtDecode from "jwt-decode";
 import EditField from "../../../components/ui/EditField";
 
-function ProfileUpdate({ profileData }) {
+function ProfileUpdate({ profileData, handleModalClose }) {
   // declare the useState formValues object
   const [firstName, setFirstName] = useState(profileData.firstName);
   const [lastName, setLastName] = useState(profileData.lastName);
@@ -88,9 +88,12 @@ function ProfileUpdate({ profileData }) {
     if (response.status === 200) {
       setAlertMessage(response.message);
       setAlertType("success");
-      setProgress(false);
       setResponse(true);
       setOpen(true);
+      setTimeout(() => {
+        setProgress(false);
+        handleModalClose();
+      }, 2000);
     } else {
       // set error
       setAlertMessage(response.message);

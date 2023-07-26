@@ -33,6 +33,7 @@ export const AuthProvider = ({ children }) => {
     const role = localStorage.getItem("role");
     const email = localStorage.getItem("email");
     const password = localStorage.getItem("pass");
+
     setToken(token);
     setIsAdmin(role);
     setIsAuthenticated(token !== "" && token !== null);

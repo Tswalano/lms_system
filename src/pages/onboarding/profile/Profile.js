@@ -44,6 +44,39 @@ function Profile() {
   const ctx = useContext(AuthContext);
   const sideNav = document.getElementById("sideNav");
   const editProfile = document.getElementById("editProfile");
+
+  //FetchData Method to fetch data for employee to view their information
+  const fetchData = async () => {
+    try {
+      const endpoint = new APIEndPoints().viewEmployeeByID();
+      const id = jwtDecode(ctx.token).user.id;
+      const getID = { id };
+
+      const data = await postResponse(endpoint, getID, ctx.token);
+      if (
+        !firstName ||
+        !lastName ||
+        !jobTitle ||
+        !phone ||
+        !email ||
+        firstName ||
+        lastName ||
+        jobTitle ||
+        phone ||
+        email
+      ) {
+        setFirstName(data.data.firstName);
+        setLastName(data.data.lastName);
+        setJobTitle(data.data.jobTitle);
+        setPhone(data.data.phoneNumber);
+        setEmail(data.data.email);
+      }
+      setIsLoading(false);
+    } catch (error) {
+      return error;
+    }
+  };
+
   useEffect(() => {
     if (sideNav && editProfile) {
       if (
@@ -60,41 +93,9 @@ function Profile() {
         setIsValuesEmpty(false);
       }
     }
-
-    const getData = async () => {
-      try {
-        const endpoint = new APIEndPoints().viewEmployeeByID();
-        const id = jwtDecode(ctx.token).user.id;
-        const getID = { id };
-
-        const response = await postResponse(endpoint, getID, ctx.token);
-        if (!firstName || !lastName || !jobTitle || !phone || !email) {
-          setFirstName(response.data.firstName);
-          setLastName(response.data.lastName);
-          setJobTitle(response.data.jobTitle);
-          setPhone(response.data.phoneNumber);
-          setEmail(response.data.email);
-        }
-
-        setProfileData({
-          firstName: firstName,
-          lastName: lastName,
-          jobTitle: jobTitle,
-          phone: phone,
-        });
-        setIsLoading(false);
-      } catch (error) {
-        return error;
-      }
-    };
-
-    getData();
-    setProfileData({
-      firstName: firstName,
-      lastName: lastName,
-      jobTitle: jobTitle,
-      phone: phone,
-    });
+    if (!open) {
+      fetchData();
+    }
   }, [firstName, lastName, jobTitle, phone, email]);
 
   const handleClickOpen = () => {
@@ -103,6 +104,8 @@ function Profile() {
 
   const handleClose = () => {
     setOpen(false);
+    setIsLoading(true);
+    fetchData();
   };
 
   return (
@@ -252,7 +255,16 @@ function Profile() {
         </DialogTitle>
         <Divider />
         <DialogContent>
-          <ProfileUpdate profileData={profileData} />
+          <ProfileUpdate
+            handleModalClose={handleClose}
+            initialValues={{
+              firstName: firstName,
+              lastName: lastName,
+              phone: phone,
+              jobTitle: jobTitle,
+            }}
+            profileData={profileData}
+          />
         </DialogContent>
         <Divider />
         <DialogActions>
