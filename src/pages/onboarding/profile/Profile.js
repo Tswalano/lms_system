@@ -39,6 +39,8 @@ function Profile() {
 
   const [isValuesEmpty, setIsValuesEmpty] = useState(false);
 
+  const [getDataCount, setGetDataCount] = useState(0);
+
   const [isLoading, setIsLoading] = useState(true);
 
   const ctx = useContext(AuthContext);
@@ -52,8 +54,13 @@ function Profile() {
       const id = jwtDecode(ctx.token).user.id;
       const getID = { id };
 
+      const anyFieldIsEmpty =
+        !firstName || !lastName || !jobTitle || !phone || !email;
+      const anyFieldIsFilled =
+        firstName || lastName || jobTitle || phone || email;
+
       const response = await postResponse(endpoint, getID, ctx.token);
-      if (firstName) {
+      if (anyFieldIsEmpty || anyFieldIsFilled) {
         setFirstName(response.data.firstName);
         setLastName(response.data.lastName);
         setJobTitle(response.data.jobTitle);
@@ -96,11 +103,11 @@ function Profile() {
       jobTitle: jobTitle,
       phone: phone,
     });
-
-    if (!open) {
+    if (getDataCount < 2) {
       getData();
+      setGetDataCount((prevCount) => prevCount + 1);
     }
-  }, [profileData]);
+  }, [profileData, getDataCount]);
 
   const handleClickOpen = () => {
     setOpen(true);
