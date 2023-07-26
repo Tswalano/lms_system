@@ -53,12 +53,13 @@ function Profile() {
       const getID = { id };
 
       const response = await postResponse(endpoint, getID, ctx.token);
-
-      setFirstName(response.data.firstName);
-      setLastName(response.data.lastName);
-      setJobTitle(response.data.jobTitle);
-      setPhone(response.data.phoneNumber);
-      setEmail(response.data.email);
+      if (firstName) {
+        setFirstName(response.data.firstName);
+        setLastName(response.data.lastName);
+        setJobTitle(response.data.jobTitle);
+        setPhone(response.data.phoneNumber);
+        setEmail(response.data.email);
+      }
 
       setProfileData({
         firstName: firstName,
@@ -85,11 +86,10 @@ function Profile() {
         editProfile.style.pointerEvents = "auto";
         setIsValuesEmpty(true);
       } else {
+        sideNav.style.pointerEvents = "auto";
         setIsValuesEmpty(false);
       }
     }
-
-    getData();
     setProfileData({
       firstName: firstName,
       lastName: lastName,
