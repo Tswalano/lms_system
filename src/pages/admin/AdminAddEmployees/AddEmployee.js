@@ -13,7 +13,7 @@ import { postData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
 import CloseIcon from "@mui/icons-material/Close";
 
-function AddEmployee() {
+function AddEmployee({ handleModalClose }) {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
 
@@ -59,9 +59,12 @@ function AddEmployee() {
     if (response.status === 200) {
       setAlertMessage(response.message);
       setAlertType("success");
-      setProgress(false);
       setResponse(true);
       setOpen(true);
+      setTimeout(() => {
+        setProgress(false);
+        handleModalClose();
+      }, 2000);
     } else {
       // set error
       setAlertMessage(response.message);
