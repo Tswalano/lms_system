@@ -257,12 +257,6 @@ function Profile() {
         <DialogContent>
           <ProfileUpdate
             handleModalClose={handleClose}
-            initialValues={{
-              firstName: firstName,
-              lastName: lastName,
-              phone: phone,
-              jobTitle: jobTitle,
-            }}
             profileData={profileData}
           />
         </DialogContent>
