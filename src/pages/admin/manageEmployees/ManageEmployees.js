@@ -160,7 +160,7 @@ function ManageEmployees() {
             process.
           </DialogContentText>
           <br />
-          <AddEmployee />
+          <AddEmployee handleModalClose={handleClose} />
         </DialogContent>
         <Divider />
         <DialogActions>
