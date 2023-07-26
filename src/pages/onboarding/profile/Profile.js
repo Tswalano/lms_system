@@ -46,31 +46,26 @@ function Profile() {
   const editProfile = document.getElementById("editProfile");
 
   //FetchData Method to fetch data for employee to view their information
-  const fetchData = async () => {
+  const getData = async () => {
     try {
       const endpoint = new APIEndPoints().viewEmployeeByID();
       const id = jwtDecode(ctx.token).user.id;
       const getID = { id };
 
-      const data = await postResponse(endpoint, getID, ctx.token);
-      if (
-        !firstName ||
-        !lastName ||
-        !jobTitle ||
-        !phone ||
-        !email ||
-        firstName ||
-        lastName ||
-        jobTitle ||
-        phone ||
-        email
-      ) {
-        setFirstName(data.data.firstName);
-        setLastName(data.data.lastName);
-        setJobTitle(data.data.jobTitle);
-        setPhone(data.data.phoneNumber);
-        setEmail(data.data.email);
-      }
+      const response = await postResponse(endpoint, getID, ctx.token);
+
+      setFirstName(response.data.firstName);
+      setLastName(response.data.lastName);
+      setJobTitle(response.data.jobTitle);
+      setPhone(response.data.phoneNumber);
+      setEmail(response.data.email);
+
+      setProfileData({
+        firstName: firstName,
+        lastName: lastName,
+        jobTitle: jobTitle,
+        phone: phone,
+      });
       setIsLoading(false);
     } catch (error) {
       return error;
@@ -93,10 +88,19 @@ function Profile() {
         setIsValuesEmpty(false);
       }
     }
+
+    getData();
+    setProfileData({
+      firstName: firstName,
+      lastName: lastName,
+      jobTitle: jobTitle,
+      phone: phone,
+    });
+
     if (!open) {
-      fetchData();
+      getData();
     }
-  }, [firstName, lastName, jobTitle, phone, email]);
+  }, [profileData]);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -105,7 +109,7 @@ function Profile() {
   const handleClose = () => {
     setOpen(false);
     setIsLoading(true);
-    fetchData();
+    getData();
   };
 
   return (
@@ -249,7 +253,7 @@ function Profile() {
       </Box>
 
       {/* add employee modal dialog */}
-      <Dialog open={open} onClose={handleClose}>
+      <Dialog open={open} maxWidth="sm" fullWidth onClose={handleClose}>
         <DialogTitle sx={{ color: "#2196f3", fontWeight: "bold" }}>
           Edit Profile
         </DialogTitle>
