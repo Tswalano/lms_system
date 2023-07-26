@@ -53,7 +53,18 @@ function Profile() {
       const getID = { id };
 
       const data = await postResponse(endpoint, getID, ctx.token);
-      if (!firstName || !lastName || !jobTitle || !phone || !email) {
+      if (
+        !firstName ||
+        !lastName ||
+        !jobTitle ||
+        !phone ||
+        !email ||
+        firstName ||
+        lastName ||
+        jobTitle ||
+        phone ||
+        email
+      ) {
         setFirstName(data.data.firstName);
         setLastName(data.data.lastName);
         setJobTitle(data.data.jobTitle);
@@ -82,8 +93,9 @@ function Profile() {
         setIsValuesEmpty(false);
       }
     }
-
-    fetchData();
+    if (!open) {
+      fetchData();
+    }
   }, [firstName, lastName, jobTitle, phone, email]);
 
   const handleClickOpen = () => {
@@ -251,7 +263,8 @@ function Profile() {
               phone: phone,
               jobTitle: jobTitle,
             }}
-          profileData={profileData} />
+            profileData={profileData}
+          />
         </DialogContent>
         <Divider />
         <DialogActions>
