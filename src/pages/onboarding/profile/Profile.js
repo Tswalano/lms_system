@@ -39,7 +39,7 @@ function Profile() {
 
   const [isValuesEmpty, setIsValuesEmpty] = useState(false);
 
-  const [getDataCount, setGetDataCount] = useState(0);
+  const [fetchDataCount, setfetchDataCount] = useState(0);
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -48,32 +48,31 @@ function Profile() {
   const editProfile = document.getElementById("editProfile");
 
   //FetchData Method to fetch data for employee to view their information
-  const getData = async () => {
+  const fetchData = async () => {
     try {
       const endpoint = new APIEndPoints().viewEmployeeByID();
       const id = jwtDecode(ctx.token).user.id;
       const getID = { id };
 
-      const anyFieldIsEmpty =
-        !firstName || !lastName || !jobTitle || !phone || !email;
-      const anyFieldIsFilled =
-        firstName || lastName || jobTitle || phone || email;
-
-      const response = await postResponse(endpoint, getID, ctx.token);
-      if (anyFieldIsEmpty || anyFieldIsFilled) {
-        setFirstName(response.data.firstName);
-        setLastName(response.data.lastName);
-        setJobTitle(response.data.jobTitle);
-        setPhone(response.data.phoneNumber);
-        setEmail(response.data.email);
+      const data = await postResponse(endpoint, getID, ctx.token);
+      if (
+        !firstName ||
+        !lastName ||
+        !jobTitle ||
+        !phone ||
+        !email ||
+        firstName ||
+        lastName ||
+        jobTitle ||
+        phone ||
+        email
+      ) {
+        setFirstName(data.data.firstName);
+        setLastName(data.data.lastName);
+        setJobTitle(data.data.jobTitle);
+        setPhone(data.data.phoneNumber);
+        setEmail(data.data.email);
       }
-
-      setProfileData({
-        firstName: firstName,
-        lastName: lastName,
-        jobTitle: jobTitle,
-        phone: phone,
-      });
       setIsLoading(false);
     } catch (error) {
       return error;
@@ -103,11 +102,25 @@ function Profile() {
       jobTitle: jobTitle,
       phone: phone,
     });
-    if (getDataCount < 2) {
-      getData();
-      setGetDataCount((prevCount) => prevCount + 1);
+    if (fetchDataCount < 5) {
+      fetchData();
+      setProfileData({
+        firstName: firstName,
+        lastName: lastName,
+        jobTitle: jobTitle,
+        phone: phone,
+      });
+      setfetchDataCount((prevCount) => prevCount + 1);
     }
-  }, [profileData, getDataCount]);
+  }, [
+    profileData,
+    fetchDataCount,
+    firstName,
+    lastName,
+    jobTitle,
+    phone,
+    email,
+  ]);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -116,7 +129,7 @@ function Profile() {
   const handleClose = () => {
     setOpen(false);
     setIsLoading(true);
-    getData();
+    fetchData();
   };
 
   return (

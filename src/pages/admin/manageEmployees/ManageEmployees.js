@@ -35,6 +35,9 @@ function ManageEmployees() {
   const ctx = useContext(AuthContext);
   const [isLoading, setISLoading] = useState(false);
   useEffect(() => {
+    console.log("====================================");
+    console.log(ctx.token);
+    console.log("====================================");
     const fetchData = async () => {
       setISLoading(true);
       const endpoint = new APIEndPoints().viewAllEmployees();
