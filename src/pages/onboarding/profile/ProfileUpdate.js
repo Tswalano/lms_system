@@ -64,8 +64,6 @@ function ProfileUpdate({ profileData, handleModalClose }) {
   useEffect(() => {
     handleValidation();
     // declare the useState formValues object
-   
-    //console.log(jwtDecode(ctx.token));
     // Run the validation when formValues state changes
   }, [firstName, lastName, phone, jobTitle, profileData]);
 
@@ -82,7 +80,6 @@ function ProfileUpdate({ profileData, handleModalClose }) {
     const arrData = { firstName, lastName, email, phone, jobTitle };
 
     const response = await postData(endpoint, arrData, ctx.token);
-    console.log(response);
     if (response.status === 200) {
       setAlertMessage(response.message);
       setAlertType("success");

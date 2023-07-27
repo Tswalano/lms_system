@@ -55,24 +55,24 @@ function Profile() {
       const getID = { id };
 
       const data = await postResponse(endpoint, getID, ctx.token);
-      if (
-        !firstName ||
-        !lastName ||
-        !jobTitle ||
-        !phone ||
-        !email ||
-        firstName ||
-        lastName ||
-        jobTitle ||
-        phone ||
-        email
-      ) {
-        setFirstName(data.data.firstName);
-        setLastName(data.data.lastName);
-        setJobTitle(data.data.jobTitle);
-        setPhone(data.data.phoneNumber);
-        setEmail(data.data.email);
-      }
+      // if (
+      //   !firstName ||
+      //   !lastName ||
+      //   !jobTitle ||
+      //   !phone ||
+      //   !email ||
+      //   firstName ||
+      //   lastName ||
+      //   jobTitle ||
+      //   phone ||
+      //   email
+      // ) {
+      setFirstName(data.data.firstName);
+      setLastName(data.data.lastName);
+      setJobTitle(data.data.jobTitle);
+      setPhone(data.data.phoneNumber);
+      setEmail(data.data.email);
+      // }
       setIsLoading(false);
     } catch (error) {
       return error;
@@ -88,21 +88,18 @@ function Profile() {
         phone === null ||
         email === null
       ) {
+        //Disables the navbar to not be used, and enables the edit profile button
         sideNav.style.pointerEvents = "none";
         editProfile.style.pointerEvents = "auto";
         setIsValuesEmpty(true);
       } else {
+        //enables the navbar
         sideNav.style.pointerEvents = "auto";
         setIsValuesEmpty(false);
       }
     }
-    setProfileData({
-      firstName: firstName,
-      lastName: lastName,
-      jobTitle: jobTitle,
-      phone: phone,
-    });
-    if (fetchDataCount < 5) {
+
+    if (fetchDataCount < 2) {
       fetchData();
       setProfileData({
         firstName: firstName,
