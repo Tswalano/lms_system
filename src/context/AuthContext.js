@@ -6,16 +6,18 @@ export const AuthContext = createContext();
 // Create the AuthProvider component
 export const AuthProvider = ({ children }) => {
   // State to store the user token
-  const [token, setToken] = useState("");
+  const [token, setToken] = useState(localStorage.getItem("token"));
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(localStorage.getItem("email"));
+  const [password, setPassword] = useState(localStorage.getItem("pass"));
 
   // State to store the user role
-  const [isAdmin, setIsAdmin] = useState();
+  const [isAdmin, setIsAdmin] = useState(localStorage.getItem("role"));
 
   // state to store the user auth status
-  const [isAuthenticated, setIsAuthenticated] = useState();
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    token !== "" && token !== null ? true : false
+  );
 
   const [isVerified, setVerification] = useState();
 
@@ -28,7 +30,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("role", userRole);
   };
 
-  useEffect(() => {
+  /*useEffect(() => {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
     const email = localStorage.getItem("email");
@@ -39,7 +41,7 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(token !== "" && token !== null);
     setEmail(email);
     setPassword(password);
-  }, [token]);
+  }, [token]);*/
 
   const signup = (verified) => {
     setVerification(verified);
@@ -67,8 +69,7 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setIsAuthenticated(false);
     setIsAdmin(false);
-    localStorage.setItem("token", null);
-    localStorage.setItem("role", null);
+    localStorage.clear();
   };
 
   // Value object to be provided to consuming components

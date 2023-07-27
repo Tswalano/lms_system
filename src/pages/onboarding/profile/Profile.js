@@ -35,7 +35,12 @@ function Profile() {
   const [jobTitle, setJobTitle] = useState();
   const [phone, setPhone] = useState();
   const [email, setEmail] = useState();
-  const [profileData, setProfileData] = useState({});
+  const [profileData, setProfileData] = useState({
+    firstName: "",
+    lastName: "",
+    jobTitle: "",
+    phone: "",
+  });
 
   const [isValuesEmpty, setIsValuesEmpty] = useState(false);
 
@@ -55,18 +60,13 @@ function Profile() {
       const getID = { id };
 
       const data = await postResponse(endpoint, getID, ctx.token);
-      // if (
-      //   !firstName ||
-      //   !lastName ||
-      //   !jobTitle ||
-      //   !phone ||
-      //   !email ||
-      //   firstName ||
-      //   lastName ||
-      //   jobTitle ||
-      //   phone ||
-      //   email
-      // ) {
+      setProfileData({
+        firstName: data.data.firstName,
+        lastName: data.data.lastName,
+        jobTitle: data.data.jobTitle,
+        phone: data.data.phoneNumber,
+        email: data.data.email,
+      });
       setFirstName(data.data.firstName);
       setLastName(data.data.lastName);
       setJobTitle(data.data.jobTitle);
