@@ -207,10 +207,10 @@ function Breadcrumb() {
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link underline="hover" color="inherit" to="/dashboard">
+        <Link className="breadCrumbLink" to="/dashboard">
           Home
         </Link>
-        <Link underline="hover" color="inherit" to="/my-leave">
+        <Link className="breadCrumbLink" to="/my-leave">
           My Leave
         </Link>
         <Typography color="primary" fontFamily="Geologica" fontWeight="normal">

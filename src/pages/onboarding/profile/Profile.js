@@ -297,8 +297,7 @@ function Breadcrumb() {
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
         <Link
-          underline="hover"
-          color="inherit"
+          className="breadCrumbLink"
           to={ctx.isAdmin === "admin" ? "/home" : "/dashboard"}
         >
           Home
