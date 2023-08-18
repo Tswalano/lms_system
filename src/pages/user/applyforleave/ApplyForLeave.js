@@ -169,6 +169,7 @@ function ApplyForLeave() {
 }
 
 function Breadcrumb() {
+  const ctx = useContext(AuthContext);
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
