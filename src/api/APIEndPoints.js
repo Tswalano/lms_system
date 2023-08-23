@@ -3,76 +3,76 @@ class APIEndPoints {
 
   signinAPI() {
     const signin =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/login";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/login";
     return signin;
   }
 
   signupAPI() {
     const signup =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/signup";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/signup";
     return signup;
   }
 
   profileAPI() {
     const profile =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/profile";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/profile";
     return profile;
   }
 
   otpApi() {
     const otp =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/verify-otp";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/verify-otp";
     return otp;
   }
 
   applyForLeave() {
     const leaveApply =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/lms/apply-leave";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/lms/apply-leave";
     return leaveApply;
   }
 
   approveLeave() {
     const approveLeave =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/lms/updateleave";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/lms/updateleave";
     return approveLeave;
   }
 
   getAllLeavesData() {
     const getLeaves =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/lms/getleave";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/lms/getleave";
     return getLeaves;
   }
   getLeaveByID() {
     const getLeaveByID =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/lms/getleave/by-id";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/lms/getleave/by-id";
     return getLeaveByID;
   }
 
   addNewEmployee() {
     const addNewEmployee =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/invite-emp";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/invite-emp";
     return addNewEmployee;
   }
   viewAllEmployees() {
     const viewAllEmployees =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/employee";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/employee";
     return viewAllEmployees;
   }
 
   viewEmployeeByID() {
     const viewEmpByID =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/employee/by-id";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/employee/by-id";
     return viewEmpByID;
   }
 
   forgotPassword() {
     const forgotPassword =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/forgot-password";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/forgot-password";
     return forgotPassword;
   }
   resetPassword() {
     const resetPassword =
-      "https://wvyxktkf2k.execute-api.us-east-2.amazonaws.com/dev/user-service/reset-password";
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/reset-password";
     return resetPassword;
   }
 }

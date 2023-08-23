@@ -100,10 +100,14 @@ function MyLeave() {
 }
 
 function Breadcrumb() {
+  const ctx = useContext(AuthContext);
   return (
     <div role="presentation">
       <Breadcrumbs aria-label="breadcrumb">
-        <Link className="breadCrumbLink" to={"/dashboard"}>
+        <Link
+          className="breadCrumbLink"
+          to={ctx.isAdmin === "admin" ? "/home" : "/dashboard"}
+        >
           Home
         </Link>
         <Typography color="primary" fontFamily="Geologica" fontWeight="normal">
