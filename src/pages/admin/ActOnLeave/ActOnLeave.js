@@ -10,6 +10,11 @@ import {
   Alert,
   IconButton,
   LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from "@mui/material";
 import Paragraph from "../../../components/ui/Paragraph";
 import SubmitButton from "../../../components/ui/Button";
@@ -25,6 +30,7 @@ import { getDataByID, postData, putData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
 import { Link } from "react-router-dom";
 import CloseIcon from "@mui/icons-material/Close";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
 //Formats the date and removes string and '0' values
 function dateFormat(dateValue) {
@@ -57,6 +63,13 @@ function ActOnLeave() {
   const [response, setResponse] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
+
+  const [openModal, setOpenModal] = useState(false);
+
+  const [statusCheck, setStatusCheck] = useState();
+
+  const [leaveReqData, setLeaveReqData] = useState();
+  const [dataArr, setDataArr] = useState();
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
@@ -124,7 +137,7 @@ function ActOnLeave() {
     const feedback = formValues.feedback;
     //Feedback value is captured on values that is null
     const endpoint = new APIEndPoints().approveLeave();
-    const dataArr = { id, status, feedback };
+    dataArr = { id, status, feedback };
     const response = await putData(endpoint, dataArr, ctx.token);
     if (response.status === 200) {
       setAlertMessage(response.data.message);
@@ -149,6 +162,26 @@ function ActOnLeave() {
       setResponse(true);
       setOpen(true);
     }
+  };
+
+  const handleClickOpen = () => {
+    if (formValues.approval === "approved") {
+      setStatusCheck("Approve");
+    } else {
+      setStatusCheck("Reject");
+    }
+
+    const status = formValues.approval;
+    const feedback = formValues.feedback;
+
+    const approveLeaveData = { id, status, feedback };
+    setDataArr(approveLeaveData);
+
+    setOpenModal(true);
+  };
+
+  const handleClose = () => {
+    setOpenModal(false);
   };
 
   return (
@@ -298,18 +331,49 @@ function ActOnLeave() {
                     />
                   </Grid>
                   {/* Submit the approval of leave */}
-                  <SubmitButton
+                  {/* <SubmitButton
                     label={"Act on Leave"}
                     type="submit"
                     disabled={isError}
                     progress={progress}
-                  />
+                  /> */}
+                  <Button
+                    id="actOnLeaveBtn"
+                    variant="contained"
+                    onClick={handleClickOpen}
+                    fullWidth
+                  >
+                    Act On Leave
+                  </Button>
                 </form>
               </Grid>
             </Grid>
           </Grid>
         </PaperComponent>
       </Box>
+
+      {/* Propt to act on leave */}
+      <Dialog open={openModal} maxWidth="sm" fullWidth onClose={handleClose}>
+        <DialogTitle sx={{ color: "#2196f3", fontWeight: "bold" }}>
+          Act on Leave
+        </DialogTitle>
+        <Divider />
+        <DialogContent>
+          <Box sx={{ textAlign: "center" }}>
+            <Paragraph
+              text={"Would you like to " + statusCheck + " The Leave Request"}
+            />
+            <ErrorOutlineIcon />
+          </Box>
+        </DialogContent>
+        <Divider />
+        <DialogActions>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button variant="contained" color="success" onClick={handleSubmit}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

@@ -30,6 +30,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("role", userRole);
   };
 
+  // useEffect(() => {
+  //   window.addEventListener("beforeunload", signOut);
+  // });
+
   /*useEffect(() => {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
