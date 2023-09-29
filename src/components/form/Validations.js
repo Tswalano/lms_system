@@ -79,9 +79,9 @@ export const validateDate = (value) => {
   const currentDate = new Date();
   currentDate.setHours(0, 0, 0, 0); // Set the time to the beginning of the day
 
-  if (selectedDate < currentDate) {
-    return "Selected date cannot be before today.";
-  }
+  /*if (selectedDate < currentDate) {
+  return "Selected date cannot be before today.";
+  }*/
 
   return null;
 };
