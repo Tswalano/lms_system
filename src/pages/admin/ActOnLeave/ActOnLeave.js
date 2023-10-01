@@ -15,6 +15,7 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  CircularProgress,
 } from "@mui/material";
 import Paragraph from "../../../components/ui/Paragraph";
 import SubmitButton from "../../../components/ui/Button";
@@ -28,7 +29,7 @@ import { validateDropDown } from "../../../components/form/Validations";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { getDataByID, postData, putData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import CloseIcon from "@mui/icons-material/Close";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
@@ -41,6 +42,9 @@ function dateFormat(dateValue) {
 function ActOnLeave() {
   // Create a URLSearchParams object with the current URL's query string
   const params = new URLSearchParams(window.location.search);
+
+  //declaring navigation
+  const navigate = useNavigate();
 
   // Access the value of employee id from query string
   const id = params.get("id");
@@ -62,14 +66,13 @@ function ActOnLeave() {
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
 
+  const [navigationLoad, setNavigationLoad] = useState(false);
+
   const [isLoading, setIsLoading] = useState(true);
 
   const [openModal, setOpenModal] = useState(false);
 
   const [statusCheck, setStatusCheck] = useState();
-
-  const [leaveReqData, setLeaveReqData] = useState();
-  const [dataArr, setDataArr] = useState();
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
@@ -137,14 +140,22 @@ function ActOnLeave() {
     const feedback = formValues.feedback;
     //Feedback value is captured on values that is null
     const endpoint = new APIEndPoints().approveLeave();
-    dataArr = { id, status, feedback };
+    const dataArr = { id, status, feedback };
     const response = await putData(endpoint, dataArr, ctx.token);
     if (response.status === 200) {
+      setNavigationLoad(true);
       setAlertMessage(response.data.message);
       setAlertType("success");
-      setProgress(false);
       setResponse(true);
       setOpen(true);
+      setTimeout(() => {
+        setProgress(false);
+        handleClose();
+      }, 2000);
+
+      setTimeout(() => {
+        navigate("/manage-leave");
+      }, 3000);
     } else {
       // set error
       setAlertMessage(response.message);
@@ -170,12 +181,6 @@ function ActOnLeave() {
     } else {
       setStatusCheck("Reject");
     }
-
-    const status = formValues.approval;
-    const feedback = formValues.feedback;
-
-    const approveLeaveData = { id, status, feedback };
-    setDataArr(approveLeaveData);
 
     setOpenModal(true);
   };
@@ -293,35 +298,12 @@ function ActOnLeave() {
                   Act On Leave
                 </Typography>
                 <Divider />
+                {navigationLoad && <LinearProgress />}
               </Grid>
             </Grid>
             <Grid container paddingY={"20px"}>
               <Grid item xs={12}>
-                {response ? (
-                  <Collapse in={open}>
-                    <Alert
-                      severity={alertType}
-                      action={
-                        <IconButton
-                          aria-label="close"
-                          color="inherit"
-                          size="small"
-                          onClick={() => {
-                            setOpen(false);
-                          }}
-                        >
-                          <CloseIcon fontSize="inherit" />
-                        </IconButton>
-                      }
-                      sx={{ mb: 2 }}
-                    >
-                      {alertMessage}
-                    </Alert>
-                  </Collapse>
-                ) : (
-                  <Box></Box>
-                )}
-                <form onSubmit={handleSubmit}>
+                <form>
                   <Grid container>
                     {/* Maps the dropdown box and TextField  */}
                     <FormFieldMapper
@@ -342,6 +324,7 @@ function ActOnLeave() {
                     variant="contained"
                     onClick={handleClickOpen}
                     fullWidth
+                    disabled={isError}
                   >
                     Act On Leave
                   </Button>
@@ -358,12 +341,47 @@ function ActOnLeave() {
           Act on Leave
         </DialogTitle>
         <Divider />
+        {progress && <LinearProgress />}
+        {response ? (
+          <Collapse in={open}>
+            <Alert
+              severity={alertType}
+              action={
+                <IconButton
+                  aria-label="close"
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    setOpen(false);
+                  }}
+                >
+                  <CloseIcon fontSize="inherit" />
+                </IconButton>
+              }
+              sx={{ mb: 2 }}
+            >
+              {alertMessage}
+            </Alert>
+          </Collapse>
+        ) : (
+          <Box></Box>
+        )}
         <DialogContent>
-          <Box sx={{ textAlign: "center" }}>
+          <Box
+            sx={{
+              textAlign: "center",
+              flexDirection: "row",
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <ErrorOutlineIcon sx={{ color: "#FFA500", marginRight: "2%" }} />
             <Paragraph
-              text={"Would you like to " + statusCheck + " The Leave Request"}
+              text={"Would you like to " + statusCheck + " The Leave Request?"}
+              fontWeight={"bold"}
             />
-            <ErrorOutlineIcon />
           </Box>
         </DialogContent>
         <Divider />
