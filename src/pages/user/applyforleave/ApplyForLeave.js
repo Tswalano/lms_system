@@ -3,17 +3,14 @@ import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
-import { GetFormValues } from "../../../components/form/GetFormValues";
 import {
   Alert,
-  AlertTitle,
   Box,
   Collapse,
   Grid,
   IconButton,
   Typography,
 } from "@mui/material";
-import Heading from "../../../components/ui/Heading";
 import PaperComponent from "../../../components/ui/Paper";
 import { validateDropDown } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
@@ -21,7 +18,6 @@ import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 import { validateDate } from "../../../components/form/Validations";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import { Link } from "react-router-dom";
-import Paragraph from "../../../components/ui/Paragraph";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { AuthContext } from "../../../context/AuthContext";
 import { postData } from "../../../api/API";

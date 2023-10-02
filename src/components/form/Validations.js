@@ -76,12 +76,11 @@ export const validateDate = (value) => {
   }
 
   const selectedDate = new Date(value);
-  const currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0); // Set the time to the beginning of the day
+  var dateComponents = selectedDate.toString().split(" ");
 
-  /*if (selectedDate < currentDate) {
-  return "Selected date cannot be before today.";
-  }*/
+  if (dateComponents[0] === "Sat" || dateComponents[0] === "Sun") {
+    return "Selected date cannot be on a weekend.";
+  }
 
   return null;
 };
