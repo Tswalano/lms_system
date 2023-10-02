@@ -31,7 +31,9 @@ import { getDataByID, postData, putData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import CloseIcon from "@mui/icons-material/Close";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import HighlightOffIcon from "@mui/icons-material/HighlightOff";
+import Heading from "../../../components/ui/Heading";
 
 //Formats the date and removes string and '0' values
 function dateFormat(dateValue) {
@@ -370,24 +372,34 @@ function ActOnLeave() {
           <Box
             sx={{
               textAlign: "center",
-              flexDirection: "row",
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
             }}
           >
-            <ErrorOutlineIcon sx={{ color: "#FFA500", marginRight: "2%" }} />
+            {statusCheck === "Approve" ? (
+              <CheckCircleOutlineIcon
+                sx={{ color: "#26f596", height: "100px", width: "100px" }}
+              />
+            ) : (
+              <HighlightOffIcon
+                sx={{ color: "#ef6266", height: "100px", width: "100px" }}
+              />
+            )}
+            <Heading text={statusCheck} />
             <Paragraph
-              text={"Would you like to " + statusCheck + " The Leave Request?"}
+              text={
+                "Are you sure you want to " +
+                statusCheck +
+                " this Leave Request?"
+              }
               fontWeight={"bold"}
             />
           </Box>
         </DialogContent>
         <Divider />
         <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button variant="contained" color="success" onClick={handleSubmit}>
+          <Button onClick={handleClose} sx={{ color: "#000000" }}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleSubmit}>
             Confirm
           </Button>
         </DialogActions>
