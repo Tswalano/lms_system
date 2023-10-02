@@ -45,7 +45,10 @@ function ManageLeave() {
                 startDate: dateFormat(data[i].start_date),
                 endDate: dateFormat(data[i].end_date),
                 leaveLength: data[i].duration,
-                status: data[i].status,
+                status:
+                  data[i].status.toUpperCase().charAt(0) +
+                  "" +
+                  data[i].status.slice(1),
                 open: (
                   <Link to={"/manage-leave/act-on-leave?id=" + data[i].id}>
                     <LaunchIcon sx={{ color: "#0BADDE" }} />
@@ -59,7 +62,10 @@ function ManageLeave() {
                 leaveType: data[i].leave_type || "",
                 startDate: dateFormat(data[i].start_date) || "",
                 endDate: dateFormat(data[i].end_date) || "",
-                status: data[i].status || "",
+                status:
+                  data[i].status.toUpperCase().charAt(0) +
+                    "" +
+                    data[i].status.slice(1) || "",
                 view: (
                   <Link to={"/manage-leave/view-leave?id=" + data[i].id}>
                     <LaunchIcon sx={{ color: "#0BADDE" }} />
