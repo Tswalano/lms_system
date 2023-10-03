@@ -55,9 +55,15 @@ function ViewMyLeave() {
           setAttachments(
             "https://www.dexform.com/download/sample-letter-from-your-doctor-or-other-service-provider"
           );
-          setApproval("Approved");
-          setStatus(data.status);
-          setFeedback(data.feedback);
+          setApproval(
+            data.status.toUpperCase().charAt(0) + "" + data.status.slice(1)
+          );
+          setStatus("Pending/Active/Complete");
+          setFeedback(
+            data.feedback === null || data.feedback === ""
+              ? "n/a"
+              : data.feedback
+          );
         }
         setIsLoading(false);
       }

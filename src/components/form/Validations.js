@@ -40,9 +40,15 @@ export const validateCode = (value) => {
   return null; // No error
 };
 
-export const validateEndDate = (value) => {
-  if (!value) {
+export const validateEndDate = (start, end) => {
+  /*if (!end) {
     return "Please select your leave end date.";
+  }*/
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+
+  if (startDate > endDate) {
+    return "End date cannot be a date before start date.";
   }
   return null;
 };
@@ -80,6 +86,40 @@ export const validateDate = (value) => {
 
   if (dateComponents[0] === "Sat" || dateComponents[0] === "Sun") {
     return "Selected date cannot be on a weekend.";
+  }
+
+  return null;
+};
+
+export const validateLeaveLength = (leaveLength, start, end) => {
+  if (leaveLength === "Half Day") {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    if (startDate.toDateString() !== endDate.toDateString()) {
+      return "Half Day Leave must have the same start and end dates.";
+    } else {
+      return null;
+    }
+  } else {
+    return null;
+  }
+};
+
+export const validateDocument = (doc) => {
+  if (typeof doc === "string" && doc !== "") {
+    var extension = doc.split(".").pop().toLowerCase();
+    if (
+      extension.includes("pdf") ||
+      extension.includes("doc") ||
+      extension.includes("png") ||
+      extension.includes("jpg") ||
+      extension.includes("jpeg")
+    ) {
+      return null;
+    } else {
+      return "Invalid document file. Upload any of the following: pdf, doc, png, jpg, jpeg";
+    }
   }
 
   return null;

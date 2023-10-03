@@ -12,10 +12,15 @@ import {
   Typography,
 } from "@mui/material";
 import PaperComponent from "../../../components/ui/Paper";
-import { validateDropDown } from "../../../components/form/Validations";
+import {
+  validateDropDown,
+  validateLeaveLength,
+  validateDate,
+  validateEndDate,
+  validateDocument,
+} from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
-import { validateDate } from "../../../components/form/Validations";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import { Link } from "react-router-dom";
 import APIEndPoints from "../../../api/APIEndPoints";
@@ -45,17 +50,47 @@ function ApplyForLeave() {
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
-    const isSelectValid = validateDropDown(
-      formValues.leaveType,
-      formValues.leaveLength
-    );
-
-    const isDate = validateDate(formValues.startDate);
+    const isLeaveTypeSelected = validateDropDown(formValues.leaveType);
+    const isLeaveLengthSelected = validateDropDown(formValues.leaveLength);
+    const isStartDate = validateDate(formValues.startDate);
     const isEndDate = validateDate(formValues.endDate);
-    // const isDate = validateDate(formValues.Date)
+    const endDateValidation = validateEndDate(
+      formValues.startDate,
+      formValues.endDate
+    );
+    const isHalfDay = validateLeaveLength(
+      formValues.leaveLength,
+      formValues.startDate,
+      formValues.endDate
+    );
+    const isDocument = validateDocument(formValues.leaveAttachement);
 
     // Set isError based on the validation results
-    setIsError(isSelectValid !== null || isDate !== null || isEndDate !== null);
+    setIsError(
+      isLeaveTypeSelected !== null ||
+        isLeaveLengthSelected !== null ||
+        isStartDate !== null ||
+        isEndDate !== null ||
+        isHalfDay !== null ||
+        endDateValidation !== null ||
+        isDocument !== null
+    );
+    //
+    if (isHalfDay !== null || endDateValidation !== null) {
+      var errorMessage = "";
+      if (isHalfDay !== null) {
+        errorMessage = isHalfDay;
+      } else if (endDateValidation !== null) {
+        errorMessage = endDateValidation;
+      }
+      setAlertMessage(errorMessage);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
+    } else {
+      setOpen(false);
+    }
   };
 
   useEffect(() => {
@@ -72,8 +107,20 @@ function ApplyForLeave() {
     setProgress(true);
 
     const leave_type = formValues.leaveType;
+    const leave_length = formValues.leaveLength;
+    var leave_comment = "n/a";
+    if (formValues.leaveComment !== "") {
+      leave_comment = formValues.leaveComment;
+    }
     const startDateFormat = new Date(formValues.startDate);
     const endDateFormat = new Date(formValues.endDate);
+    var document = "n/a";
+    if (
+      formValues.leaveAttachement !== "" ||
+      formValues.leaveAttachement !== null
+    ) {
+      document = formValues.leaveAttachement;
+    }
     //creating startDate Format
     const leave_start =
       startDateFormat.getFullYear() +
@@ -90,7 +137,14 @@ function ApplyForLeave() {
       endDateFormat.getDate();
     //creating an array for data
 
-    const arrData = { leave_type, leave_start, leave_end };
+    const arrData = {
+      leave_type,
+      leave_start,
+      leave_end,
+      leave_length,
+      leave_comment,
+      document,
+    };
     const endpoint = new APIEndPoints().applyForLeave();
 
     const response = await postData(endpoint, arrData, ctx.token);
