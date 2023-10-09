@@ -167,11 +167,10 @@ export const uploadDocument = async (endpoint, formValues, token) => {
           headers: {
             Authorization: "Bearer " + token,
             "Content-Type": "multipart/form-data",
-            Accept: "*/*",
           },
         });
-        if (response.status === 200 || response.status === "success") {
-          return response.status;
+        if (response.status === 200) {
+          return response;
         }
       } catch (error) {
         // do something if there is an error

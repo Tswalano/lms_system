@@ -49,7 +49,8 @@ function UploadDocument({ leaveId }) {
     //progress
     setProgress(true);
 
-    const file = formValues.document;
+    const fileInput = document.getElementById("document");
+    const file = fileInput.files[0];
     const leaveRequestId = leaveId;
 
     const arrData = {
@@ -62,14 +63,14 @@ function UploadDocument({ leaveId }) {
     //  Checks if leave submited is valid
 
     if (response.status === 200) {
-      setAlertMessage(response.message);
+      setAlertMessage(response.data.message);
       setAlertType("success");
       setProgress(false);
       setResponse(true);
       setOpen(true);
     } else {
       // set error
-      setAlertMessage(response.message);
+      setAlertMessage(response.data.message);
       setAlertType("error");
       setProgress(false);
       setResponse(true);
