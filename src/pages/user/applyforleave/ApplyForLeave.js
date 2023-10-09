@@ -228,10 +228,20 @@ function ApplyForLeave() {
         <Divider />
         <DialogContent>
           <UploadDocument leaveId={leaveId} />
+          <br />
         </DialogContent>
         <Divider />
         <DialogActions>
-          <Button onClick={handleClose}>Not now</Button>
+          <Button onClick={handleClose} sx={{ color: "grey" }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            sx={{ backgroundColor: "grey" }}
+            onClick={handleClose}
+          >
+            Not now
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
