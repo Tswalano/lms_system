@@ -122,7 +122,7 @@ export const validateDocument = (doc) => {
     }
   }
 
-  return null;
+  return "No document attached.";
 };
 
 // Add more validation functions for other input types

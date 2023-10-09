@@ -77,6 +77,7 @@ function Signin() {
     const isLoggedIn = await signIn(endPoint, formValues);
 
     if (isLoggedIn.token) {
+      console.log(isLoggedIn.token);
       ctx.logIn(isLoggedIn.token, isLoggedIn.user.role);
     } else {
       // set error

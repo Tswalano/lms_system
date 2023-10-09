@@ -75,5 +75,10 @@ class APIEndPoints {
       "https://xn2i4oyr8b.execute-api.us-west-2.amazonaws.com/dev/user-service/reset-password";
     return resetPassword;
   }
+  uploadDocument() {
+    const uploadDocument =
+      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/lms/upload";
+    return uploadDocument;
+  }
 }
 export default APIEndPoints;

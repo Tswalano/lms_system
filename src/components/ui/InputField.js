@@ -41,7 +41,7 @@ function Input({ field, onChange }) {
     jobTitle: validateText,
     Date: validateDate,
     endDate: validateEndDate,
-    leaveAttachement: validateDocument,
+    document: validateDocument,
 
     // Add more validation functions for other input fields
   };

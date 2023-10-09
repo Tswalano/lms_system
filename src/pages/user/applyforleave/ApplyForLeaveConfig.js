@@ -26,7 +26,6 @@ const ApplyForLeaveForm = {
     { label: "End Date", name: "endDate", type: "date" },
 
     { label: "Leave Comment", name: "leaveComment", type: "text" },
-    { label: "", name: "leaveAttachement", type: "file" },
   ],
 };
 

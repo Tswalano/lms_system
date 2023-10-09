@@ -10,6 +10,8 @@ import {
   Grid,
   IconButton,
   Typography,
+  Divider,
+  Button,
 } from "@mui/material";
 import PaperComponent from "../../../components/ui/Paper";
 import {
@@ -17,7 +19,6 @@ import {
   validateLeaveLength,
   validateDate,
   validateEndDate,
-  validateDocument,
 } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
@@ -27,11 +28,16 @@ import APIEndPoints from "../../../api/APIEndPoints";
 import { AuthContext } from "../../../context/AuthContext";
 import { postData } from "../../../api/API";
 import CloseIcon from "@mui/icons-material/Close";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import UploadDocument from "./UploadDocument";
 
 function ApplyForLeave() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
-  //const [leaveValid, setLeaveValid] = useState({});
+  const [leaveId, setLeaveId] = useState("");
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
@@ -43,6 +49,12 @@ function ApplyForLeave() {
   const [alertMessage, setAlertMessage] = useState();
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const handleClose = () => {
+    setOpen(false);
+    setModalOpen(false);
+  };
 
   //Declaring usContext use stored values
   const ctx = useContext(AuthContext);
@@ -63,7 +75,6 @@ function ApplyForLeave() {
       formValues.startDate,
       formValues.endDate
     );
-    const isDocument = validateDocument(formValues.leaveAttachement);
 
     // Set isError based on the validation results
     setIsError(
@@ -72,8 +83,7 @@ function ApplyForLeave() {
         isStartDate !== null ||
         isEndDate !== null ||
         isHalfDay !== null ||
-        endDateValidation !== null ||
-        isDocument !== null
+        endDateValidation !== null
     );
     //
     if (isHalfDay !== null || endDateValidation !== null) {
@@ -114,13 +124,6 @@ function ApplyForLeave() {
     }
     const startDateFormat = new Date(formValues.startDate);
     const endDateFormat = new Date(formValues.endDate);
-    var document = "n/a";
-    if (
-      formValues.leaveAttachement !== "" ||
-      formValues.leaveAttachement !== null
-    ) {
-      document = formValues.leaveAttachement;
-    }
     //creating startDate Format
     const leave_start =
       startDateFormat.getFullYear() +
@@ -143,7 +146,6 @@ function ApplyForLeave() {
       leave_end,
       leave_length,
       leave_comment,
-      document,
     };
     const endpoint = new APIEndPoints().applyForLeave();
 
@@ -156,6 +158,9 @@ function ApplyForLeave() {
       setProgress(false);
       setResponse(true);
       setOpen(true);
+      // open upload doc modal
+      setLeaveId(response.leaveData.id);
+      setModalOpen(true);
     } else {
       // set error
       setAlertMessage(response.message);
@@ -214,6 +219,21 @@ function ApplyForLeave() {
           </Grid>
         </form>
       </PaperComponent>
+
+      {/* add upload doc modal dialog */}
+      <Dialog open={modalOpen} maxWidth="sm" fullWidth onClose={handleClose}>
+        <DialogTitle sx={{ color: "#2196f3", fontWeight: "bold" }}>
+          Upload Leave Document
+        </DialogTitle>
+        <Divider />
+        <DialogContent>
+          <UploadDocument leaveId={leaveId} />
+        </DialogContent>
+        <Divider />
+        <DialogActions>
+          <Button onClick={handleClose}>Not now</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
