@@ -1,6 +1,17 @@
 import React, { createContext, useState, useEffect } from "react";
 import jwtDecode from "jwt-decode";
-
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+} from "@mui/material";
+import ExitToAppIcon from "@mui/icons-material/ExitToApp";
+import Paragraph from "../components/ui/Paragraph";
+import LoginIcon from "@mui/icons-material/Login";
 // Create the AuthContext
 export const AuthContext = createContext();
 
@@ -22,6 +33,8 @@ export const AuthProvider = ({ children }) => {
 
   const [isVerified, setVerification] = useState();
 
+  const [open, setOpen] = useState(false);
+
   // Function to handle user sign in and set token and role
   const logIn = (userToken, userRole) => {
     setToken(userToken);
@@ -29,6 +42,10 @@ export const AuthProvider = ({ children }) => {
     setIsAdmin(userRole);
     localStorage.setItem("token", userToken);
     localStorage.setItem("role", userRole);
+  };
+  const handleSessionModal = () => {
+    signOut();
+    window.location.reload();
   };
 
   const isTokenExpired = (tokenExp) => {
@@ -38,24 +55,19 @@ export const AuthProvider = ({ children }) => {
     return expTime <= currentTime;
   };
 
-  useEffect(() => {
-    if (token && isTokenExpired(token)) {
-      signOut();
+  const interval = setInterval(() => {
+    if (token !== null && isTokenExpired(token)) {
+      // signOut();
+      setOpen(true);
     }
-  }, [token]);
+  }, 1 * 60 * 1000);
 
-  /*useEffect(() => {
-    const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role");
-    const email = localStorage.getItem("email");
-    const password = localStorage.getItem("pass");
-
-    setToken(token);
-    setIsAdmin(role);
-    setIsAuthenticated(token !== "" && token !== null);
-    setEmail(email);
-    setPassword(password);
-  }, [token]);*/
+  useEffect(() => {
+    console.log("Open::", open);
+    if (token) {
+      clearInterval(interval);
+    }
+  }, [token, open]);
 
   const signup = (verified) => {
     setVerification(verified);
@@ -83,6 +95,7 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setIsAuthenticated(false);
     setIsAdmin(false);
+    setOpen(false);
     localStorage.clear();
   };
 
@@ -105,6 +118,39 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={authContextValue}>
       {children}
+      <Dialog open={open} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ color: "#2196f3", fontWeight: "bold" }}>
+          Session Expired
+        </DialogTitle>
+        <Divider />
+        <DialogContent>
+          <Box sx={{ textAlign: "center" }}>
+            <ExitToAppIcon
+              sx={{
+                color: "#ef6266",
+                height: "100px",
+                width: "100px",
+              }}
+            />
+            <Paragraph
+              text={
+                "Oops! Your session has expired. Please log back in to continue."
+              }
+              fontWeight={"bold"}
+            />
+          </Box>
+        </DialogContent>
+        <Divider />
+        <DialogActions>
+          <Button
+            variant="contained"
+            onClick={handleSessionModal}
+            endIcon={<LoginIcon />}
+          >
+            GO TO LOGIN
+          </Button>
+        </DialogActions>
+      </Dialog>
     </AuthContext.Provider>
   );
 };
