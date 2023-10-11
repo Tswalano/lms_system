@@ -26,9 +26,6 @@ function UpdateLeaveRequest({ handleModalClose, leaveData }) {
   const [leave_end, setEndDate] = useState(leaveData.leave_end.split("T")[0]);
   const [leave_comment, setLeaveComment] = useState(leaveData.leave_comment);
 
-  const [newStartDate, setNewStartDate] = useState(new Date());
-  const [newEndDate, setNewEndDate] = useState(new Date());
-
   // State to track form field error
   const [isError, setIsError] = useState(true);
   const [progress, setProgress] = useState(false);
@@ -44,12 +41,37 @@ function UpdateLeaveRequest({ handleModalClose, leaveData }) {
     // use your existing validation functions to validate email and password.
     const isLeaveTypeValid = validateDropDown(leave_type);
     const isLeaveLengthValid = validateLeaveLength(leave_length);
-    const isStartDateValid = validateDate(newStartDate);
-    const isEndDateValid = validateEndDate(newEndDate);
+    const isStartDateValid = validateDate(leave_start);
+    const isEndDateValid = validateDate(leave_end);
+    const endDateValidation = validateEndDate(leave_start, leave_end);
+    const isHalfDay = validateLeaveLength(leave_length, leave_start, leave_end);
     //const isLeaveCommentValid = validateText(leave_comment);
 
     // Set isError based on the validation results
-    setIsError(isLeaveTypeValid !== null || isLeaveLengthValid !== null);
+    setIsError(
+      isLeaveTypeValid !== null ||
+        isLeaveLengthValid !== null ||
+        isStartDateValid !== null ||
+        isEndDateValid !== null ||
+        isHalfDay !== null ||
+        endDateValidation !== null
+    );
+
+    if (isHalfDay !== null || endDateValidation !== null) {
+      var errorMessage = "";
+      if (isHalfDay !== null) {
+        errorMessage = isHalfDay;
+      } else if (endDateValidation !== null) {
+        errorMessage = endDateValidation;
+      }
+      setAlertMessage(errorMessage);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
+    } else {
+      setOpen(false);
+    }
   };
 
   useEffect(() => {
@@ -59,8 +81,8 @@ function UpdateLeaveRequest({ handleModalClose, leaveData }) {
   }, [
     leave_type,
     leave_length,
-    newStartDate,
-    newEndDate,
+    leave_start,
+    leave_end,
     leave_comment,
     leaveData,
   ]);
@@ -75,37 +97,29 @@ function UpdateLeaveRequest({ handleModalClose, leaveData }) {
     const endpoint = new APIEndPoints().editLeave();
     const id = leaveData.id;
 
-    //setNewStartDate(document.getElementById("start_date").value);
-    //setNewEndDate(document.getElementById("end_date").value);
-    const startDateFormat = new Date(newStartDate);
-    //creating startDate Format
-    const date =
+    var startDateFormat = new Date(leave_start);
+    var endDateFormat = new Date(leave_end);
+    console.log(endDateFormat);
+
+    var newStartDateString =
       startDateFormat.getFullYear() +
-      "/" +
+      "-" +
       (startDateFormat.getMonth() + 1) +
-      "/" +
+      "-" +
       startDateFormat.getDate();
 
-    if (newStartDate !== leave_start) {
-      setStartDate(date);
-    }
-    const endDateFormat = new Date(newEndDate);
-    //Creating end Date format
-    date =
+    var newEndDateString =
       endDateFormat.getFullYear() +
-      "/" +
+      "-" +
       (endDateFormat.getMonth() + 1) +
-      "/" +
+      "-" +
       endDateFormat.getDate();
-    if (newEndDate !== leave_end) {
-      setEndDate(date);
-    }
 
     const arrData = {
       id,
       leave_type,
-      leave_start,
-      leave_end,
+      leave_start: newStartDateString,
+      leave_end: newEndDateString,
       leave_length,
       leave_comment,
     };
@@ -164,15 +178,15 @@ function UpdateLeaveRequest({ handleModalClose, leaveData }) {
       label: "Start Date",
       name: "start_date",
       type: "date",
-      value: newStartDate,
-      onChange: setNewStartDate,
+      value: leave_start,
+      onChange: setStartDate,
     },
     {
       label: "End Date",
       name: "end_date",
       type: "date",
-      value: newEndDate,
-      onChange: setNewEndDate,
+      value: leave_end,
+      onChange: setEndDate,
     },
     {
       label: "Leave Comment",
@@ -184,32 +198,6 @@ function UpdateLeaveRequest({ handleModalClose, leaveData }) {
   ];
   return (
     <Box sx={{ width: "100%" }}>
-      <Box sx={{ paddingBottom: "20px", paddingLeft: "10px" }}>
-        <Paragraph
-          text="To change this leave's start or end date, select a new date below."
-          fontWeight={"normal"}
-        />
-        {/* Shows Date */}
-        <Grid container paddingY={"6px"}>
-          <Grid item xs={5}>
-            <Paragraph text="Start Date: " fontWeight={"bold"} />
-          </Grid>
-          {/* Shows the date from GET on axios */}
-          <Grid item xs={7}>
-            <Paragraph text={leave_start} fontWeight={"normal"} />
-          </Grid>
-        </Grid>
-        {/* Shows Date */}
-        <Grid container paddingY={"6px"}>
-          <Grid item xs={5}>
-            <Paragraph text="End Date: " fontWeight={"bold"} />
-          </Grid>
-          {/* Shows the date from GET on axios */}
-          <Grid item xs={7}>
-            <Paragraph text={leave_end} fontWeight={"normal"} />
-          </Grid>
-        </Grid>
-      </Box>
       {response ? (
         <Collapse in={open}>
           <Alert

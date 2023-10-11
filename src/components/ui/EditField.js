@@ -14,7 +14,6 @@ import {
   MenuItem,
   FormHelperText,
 } from "@mui/material";
-import DateField from "./DatePicker";
 //import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 //import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 //import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -56,33 +55,7 @@ function EditField({ field }) {
 
   return (
     <>
-      {type === "date" ? (
-        /*<FormControl
-          fullWidth
-          error={Boolean(defaultError)}
-          sx={{ marginBottom: "15px" }}
-        >
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DatePicker
-              label={label}
-              id={name}
-              name={name}
-              value={fieldValue}
-              onChange={(event) => {
-                handleInputChange(event);
-              }}
-              renderInput={(params) => (
-                <TextField {...params} error={Boolean(defaultError)} />
-              )}
-              />
-
-          </LocalizationProvider>
-          <FormHelperText sx={{ color: "red" }}>
-            {defaultError ? defaultError : ""}
-          </FormHelperText>
-        </FormControl>*/
-        <DateField label={label} value={value} onChange={handleInputChange} />
-      ) : type === "select" ? (
+      {type === "select" ? (
         <FormControl
           fullWidth
           error={Boolean(defaultError)}
