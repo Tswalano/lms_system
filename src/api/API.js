@@ -140,7 +140,6 @@ export const getData = async (endpoint, token) => {
       headers: { Authorization: "Bearer " + token },
     });
     try {
-      console.log(response);
       return response.data;
     } catch (error) {
       // do something if there is an error

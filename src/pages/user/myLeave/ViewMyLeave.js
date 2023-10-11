@@ -36,7 +36,7 @@ function ViewMyLeave() {
   const [leaveType, setLeaveType] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [leaveLength, setLeaveLength] = useState("");
+  const [duration, setLeaveDuration] = useState("");
   const [comments, setComments] = useState("");
   const [attachments, setAttachments] = useState("");
   const [approval, setApproval] = useState("");
@@ -65,7 +65,7 @@ function ViewMyLeave() {
           setLeaveType(data.leave_type);
           setStartDate(dateFormat(data.start_date));
           setEndDate(dateFormat(data.end_date));
-          setLeaveLength(data.duration);
+          setLeaveDuration(data.duration);
           setComments(data.leave_comment);
           setAttachments(data.document);
           setApproval(
@@ -139,7 +139,7 @@ function ViewMyLeave() {
             </Grid>
             {/* Shows the date from GET on axios */}
             <Grid item xs={8}>
-              <Paragraph text={leaveLength} fontWeight={"normal"} />
+              <Paragraph text={duration + " day(s)"} fontWeight={"normal"} />
             </Grid>
           </Grid>
           {/* Shows Comments */}

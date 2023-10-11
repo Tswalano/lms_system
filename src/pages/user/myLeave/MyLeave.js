@@ -42,7 +42,7 @@ function MyLeave() {
                 leaveType: data[i].leave_type,
                 startDate: dateFormat(data[i].start_date),
                 endDate: dateFormat(data[i].end_date),
-                leaveLength: data[i].duration,
+                duration: data[i].duration + " day(s)",
                 status: data[i].status,
                 open: (
                   <Link to={"/my-leave/my-leave-request?id=" + data[i].id}>
@@ -56,7 +56,7 @@ function MyLeave() {
                 leaveType: data[i].leave_type,
                 startDate: dateFormat(data[i].start_date),
                 endDate: dateFormat(data[i].end_date),
-                leaveLength: data[i].duration,
+                duration: data[i].duration + " day(s)",
                 status: "Complete",
                 view: (
                   <Link to={"/my-leave/view-leave?id=" + data[i].id}>

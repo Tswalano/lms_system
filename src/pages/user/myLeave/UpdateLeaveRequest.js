@@ -1,26 +1,33 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useContext, useState } from "react";
 import {
   validateDropDown,
+  validateLeaveLength,
   validateDate,
+  validateEndDate,
+  validateText,
 } from "../../../components/form/Validations";
+import { useEffect } from "react";
 import { Alert, Box, Collapse, Grid, IconButton } from "@mui/material";
-import FormFieldMapper from "../../../components/form/FormFieldMapper";
-import ApplyForLeaveForm from "../applyforleave/ApplyForLeaveConfig";
-import { GridSizes } from "../../../components/form/GridSizes";
-import { handleFieldChange } from "../../../components/form/HandleFieldChange";
-import { GetFormValues } from "../../../components/form/GetFormValues";
 import SubmitButton from "../../../components/ui/Button";
-import CloseIcon from "@mui/icons-material/Close";
 import APIEndPoints from "../../../api/APIEndPoints";
+import { putData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
-import { postData } from "../../../api/API";
+import CloseIcon from "@mui/icons-material/Close";
+import EditField from "../../../components/ui/EditField";
+import Paragraph from "../../../components/ui/Paragraph";
 
-function UpdateLeaveRequest({ handleModalClose }) {
+function UpdateLeaveRequest({ handleModalClose, leaveData }) {
   // declare the useState formValues object
-  const [formValues, setFormValues] = useState({});
+  const [leave_type, setLeaveType] = useState(leaveData.leave_type);
+  const [leave_length, setLeaveLength] = useState(leaveData.leave_length);
+  const [leave_start, setStartDate] = useState(
+    leaveData.leave_start.split("T")[0]
+  );
+  const [leave_end, setEndDate] = useState(leaveData.leave_end.split("T")[0]);
+  const [leave_comment, setLeaveComment] = useState(leaveData.leave_comment);
 
-  // handle form field values on change
-  const handleChange = handleFieldChange(setFormValues);
+  const [newStartDate, setNewStartDate] = useState(new Date());
+  const [newEndDate, setNewEndDate] = useState(new Date());
 
   // State to track form field error
   const [isError, setIsError] = useState(true);
@@ -30,29 +37,33 @@ function UpdateLeaveRequest({ handleModalClose }) {
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
 
-  //Declaring usContext use stored values
   const ctx = useContext(AuthContext);
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
-    const isSelectValid = validateDropDown(
-      formValues.leaveType,
-      formValues.leaveLength
-    );
-
-    const isDate = validateDate(formValues.startDate);
-    const isEndDate = validateDate(formValues.endDate);
-    // const isDate = validateDate(formValues.Date)
+    const isLeaveTypeValid = validateDropDown(leave_type);
+    const isLeaveLengthValid = validateLeaveLength(leave_length);
+    const isStartDateValid = validateDate(newStartDate);
+    const isEndDateValid = validateEndDate(newEndDate);
+    //const isLeaveCommentValid = validateText(leave_comment);
 
     // Set isError based on the validation results
-    setIsError(isSelectValid !== null || isDate !== null || isEndDate !== null);
+    setIsError(isLeaveTypeValid !== null || isLeaveLengthValid !== null);
   };
 
   useEffect(() => {
     handleValidation();
+    // declare the useState formValues object
     // Run the validation when formValues state changes
-  }, [formValues]);
+  }, [
+    leave_type,
+    leave_length,
+    newStartDate,
+    newEndDate,
+    leave_comment,
+    leaveData,
+  ]);
 
   // handle form submition
   const handleSubmit = async (event) => {
@@ -61,43 +72,59 @@ function UpdateLeaveRequest({ handleModalClose }) {
     //progress
     setProgress(true);
 
-    const formValues = GetFormValues(event);
+    const endpoint = new APIEndPoints().editLeave();
+    const id = leaveData.id;
 
-    const leave_type = formValues.leaveType;
-    const startDateFormat = new Date(formValues.startDate);
-    const endDateFormat = new Date(formValues.endDate);
+    //setNewStartDate(document.getElementById("start_date").value);
+    //setNewEndDate(document.getElementById("end_date").value);
+    const startDateFormat = new Date(newStartDate);
     //creating startDate Format
-    const leave_start =
+    const date =
       startDateFormat.getFullYear() +
       "/" +
       (startDateFormat.getMonth() + 1) +
       "/" +
       startDateFormat.getDate();
+
+    if (newStartDate !== leave_start) {
+      setStartDate(date);
+    }
+    const endDateFormat = new Date(newEndDate);
     //Creating end Date format
-    const leave_end =
+    date =
       endDateFormat.getFullYear() +
       "/" +
-      (startDateFormat.getMonth() + 1) +
+      (endDateFormat.getMonth() + 1) +
       "/" +
       endDateFormat.getDate();
-    //creating an array for data
-    const arrData = { leave_type, leave_start, leave_end };
-    const endpoint = new APIEndPoints().applyForLeave();
+    if (newEndDate !== leave_end) {
+      setEndDate(date);
+    }
 
-    const response = await postData(endpoint, arrData, ctx.token);
+    const arrData = {
+      id,
+      leave_type,
+      leave_start,
+      leave_end,
+      leave_length,
+      leave_comment,
+    };
+    console.log(arrData);
 
+    const response = await putData(endpoint, arrData, ctx.token);
     if (response.status === 200) {
-      setAlertMessage("Successful");
+      setAlertMessage(response.data.message);
       setAlertType("success");
       setResponse(true);
       setOpen(true);
       setTimeout(() => {
         setProgress(false);
         handleModalClose();
+        window.location.reload();
       }, 2000);
     } else {
       // set error
-      setAlertMessage("Unsuccessful");
+      setAlertMessage(response.data.message);
       setAlertType("error");
       setProgress(false);
       setResponse(true);
@@ -105,8 +132,84 @@ function UpdateLeaveRequest({ handleModalClose }) {
     }
   };
 
+  // formfields
+  const formFields = [
+    {
+      label: "Leave Type",
+      name: "leave_type",
+      type: "select",
+      value: leave_type,
+      options: [
+        { value: "Sick Leave", labelText: "Sick Leave" },
+        { value: "Annual Leave", labelText: "Annual Leave" },
+        { value: "Maternity Leave", labelText: "Maternity Leave" },
+        { value: "Bereavement", labelText: "Bereavement" },
+        { value: "Family Responsibility", labelText: "Family Responsibility" },
+        { value: "Paternity Leave", labelText: "Paternity Leave" },
+      ],
+      onChange: setLeaveType,
+    },
+    {
+      label: "Leave Length",
+      name: "leave_length",
+      type: "select",
+      value: leave_length,
+      options: [
+        { value: "Half Day", labelText: "Half Day" },
+        { value: "Full Day", labelText: "Full Day" },
+      ],
+      onChange: setLeaveLength,
+    },
+    {
+      label: "Start Date",
+      name: "start_date",
+      type: "date",
+      value: newStartDate,
+      onChange: setNewStartDate,
+    },
+    {
+      label: "End Date",
+      name: "end_date",
+      type: "date",
+      value: newEndDate,
+      onChange: setNewEndDate,
+    },
+    {
+      label: "Leave Comment",
+      name: "leave_comment",
+      type: "text",
+      value: leave_comment,
+      onChange: setLeaveComment,
+    },
+  ];
   return (
     <Box sx={{ width: "100%" }}>
+      <Box sx={{ paddingBottom: "20px", paddingLeft: "10px" }}>
+        <Paragraph
+          text="To change this leave's start or end date, select a new date below."
+          fontWeight={"normal"}
+        />
+        {/* Shows Date */}
+        <Grid container paddingY={"6px"}>
+          <Grid item xs={5}>
+            <Paragraph text="Start Date: " fontWeight={"bold"} />
+          </Grid>
+          {/* Shows the date from GET on axios */}
+          <Grid item xs={7}>
+            <Paragraph text={leave_start} fontWeight={"normal"} />
+          </Grid>
+        </Grid>
+        {/* Shows Date */}
+        <Grid container paddingY={"6px"}>
+          <Grid item xs={5}>
+            <Paragraph text="End Date: " fontWeight={"bold"} />
+          </Grid>
+          {/* Shows the date from GET on axios */}
+          <Grid item xs={7}>
+            <Paragraph text={leave_end} fontWeight={"normal"} />
+          </Grid>
+        </Grid>
+      </Box>
       {response ? (
         <Collapse in={open}>
           <Alert
@@ -131,21 +234,17 @@ function UpdateLeaveRequest({ handleModalClose }) {
       ) : (
         <Box></Box>
       )}
-      <form onSubmit={handleSubmit}>
-        <Grid container>
-          <FormFieldMapper
-            formFields={ApplyForLeaveForm.formFields}
-            onChange={handleChange}
-            gridSizes={GridSizes.onbordingFieldSizes}
+      <form onSubmit={handleSubmit} style={{ width: "100%" }}>
+        <Grid item xs={12} sm={12} md={12}>
+          {formFields.map((field, index) => {
+            return <EditField key={index} field={field} />;
+          })}
+          <SubmitButton
+            disabled={isError}
+            label="Save Changes"
+            type="submit"
+            progress={progress}
           />
-          <Grid item xs={12} sm={12} md={12}>
-            <SubmitButton
-              disabled={isError}
-              label="Edit Leave Request"
-              type="submit"
-              progress={progress}
-            />
-          </Grid>
         </Grid>
       </form>
     </Box>

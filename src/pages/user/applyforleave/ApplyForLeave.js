@@ -135,7 +135,7 @@ function ApplyForLeave() {
     const leave_end =
       endDateFormat.getFullYear() +
       "/" +
-      (startDateFormat.getMonth() + 1) +
+      (endDateFormat.getMonth() + 1) +
       "/" +
       endDateFormat.getDate();
     //creating an array for data
