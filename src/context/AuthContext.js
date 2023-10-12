@@ -56,14 +56,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   const checkExpiration = () => {
-    console.log("checking");
     if (token && isTokenExpired(token)) {
       setOpen(true);
     }
   };
 
   useEffect(() => {
-    checkExpiration();
+    if (token) {
+      const interval = setInterval(() => {
+        checkExpiration();
+      }, 1000);
+      return () => {
+        clearInterval(interval);
+      };
+    }
   }, [token, open, checkExpiration]);
 
   const signup = (verified) => {
@@ -113,7 +119,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={(authContextValue, checkExpiration)}>
+    <AuthContext.Provider value={authContextValue}>
       {children}
       <Dialog open={open} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ color: "#2196f3", fontWeight: "bold" }}>
