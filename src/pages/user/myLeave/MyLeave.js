@@ -3,8 +3,10 @@ import React, { useContext, useEffect, useState } from "react";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import { Link } from "react-router-dom";
 import {
+  MyAcceptedLeaveRequestsTable,
   MyLeaveHistoryTable,
   MyLeaveRequestsTable,
+  MyRejectedLeaveRequestsTable,
 } from "./MyLeaveTableConfig";
 import Paragraph from "../../../components/ui/Paragraph";
 import TableComponent from "../../../components/table/TableComponent";
@@ -13,6 +15,10 @@ import { getData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
 import jwtDecode from "jwt-decode";
 import LaunchIcon from "@mui/icons-material/Launch";
+import TabContext from "@mui/lab/TabContext";
+import TabList from "@mui/lab/TabList";
+import TabPanel from "@mui/lab/TabPanel";
+import Tab from "@mui/material/Tab";
 
 function dateFormat(dateValue) {
   const date = new Date(dateValue);
@@ -21,8 +27,17 @@ function dateFormat(dateValue) {
 
 function MyLeave() {
   const [myLeaveRequestsRowsData, setMyLeaveRequestsRowsData] = useState([]);
+  const [myAcceptedLeaveRequestsRowsData, setMyAcceptedLeaveRequestsRowsData] =
+    useState([]);
   const [myLeaveHistoryRowsData, setMyLeaveHistoryRowsData] = useState([]);
+  const [myRejectedLeaveRowsData, setRejectedLeaveRowsData] = useState([]);
   const [isLoading, setISLoading] = useState(true);
+
+  const [value, setValue] = React.useState("1");
+
+  const handleChange = (event, newValue) => {
+    setValue(newValue);
+  };
 
   const ctx = useContext(AuthContext);
 
@@ -33,31 +48,88 @@ function MyLeave() {
       const data = await getData(endpoint, ctx.token);
       if (data) {
         const leaveRequest = [];
+        const rejectedLeave = [];
+        const acceptedLeave = [];
         const leaveHistory = [];
         for (let i = 0; i < data.length; i++) {
           if (data[i]?.User?.id === userID) {
-            if (data[i].status === "pending") {
+            // set leave status
+            const now = new Date();
+            const start_date = new Date(data[i].start_date);
+            const end_date = new Date(data[i].end_date);
+
+            var status =
+              data[i].status.toUpperCase().charAt(0) +
+              "" +
+              data[i].status.slice(1);
+
+            if (
+              status !== "Pending" &&
+              status !== "Reject" &&
+              status === "Approved"
+            ) {
+              if (now < start_date && now < end_date) {
+                status = "Approved";
+              } else if (now >= start_date && now <= end_date) {
+                status = "Active";
+              } else if (now > end_date) {
+                status = "Completed";
+              }
+            }
+
+            if (status === "Pending") {
               leaveRequest.push({
                 id: data[i].id,
                 leaveType: data[i].leave_type,
                 startDate: dateFormat(data[i].start_date),
                 endDate: dateFormat(data[i].end_date),
                 duration: data[i].duration + " day(s)",
-                status: data[i].status,
+                status: status,
                 open: (
                   <Link to={"/my-leave/my-leave-request?id=" + data[i].id}>
                     <LaunchIcon sx={{ color: "#0BADDE" }} />
                   </Link>
                 ),
               });
-            } else if ((data[i].status = "approved")) {
+            } else if (status === "Reject") {
+              rejectedLeave.push({
+                id: data[i].id,
+                leaveType: data[i].leave_type,
+                startDate: dateFormat(data[i].start_date),
+                endDate: dateFormat(data[i].end_date),
+                duration: data[i].duration + " day(s)",
+                status:
+                  data[i].status.toUpperCase().charAt(0) +
+                  "" +
+                  data[i].status.slice(1),
+                view: (
+                  <Link to={"/my-leave/view-leave?id=" + data[i].id}>
+                    <LaunchIcon sx={{ color: "#0BADDE" }} />
+                  </Link>
+                ),
+              });
+            } else if (status === "Approved" || status === "Active") {
+              acceptedLeave.push({
+                id: data[i].id,
+                leaveType: data[i].leave_type,
+                startDate: dateFormat(data[i].start_date),
+                endDate: dateFormat(data[i].end_date),
+                duration: data[i].duration + " day(s)",
+                status: status,
+                view: (
+                  <Link to={"/my-leave/view-leave?id=" + data[i].id}>
+                    <LaunchIcon sx={{ color: "#0BADDE" }} />
+                  </Link>
+                ),
+              });
+            } else if ((status = "Completed")) {
               leaveHistory.push({
                 id: data[i].id,
                 leaveType: data[i].leave_type,
                 startDate: dateFormat(data[i].start_date),
                 endDate: dateFormat(data[i].end_date),
                 duration: data[i].duration + " day(s)",
-                status: "Complete",
+                status: status,
                 view: (
                   <Link to={"/my-leave/view-leave?id=" + data[i].id}>
                     <LaunchIcon sx={{ color: "#0BADDE" }} />
@@ -69,6 +141,8 @@ function MyLeave() {
         }
         setMyLeaveRequestsRowsData(leaveRequest);
         setMyLeaveHistoryRowsData(leaveHistory);
+        setRejectedLeaveRowsData(rejectedLeave);
+        setMyAcceptedLeaveRequestsRowsData(acceptedLeave);
         setISLoading(false);
       }
     };
@@ -79,22 +153,52 @@ function MyLeave() {
     <Box sx={{ width: "100%" }}>
       <Breadcrumb />
       <br />
-      <Paragraph text="My Leave Requests" fontWeight="bold" />
-      <div style={{ height: "8px" }}></div>
-      <TableComponent
-        columnsData={MyLeaveRequestsTable.columnsData}
-        rowsData={myLeaveRequestsRowsData}
-        isLoading={isLoading}
-      />
+
+      <TabContext value={value}>
+        <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+          <TabList
+            onChange={handleChange}
+            aria-label="lab API tabs example"
+            textColor="primary"
+            indicatorColor="primary"
+          >
+            <Tab label="Leave Requests" value="1" />
+            <Tab label="Approved Leave" value="2" />
+            <Tab label="Rejected Leave" value="3" />
+            <Tab label="Leave History" value="4" />
+          </TabList>
+        </Box>
+        <TabPanel value="1">
+          <TableComponent
+            columnsData={MyLeaveRequestsTable.columnsData}
+            rowsData={myLeaveRequestsRowsData}
+            isLoading={isLoading}
+          />
+        </TabPanel>
+        <TabPanel value="2">
+          <TableComponent
+            columnsData={MyAcceptedLeaveRequestsTable.columnsData}
+            rowsData={myAcceptedLeaveRequestsRowsData}
+            isLoading={isLoading}
+          />
+        </TabPanel>
+        <TabPanel value="3">
+          <TableComponent
+            columnsData={MyRejectedLeaveRequestsTable.columnsData}
+            rowsData={myRejectedLeaveRowsData}
+            isLoading={isLoading}
+          />
+        </TabPanel>
+        <TabPanel value="4">
+          <TableComponent
+            columnsData={MyLeaveHistoryTable.columnsData}
+            rowsData={myLeaveHistoryRowsData}
+            isLoading={isLoading}
+          />
+        </TabPanel>
+      </TabContext>
+
       <br />
-      <br />
-      <Paragraph text="My Leave History" fontWeight="bold" />
-      <div style={{ height: "8px" }}></div>
-      <TableComponent
-        columnsData={MyLeaveHistoryTable.columnsData}
-        rowsData={myLeaveHistoryRowsData}
-        isLoading={isLoading}
-      />
     </Box>
   );
 }
