@@ -39,7 +39,6 @@ function ViewMyLeave() {
   const [duration, setLeaveDuration] = useState("");
   const [comments, setComments] = useState("");
   const [attachments, setAttachments] = useState("");
-  const [approval, setApproval] = useState("");
   const [status, setStatus] = useState("");
   const [feedback, setFeedback] = useState("");
 
@@ -68,15 +67,10 @@ function ViewMyLeave() {
           setLeaveDuration(data.duration);
           setComments(data.leave_comment);
           setAttachments(data.document);
-          setApproval(
+          setStatus(
             data.status.toUpperCase().charAt(0) + "" + data.status.slice(1)
           );
-          setStatus("Pending/Active/Complete");
-          setFeedback(
-            data.feedback === null || data.feedback === ""
-              ? "n/a"
-              : data.feedback
-          );
+          setFeedback(data.feedback);
         }
         setIsLoading(false);
       }
@@ -194,15 +188,6 @@ function ViewMyLeave() {
               </Typography>
               <Divider />
               {isLoading ? <LinearProgress /> : null}
-            </Grid>
-          </Grid>
-          {/* Shows Leave approval status */}
-          <Grid container paddingTop={"10px"}>
-            <Grid item xs={4}>
-              <Paragraph text="Leave Approved / Rejected" fontWeight={"bold"} />
-            </Grid>
-            <Grid item xs={8}>
-              <Paragraph text={approval} fontWeight={"normal"} />
             </Grid>
           </Grid>
           {/* Shows Leave overall status */}

@@ -55,19 +55,22 @@ export const AuthProvider = ({ children }) => {
     return expTime <= currentTime;
   };
 
-  const interval = setInterval(() => {
-    if (token !== null && isTokenExpired(token)) {
-      // signOut();
+  const checkExpiration = () => {
+    if (token && isTokenExpired(token)) {
       setOpen(true);
     }
-  }, 1 * 60 * 1000);
+  };
 
   useEffect(() => {
-    console.log("Open::", open);
     if (token) {
-      clearInterval(interval);
+      const interval = setInterval(() => {
+        checkExpiration();
+      }, 1000);
+      return () => {
+        clearInterval(interval);
+      };
     }
-  }, [token, open]);
+  }, [token, open, checkExpiration]);
 
   const signup = (verified) => {
     setVerification(verified);
