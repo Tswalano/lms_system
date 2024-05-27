@@ -68,6 +68,7 @@ function UploadDocument({ leaveId }) {
       setProgress(false);
       setResponse(true);
       setOpen(true);
+      window.location.reload();
     } else {
       // set error
       setAlertMessage(response.data.message);

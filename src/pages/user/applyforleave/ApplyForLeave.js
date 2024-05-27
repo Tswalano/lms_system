@@ -54,6 +54,8 @@ function ApplyForLeave() {
   const handleClose = () => {
     setOpen(false);
     setModalOpen(false);
+
+    window.location.reload();
   };
 
   //Declaring usContext use stored values
@@ -232,9 +234,6 @@ function ApplyForLeave() {
         </DialogContent>
         <Divider />
         <DialogActions>
-          <Button onClick={handleClose} sx={{ color: "grey" }}>
-            Cancel
-          </Button>
           <Button
             variant="contained"
             sx={{ backgroundColor: "grey" }}
