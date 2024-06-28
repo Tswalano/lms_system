@@ -48,29 +48,29 @@ export const AuthProvider = ({ children }) => {
     window.location.reload();
   };
 
-  const isTokenExpired = (tokenExp) => {
-    const decode = jwtDecode(tokenExp);
-    const expTime = decode.exp * 1000;
-    const currentTime = Date.now();
-    return expTime <= currentTime;
-  };
+  // const isTokenExpired = (tokenExp) => {
+  //   const decode = jwtDecode(tokenExp);
+  //   const expTime = decode.exp * 1000;
+  //   const currentTime = Date.now();
+  //   return expTime <= currentTime;
+  // };
 
-  const checkExpiration = () => {
-    if (token && isTokenExpired(token)) {
-      setOpen(true);
-    }
-  };
+  // const checkExpiration = () => {
+  //   if (token && isTokenExpired(token)) {
+  //     setOpen(true);
+  //   }
+  // };
 
-  useEffect(() => {
-    if (token) {
-      const interval = setInterval(() => {
-        checkExpiration();
-      }, 1000);
-      return () => {
-        clearInterval(interval);
-      };
-    }
-  }, [token, open, checkExpiration]);
+  // useEffect(() => {
+  //   if (token) {
+  //     const interval = setInterval(() => {
+  //       checkExpiration();
+  //     }, 1000);
+  //     return () => {
+  //       clearInterval(interval);
+  //     };
+  //   }
+  // }, [token, open, checkExpiration]);
 
   const signup = (verified) => {
     setVerification(verified);
