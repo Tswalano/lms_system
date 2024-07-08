@@ -1,22 +1,20 @@
 import axios from 'axios';
 // import { LoginInput } from '../pages/login.page';
 // import { RegisterInput } from '../pages/register.page';
-import { GenericResponse, ILoginResponse, IUserResponse, AuthAPIResponse } from './types';
+import { GenericResponse, ILoginResponse, AuthAPIResponse, AuthUserAPIResponse } from './types';
 
 const BASE_URL = 'https://07onrf75zh.execute-api.af-south-1.amazonaws.com/dev';
 
 const authApi = axios.create({
     baseURL: BASE_URL,
-    // headers: {
-    //     "Access-Control-Allow-Origin": "*",
-    //     "Access-Control-Allow-Methods": "GET,PUT,POST,DELETE,PATCH,OPTIONS"
-    // }
+    // withCredentials: true,
 });
 
 // authApi.defaults.headers.common['Content-Type'] = 'application/json';
 // // add cors
 // authApi.defaults.headers.common['Access-Control-Allow-Origin'] = '*';
 
+// TODO add refresh token API
 export const refreshAccessTokenFn = async () => {
     const response = await authApi.get<ILoginResponse>('auth/refresh');
     return response.data;
@@ -33,6 +31,13 @@ authApi.interceptors.response.use(
             originalRequest._retry = true;
             await refreshAccessTokenFn();
             return authApi(originalRequest);
+        }
+        if (error.response.data.message.includes('not refresh')) {
+            document.location.href = '/signin';
+        }
+        if (error.response.data.message.includes('The incoming token has expired')) {
+            // TODO refresh token
+            console.log('The incoming token has expired');
         }
         return Promise.reject(error);
     }
@@ -78,16 +83,16 @@ export const logoutUserFn = async () => {
     return response.data;
 };
 
-export const getMeFn = async (token: string, accessToken?: string) => {
-    console.log('token from getMe', token);
-    console.log('accessToken from getMe', accessToken);
-    const response = await authApi.post<AuthAPIResponse>('get-user', {
+export const getMeFn = async (token: string, accessToken: string) => {
+
+    const response = await authApi.post<AuthUserAPIResponse>('get-user', {
         accessToken,
     }, {
         headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
         },
-    });
+    })
+
     return response.data;
 };

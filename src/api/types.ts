@@ -1,11 +1,20 @@
 // Cognito Auth Results
-interface AuthenticationResult {
+export interface AuthenticationResult {
     AccessToken: string;
     IdToken: string;
     RefreshToken: string;
     ExpiresIn: number;
     TokenType: string;
-    user?: IUser;
+}
+
+export interface IAuthUserResults {
+    email: string;
+    firstName: string;
+    role: string;
+    department?: string;
+    username: string;
+    userId: string;
+
 }
 
 export interface IErrorResponse {
@@ -15,16 +24,8 @@ export interface IErrorResponse {
 }
 
 
-export interface IUser { //TODO
-    name: string;
-    email: string;
-    role: string;
-    _id: string;
-    id: string;
-    createdAt: string;
-    updatedAt: string;
-    __v: number;
-}
+// export interface IUser extends IAuthUserResults { //TODO change to IAuthUserResults
+// }
 
 export interface GenericResponse {
     status: string;
@@ -47,11 +48,22 @@ export type AuthAPIResponse = {
     };
 };
 
-
-export interface IUserResponse {
-    status: string;
-    data: {
-        user: IUser;
+export type AuthUserAPIResponse = {
+    statusCode: number;
+    headers: any;
+    body: {
+        message: string;
+        code: string;
+        error: boolean;
+        payload: IAuthUserResults;
     };
-}
+};
+
+
+// export interface IUserResponse {
+//     status: string;
+//     data: {
+//         user: IUser;
+//     };
+// }
 

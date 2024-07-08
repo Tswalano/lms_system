@@ -1,17 +1,16 @@
-import { useContext, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { object, string, TypeOf } from 'zod';
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
-import { useForm, FormProvider } from "react-hook-form";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useForm, FormProvider, SubmitHandler } from "react-hook-form";
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Container, Box, Typography, Paper } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
-import { useStateContext } from "../../../context";
+import { useCredentials, useStateContext } from "../../../context";
 import { getMeFn, loginUserFn } from "../../../api/authAPI";
-import { AuthAPIResponse } from "../../../api/types";
 import Logo from "../../../components/ui/Logo";
 import FormInput from "../../../components/ui/FormInput";
-import { AuthContext } from "../../../context/AuthContext";
+import { useCookies } from "react-cookie";
 
 const loginSchema = object({
   username: string()
@@ -26,65 +25,54 @@ const loginSchema = object({
 export type LoginInput = TypeOf<typeof loginSchema>;
 
 function Signin() {
+  const [cookies, setCookie] = useCookies(['logged_in', 'token', 'accessToken']);
   const navigate = useNavigate();
   const location = useLocation();
-  const stateContext = useStateContext();
 
-  const ctx = useContext(AuthContext);
+  const from = ((location.state as any)?.from.pathname as string) || '/';
 
   const methods = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
   });
 
-  // const query = useQuery({
-  //   queryKey: ['authUser'],
-  //   queryFn: () => getMeFn(localStorage.getItem('token') as string, localStorage.getItem('accessToken') as string),
-  //   enabled: false,
-  //   select: (data: AuthAPIResponse) => {
-  //     console.log("authUser", data);
-  //     if (!data.body.error) {
-  //       stateContext.dispatch({ type: 'SET_USER', payload: null });
-  //       ctx.logIn(data.body.payload.IdToken, "user"); //TODO get the user types
-  //     } else {
-  //       throw new Error("Login Failed");
-  //     }
+  const stateContext = useStateContext();
+  const creds = useCredentials();
 
-  //     return data.body.payload;
-  //   },
-  //   retry: 1,
-  // });
+  const query = useQuery({
+    queryKey: ['authUser'],
+    queryFn: () => getMeFn(cookies.token, cookies.accessToken),
+    enabled: false,
+    select: (data) => data.body.payload,
+    retry: 1
+  });
 
+  //  API Login Mutation
   const { mutate: loginUser, isPending, error, isError } = useMutation({
     mutationKey: ['loginUser'],
-    mutationFn: ({ username, password }: LoginInput) => loginUserFn({ username, password }),
-    onSuccess: (data: AuthAPIResponse) => {
-      const { payload } = data.body;
+    mutationFn: (userData: LoginInput) => loginUserFn(userData),
+    onSuccess: ({ body: { payload: { IdToken, AccessToken } } }) => {
 
-      getMeFn(payload.IdToken, payload.AccessToken).then((data: AuthAPIResponse) => {
-        if (!data.body.error) {
-          stateContext.dispatch({ type: 'SET_USER', payload: null });
-          ctx.logIn(payload.IdToken, "user"); //TODO get the user types
+      // store the token in cookies
 
-          console.log("Login Successful", data);
-          navigate(((location.state as any)?.from.pathname as string) || '/');
+      setCookie('logged_in', 'true', { secure: true, sameSite: 'strict' });
+      setCookie('token', IdToken, { secure: true, sameSite: 'strict' });
+      setCookie('accessToken', AccessToken, { secure: true, sameSite: 'strict' });
 
-        } else {
-          console.log("Login Failed", data);
-          throw new Error("Login Failed");
-        }
-      })
-
+      query.refetch();
+      console.log('You successfully logged in');
+      navigate(from);
     },
     onError: (error: any) => {
       if (Array.isArray((error as any).response.data.error)) {
-        (error as any).response.data.error.forEach((el: any) => (
+        (error as any).response.data.error.forEach((el: any) =>
           console.error(el.message)
-        ));
+        );
       } else {
-        console.error(error);
+        console.error((error as any).response.data.message);
       }
     },
   });
+
 
   const {
     reset,
@@ -94,23 +82,27 @@ function Signin() {
 
   useEffect(() => {
     if (isSubmitSuccessful) {
+      console.log("we here", { token: creds.token })
       reset();
+    } else {
+      console.log("we here x2", { token: creds.token })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSubmitSuccessful]);
 
-  const onSubmitHandler = handleSubmit((values: LoginInput) => {
-    loginUser(values);
-  });
+  const onSubmitHandler: SubmitHandler<LoginInput> = (values) => {
+    // 👇 Executing the loginUser Mutation
+    loginUser(values)
+  };
 
-  const isValidJSON = (str: string) => {
+  function isValidJSON(message: string): boolean {
     try {
-      JSON.parse(str);
+      JSON.parse(message);
       return true;
-    } catch (e) {
+    } catch (error) {
       return false;
     }
-  };
+  }
 
   return (
     <Container
@@ -162,7 +154,7 @@ function Signin() {
         <FormProvider {...methods}>
           <Box
             component='form'
-            onSubmit={onSubmitHandler}
+            onSubmit={handleSubmit(onSubmitHandler)}
             noValidate
             autoComplete='off'
             sx={{

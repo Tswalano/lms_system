@@ -1,13 +1,13 @@
-import React, { createContext } from 'react';
-import { AuthAPIResponse, IUser } from '../api/types';
+import React, { createContext, useState } from 'react';
+import { IAuthUserResults } from '../api/types';
 
 type State = {
-    authUser: AuthAPIResponse | null;
+    authUser: IAuthUserResults | null;
 };
 
 type Action = {
     type: string;
-    payload: AuthAPIResponse | null;
+    payload: IAuthUserResults | null;
 };
 
 type Dispatch = (action: Action) => void;
@@ -55,4 +55,19 @@ const useStateContext = () => {
     throw new Error(`useStateContext must be used within a StateContextProvider`);
 };
 
-export { StateContextProvider, useStateContext };
+const useCredentials = () => {
+    const [token, setToken] = useState<string>('');
+    const [accessToken, setAccessToken] = useState<string>('');
+
+    const setCredentials = (token: string, accessToken: string) => {
+
+        console.log('setCredentials', token, accessToken);
+
+        setToken(token);
+        setAccessToken(accessToken);
+    };
+
+    return { token, setCredentials, accessToken };
+}
+
+export { StateContextProvider, useStateContext, useCredentials };

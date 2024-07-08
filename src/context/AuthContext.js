@@ -19,6 +19,7 @@ export const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   // State to store the user token
   const [token, setToken] = useState(localStorage.getItem("token"));
+  const [accessToken, setAccessToken] = useState(localStorage.getItem("access-token"));
 
   const [email, setEmail] = useState(localStorage.getItem("email"));
   const [password, setPassword] = useState(localStorage.getItem("pass"));
@@ -36,11 +37,13 @@ export const AuthProvider = ({ children }) => {
   const [open, setOpen] = useState(false);
 
   // Function to handle user sign in and set token and role
-  const logIn = (userToken, userRole) => {
-    setToken(userToken);
-    setIsAuthenticated(userToken);
+  const logIn = (idToken, accessToken, userRole) => {
+    setToken(idToken);
+    setAccessToken(accessToken);
+    setIsAuthenticated(idToken !== "" && idToken !== null ? true : false);
     setIsAdmin(userRole);
-    localStorage.setItem("token", userToken);
+    localStorage.setItem("token", idToken);
+    localStorage.setItem("access-token", accessToken);
     localStorage.setItem("role", userRole);
   };
   const handleSessionModal = () => {
@@ -105,6 +108,7 @@ export const AuthProvider = ({ children }) => {
   // Value object to be provided to consuming components
   const authContextValue = {
     token,
+    accessToken,
     email,
     isAuthenticated,
     isAdmin,

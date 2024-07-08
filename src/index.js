@@ -6,21 +6,38 @@ import AppRoutes from "./routes/Routes";
 import { AuthProvider } from "./context/AuthContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StateContextProvider } from "./context";
+import { BrowserRouter as Router } from 'react-router-dom';
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import AuthMiddleware from "./middleware/AuthMiddleware";
+import App from "./App";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      refetchOnmount: false,
+      refetchOnReconnect: false,
+      retry: 1,
+      staleTime: 5 * 1000,
+    },
+  },
+});
+
+
 
 root.render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <StateContextProvider>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
-      </StateContextProvider>
-      <ReactQueryDevtools initialIsOpen={false} />
+      <Router>
+        <StateContextProvider>
+          <AuthMiddleware>
+            <App />
+          </AuthMiddleware>
+        </StateContextProvider>
+        <ReactQueryDevtools initialIsOpen={false} />
+      </Router>
     </QueryClientProvider>
   </React.StrictMode>
 );
