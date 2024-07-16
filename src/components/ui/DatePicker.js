@@ -64,6 +64,7 @@ function DateField({ label, value, onChange, disabledDates }) {
               <TextField {...params} error={Boolean(defaultErrorMessage)} />
             )}
             shouldDisableDate={disableWeekendsAndPublicHolidays}
+            
           />
         </LocalizationProvider>
         <FormHelperText sx={{ color: "red" }}>
