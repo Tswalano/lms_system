@@ -25,6 +25,7 @@ import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import { Link } from "react-router-dom";
 import APIEndPoints from "../../../api/APIEndPoints";
+import { getPublicHolidays } from "../../../api/API"; 
 import { AuthContext } from "../../../context/AuthContext";
 import { postData } from "../../../api/API";
 import CloseIcon from "@mui/icons-material/Close";
@@ -49,6 +50,7 @@ function ApplyForLeave() {
   const [alertMessage, setAlertMessage] = useState();
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
+  const [publicHolidays, setPublicHolidays] = useState([]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const handleClose = () => {
@@ -110,6 +112,27 @@ function ApplyForLeave() {
 
     // Run the validation when formValues state changes
   }, [formValues]);
+
+  function getPublicHolidaysFromAPI() {
+    const endpoint = APIEndPoints.getPublicHolidayDates();
+    console.trace(`Fetching public holidays from [${endpoint}]`);
+    try {
+      const publicHolidaysResponse = getPublicHolidays(endpoint);
+      console.trace(`Public holidays fetched`, publicHolidaysResponse);
+      setPublicHolidays(publicHolidaysResponse.data);
+    }
+    catch (apiError) {
+      console.error(`Could not obtain public holidays`, apiError);
+  
+      setPublicHolidays([]);
+    }
+  }
+
+  useEffect(() => {
+    if (publicHolidays.length < 1) {
+      getPublicHolidaysFromAPI();
+    }
+  }, [ publicHolidays ]);
 
   // handle form submition
   const handleSubmit = async (event) => {
@@ -209,6 +232,7 @@ function ApplyForLeave() {
               formFields={ApplyForLeaveForm.formFields}
               onChange={handleChange}
               gridSizes={GridSizes.dashboardFieldSizes}
+              // TODO: Pass public holidays to DatePicker
             />
             <Grid item xs={12} sm={12} md={12}>
               <SubmitButton
