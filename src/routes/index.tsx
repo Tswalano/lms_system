@@ -1,6 +1,6 @@
 import { Suspense, lazy } from 'react';
 import { Outlet, type RouteObject } from 'react-router-dom';
-import Signin from '../pages/onboarding/signin/Signin';
+import Signin from '../pages/auth/Signin';
 import RequireUser from '../utils/requireUser';
 import Dashboard from '../pages/user/Dashboard';
 import DashboardLayout from '../layouts';
@@ -11,6 +11,8 @@ import ManageLeaveRequests from '../pages/manageLeaveRequests';
 import ConfigureLeaves from '../pages/configureLeaves';
 import LeaveHistory from '../pages/leaveHistory';
 import UserProfile from '../pages/userProfile';
+import ForgotPassword from '../pages/auth/forgotPassword';
+import ChangePassword from '../pages/auth/ChangePassword';
 
 const Loadable =
     (Component: React.ComponentType<any>) => (props: JSX.IntrinsicAttributes) =>
@@ -48,6 +50,14 @@ const authRoutes: RouteObject = {
         {
             path: 'signin',
             element: <Signin />,
+        },
+        {
+            path: 'new-password',
+            element: <ChangePassword />,
+        },
+        {
+            path: 'forgot-password',
+            element: <ForgotPassword />,
         },
         // TODO : Additional auth routes
     ],

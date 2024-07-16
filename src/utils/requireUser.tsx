@@ -25,6 +25,8 @@ const RequireUser = ({ allowedRoles }: { allowedRoles: string[] }) => {
         if (isFetched && isSuccess) {
             stateContext.dispatch({ type: "SET_USER", payload: user });
         }
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isFetched, isSuccess, user]);
 
     if (isLoading || isFetching) {

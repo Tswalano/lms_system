@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useState } from 'react';
+import { useForm, Controller, FormProvider, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Container, Grid, Paper, Typography, TextField, Button, Box, Stack } from '@mui/material';
 import { LoadingButton } from '@mui/lab';
+import FormInput from '../components/ui/FormInput';
+import { useMutation } from '@tanstack/react-query';
+import { changePasswordFn } from '../api/authAPI';
 
 const profileSchema = z.object({
     firstName: z.string().min(1, "First name is required"),
@@ -13,10 +16,29 @@ const profileSchema = z.object({
     phone: z.string().min(1, "Phone number is required"),
 });
 
+const changePasswordSchema = z.object({
+    oldPassword: z.string().min(1, "Old password is required"),
+    newPassword: z.string().min(1, "New password is required"),
+    confirmPassword: z.string().min(1, "Confirm password is required"),
+});
+
 type ProfileInputs = z.infer<typeof profileSchema>;
+type ChangePasswordInputs = z.infer<typeof changePasswordSchema>;
 
 function UserProfile() {
-    const [editMode, setEditMode] = useState(false);
+    const [editMode, setEditMode] = useState<boolean>(false);
+    const [changePassword, setChangePassword] = useState<boolean>(false);
+
+    const methods = useForm<ChangePasswordInputs>({
+        resolver: zodResolver(changePasswordSchema),
+    });
+
+    const {
+        reset: resetChangePassword,
+        handleSubmit: handleSubmitChangePassword,
+        formState: { isSubmitSuccessful },
+    } = methods;
+
     const [userData, setUserData] = useState({
         firstName: 'Lucas',
         lastName: 'Hood',
@@ -34,12 +56,6 @@ function UserProfile() {
     };
 
     const handleSaveClick = (data: any) => {
-
-        // delay
-        setTimeout(() => {
-            setEditMode(false);
-        }, 1000);
-
         if (!isSubmitting) {
             console.log(data);
             setUserData(data);
@@ -50,6 +66,39 @@ function UserProfile() {
 
     const handleCancelClick = () => {
         setEditMode(false);
+    };
+
+    const mutate = useMutation({
+        mutationKey: ['changePassword'],
+        mutationFn: (userData: ChangePasswordInputs) => changePasswordFn({
+            oldPassword: userData.oldPassword,
+            newPassword: userData.newPassword,
+            accessToken: ""
+        }),
+        onSuccess: (data) => {
+            if (data.error) {
+                console.log('on recover passwoerd error', data);
+                throw new Error(data.message);
+            }
+        },
+        onError: (error: any) => {
+            if (Array.isArray((error as any).response.data.error)) {
+                (error as any).response.data.error.forEach((el: any) =>
+                    console.error(el.message)
+                );
+            } else {
+                console.error((error as any).response.data.message);
+            }
+        },
+    });
+
+    const onChangePassword: SubmitHandler<ChangePasswordInputs> = (values) => {
+        //  if password doesn't match confirm
+        if (values.newPassword !== values.confirmPassword) {
+            methods.setError('confirmPassword', { type: 'manual', message: 'Passwords do not match' });
+        }
+
+        mutate.mutate(values);
     };
 
     return (
@@ -212,20 +261,54 @@ function UserProfile() {
                         <Typography variant="h6" gutterBottom>
                             Security Settings
                         </Typography>
-                        <Box>
-                            <Button variant="contained" color="primary" sx={{ mb: 2 }}>
+                        {changePassword ? (
+                            <Box>
+                                <FormProvider {...methods}>
+                                    <Box
+                                        component='form'
+                                        onSubmit={handleSubmitChangePassword(onChangePassword)}
+                                        noValidate
+                                        autoComplete='off'
+                                        sx={{
+                                            p: {},
+                                            borderRadius: 2,
+                                        }}
+                                    >
+                                        <FormInput name='oldPassword' label='Old Password' type='password' />
+                                        <FormInput name='newPassword' label='New Password' type='password' />
+                                        <FormInput name='confirmPassword' label='Confirm Password' type='password' />
+
+                                        <Typography
+                                            sx={{ fontSize: '0.9rem', mb: '1rem', textAlign: 'right' }}
+                                        >
+                                        </Typography>
+
+                                        <LoadingButton
+                                            variant='contained'
+                                            sx={{ mt: 1, borderRadius: '10px' }}
+                                            fullWidth
+                                            disableElevation
+                                            type='submit'
+                                        // loading={isPending}
+                                        >
+                                            Change Password
+                                        </LoadingButton>
+                                    </Box>
+                                </FormProvider>
+                            </Box>
+                        ) : (
+                            <Button
+                                variant='contained'
+                                onClick={() => setChangePassword(true)}
+                            >
                                 Change Password
                             </Button>
-                        </Box>
+                        )}
                     </Paper>
                 </Grid>
             </Grid>
         </Container>
     )
-}
-
-const editUserProfile = (userData: any) => {
-    return <>Hello World</>;
 }
 
 export default UserProfile;

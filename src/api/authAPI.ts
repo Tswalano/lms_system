@@ -1,9 +1,7 @@
 import axios from 'axios';
-// import { LoginInput } from '../pages/login.page';
-// import { RegisterInput } from '../pages/register.page';
-import { GenericResponse, ILoginResponse, AuthAPIResponse, AuthUserAPIResponse } from './types';
+import { GenericResponse, ILoginResponse, AuthAPIResponse, AuthUserAPIResponse, CognitoAPIResponse, LeaveRequest, LeaveAPIResponse } from './types';
 
-const BASE_URL = 'https://07onrf75zh.execute-api.af-south-1.amazonaws.com/dev';
+const BASE_URL = 'https://vtiho5i399.execute-api.af-south-1.amazonaws.com/dev';
 
 const authApi = axios.create({
     baseURL: BASE_URL,
@@ -39,20 +37,10 @@ authApi.interceptors.response.use(
             // TODO refresh token
             console.log('The incoming token has expired');
         }
+        // TODO: clear cookies
         return Promise.reject(error);
     }
 );
-
-export const signUpUserFn = async (user: any) => {
-    const response = await authApi.post<GenericResponse>('auth/register', user);
-    const { status } = response.data
-    console.log('status', status);
-
-    if (status === 'success') {
-        return response.data
-    }
-    return response.data;
-};
 
 export const loginUserFn = async (user: { username: string; password: string }) => {
     const response = await authApi.post<AuthAPIResponse>('sign-in', user);
@@ -60,7 +48,7 @@ export const loginUserFn = async (user: { username: string; password: string }) 
 
     console.log('body', response);
 
-
+    // TODO: refactor this
     if (statusCode !== 200) {
         throw new Error(JSON.stringify({
             message: body.message,
@@ -71,22 +59,45 @@ export const loginUserFn = async (user: { username: string; password: string }) 
     return response.data;
 };
 
-export const verifyEmailFn = async (verificationCode: string) => {
-    const response = await authApi.get<GenericResponse>(
-        `auth/verifyemail/${verificationCode}`
-    );
-    return response.data;
+export const createUserFn = async (user: { firstName: string, lastName: string }) => {
+    const response = await authApi.post<AuthAPIResponse>('sign-up', user);
+    return response.data.body
+}
+
+export const forgotPasswordFn = async (user: { email: string }) => {
+    const response = await authApi.post<AuthAPIResponse>('forgot-password', { ...user, action: "FORGOT_PASSWORD" });
+    return response.data.body
 };
 
-export const logoutUserFn = async () => {
-    const response = await authApi.get<GenericResponse>('auth/logout');
-    return response.data;
-};
+export const confirmVerificationCodeFn = async (user: { newPassword: string; email: string; verificationCode: string }) => {
+    const response = await authApi.post<AuthAPIResponse>('forgot-password', { ...user, action: "RESET_PASSWORD" });
+    return response.data.body
+}
+
+export const changePasswordFn = async (user: { oldPassword: string; newPassword: string, accessToken: string }) => {
+    const response = await authApi.post<AuthAPIResponse>('forgot-password', { ...user, action: "CHANGE_PASSWORD" });
+    return response.data.body
+}
+
+export const forcePasswordChangeFn = async (user: { newPassword: string, email: string, session: string }) => {
+
+    if (!user.email) {
+        throw new Error('Email is required');
+    }
+
+    if (!user.session) {
+        throw new Error('Session is required');
+    }
+
+    const response = await authApi.post<AuthAPIResponse>('forgot-password', { ...user, action: "FORCE_CHANGE_PASSWORD" });
+    return response.data.body
+}
 
 export const getMeFn = async (token: string, accessToken: string) => {
 
     const response = await authApi.post<AuthUserAPIResponse>('get-user', {
         accessToken,
+        action: "GET_CURRENT_USER"
     }, {
         headers: {
             Authorization: `Bearer ${token}`,
@@ -95,4 +106,37 @@ export const getMeFn = async (token: string, accessToken: string) => {
     })
 
     return response.data;
+};
+
+export const getAllUsersFn = async (token: string) => {
+
+    const response = await authApi.post<CognitoAPIResponse>('get-user', {
+        action: "GET_USERS"
+    }, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    })
+
+    return response.data.body
+};
+
+
+// Leave API methods
+export const getAllLeaveRequestsFn = async (token: string) => {
+    const response = await authApi.get<LeaveAPIResponse>('get-all-leave-req', {
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        }
+    })
+
+    const parsedObject: LeaveAPIResponse = JSON.parse(response.data.body as unknown as string);
+
+    return {
+        statusCode: response.data.statusCode,
+        body: parsedObject.body
+    }
+
 };

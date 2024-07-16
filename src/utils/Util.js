@@ -1,4 +1,7 @@
 export function capitalizeName(name) {
+
+    // if (!name.trim()) return '';
+
     if (name) {
         const parts = name.split(' ');
 
@@ -20,3 +23,20 @@ export function truncateEmail(email) {
     }
 }
 
+
+export function formatDateTimeToSAST(dateTimeStr) {
+    const date = new Date(dateTimeStr);
+
+    const options = {
+        year: 'numeric',
+        month: 'long',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        // second: '2-digit',
+        hour12: false,
+        timeZone: 'Africa/Johannesburg'
+    };
+
+    return date.toLocaleDateString('en-US', options);
+}

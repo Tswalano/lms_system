@@ -77,7 +77,9 @@ function Dashboard() {
   return (
     <Container maxWidth="xl">
       <Typography variant="h4" sx={{ mb: 5 }}>
-        Hello <span style={{ color: '#04A1EA', fontWeight: 'bold' }}>{capitalizeName(user.firstName)}</span>, Welcome back 👋
+        Hello <span style={{ color: '#04A1EA', fontWeight: 'bold' }}>
+          {capitalizeName(`${user?.firstName} ${user?.lastName}`)}
+        </span>, Welcome back 👋
       </Typography>
 
       <Grid container spacing={3}>

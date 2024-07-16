@@ -150,7 +150,7 @@ const FormInput: FC<IFormInputProps> = ({ type, name, label, options, disabled }
                         />
                     )}
                     <FormHelperText error={!!errors[name]}>
-                        {errors[name]?.message?.toString() || 'Default error message'}
+                        {errors[name]?.message?.toString() || ''}
                     </FormHelperText>
                 </FormControl >
             )}

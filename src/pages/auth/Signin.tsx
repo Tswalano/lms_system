@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import { object, string, TypeOf } from 'zod';
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -6,10 +6,9 @@ import { useForm, FormProvider, SubmitHandler } from "react-hook-form";
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Container, Box, Typography, Paper } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
-import { useCredentials, useStateContext } from "../../../context";
-import { getMeFn, loginUserFn } from "../../../api/authAPI";
-import Logo from "../../../components/ui/Logo";
-import FormInput from "../../../components/ui/FormInput";
+import { getMeFn, loginUserFn } from "../../api/authAPI";
+import Logo from "../../components/ui/Logo";
+import FormInput from "../../components/ui/FormInput";
 import { useCookies } from "react-cookie";
 
 const loginSchema = object({
@@ -29,14 +28,11 @@ function Signin() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = ((location.state as any)?.from.pathname as string) || '/';
+  const from = ((location.state as any)?.from?.pathname as string) || '/';
 
   const methods = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
   });
-
-  const stateContext = useStateContext();
-  const creds = useCredentials();
 
   const query = useQuery({
     queryKey: ['authUser'],
@@ -50,17 +46,24 @@ function Signin() {
   const { mutate: loginUser, isPending, error, isError } = useMutation({
     mutationKey: ['loginUser'],
     mutationFn: (userData: LoginInput) => loginUserFn(userData),
-    onSuccess: ({ body: { payload: { IdToken, AccessToken } } }) => {
+    onSuccess: ({ body: { code, payload } }) => {
 
-      // store the token in cookies
+      if (code === "NEW_PASSWORD_REQUIRED") {
+        console.log("payload", methods);
+        navigate(`/new-password`, { state: { from, session: payload.Session, isChangePassword: true, email: methods.getValues('username') } });
+      } else {
+        // store the token in cookies
 
-      setCookie('logged_in', 'true', { secure: true, sameSite: 'strict' });
-      setCookie('token', IdToken, { secure: true, sameSite: 'strict' });
-      setCookie('accessToken', AccessToken, { secure: true, sameSite: 'strict' });
+        console.log('payload', payload)
 
-      query.refetch();
-      console.log('You successfully logged in');
-      navigate(from);
+        setCookie('logged_in', 'true', { secure: true, sameSite: 'strict' });
+        setCookie('token', payload.IdToken, { secure: true, sameSite: 'strict' });
+        setCookie('accessToken', payload.AccessToken, { secure: true, sameSite: 'strict' });
+
+        query.refetch();
+        console.log('You successfully logged in');
+        navigate(from);
+      }
     },
     onError: (error: any) => {
       if (Array.isArray((error as any).response.data.error)) {
@@ -75,17 +78,14 @@ function Signin() {
 
 
   const {
-    reset,
+    // reset,
     handleSubmit,
     formState: { isSubmitSuccessful },
   } = methods;
 
   useEffect(() => {
     if (isSubmitSuccessful) {
-      console.log("we here", { token: creds.token })
-      reset();
-    } else {
-      console.log("we here x2", { token: creds.token })
+      // reset();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSubmitSuccessful]);
@@ -143,6 +143,24 @@ function Signin() {
             )}
           </Typography>
         )}
+
+        {/* if redirects from password recovery state is true, show success message */}
+        {location.state?.isRecovered && (
+          <Typography
+            variant="body2"
+            sx={{
+              mb: 2,
+              width: 'auto',
+              color: 'green',
+              backgroundColor: 'rgba(0, 255, 0, 0.1)',
+              p: 2,
+              borderRadius: '10px',
+            }}
+          >
+            <span style={{ fontWeight: 'bold' }}>SUCCESS: </span>
+            Your password has been successfully changed.
+          </Typography>
+        )}
       </Box>
 
       <Paper elevation={3} sx={{
@@ -168,7 +186,7 @@ function Signin() {
             <Typography
               sx={{ fontSize: '0.9rem', mb: '1rem', textAlign: 'right' }}
             >
-              <Link to='/' style={{ color: '#333' }}>
+              <Link to='/forgot-password' style={{ color: '#333' }}>
                 Forgot Password?
               </Link>
             </Typography>

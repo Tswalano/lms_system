@@ -13,10 +13,11 @@ import Logo from '../components/ui/Logo';
 import Scrollbar from './scrollbar';
 import navConfig from '../utils/navConfig';
 import { NAV } from '../utils/configLayout';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { IconButton } from '@mui/material';
 import { useStateContext } from '../context';
 import { capitalizeName } from '../utils/Util';
+import { useCookies } from 'react-cookie';
 
 type Props = {
     openNav: boolean;
@@ -27,11 +28,12 @@ type Props = {
 function Nav({ openNav, onCloseNav, onOpenNav }: Props) {
     // const pathname = usePathname();]
 
+    const [, setCookie] = useCookies(['logged_in', 'token', 'accessToken']);
     const stateContext = useStateContext();
     const user = stateContext.state.authUser;
 
     const authorizedRoutes = navConfig.filter((route) => route.permissions?.includes(user?.role || 'user'));
-    const { pathname } = useLocation();
+    const navigate = useNavigate();
 
     const upLg = useResponsive('up', 'lg');
     const lgUp = useResponsive('up', 'lg');
@@ -60,12 +62,12 @@ function Nav({ openNav, onCloseNav, onOpenNav }: Props) {
             <Avatar src={''} alt="photoURL" />
 
             <Box sx={{ ml: 2 }}>
-                <Typography variant="subtitle2">
-                    {capitalizeName(user?.firstName)}
+                <Typography variant="subtitle2" sx={{ color: '#fff' }}>
+                    {capitalizeName(`${user?.firstName} ${user?.lastName}`)}
                 </Typography>
 
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {user?.email}
+                <Typography variant="body2" sx={{ color: '#BDBDBD' }}>
+                    {user?.occupation}
                 </Typography>
             </Box>
         </Box>
@@ -76,6 +78,31 @@ function Nav({ openNav, onCloseNav, onOpenNav }: Props) {
             {authorizedRoutes.map((item) => (
                 <NavItem key={item.title} item={item} />
             ))}
+            {/* logout */}
+            <ListItemButton
+                sx={{
+                    minHeight: 44,
+                    borderRadius: 0.75,
+                    typography: 'body2',
+                    color: '#fff',
+                    textTransform: 'capitalize',
+                    fontWeight: 'fontWeightMedium'
+                }}
+                onClick={() => {
+                    setCookie('logged_in', null, { path: '/' });
+                    setCookie('token', null, { path: '/' });
+                    setCookie('accessToken', null, { path: '/' });
+
+                    navigate('/signin');
+                    window.location.reload();
+                }}
+            >
+                <Box component="span" sx={{ width: 24, height: 24, mr: 2 }}>
+                    👋
+                </Box>
+
+                <Box component="span">Logout</Box>
+            </ListItemButton>
         </Stack>
     );
 

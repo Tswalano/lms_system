@@ -5,13 +5,15 @@ export interface AuthenticationResult {
     RefreshToken: string;
     ExpiresIn: number;
     TokenType: string;
+    Session?: string;
 }
 
 export interface IAuthUserResults {
     email: string;
     firstName: string;
+    lastName: string;
     role: string;
-    department?: string;
+    occupation?: string;
     username: string;
     userId: string;
 
@@ -59,6 +61,47 @@ export type AuthUserAPIResponse = {
     };
 };
 
+export interface CognitoUser extends IAuthUserResults {
+    createdAt: string;
+    updatedAt: string;
+    userStatus: string;
+    enabled: boolean;
+}
+
+export type CognitoAPIResponse = {
+    statusCode: number;
+    headers: any;
+    body: {
+        message: string;
+        code: string;
+        error: boolean;
+        payload: CognitoUser[];
+    };
+};
+
+export interface LeaveRequest {
+    id: number;
+    uid: string;
+    leave_type: string;
+    status: string;
+    duration: number;
+    start_date: string; // Assuming date strings are in ISO 8601 format
+    end_date: string;   // Assuming date strings are in ISO 8601 format
+    feedback: string;
+    document: string;
+    leave_length: number;
+    leave_comment: string;
+    createdAt: string;  // Assuming date strings are in ISO 8601 format
+    updatedAt: string;  // Assuming date strings are in ISO 8601 format
+}
+
+export type LeaveAPIResponse = {
+    statusCode: number;
+    body: {
+        message: string;
+        leaveData: LeaveRequest[];
+    }
+};
 
 // export interface IUserResponse {
 //     status: string;

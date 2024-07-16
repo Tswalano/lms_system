@@ -3,10 +3,32 @@ import Container from '@mui/material/Container';
 import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
 import { Button, ButtonGroup, Card, Chip, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
+import { getAllLeaveRequestsFn } from '../api/authAPI';
+import { useCookies } from 'react-cookie';
+import { formatDateTimeToSAST } from '../utils/Util';
 
 type Props = {}
 
+
+
+
 export default function ManageLeaveRequests({ }: Props) {
+
+    const [cookies] = useCookies(['token'])
+
+    const { data, isError, isLoading, isFetching, refetch } = useQuery({
+        // const query = useQuery({
+        queryKey: ['listLeaveRequests'],
+        queryFn: () => getAllLeaveRequestsFn(cookies.token),
+        select: (data) => {
+            if (data.statusCode !== 200) {
+                return []
+            }
+
+            return data.body.leaveData
+        },
+    });
 
     const leaveHistory = [
         {
@@ -65,25 +87,25 @@ export default function ManageLeaveRequests({ }: Props) {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {leaveHistory.map((lh) => (
+                                    {data && data.map((leave) => (
                                         <TableRow
-                                            key={lh.id}
+                                            key={leave.id}
                                             sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                                         >
                                             <TableCell component="th" scope="row">
-                                                {lh.requestedBy}
+                                                ??USER_UNDEFINED
                                             </TableCell>
                                             <TableCell component="th" scope="row">
-                                                {lh.title}
+                                                {leave.leave_type}
                                             </TableCell>
-                                            <TableCell component="th" scope="row">{lh.note}</TableCell>
-                                            <TableCell align="center">{lh.value}</TableCell>
+                                            <TableCell component="th" scope="row">{leave.leave_comment}</TableCell>
+                                            <TableCell align="center">{leave.duration}</TableCell>
                                             {/*    <Label color={(status === 'banned' && 'error') || 'success'}>{status}</Label> */}
                                             <TableCell align="right">
-                                                <Chip label={lh.status} size='small' color={lh.status === 'Approved' ? 'success' : 'error'} />
+                                                <Chip label={leave.status} size='small' color={leave.status === 'Approved' ? 'success' : 'error'} />
                                             </TableCell>
-                                            <TableCell align="right">{lh.startDate}</TableCell>
-                                            <TableCell align="right">{lh.endDate}</TableCell>
+                                            <TableCell align="right">{formatDateTimeToSAST(leave.start_date)}</TableCell>
+                                            <TableCell align="right">{formatDateTimeToSAST(leave.end_date)}</TableCell>
                                             <TableCell align="right">
                                                 <ButtonGroup size="small" aria-label="Small button group">
                                                     <Button variant="contained" color="success" size="small">Approve</Button>
