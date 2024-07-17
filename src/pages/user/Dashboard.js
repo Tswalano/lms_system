@@ -16,7 +16,7 @@ function Dashboard() {
 
   const stateContext = useStateContext();
 
-  const user = stateContext.state.authUser;
+  const { authUser: user } = stateContext.state;
 
   const leaveBalance = [
     {

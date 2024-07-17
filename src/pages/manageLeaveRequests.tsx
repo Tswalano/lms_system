@@ -2,7 +2,7 @@
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
-import { Button, ButtonGroup, Card, Chip, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { Button, ButtonGroup, Card, Chip, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getAllLeaveRequestsFn } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
@@ -15,52 +15,20 @@ type Props = {}
 
 export default function ManageLeaveRequests({ }: Props) {
 
-    const [cookies] = useCookies(['token'])
+    const [cookies] = useCookies(['token', 'accessToken']);
 
     const { data, isError, isLoading, isFetching, refetch } = useQuery({
-        // const query = useQuery({
         queryKey: ['listLeaveRequests'],
         queryFn: () => getAllLeaveRequestsFn(cookies.token),
         select: (data) => {
-            if (data.statusCode !== 200) {
+
+            if (data.status !== 200) {
                 return []
             }
 
-            return data.body.leaveData
+            return data.data.leaveData
         },
     });
-
-    const leaveHistory = [
-        {
-            id: 1,
-            requestedBy: 'John Doe',
-            title: 'Sick Leave',
-            note: 'I am going to hospital',
-            value: 2,
-            status: 'Approved',
-            startDate: '2023-05-01',
-            endDate: '2023-05-03'
-        },
-        {
-            id: 2,
-            requestedBy: 'Jane Bams',
-            title: 'Study Leave',
-            note: 'I am going to read a book',
-            value: 5,
-            status: 'Pending',
-            startDate: '2023-05-05',
-            endDate: '2023-05-07'
-        }, {
-            id: 3,
-            requestedBy: 'Philips Doe',
-            title: 'Study Leave',
-            note: 'I am going to read a book',
-            value: 2,
-            status: 'Rejected',
-            startDate: '2023-05-01',
-            endDate: '2023-05-03'
-        }
-    ]
 
     return (
         <Container maxWidth="xl">

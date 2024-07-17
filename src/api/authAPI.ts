@@ -128,15 +128,22 @@ export const getAllLeaveRequestsFn = async (token: string) => {
     const response = await authApi.get<LeaveAPIResponse>('get-all-leave-req', {
         headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
+            // 'Content-Type': 'application/json',
         }
     })
 
-    const parsedObject: LeaveAPIResponse = JSON.parse(response.data.body as unknown as string);
+    return response
 
-    return {
-        statusCode: response.data.statusCode,
-        body: parsedObject.body
-    }
+};
+
+export const getLeaveRequestsByUserFn = async (token: string) => {
+    const response = await authApi.get<LeaveAPIResponse>('get-all-leave-req', {
+        headers: {
+            Authorization: `Bearer ${token}`,
+            // 'Content-Type': 'application/json',
+        }
+    })
+
+    return response
 
 };

@@ -97,10 +97,9 @@ export interface LeaveRequest {
 
 export type LeaveAPIResponse = {
     statusCode: number;
-    body: {
-        message: string;
-        leaveData: LeaveRequest[];
-    }
+    message: string;
+    leaveData: LeaveRequest[];
+
 };
 
 // export interface IUserResponse {
