@@ -103,6 +103,14 @@ export type LeaveAPIResponse = {
     }
 };
 
+export type LeaveAPIResponseUID = {
+    statusCode: number;
+    
+        message: string;
+        leaveData: LeaveRequest[] | undefined;
+    
+};
+
 // export interface IUserResponse {
 //     status: string;
 //     data: {
@@ -110,3 +118,16 @@ export type LeaveAPIResponse = {
 //     };
 // }
 
+export type LeaveType = {
+    leave_type: string;
+    leave_start: string; // Assuming date strings are in ISO 8601 format
+    leave_end: string;   // Assuming date strings are in ISO 8601 format
+    leave_length: string;
+    leave_comment: string;
+}
+
+export type leaveStatus = {
+    id: number,
+    status: string,
+    feedback: string
+}

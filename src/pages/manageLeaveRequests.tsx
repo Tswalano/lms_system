@@ -1,70 +1,62 @@
-
+import React, { useState } from 'react';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
-import { Button, ButtonGroup, Card, Chip, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import { getAllLeaveRequestsFn } from '../api/authAPI';
+import { Button, ButtonGroup, Card, Chip, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination } from '@mui/material';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { getAllLeaveRequestsFn, updateLeaveStatusFn } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
 import { formatDateTimeToSAST } from '../utils/Util';
+import { leaveStatus } from '../api/types';
 
 type Props = {}
 
-
-
-
 export default function ManageLeaveRequests({ }: Props) {
-
-    const [cookies] = useCookies(['token'])
+    const [cookies] = useCookies(['token']);
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(5);
 
     const { data, isError, isLoading, isFetching, refetch } = useQuery({
-        // const query = useQuery({
         queryKey: ['listLeaveRequests'],
         queryFn: () => getAllLeaveRequestsFn(cookies.token),
         select: (data) => {
-            if (data.statusCode !== 200) {
-                return []
+            if (data.status !== 200) {
+                return [];
             }
-
-            return data.body.leaveData
+            return data.data.leaveData;
         },
     });
 
-    const leaveHistory = [
-        {
-            id: 1,
-            requestedBy: 'John Doe',
-            title: 'Sick Leave',
-            note: 'I am going to hospital',
-            value: 2,
-            status: 'Approved',
-            startDate: '2023-05-01',
-            endDate: '2023-05-03'
+    const mutate = useMutation({
+        mutationKey: ['deleteLeaveRequest'],
+        mutationFn: (leaveData: leaveStatus) => updateLeaveStatusFn(cookies.token, leaveData),
+        onSuccess(data) {
+            console.log('leave request updated', data);
+            refetch();
         },
-        {
-            id: 2,
-            requestedBy: 'Jane Bams',
-            title: 'Study Leave',
-            note: 'I am going to read a book',
-            value: 5,
-            status: 'Pending',
-            startDate: '2023-05-05',
-            endDate: '2023-05-07'
-        }, {
-            id: 3,
-            requestedBy: 'Philips Doe',
-            title: 'Study Leave',
-            note: 'I am going to read a book',
-            value: 2,
-            status: 'Rejected',
-            startDate: '2023-05-01',
-            endDate: '2023-05-03'
-        }
-    ]
+    });
+
+    const handleChangePage = (event: unknown, newPage: number) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
+    };
+
+    if (isLoading) {
+        return <Typography>Loading...</Typography>;
+    }
+
+    if (isError || !data) {
+        return <Typography>Error loading leave requests.</Typography>;
+    }
+
+    const paginatedData = data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
     return (
         <Container maxWidth="xl">
-
             <Stack direction="row" alignItems="center" justifyContent="space-between" mb={5}>
                 <Typography variant="h4">Manage Leave Requests</Typography>
             </Stack>
@@ -87,7 +79,7 @@ export default function ManageLeaveRequests({ }: Props) {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {data && data.map((leave) => (
+                                    {paginatedData.map((leave) => (
                                         <TableRow
                                             key={leave.id}
                                             sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
@@ -98,18 +90,17 @@ export default function ManageLeaveRequests({ }: Props) {
                                             <TableCell component="th" scope="row">
                                                 {leave.leave_type}
                                             </TableCell>
-                                            <TableCell component="th" scope="row">{leave.leave_comment}</TableCell>
+                                            <TableCell>{leave.leave_comment}</TableCell>
                                             <TableCell align="center">{leave.duration}</TableCell>
-                                            {/*    <Label color={(status === 'banned' && 'error') || 'success'}>{status}</Label> */}
                                             <TableCell align="right">
                                                 <Chip label={leave.status} size='small' color={leave.status === 'Approved' ? 'success' : 'error'} />
                                             </TableCell>
                                             <TableCell align="right">{formatDateTimeToSAST(leave.start_date)}</TableCell>
                                             <TableCell align="right">{formatDateTimeToSAST(leave.end_date)}</TableCell>
                                             <TableCell align="right">
-                                                <ButtonGroup size="small" aria-label="Small button group">
-                                                    <Button variant="contained" color="success" size="small">Approve</Button>
-                                                    <Button variant="contained" color="error" size="small">Reject</Button>
+                                                <ButtonGroup disabled={leave.status !== 'pending'} size="small" aria-label="Small button group">
+                                                    <Button variant="contained" color="success" size="small" onClick={() => { mutate.mutate({ feedback: "Ok", id: leave.id, status: 'Approved' }) }}>Approve</Button>
+                                                    <Button variant="contained" color="error" size="small" onClick={() => { mutate.mutate({ feedback: "Rejected", id: leave.id, status: 'Rejected' }) }}>Reject</Button>
                                                 </ButtonGroup>
                                             </TableCell>
                                         </TableRow>
@@ -117,10 +108,18 @@ export default function ManageLeaveRequests({ }: Props) {
                                 </TableBody>
                             </Table>
                         </TableContainer>
+                        <TablePagination
+                            rowsPerPageOptions={[5, 10, 25]}
+                            component="div"
+                            count={data.length}
+                            rowsPerPage={rowsPerPage}
+                            page={page}
+                            onPageChange={handleChangePage}
+                            onRowsPerPageChange={handleChangeRowsPerPage}
+                        />
                     </TableContainer>
                 </Card>
             </Grid>
-
         </Container>
-    )
+    );
 }

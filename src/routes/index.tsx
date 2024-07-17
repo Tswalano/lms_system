@@ -95,7 +95,7 @@ const normalRoutes: RouteObject = {
         },
         {
             path: 'manage-employees',
-            element: <RequireUser allowedRoles={['user', 'admin']} />,
+            element: <RequireUser allowedRoles={['admin']} />,
             children: [
                 {
                     path: '',
@@ -105,7 +105,7 @@ const normalRoutes: RouteObject = {
         },
         {
             path: 'configure-leaves',
-            element: <RequireUser allowedRoles={['user', 'admin']} />,
+            element: <RequireUser allowedRoles={[ 'admin']} />,
             children: [
                 {
                     path: '',
@@ -115,21 +115,11 @@ const normalRoutes: RouteObject = {
         },
         {
             path: 'manage-requests',
-            element: <RequireUser allowedRoles={['user', 'admin']} />,
+            element: <RequireUser allowedRoles={['admin']} />,
             children: [
                 {
                     path: '',
                     element: <ManageLeaveRequestsPage />,
-                },
-            ],
-        },
-        {
-            path: 'view-leaves',
-            element: <RequireUser allowedRoles={['user', 'admin']} />,
-            children: [
-                {
-                    path: '',
-                    element: <>Requests Component</>,
                 },
             ],
         },

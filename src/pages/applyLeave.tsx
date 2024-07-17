@@ -6,26 +6,27 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from 'react-router-dom';
 import { LoadingButton } from '@mui/lab';
 import { useEffect } from 'react';
-
-type applyLeaveProps = {
-    leaveType: string
-    startDate: string
-    endDate: string
-    halfDay: boolean
-    leaveLength: string
-    comments: string
-}
+import { LeaveType } from '../api/types';
+import { useMutation } from '@tanstack/react-query';
+import { applyForLeaveFN } from '../api/authAPI';
+import { useCookies } from 'react-cookie';
 
 const applyLeaveSchema = object({
-    leaveType: string().min(1, 'Leave type is required'),
-    startDate: string().min(1, 'Start date is required'),
-    // if half day is false, endDate is not required
-    halfDay: boolean(),
-    comments: string().min(1, 'Comments is required'),
-    endDate: string()
-}).refine(data => data.halfDay === true, {
-    path: ['endDate'],
-    message: 'End date is required'
+    leave_type: string().min(1, 'Leave type is required'),
+    leave_start: string().min(1, 'Start date is required'),
+    leave_length: string().min(1, 'Leave length is required'),
+    leave_comment: string().min(1, 'Comments is required'),
+    leave_end: string().min(1, 'End date is required')
+}).refine(data => {
+    // if half day is true, end date cant be the future date
+    if (data.leave_length === "half" && new Date(data.leave_end) > new Date(data.leave_start)) {
+        return false;
+    }
+
+    return true;
+}, {
+    path: ["leave_end"],
+    message: 'End date cannot be in the future',
 });
 
 export type applyLeaveInput = TypeOf<typeof applyLeaveSchema>;
@@ -39,20 +40,36 @@ const leaveTypes = [
 
 
 function ApplyLeave() {
+    const [cookies] = useCookies(['token']);
+    console.log(cookies.token);
 
-    const methods = useForm<applyLeaveProps>({
+
+    const methods = useForm<applyLeaveInput>({
         resolver: zodResolver(applyLeaveSchema),
     });
+
+    const { mutate: applyForLeave, isPending, error, isError } = useMutation({
+        mutationKey: ['applyForLeave'],
+        mutationFn: (leaveData: applyLeaveInput) => applyForLeaveFN(cookies.token, leaveData),
+
+
+        onError: (error: any) => {
+            if (Array.isArray((error as any).response.data.error)) {
+                (error as any).response.data.error.forEach((el: any) =>
+                    console.error(el.message)
+                );
+            } else {
+                console.error((error as any).response.data.message);
+            }
+        },
+    });
+
 
     const {
         reset,
         handleSubmit,
         formState: { isSubmitSuccessful },
     } = methods;
-
-    const onSubmitHandler: SubmitHandler<applyLeaveInput> = (values) => {
-        console.log("values", values);
-    };
 
     useEffect(() => {
         if (isSubmitSuccessful) {
@@ -62,6 +79,13 @@ function ApplyLeave() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSubmitSuccessful]);
+
+    const onSubmitHandler: SubmitHandler<applyLeaveInput> = (values) => {
+        applyForLeave(values);
+        console.log("values", values);
+    };
+
+
 
 
     return (
@@ -95,16 +119,14 @@ function ApplyLeave() {
                             >
                                 <FormInput
                                     type="select"
-                                    name="leaveType"
+                                    name="leave_type"
                                     label="Leave Type"
                                     options={leaveTypes.map((leave) => ({ value: leave.value, label: leave.label }))}
                                 />
-                                <Stack columnGap={1} direction="row" alignItems="center" justifyContent="space-between" >
-                                    <FormInput name='startDate' label='Start Date' type='date' />
-                                    <FormInput name='halfDay' label='Half Day?' type='checkbox' />
-                                </Stack>
-                                <FormInput name='endDate' label='End Date' type='date' disabled={methods.getValues('halfDay')} />
-                                <FormInput name='comments' label='Comments' type='textarea' />
+                                <FormInput name='leave_length' label='Leave Length' type='select' options={[{ value: 'half', label: 'Half Day' }, { value: 'full', label: 'Full Day' }]} />
+                                <FormInput name='leave_start' label='Start Date' type='date' />
+                                <FormInput name='leave_end' label='End Date' type='date' />
+                                <FormInput name='leave_comment' label='Comments' type='textarea' />
 
                                 <LoadingButton
                                     variant='contained'

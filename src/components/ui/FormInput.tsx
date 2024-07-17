@@ -16,6 +16,7 @@ import dayjs from 'dayjs';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { MobileDatePicker } from '@mui/x-date-pickers/MobileDatePicker';
+import { formatDateTimeToSAST } from '../../utils/Util';
 
 const Input = styled(MuiInput)`
     background-color: white;
@@ -111,8 +112,13 @@ const FormInput: FC<IFormInputProps> = ({ type, name, label, options, disabled }
                     {type === 'date' && (
                         <LocalizationProvider dateAdapter={AdapterDayjs}>
                             <MobileDatePicker
+                                {...field}
                                 minDate={dayjs(today)}
                                 disabled={disabled}
+                                value={dayjs(field.value)}
+                                onChange={newValue => {
+                                    field.onChange(formatDateTimeToSAST(newValue?.toISOString()));
+                                }}
                                 sx={{ borderRadius: '1rem', backgroundColor: '#F3FAFF' }} />
                         </LocalizationProvider>
                     )}

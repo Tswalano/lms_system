@@ -1,76 +1,87 @@
-
+import React, { useState } from 'react';
 import Container from '@mui/material/Container';
-import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
-import { Button, ButtonGroup, Card, Chip, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import TableContainer from '@mui/material/TableContainer';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
+import TableBody from '@mui/material/TableBody';
+import TablePagination from '@mui/material/TablePagination';
+import Stack from '@mui/material/Stack';
+import { useQuery } from '@tanstack/react-query';
+import { useCookies } from 'react-cookie';
+import { getAllLeaveRequestByUID } from '../api/authAPI';
+import { LeaveRequest } from '../api/types';
+import { formatDateTimeToSAST } from '../utils/Util';
 
-type Props = {}
-
-type LeaveRequest = {
-    id: number;
-    title: string;
-    note: string;
-    value: number;
-    status: string;
-    startDate: string;
-    endDate: string;
-};
-
+type Props = {};
 
 function LeaveHistory({ }: Props) {
+    const [cookies] = useCookies(['token']);
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(5);
 
-    const leaveHistory: LeaveRequest[] = [
-        {
-            id: 1,
-            title: 'Sick Leave',
-            note: 'I am going to hospital',
-            value: 2,
-            status: 'Approved',
-            startDate: '2023-05-01',
-            endDate: '2023-05-03'
+    const { data, isError, isLoading, isFetching, refetch } = useQuery({
+        queryKey: ['listLeaveRequests'],
+        queryFn: () => getAllLeaveRequestByUID(cookies.token),
+        select: (data) => {
+            if (data.statusCode !== 200) {
+                return [];
+            }
+            return data.body;
         },
-        {
-            id: 2,
-            title: 'Study Leave',
-            note: 'I am going to read a book',
-            value: 5,
-            status: 'Pending',
-            startDate: '2023-05-05',
-            endDate: '2023-05-07'
-        }, {
-            id: 3,
-            title: 'Study Leave',
-            note: 'I am going to read a book',
-            value: 2,
-            status: 'Rejected',
-            startDate: '2023-05-01',
-            endDate: '2023-05-03'
-        }
-    ]
+    });
+
+    const handleChangePage = (event: unknown, newPage: number) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
+    };
+
+    if (isLoading) {
+        return <Typography>Loading...</Typography>;
+    }
+
+    if (isError || !data) {
+        return <Typography>Error loading leave requests.</Typography>;
+    }
+
+    const paginatedData = data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
     return (
         <Container maxWidth="xl">
-            {/* <Grid> */}
-
             <Stack direction="row" alignItems="center" justifyContent="space-between" mb={5}>
                 <Typography variant="h4">Manage Leave Requests</Typography>
-
                 <Button variant="contained" color="primary" startIcon={<>➕</>}>
                     New Request
                 </Button>
             </Stack>
 
             <Card>
-                {leaveHistoryTable(leaveHistory)}
+                {leaveHistoryTable(paginatedData)}
+                <TablePagination
+                    rowsPerPageOptions={[5, 10, 25]}
+                    component="div"
+                    count={data.length}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                />
             </Card>
-            {/* </Grid> */}
         </Container>
-    )
+    );
 }
 
-export const leaveHistoryTable = (leaveHistory: LeaveRequest[]) => {
-
-    return <TableContainer sx={{ overflow: 'unset' }}>
+export const leaveHistoryTable = (leaveHistory: LeaveRequest[]) => (
+    <TableContainer sx={{ overflow: 'unset' }}>
         <TableContainer component={Paper}>
             <Table sx={{ minWidth: 650 }} aria-label="a dense table">
                 <TableHead>
@@ -84,25 +95,25 @@ export const leaveHistoryTable = (leaveHistory: LeaveRequest[]) => {
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {leaveHistory.map((lh) => (
+                    {leaveHistory && leaveHistory.map((lh) => (
                         <TableRow
                             key={lh.id}
                             sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                         >
                             <TableCell component="th" scope="row">
-                                {lh.title}
+                                {lh.leave_type}
                             </TableCell>
-                            <TableCell component="th" scope="row">{lh.note}</TableCell>
-                            <TableCell align="right">{lh.value}</TableCell>
+                            <TableCell>{lh.leave_comment}</TableCell>
+                            <TableCell align="right">{lh.duration}</TableCell>
                             <TableCell align="right">{lh.status}</TableCell>
-                            <TableCell align="right">{lh.startDate}</TableCell>
-                            <TableCell align="right">{lh.endDate}</TableCell>
+                            <TableCell align="right">{lh.start_date}</TableCell>
+                            <TableCell align="right">{formatDateTimeToSAST(lh.end_date)}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
             </Table>
         </TableContainer>
     </TableContainer>
-}
+);
 
-export default LeaveHistory
+export default LeaveHistory;
