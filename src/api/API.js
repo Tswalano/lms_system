@@ -191,7 +191,7 @@ export const uploadDocument = async (endpoint, formValues, token) => {
 };
 
 export const getPublicHolidays = async (endpoint, start = null, end = null) => {
-  const token = sessionStorage.getItem("token");
+  const token = localStorage.getItem("token");
   const requestOptions = {
     headers: {
       Authorization: "Bearer " + token,
@@ -203,8 +203,6 @@ export const getPublicHolidays = async (endpoint, start = null, end = null) => {
       end: end
     }
   }
-
-  console.log(`Fetching public holidays from [${endpoint}]`)
 
   const apiResponse = await axios.get(endpoint, requestOptions);
 

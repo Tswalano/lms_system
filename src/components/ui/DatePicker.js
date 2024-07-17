@@ -5,32 +5,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { validateDate } from "../form/Validations";
 
-let disabledDates = [];
-
-function disableWeekendsAndPublicHolidays(date) {
-  // const publicHolidays = [
-  //   "2024-08-08T22:00:00.000Z",
-  //   "2024-09-23T22:00:00.000Z",
-  //   "2024-06-16T22:00:00.000Z",
-  //   "2024-06-15T22:00:00.000Z"
-  // ];
-  const publicHolidayDates = disabledDates.map(ph => new Date(ph));
-  const actualDate = new Date(date);
-
-  try {
-    const shouldDisable = actualDate.getDay() === 0 || actualDate.getDay() === 6
-      || publicHolidayDates.some(ph => ph.toISOString() === actualDate.toISOString());
-
-    // console.log(`Should disable [${actualDate.toISOString()}]? [${shouldDisable}]`);
-
-    return shouldDisable;
-  }
-  catch (error) {
-    console.error(`Could not disable weekends and public holidays: ${error}`);
-  }
-};
-
-function DateField({ label, value, onChange, disabledDates }) {
+function DateField({ label, value, onChange, disableDateHandler }) {
   const [defaultErrorMessage, setDefaultError] = useState("");
 
   const validationMap = {
@@ -63,8 +38,7 @@ function DateField({ label, value, onChange, disabledDates }) {
             renderInput={(params) => (
               <TextField {...params} error={Boolean(defaultErrorMessage)} />
             )}
-            shouldDisableDate={disableWeekendsAndPublicHolidays}
-            
+            shouldDisableDate={disableDateHandler ? disableDateHandler : () => false}
           />
         </LocalizationProvider>
         <FormHelperText sx={{ color: "red" }}>

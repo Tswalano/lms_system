@@ -113,26 +113,33 @@ function ApplyForLeave() {
     // Run the validation when formValues state changes
   }, [formValues]);
 
-  function getPublicHolidaysFromAPI() {
-    const endpoint = APIEndPoints.getPublicHolidayDates();
-    console.trace(`Fetching public holidays from [${endpoint}]`);
-    try {
-      const publicHolidaysResponse = getPublicHolidays(endpoint);
-      console.trace(`Public holidays fetched`, publicHolidaysResponse);
-      setPublicHolidays(publicHolidaysResponse.data);
-    }
-    catch (apiError) {
-      console.error(`Could not obtain public holidays`, apiError);
-  
-      setPublicHolidays([]);
-    }
-  }
-
   useEffect(() => {
-    if (publicHolidays.length < 1) {
-      getPublicHolidaysFromAPI();
-    }
-  }, [ publicHolidays ]);
+    const fetchPublicHolidays = async () => {
+      if (publicHolidays.length < 1) {
+        const endpoint = (new APIEndPoints()).getPublicHolidayDates();
+        const start = null;
+        const end = null;
+
+        // console.trace(`Fetching public holidays from [${endpoint}]`);
+
+        try {
+          const publicHolidaysResponse = await getPublicHolidays(endpoint, start, end);
+          const publicHolidayDates = publicHolidaysResponse.data;
+
+          // console.trace(`Public holidays fetched`, publicHolidayDates);
+
+          setPublicHolidays(publicHolidayDates);
+        }
+        catch (apiError) {
+          console.error(`Could not obtain public holidays`, apiError);
+      
+          setPublicHolidays([]);
+        }
+      }
+    };
+    
+    fetchPublicHolidays();
+  }, [ publicHolidays.length ]);
 
   // handle form submition
   const handleSubmit = async (event) => {
@@ -196,6 +203,23 @@ function ApplyForLeave() {
     }
   };
 
+  const disableWeekendsAndPublicHolidays = (date) => {
+    const publicHolidayDates = publicHolidays?.map(ph => new Date(ph)) || [];
+    const actualDate = new Date(date);
+
+    try {
+      const shouldDisable = actualDate.getDay() === 0 || actualDate.getDay() === 6
+        || publicHolidayDates.some(ph => ph.toISOString() === actualDate.toISOString());
+
+      console.log(`Should disable [${actualDate.toISOString()}] ? [${shouldDisable}]`);
+
+      return shouldDisable;
+    }
+    catch (error) {
+      console.error(`Could not disable weekends and public holidays: ${error}`);
+    }
+  };
+  
   // render output
   return (
     <Box sx={{ width: "100%" }}>
@@ -230,9 +254,9 @@ function ApplyForLeave() {
           <Grid container spacing={2}>
             <FormFieldMapper
               formFields={ApplyForLeaveForm.formFields}
+              customHandlers={{ disableDateHandler: disableWeekendsAndPublicHolidays }}
               onChange={handleChange}
               gridSizes={GridSizes.dashboardFieldSizes}
-              // TODO: Pass public holidays to DatePicker
             />
             <Grid item xs={12} sm={12} md={12}>
               <SubmitButton

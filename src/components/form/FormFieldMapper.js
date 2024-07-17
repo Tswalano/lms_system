@@ -4,7 +4,7 @@ import Input from "../ui/InputField";
 import { Grid } from "@mui/material";
 import DatePicker from "../ui/DatePicker";
 
-const FormFieldMapper = ({ formFields, onChange, gridSizes }) => {
+const FormFieldMapper = ({ formFields, onChange, gridSizes, customHandlers }) => {
   const { xs, sm, md, lg, xl } = gridSizes;
 
   const handleFieldChange = (fieldName, value) => {
@@ -27,6 +27,7 @@ const FormFieldMapper = ({ formFields, onChange, gridSizes }) => {
             <DatePicker
               label={field.label}
               value={field.value}
+              disableDateHandler={customHandlers?.disableDateHandler ? customHandlers.disableDateHandler : null}
               onChange={(value) => handleFieldChange(field.name, value)}
             />
           </Grid>

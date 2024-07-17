@@ -1,17 +1,17 @@
 class APIEndPoints {
-  apiBaseUrl = "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com";
+  apiBaseUrl = "https://vtiho5i399.execute-api.af-south-1.amazonaws.com";
   apiStage = "dev";
 
   constructor() {}
 
   signinAPI() {
-    const signin = `${this.apiBaseUrl}/${this.apiStage}/user-service/login`;
+    const signin = `${this.apiBaseUrl}/${this.apiStage}/sign-in`;
 
     return signin;
   }
 
   signupAPI() {
-    const signup = `${this.apiBaseUrl}/${this.apiStage}/user-service/signup`;
+    const signup = `${this.apiBaseUrl}/${this.apiStage}/sign-up`;
 
     return signup;
   }
@@ -23,19 +23,19 @@ class APIEndPoints {
   }
 
   otpApi() {
-    const otp = `${this.apiBaseUrl}/${this.apiStage}/user-service/verify-otp`;
+    const otp = `${this.apiBaseUrl}/${this.apiStage}/verify-otp`;
 
     return otp;
   }
 
   applyForLeave() {
-    const leaveApply = `${this.apiBaseUrl}/${this.apiStage}/lms/apply-leave`;
+    const leaveApply = `${this.apiBaseUrl}/${this.apiStage}/apply-for-leave`;
 
     return leaveApply;
   }
 
   editLeave() {
-    const editLeave = `${this.apiBaseUrl}/${this.apiStage}/lms/edit-leave`;
+    const editLeave = `${this.apiBaseUrl}/${this.apiStage}/edit-leave-req`;
 
     return editLeave;
   }
@@ -47,12 +47,12 @@ class APIEndPoints {
   }
 
   getAllLeavesData() {
-    const getLeaves = `${this.apiBaseUrl}/${this.apiStage}/lms/getleave`;
+    const getLeaves = `${this.apiBaseUrl}/${this.apiStage}/get-all-leave-req`;
 
     return getLeaves;
   }
   getLeaveByID() {
-    const getLeaveByID = `${this.apiBaseUrl}/${this.apiStage}/lms/getleave/by-id`;
+    const getLeaveByID = `${this.apiBaseUrl}/${this.apiStage}/get-leave-by-id`;
 
     return getLeaveByID;
   }
@@ -75,7 +75,7 @@ class APIEndPoints {
   }
 
   forgotPassword() {
-    const forgotPassword = `${this.apiBaseUrl}/${this.apiStage}/user-service/forgot-password`;
+    const forgotPassword = `${this.apiBaseUrl}/${this.apiStage}/forgot-password`;
 
     return forgotPassword;
   }
@@ -91,7 +91,7 @@ class APIEndPoints {
   }
 
   getPublicHolidayDates() {
-    const getPublicHolidaysUrl = `${this.apiBaseUrl}/${this.apiStage}/lms/upload`;
+    const getPublicHolidaysUrl = `${this.apiBaseUrl}/${this.apiStage}/public-holidays`;
 
     return getPublicHolidaysUrl;
   }
