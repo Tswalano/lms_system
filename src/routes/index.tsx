@@ -13,11 +13,12 @@ import LeaveHistory from '../pages/leaveHistory';
 import UserProfile from '../pages/userProfile';
 import ForgotPassword from '../pages/auth/forgotPassword';
 import ChangePassword from '../pages/auth/ChangePassword';
+import LoadingPage from '../pages/loadingPage';
 
 const Loadable =
     (Component: React.ComponentType<any>) => (props: JSX.IntrinsicAttributes) =>
     (
-        <Suspense fallback={"Loading..."}>
+        <Suspense fallback={<LoadingPage/>}>
             <Component {...props} />
         </Suspense>
     );
@@ -105,7 +106,7 @@ const normalRoutes: RouteObject = {
         },
         {
             path: 'configure-leaves',
-            element: <RequireUser allowedRoles={[ 'admin']} />,
+            element: <RequireUser allowedRoles={['admin']} />,
             children: [
                 {
                     path: '',

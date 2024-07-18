@@ -8,6 +8,7 @@ import { getAllLeaveRequestsFn, updateLeaveStatusFn } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
 import { formatDateTimeToSAST } from '../utils/Util';
 import { leaveStatus } from '../api/types';
+import LoadingPage from './loadingPage';
 
 type Props = {}
 
@@ -46,7 +47,7 @@ export default function ManageLeaveRequests({ }: Props) {
     };
 
     if (isLoading) {
-        return <Typography>Loading...</Typography>;
+        return <LoadingPage />;
     }
 
     if (isError || !data) {

@@ -30,7 +30,7 @@ const RequireUser = ({ allowedRoles }: { allowedRoles: string[] }) => {
     }, [isFetched, isSuccess, user]);
 
     if (isLoading || isFetching) {
-        return <>Loading xxx...</>;
+        return <></>;
     }
 
     return (cookies.logged_in || user) &&

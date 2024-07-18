@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useStateContext } from '../context';
 import React, { useEffect } from 'react';
 import { getMeFn } from '../api/authAPI';
+import LoadingPage from '../pages/loadingPage';
 
 
 type AuthMiddlewareProps = {
@@ -33,7 +34,7 @@ const AuthMiddleware: React.FC<AuthMiddlewareProps> = ({ children }) => {
     }, [cookies.logged_in, query.data]);
 
     if (query.isLoading && cookies.logged_in) {
-        return <>Loading...</>;
+        return <LoadingPage/>
     }
 
     return (
