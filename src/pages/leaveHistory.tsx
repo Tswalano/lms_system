@@ -17,6 +17,8 @@ import { useCookies } from 'react-cookie';
 import { getAllLeaveRequestByUID } from '../api/authAPI';
 import { LeaveRequest } from '../api/types';
 import { formatDateTimeToSAST } from '../utils/Util';
+import ErrorPage from './error/error';
+import LoadingPage from './loadingPage';
 
 type Props = {};
 
@@ -46,11 +48,11 @@ function LeaveHistory({ }: Props) {
     };
 
     if (isLoading) {
-        return <Typography>Loading...</Typography>;
+        return <Typography><LoadingPage /></Typography>;
     }
 
     if (isError || !data) {
-        return <Typography>Error loading leave requests.</Typography>;
+        return <Typography><ErrorPage /></Typography>;
     }
 
     const paginatedData = data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);

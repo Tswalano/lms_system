@@ -1,15 +1,15 @@
-import { Box, Container, Grid, Stack, TextareaAutosize, Typography } from '@mui/material'
-import { boolean, object, string, TypeOf } from 'zod';
-import { FormProvider, SubmitHandler, useForm } from 'react-hook-form'
-import FormInput from '../components/ui/FormInput'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Link } from 'react-router-dom';
+import { Box, Container, Stack, Typography } from '@mui/material';
+import { object, string, TypeOf } from 'zod';
+import { FormProvider, SubmitHandler, useForm } from 'react-hook-form';
+import FormInput from '../components/ui/FormInput';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { LoadingButton } from '@mui/lab';
 import { useEffect } from 'react';
-import { LeaveType } from '../api/types';
 import { useMutation } from '@tanstack/react-query';
 import { applyForLeaveFN } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const applyLeaveSchema = object({
     leave_type: string().min(1, 'Leave type is required'),
@@ -38,11 +38,8 @@ const leaveTypes = [
     { id: 4, value: 'paternity', label: 'Paternity Leave' },
 ];
 
-
 function ApplyLeave() {
     const [cookies] = useCookies(['token']);
-    console.log(cookies.token);
-
 
     const methods = useForm<applyLeaveInput>({
         resolver: zodResolver(applyLeaveSchema),
@@ -51,42 +48,25 @@ function ApplyLeave() {
     const { mutate: applyForLeave, isPending, error, isError } = useMutation({
         mutationKey: ['applyForLeave'],
         mutationFn: (leaveData: applyLeaveInput) => applyForLeaveFN(cookies.token, leaveData),
-
-
+        onSuccess: () => {
+            toast.success('Leave request submitted successfully!');
+        },
         onError: (error: any) => {
-            if (Array.isArray((error as any).response.data.error)) {
-                (error as any).response.data.error.forEach((el: any) =>
-                    console.error(el.message)
-                );
-            } else {
-                console.error((error as any).response.data.message);
-            }
+            toast.error(error?.response?.data?.message || 'Failed to submit leave request');
         },
     });
 
-
-    const {
-        reset,
-        handleSubmit,
-        formState: { isSubmitSuccessful },
-    } = methods;
+    const { reset, handleSubmit, formState: { isSubmitSuccessful } } = methods;
 
     useEffect(() => {
         if (isSubmitSuccessful) {
             reset();
-        } else {
-            reset();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isSubmitSuccessful]);
+    }, [isSubmitSuccessful, reset]);
 
     const onSubmitHandler: SubmitHandler<applyLeaveInput> = (values) => {
         applyForLeave(values);
-        console.log("values", values);
     };
-
-
-
 
     return (
         <Container maxWidth="xl">
@@ -102,14 +82,12 @@ function ApplyLeave() {
                 <Box sx={{
                     maxWidth: '650px',
                     width: '100%',
-                    p: 2,  // Adjust padding as needed
+                    p: 2,
                     borderRadius: 2,
-                    alignItems: 'flex-start',  // Align items to the left
-                    justifyContent: 'flex-start',  // Align items to the left
+                    alignItems: 'flex-start',
+                    justifyContent: 'flex-start',
                 }}>
-                    <Box sx={{
-                        marginTop: 2,
-                    }}>
+                    <Box sx={{ marginTop: 2 }}>
                         <FormProvider {...methods}>
                             <Box
                                 component='form'
@@ -134,7 +112,7 @@ function ApplyLeave() {
                                     fullWidth
                                     disableElevation
                                     type='submit'
-                                    loading={false}
+                                    loading={isPending}
                                 >
                                     Apply
                                 </LoadingButton>
@@ -144,8 +122,10 @@ function ApplyLeave() {
                 </Box>
             </Box>
 
+            <ToastContainer position="top-center" autoClose={6000} hideProgressBar={false} closeOnClick pauseOnHover draggable pauseOnFocusLoss />
+
         </Container>
-    )
+    );
 }
 
-export default ApplyLeave
+export default ApplyLeave;
