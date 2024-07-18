@@ -196,7 +196,7 @@ export const applyForLeaveFN = async (token: string, apply_leave: LeaveType ) =>
       },
     }
   );
-  return response.data.body;
+  return response.data.leaveData;
 };
 
 export const getAllLeaveRequestByUID = async (token: string) => {
@@ -240,5 +240,5 @@ export const updateLeaveStatusFn = async (token: string, leaveStatus: leaveStatu
       },
     }
   );
-  return response.data.body;
+  return response.data.leaveData;
 };

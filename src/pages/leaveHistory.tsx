@@ -106,7 +106,7 @@ export const leaveHistoryTable = (leaveHistory: LeaveRequest[]) => (
                             <TableCell>{lh.leave_comment}</TableCell>
                             <TableCell align="right">{lh.duration}</TableCell>
                             <TableCell align="right">{lh.status}</TableCell>
-                            <TableCell align="right">{lh.start_date}</TableCell>
+                            <TableCell align="right">{formatDateTimeToSAST(lh.start_date)}</TableCell>
                             <TableCell align="right">{formatDateTimeToSAST(lh.end_date)}</TableCell>
                         </TableRow>
                     ))}
