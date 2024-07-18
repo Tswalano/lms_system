@@ -113,7 +113,7 @@ const FormInput: FC<IFormInputProps> = ({ type, name, label, options, disabled }
                         <LocalizationProvider dateAdapter={AdapterDayjs}>
                             <MobileDatePicker
                                 {...field}
-                                minDate={dayjs(today)}
+                                // minDate={dayjs(today)}
                                 disabled={disabled}
                                 value={dayjs(field.value)}
                                 onChange={newValue => {

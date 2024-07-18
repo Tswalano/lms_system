@@ -41,13 +41,9 @@ const leaveTypes = [
 
 function ApplyLeave() {
     const [cookies] = useCookies(['token']);
-    console.log(cookies.token);
-
-
     const methods = useForm<applyLeaveInput>({
         resolver: zodResolver(applyLeaveSchema),
     });
-
     const { mutate: applyForLeave, isPending, error, isError } = useMutation({
         mutationKey: ['applyForLeave'],
         mutationFn: (leaveData: applyLeaveInput) => applyForLeaveFN(cookies.token, leaveData),
@@ -63,13 +59,15 @@ function ApplyLeave() {
             }
         },
     });
-
-
     const {
         reset,
         handleSubmit,
         formState: { isSubmitSuccessful },
     } = methods;
+    const onSubmitHandler: SubmitHandler<applyLeaveInput> = (values) => {
+        applyForLeave(values);
+        console.log("values", values);
+    };
 
     useEffect(() => {
         if (isSubmitSuccessful) {
@@ -79,14 +77,6 @@ function ApplyLeave() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSubmitSuccessful]);
-
-    const onSubmitHandler: SubmitHandler<applyLeaveInput> = (values) => {
-        applyForLeave(values);
-        console.log("values", values);
-    };
-
-
-
 
     return (
         <Container maxWidth="xl">
@@ -124,8 +114,8 @@ function ApplyLeave() {
                                     options={leaveTypes.map((leave) => ({ value: leave.value, label: leave.label }))}
                                 />
                                 <FormInput name='leave_length' label='Leave Length' type='select' options={[{ value: 'half', label: 'Half Day' }, { value: 'full', label: 'Full Day' }]} />
-                                <FormInput name='leave_start' label='Start Date' type='date' />
-                                <FormInput name='leave_end' label='End Date' type='date' />
+                                <FormInput name='leave_start' label='Start Date' type='date' /> {/* TODO: provide grey date values or function */}
+                                <FormInput name='leave_end' label='End Date' type='date' /> {/* TODO: provide grey date values or function */}
                                 <FormInput name='leave_comment' label='Comments' type='textarea' />
 
                                 <LoadingButton

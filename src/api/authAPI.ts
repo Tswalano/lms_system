@@ -242,3 +242,5 @@ export const updateLeaveStatusFn = async (token: string, leaveStatus: leaveStatu
   );
   return response.data.leaveData;
 };
+
+// TODO: Declare get public holidays API integration
