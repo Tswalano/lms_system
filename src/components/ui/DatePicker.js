@@ -5,7 +5,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { validateDate } from "../form/Validations";
 
-function DateField({ label, value, onChange }) {
+function DateField({ label, value, onChange, disableDateHandler }) {
   const [defaultErrorMessage, setDefaultError] = useState("");
 
   const validationMap = {
@@ -38,6 +38,7 @@ function DateField({ label, value, onChange }) {
             renderInput={(params) => (
               <TextField {...params} error={Boolean(defaultErrorMessage)} />
             )}
+            shouldDisableDate={disableDateHandler ? disableDateHandler : () => false}
           />
         </LocalizationProvider>
         <FormHelperText sx={{ color: "red" }}>

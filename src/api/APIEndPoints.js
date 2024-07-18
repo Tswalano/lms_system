@@ -1,90 +1,99 @@
 class APIEndPoints {
+  apiBaseUrl = "https://vtiho5i399.execute-api.af-south-1.amazonaws.com";
+  apiStage = "dev";
+
   constructor() {}
 
   signinAPI() {
-    const signin =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/login";
+    const signin = `${this.apiBaseUrl}/${this.apiStage}/sign-in`;
+
     return signin;
   }
 
   signupAPI() {
-    const signup =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/signup";
+    const signup = `${this.apiBaseUrl}/${this.apiStage}/sign-up`;
+
     return signup;
   }
 
   profileAPI() {
-    const profile =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/profile";
+    const profile = `${this.apiBaseUrl}/${this.apiStage}/user-service/profile`;
+
     return profile;
   }
 
   otpApi() {
-    const otp =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/verify-otp";
+    const otp = `${this.apiBaseUrl}/${this.apiStage}/verify-otp`;
+
     return otp;
   }
 
   applyForLeave() {
-    const leaveApply =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/lms/apply-leave";
+    const leaveApply = `${this.apiBaseUrl}/${this.apiStage}/apply-for-leave`;
+
     return leaveApply;
   }
 
   editLeave() {
-    const editLeave =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/lms/edit-leave";
+    const editLeave = `${this.apiBaseUrl}/${this.apiStage}/edit-leave-req`;
+
     return editLeave;
   }
 
   approveLeave() {
-    const approveLeave =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/lms/updateleave";
+    const approveLeave = `${this.apiBaseUrl}/${this.apiStage}/lms/updateleave`;
+
     return approveLeave;
   }
 
   getAllLeavesData() {
-    const getLeaves =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/lms/getleave";
+    const getLeaves = `${this.apiBaseUrl}/${this.apiStage}/get-all-leave-req`;
+
     return getLeaves;
   }
   getLeaveByID() {
-    const getLeaveByID =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/lms/getleave/by-id";
+    const getLeaveByID = `${this.apiBaseUrl}/${this.apiStage}/get-leave-by-id`;
+
     return getLeaveByID;
   }
 
   addNewEmployee() {
-    const addNewEmployee =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/invite-emp";
+    const addNewEmployee = `${this.apiBaseUrl}/${this.apiStage}/user-service/invite-emp`;
+
     return addNewEmployee;
   }
   viewAllEmployees() {
-    const viewAllEmployees =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/employee";
+    const viewAllEmployees = `${this.apiBaseUrl}/${this.apiStage}/user-service/employee`;
+
     return viewAllEmployees;
   }
 
   viewEmployeeByID() {
-    const viewEmpByID =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/employee/by-id";
+    const viewEmpByID = `${this.apiBaseUrl}/${this.apiStage}/user-service/employee/by-id`;
+
     return viewEmpByID;
   }
 
   forgotPassword() {
-    const forgotPassword =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/forgot-password";
+    const forgotPassword = `${this.apiBaseUrl}/${this.apiStage}/forgot-password`;
+
     return forgotPassword;
   }
   resetPassword() {
-    const resetPassword =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/user-service/reset-password";
+    const resetPassword = `${this.apiBaseUrl}/${this.apiStage}/user-service/reset-password`;
+
     return resetPassword;
   }
   uploadDocument() {
-    const uploadDocument =
-      "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/dev/lms/upload";
+    const uploadDocument = `${this.apiBaseUrl}/${this.apiStage}/lms/upload`;
+
     return uploadDocument;
+  }
+
+  getPublicHolidayDates() {
+    const getPublicHolidaysUrl = `${this.apiBaseUrl}/${this.apiStage}/public-holidays`;
+
+    return getPublicHolidaysUrl;
   }
 }
 export default APIEndPoints;

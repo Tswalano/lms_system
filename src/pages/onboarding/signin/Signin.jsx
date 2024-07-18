@@ -47,7 +47,7 @@ function Signin() {
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
-    const isEmailValid = validateEmail(formValues.email);
+    const isEmailValid = validateEmail(formValues.username);
     const isPasswordValid = validatePassword(formValues.password);
 
     // Set isError based on the validation results
@@ -76,11 +76,12 @@ function Signin() {
 
     const isLoggedIn = await signIn(endPoint, formValues);
 
-    if (isLoggedIn.token) {
-      ctx.logIn(isLoggedIn.token, isLoggedIn.user.role);
+    if (isLoggedIn.statusCode === 200) {
+      ctx.logIn(isLoggedIn.body.payload.IdToken, isLoggedIn?.user?.role || "user");
+      //navigate();
     } else {
       // set error
-      setAlertMessage(isLoggedIn);
+      setAlertMessage(isLoggedIn?.body?.message);
       setAlertType("error");
       setProgress(false);
       setResponse(true);
