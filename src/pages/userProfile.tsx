@@ -7,6 +7,7 @@ import { LoadingButton } from '@mui/lab';
 import FormInput from '../components/ui/FormInput';
 import { useMutation } from '@tanstack/react-query';
 import { changePasswordFn } from '../api/authAPI';
+import { useStateContext } from '../context';
 
 const profileSchema = z.object({
     firstName: z.string().min(1, "First name is required"),
@@ -29,6 +30,9 @@ function UserProfile() {
     const [editMode, setEditMode] = useState<boolean>(false);
     const [changePassword, setChangePassword] = useState<boolean>(false);
 
+    const stateContext = useStateContext();
+    const user = stateContext.state.authUser;
+
     const methods = useForm<ChangePasswordInputs>({
         resolver: zodResolver(changePasswordSchema),
     });
@@ -40,8 +44,8 @@ function UserProfile() {
     } = methods;
 
     const [userData, setUserData] = useState({
-        firstName: 'Lucas',
-        lastName: 'Hood',
+        firstName: user?.firstName || "",
+        lastName: user?.lastName || "",
         occupation: 'Engineering Operator',
         email: 'lucas.hood@disraptor.co.za',
         phone: '+27 123 456 789'

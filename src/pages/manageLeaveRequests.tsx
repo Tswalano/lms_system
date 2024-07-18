@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
-import { Button, ButtonGroup, Card, Chip, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination } from '@mui/material';
+import { Button, ButtonGroup, Card, Chip, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination } from '@mui/material';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getAllLeaveRequestsFn, updateLeaveStatusFn } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
