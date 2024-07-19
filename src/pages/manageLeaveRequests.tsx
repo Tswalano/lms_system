@@ -9,7 +9,7 @@ import { useCookies } from 'react-cookie';
 import { formatDateTimeToSAST } from '../utils/Util';
 import { leaveStatus } from '../api/types';
 import LoadingPage from './loadingPage';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 type Props = {}
@@ -129,7 +129,6 @@ export default function ManageLeaveRequests({ }: Props) {
                     </TableContainer>
                 </Card>
             </Grid>
-            <ToastContainer position="top-center" autoClose={6000} hideProgressBar={false} closeOnClick pauseOnHover draggable pauseOnFocusLoss />
         </Container>
     );
 }

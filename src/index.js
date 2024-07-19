@@ -10,6 +10,7 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import AuthMiddleware from "./middleware/AuthMiddleware";
 import App from "./App";
+import { ToastContainer } from "react-toastify";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
@@ -20,7 +21,7 @@ const queryClient = new QueryClient({
       refetchOnmount: false,
       refetchOnReconnect: false,
       retry: 1,
-      staleTime: 5 * 1000,
+      staleTime: 1000,
     },
   },
 });
@@ -33,6 +34,15 @@ root.render(
       <Router>
         <StateContextProvider>
           <AuthMiddleware>
+            <ToastContainer
+              draggable
+              pauseOnHover
+              closeOnClick
+              autoClose={5000}
+              pauseOnFocusLoss
+              position="top-right"
+              hideProgressBar={false}
+            />
             <App />
           </AuthMiddleware>
         </StateContextProvider>

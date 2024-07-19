@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { applyForLeaveFN } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const applyLeaveSchema = object({
@@ -121,9 +121,6 @@ function ApplyLeave() {
                     </Box>
                 </Box>
             </Box>
-
-            <ToastContainer position="top-center" autoClose={6000} hideProgressBar={false} closeOnClick pauseOnHover draggable pauseOnFocusLoss />
-
         </Container>
     );
 }
