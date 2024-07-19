@@ -11,7 +11,7 @@ import { applyForLeaveFN, getPublicHolidayDatesFn } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
 import dayjs from "dayjs";
 import dayjsutc from "dayjs/plugin/utc";
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 dayjs.extend(dayjsutc);
@@ -142,9 +142,6 @@ function ApplyLeave() {
                     </Box>
                 </Box>
             </Box>
-
-            <ToastContainer position="top-center" autoClose={6000} hideProgressBar={false} closeOnClick pauseOnHover draggable pauseOnFocusLoss />
-
         </Container>
     );
 }

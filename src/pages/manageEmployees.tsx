@@ -10,7 +10,7 @@ import { getAllUsersFn } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
 // import { CognitoUser } from '../api/types';
 import { formatDateTimeToSAST, capitalizeName } from '../utils/Util';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 function ManageEmployees() {
@@ -127,8 +127,6 @@ function ManageEmployees() {
                     </Card>
                 </Grid>
             )}
-
-            <ToastContainer position="top-center" autoClose={6000} hideProgressBar={false} closeOnClick pauseOnHover draggable pauseOnFocusLoss />
         </Container>
     )
 }

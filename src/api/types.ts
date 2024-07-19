@@ -16,7 +16,8 @@ export interface IAuthUserResults {
     occupation?: string;
     username: string;
     userId: string;
-
+    sub: string;
+    phone?: string;
 }
 
 export interface IErrorResponse {
@@ -104,10 +105,10 @@ export type LeaveAPIResponse = {
 
 export type LeaveAPIResponseUID = {
     statusCode: number;
-    
-        message: string;
-        leaveData: LeaveRequest[] | undefined;
-    
+
+    message: string;
+    leaveData: LeaveRequest[] | undefined;
+
 };
 
 // export interface IUserResponse {
