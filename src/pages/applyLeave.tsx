@@ -1,9 +1,8 @@
-import { Box, Container, Grid, Stack, TextareaAutosize, Typography } from '@mui/material'
-import { boolean, object, string, TypeOf } from 'zod';
-import { FormProvider, SubmitHandler, useForm } from 'react-hook-form'
-import FormInput from '../components/ui/FormInput'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Link } from 'react-router-dom';
+import { Box, Container, Stack, Typography } from '@mui/material';
+import { object, string, TypeOf } from 'zod';
+import { FormProvider, SubmitHandler, useForm } from 'react-hook-form';
+import FormInput from '../components/ui/FormInput';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { LoadingButton } from '@mui/lab';
 import { useEffect } from 'react';
 import { LeaveType } from '../api/types';
@@ -12,6 +11,9 @@ import { applyForLeaveFN, getPublicHolidayDatesFn } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
 import dayjs from "dayjs";
 import dayjsutc from "dayjs/plugin/utc";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 dayjs.extend(dayjsutc);
 
 const applyLeaveSchema = object({
@@ -49,14 +51,11 @@ function ApplyLeave() {
     const { mutate: applyForLeave, isPending, error, isError } = useMutation({
         mutationKey: ['applyForLeave'],
         mutationFn: (leaveData: applyLeaveInput) => applyForLeaveFN(cookies.token, leaveData),
+        onSuccess: () => {
+            toast.success('Leave request submitted successfully!');
+        },
         onError: (error: any) => {
-            if (Array.isArray((error as any).response.data.error)) {
-                (error as any).response.data.error.forEach((el: any) =>
-                    console.error(el.message)
-                );
-            } else {
-                console.error((error as any).response.data.message);
-            }
+            toast.error(error?.response?.data?.message || 'Failed to submit leave request');
         },
     });
     const callGetPublicHolidays = useQuery({
@@ -87,11 +86,8 @@ function ApplyLeave() {
     useEffect(() => {
         if (isSubmitSuccessful) {
             reset();
-        } else {
-            reset();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isSubmitSuccessful]);
+    }, [isSubmitSuccessful, reset]);
 
     return (
         <Container maxWidth="xl">
@@ -107,14 +103,12 @@ function ApplyLeave() {
                 <Box sx={{
                     maxWidth: '650px',
                     width: '100%',
-                    p: 2,  // Adjust padding as needed
+                    p: 2,
                     borderRadius: 2,
-                    alignItems: 'flex-start',  // Align items to the left
-                    justifyContent: 'flex-start',  // Align items to the left
+                    alignItems: 'flex-start',
+                    justifyContent: 'flex-start',
                 }}>
-                    <Box sx={{
-                        marginTop: 2,
-                    }}>
+                    <Box sx={{ marginTop: 2 }}>
                         <FormProvider {...methods}>
                             <Box
                                 component='form'
@@ -139,7 +133,7 @@ function ApplyLeave() {
                                     fullWidth
                                     disableElevation
                                     type='submit'
-                                    loading={false}
+                                    loading={isPending}
                                 >
                                     Apply
                                 </LoadingButton>
@@ -149,8 +143,10 @@ function ApplyLeave() {
                 </Box>
             </Box>
 
+            <ToastContainer position="top-center" autoClose={6000} hideProgressBar={false} closeOnClick pauseOnHover draggable pauseOnFocusLoss />
+
         </Container>
-    )
+    );
 }
 
-export default ApplyLeave
+export default ApplyLeave;

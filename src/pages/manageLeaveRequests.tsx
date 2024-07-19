@@ -9,6 +9,8 @@ import { useCookies } from 'react-cookie';
 import { formatDateTimeToSAST } from '../utils/Util';
 import { leaveStatus } from '../api/types';
 import LoadingPage from './loadingPage';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 type Props = {}
 
@@ -31,9 +33,15 @@ export default function ManageLeaveRequests({ }: Props) {
     const mutate = useMutation({
         mutationKey: ['deleteLeaveRequest'],
         mutationFn: (leaveData: leaveStatus) => updateLeaveStatusFn(cookies.token, leaveData),
-        onSuccess(data) {
+
+        onSuccess(data, variables) {
             console.log('leave request updated', data);
             refetch();
+            variables.status === 'Approved' ?
+                toast.success('Leave Status Approved') : toast.warning('Leave request rejected.');
+        },
+        onError: (error) => {
+            toast.error('Failed to Update Leave Request');
         },
     });
 
@@ -121,6 +129,7 @@ export default function ManageLeaveRequests({ }: Props) {
                     </TableContainer>
                 </Card>
             </Grid>
+            <ToastContainer position="top-center" autoClose={6000} hideProgressBar={false} closeOnClick pauseOnHover draggable pauseOnFocusLoss />
         </Container>
     );
 }

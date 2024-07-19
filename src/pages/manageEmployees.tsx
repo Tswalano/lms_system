@@ -10,6 +10,8 @@ import { getAllUsersFn } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
 // import { CognitoUser } from '../api/types';
 import { formatDateTimeToSAST, capitalizeName } from '../utils/Util';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function ManageEmployees() {
     const [cookies,] = useCookies(['token']);
@@ -26,6 +28,7 @@ function ManageEmployees() {
         queryFn: () => getAllUsersFn(cookies.token),
         select: (data) => {
             if (data.error) {
+                toast.error('Failed to Fetch Users')
                 return []
             }
 
@@ -125,7 +128,7 @@ function ManageEmployees() {
                 </Grid>
             )}
 
-
+            <ToastContainer position="top-center" autoClose={6000} hideProgressBar={false} closeOnClick pauseOnHover draggable pauseOnFocusLoss />
         </Container>
     )
 }
