@@ -19,12 +19,6 @@ const navConfig = [
     icon: '👥',
     permissions: ['admin'],
   },
-  // {
-  //   title: 'configure leaves',
-  //   path: '/configure-leaves',
-  //   icon: '📝',
-  //   permissions: ['admin'],
-  // },
   {
     title: 'manage leave requests',
     path: '/manage-requests',
@@ -34,7 +28,7 @@ const navConfig = [
   {
     title: 'My Leave History',
     path: '/leave-history',
-    icon: '📝',
+    icon: '⏳',
     permissions: ['admin', 'user'],
   },
   {

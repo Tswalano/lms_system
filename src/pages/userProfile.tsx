@@ -8,6 +8,7 @@ import FormInput from '../components/ui/FormInput';
 import { useMutation } from '@tanstack/react-query';
 import { changePasswordFn } from '../api/authAPI';
 import { useStateContext } from '../context';
+import { capitalizeName } from '../utils/Util';
 
 const profileSchema = z.object({
     firstName: z.string().min(1, "First name is required"),
@@ -44,11 +45,11 @@ function UserProfile() {
     } = methods;
 
     const [userData, setUserData] = useState({
-        firstName: user?.firstName || "",
-        lastName: user?.lastName || "",
-        occupation: 'Engineering Operator',
-        email: 'lucas.hood@disraptor.co.za',
-        phone: '+27 123 456 789'
+        firstName: user?.firstName,
+        lastName: user?.lastName,
+        occupation: user?.occupation,
+        email: user?.email,
+        phone: user?.phone,
     })
     const { handleSubmit, control, formState: { errors, isSubmitting } } = useForm({
         resolver: zodResolver(profileSchema),
@@ -115,31 +116,78 @@ function UserProfile() {
                 <Grid item xs={12} md={8}>
                     {!editMode ? (
                         <>
-                            <Paper sx={{ p: 3, mb: 4 }}>
+                            <Paper sx={{ p: 3, mb: 4, display: 'flex', flexDirection: 'column' }}>
                                 <Typography variant="h6" gutterBottom>
                                     Personal Information
                                 </Typography>
-                                <Typography variant="body1">
-                                    <strong>First Name:</strong> {userData.firstName}
-                                </Typography>
-                                <Typography variant="body1">
-                                    <strong>Last Name:</strong> {userData.lastName}
-                                </Typography>
-                                <Typography variant="body1">
-                                    <strong>Occupation:</strong> {userData.occupation}
-                                </Typography>
+                                <div style={{ display: 'flex', flexDirection: 'row' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <Typography variant="body1">
+                                            <strong>First Name:</strong>
+                                        </Typography>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <Typography variant="body1">
+                                            {capitalizeName(userData.firstName)}
+                                        </Typography>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'row' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <Typography variant="body1">
+                                            <strong>Last Name:</strong>
+                                        </Typography>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <Typography variant="body1">
+                                            {capitalizeName(userData.lastName)}
+                                        </Typography>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'row' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <Typography variant="body1">
+                                            <strong>Occupation:</strong>
+                                        </Typography>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <Typography variant="body1">
+                                            {capitalizeName(userData.occupation)}
+                                        </Typography>
+                                    </div>
+                                </div>
                             </Paper>
 
-                            <Paper sx={{ p: 3 }}>
+
+                            <Paper sx={{ p: 3, mb: 4, display: 'flex', flexDirection: 'column' }}>
                                 <Typography variant="h6" gutterBottom>
                                     Contact Details
                                 </Typography>
-                                <Typography variant="body1">
-                                    <strong>Email Address:</strong> {userData.email}
-                                </Typography>
-                                <Typography variant="body1">
-                                    <strong>Phone Number:</strong> {userData.phone}
-                                </Typography>
+                                <div style={{ display: 'flex', flexDirection: 'row' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <Typography variant="body1">
+                                            <strong>Email Address:</strong>
+                                        </Typography>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <Typography variant="body1">
+                                            {user?.email || "Not Provided"}
+                                        </Typography>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'row' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <Typography variant="body1">
+                                            <strong>Phone Number:</strong>
+                                        </Typography>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <Typography variant="body1">
+                                            {userData.phone || "Not Provided"}
+                                        </Typography>
+                                    </div>
+                                </div>
                             </Paper>
 
                             <Button variant="contained" color="primary" sx={{ mt: 3 }} onClick={handleEditClick}>
