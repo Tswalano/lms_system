@@ -49,9 +49,10 @@ type IFormInputProps = {
     label: string;
     disabled?: boolean;
     options?: { value: string | number; label: string }[]; // Options for select dropdown
+    disableDatesHandler?: (date: dayjs.Dayjs) => boolean;
 };
 
-const FormInput: FC<IFormInputProps> = ({ type, name, label, options, disabled }) => {
+const FormInput: FC<IFormInputProps> = ({ type, name, label, options, disabled, disableDatesHandler }) => {
     const today = new Date()
     const {
         control,
@@ -119,7 +120,8 @@ const FormInput: FC<IFormInputProps> = ({ type, name, label, options, disabled }
                                 onChange={newValue => {
                                     field.onChange(formatDateTimeToSAST(newValue?.toISOString()));
                                 }}
-                                sx={{ borderRadius: '1rem', backgroundColor: '#F3FAFF' }} />
+                                sx={{ borderRadius: '1rem', backgroundColor: '#F3FAFF' }}
+                                shouldDisableDate={disableDatesHandler} />
                         </LocalizationProvider>
                     )}
                     {type === 'email' && (

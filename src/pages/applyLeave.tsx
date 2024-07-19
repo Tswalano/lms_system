@@ -7,9 +7,12 @@ import { Link } from 'react-router-dom';
 import { LoadingButton } from '@mui/lab';
 import { useEffect } from 'react';
 import { LeaveType } from '../api/types';
-import { useMutation } from '@tanstack/react-query';
-import { applyForLeaveFN } from '../api/authAPI';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { applyForLeaveFN, getPublicHolidayDatesFn } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
+import dayjs from "dayjs";
+import dayjsutc from "dayjs/plugin/utc";
+dayjs.extend(dayjsutc);
 
 const applyLeaveSchema = object({
     leave_type: string().min(1, 'Leave type is required'),
@@ -38,7 +41,6 @@ const leaveTypes = [
     { id: 4, value: 'paternity', label: 'Paternity Leave' },
 ];
 
-
 function ApplyLeave() {
     const [cookies] = useCookies(['token']);
     const methods = useForm<applyLeaveInput>({
@@ -47,8 +49,6 @@ function ApplyLeave() {
     const { mutate: applyForLeave, isPending, error, isError } = useMutation({
         mutationKey: ['applyForLeave'],
         mutationFn: (leaveData: applyLeaveInput) => applyForLeaveFN(cookies.token, leaveData),
-
-
         onError: (error: any) => {
             if (Array.isArray((error as any).response.data.error)) {
                 (error as any).response.data.error.forEach((el: any) =>
@@ -59,6 +59,11 @@ function ApplyLeave() {
             }
         },
     });
+    const callGetPublicHolidays = useQuery({
+        queryKey: [ "publicHolidays" ],
+        queryFn: async ({ queryKey }) => getPublicHolidayDatesFn(cookies.token),
+        select: (publicHolidays) => publicHolidays.map(phd => dayjs.utc(phd))
+    });
     const {
         reset,
         handleSubmit,
@@ -67,6 +72,16 @@ function ApplyLeave() {
     const onSubmitHandler: SubmitHandler<applyLeaveInput> = (values) => {
         applyForLeave(values);
         console.log("values", values);
+    };
+    const shouldDisableDate = (date: dayjs.Dayjs) => {
+        const dayOfWeek = date.day();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const dayIsPublicHoliday = callGetPublicHolidays.isSuccess
+            ? callGetPublicHolidays.data?.some(d => d.isSame(date))
+            : false;
+        const shouldDisableDate = isWeekend || dayIsPublicHoliday;
+
+        return shouldDisableDate;
     };
 
     useEffect(() => {
@@ -114,8 +129,8 @@ function ApplyLeave() {
                                     options={leaveTypes.map((leave) => ({ value: leave.value, label: leave.label }))}
                                 />
                                 <FormInput name='leave_length' label='Leave Length' type='select' options={[{ value: 'half', label: 'Half Day' }, { value: 'full', label: 'Full Day' }]} />
-                                <FormInput name='leave_start' label='Start Date' type='date' /> {/* TODO: provide grey date values or function */}
-                                <FormInput name='leave_end' label='End Date' type='date' /> {/* TODO: provide grey date values or function */}
+                                <FormInput name='leave_start' label='Start Date' type='date' disableDatesHandler={shouldDisableDate} /> {/* TODO: provide grey date values or function */}
+                                <FormInput name='leave_end' label='End Date' type='date' disableDatesHandler={shouldDisableDate} /> {/* TODO: provide grey date values or function */}
                                 <FormInput name='leave_comment' label='Comments' type='textarea' />
 
                                 <LoadingButton

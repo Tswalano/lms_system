@@ -243,4 +243,19 @@ export const updateLeaveStatusFn = async (token: string, leaveStatus: leaveStatu
   return response.data.leaveData;
 };
 
-// TODO: Declare get public holidays API integration
+export const getPublicHolidayDatesFn = async (token: string, start: Date | undefined = undefined, end: Date | undefined = undefined): Promise<string[]> => {
+  try {
+    const options = {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      }};
+    const response = await authApi.get<string[]>("public-holidays", options);
+  
+    return Promise.resolve(response.data);
+  }
+  catch (apiError) {
+    const newError = new Error("Failed to get public holidays from API", { cause: apiError });
+    return Promise.reject(newError);
+  }
+};
