@@ -14,9 +14,9 @@ import {
   MenuItem,
   FormHelperText,
 } from "@mui/material";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+//import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+//import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+//import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 
 function EditField({ field }) {
   const { name, label, type, onChange, value, options } = field;
@@ -28,9 +28,9 @@ function EditField({ field }) {
     firstName: validateText,
     lastName: validateText,
     jobTitle: validateText,
-    startDate: validateDate,
-    endDate: validateEndDate,
-    LeaveType: validateDropDown,
+    start_date: validateDate,
+    end_date: validateEndDate,
+    Leave_type: validateDropDown,
     approval: validateDropDown,
 
     // Add more validation functions for other input fields
@@ -55,29 +55,7 @@ function EditField({ field }) {
 
   return (
     <>
-      {type === "date" ? (
-        <FormControl
-          fullWidth
-          error={Boolean(defaultError)}
-          sx={{ marginBottom: "15px" }}
-        >
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DatePicker
-              label={label}
-              id={name}
-              name={name}
-              value={fieldValue}
-              onChange={handleInputChange}
-              renderInput={(params) => (
-                <TextField {...params} error={Boolean(defaultError)} />
-              )}
-            />
-          </LocalizationProvider>
-          <FormHelperText sx={{ color: "red" }}>
-            {defaultError ? defaultError : ""}
-          </FormHelperText>
-        </FormControl>
-      ) : type === "select" ? (
+      {type === "select" ? (
         <FormControl
           fullWidth
           error={Boolean(defaultError)}

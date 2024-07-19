@@ -46,22 +46,32 @@ export default function TableComponent({ columnsData, rowsData, isLoading }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rowsData
-              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((row, index) => {
-                return (
-                  <TableRow hover role="checkbox" tabIndex={-1} key={row.id}>
-                    {columnsData.map((column) => {
-                      const value = row[column.id];
-                      return (
-                        <TableCell key={column.id} align="left">
-                          {value}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                );
-              })}
+            {rowsData.length <= 0 ? (
+              <>
+                <TableRow>
+                  <TableCell colSpan={columnsData.length} align="center">
+                    {"Nothing to display yet."}
+                  </TableCell>
+                </TableRow>
+              </>
+            ) : (
+              rowsData
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((row, index) => {
+                  return (
+                    <TableRow hover role="checkbox" tabIndex={-1} key={row.id}>
+                      {columnsData.map((column) => {
+                        const value = row[column.id];
+                        return (
+                          <TableCell key={column.id} align="left">
+                            {value}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })
+            )}
           </TableBody>
         </Table>
       </TableContainer>

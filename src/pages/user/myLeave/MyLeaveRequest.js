@@ -26,6 +26,8 @@ import UpdateLeaveRequest from "./UpdateLeaveRequest";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { getDataByID } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
+import UploadDocument from "../applyforleave/UploadDocument";
 
 function dateFormat(dateValue) {
   const date = new Date(dateValue);
@@ -35,9 +37,18 @@ function dateFormat(dateValue) {
 function MyLeaveRequest() {
   // Create a URLSearchParams object with the current URL's query string
   const params = new URLSearchParams(window.location.search);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Access the value of employee id from query string
   const id = params.get("id");
+  const [leaveData, setLeaveData] = useState({
+    leave_type: "",
+    start_date: "",
+    end_date: "",
+    leave_length: "",
+    leave_comment: "",
+    id: "",
+  });
 
   // declare useState variables
   const [leaveType, setLeaveType] = useState("");
@@ -72,32 +83,30 @@ function MyLeaveRequest() {
     // Run the validation when formValues state changes
   }, [formValues]);
 
-  // handle form submition
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    //Feedback value is captured on values that is null
-    const formValues = GetFormValues(event);
-    //try and catch error to do the integration and capture the form values.
-    try {
-    } catch (error) {}
-  };
-
   const fetchLeaveData = async () => {
     const endpoint = new APIEndPoints().getLeaveByID();
     const leaveID = { id };
     const data = await getDataByID(endpoint, leaveID, ctx.token);
+
     //checks if response is valid
     if (data) {
       if (!leaveType && !startDate && !comments && !attachments) {
         setLeaveType(data.leave_type);
         setStartDate(dateFormat(data.start_date));
         setEndDate(dateFormat(data.end_date));
-        setLeaveLength(data.duration);
+        setLeaveLength(data.duration + " day(s)");
         setLeaveStatus(data.status);
-        setComments("Comments needs to be added still");
-        setAttachments(
-          "https://www.dexform.com/download/sample-letter-from-your-doctor-or-other-service-provider"
-        );
+        setComments(data.leave_comment);
+        setAttachments(data.document);
+
+        setLeaveData({
+          id: data.id,
+          leave_type: data.leave_type,
+          leave_start: data.start_date,
+          leave_end: data.end_date,
+          leave_length: data.leave_length,
+          leave_comment: data.leave_comment,
+        });
       }
       setISLoading(false);
     }
@@ -115,10 +124,15 @@ function MyLeaveRequest() {
     setOpen(true);
   };
 
+  const OpenUploadDocModal = () => {
+    setModalOpen(true);
+  };
+
   const handleClose = () => {
     setOpen(false);
     fetchLeaveData();
     setISLoading(true);
+    setModalOpen(false);
   };
 
   return (
@@ -216,31 +230,70 @@ function MyLeaveRequest() {
               {/* Shows employees file attached from GET on axios */}
               {/* overflowwrap to wrap text */}
               <Grid item xs={8} sx={{ overflowWrap: "break-word" }}>
-                <a
-                  href={attachments}
-                  style={{ textDecoration: "none" }}
-                  target="_blank"
-                >
-                  <Paragraph text={attachments} fontWeight={"normal"} />
-                </a>
+                {attachments !== "no supporting documents" ? (
+                  <a
+                    href={attachments}
+                    style={{ textDecoration: "underline" }}
+                    target="_blank"
+                  >
+                    <Paragraph text={attachments} fontWeight={"normal"} />
+                  </a>
+                ) : (
+                  <Button
+                    id="uploadDocument"
+                    variant="contained"
+                    startIcon={<UploadFileIcon />}
+                    onClick={OpenUploadDocModal}
+                  >
+                    Upload Document
+                  </Button>
+                )}
               </Grid>
             </Grid>
           </Grid>
         </PaperComponent>
       </Box>
 
-      {/* add employee modal dialog */}
+      {/* edit leave modal dialog */}
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle sx={{ color: "#2196f3", fontWeight: "bold" }}>
           Edit Leave Request
         </DialogTitle>
         <Divider />
         <DialogContent>
-          <UpdateLeaveRequest handleModalClose={handleClose} />
+          <UpdateLeaveRequest
+            handleModalClose={handleClose}
+            leaveData={leaveData}
+          />
         </DialogContent>
         <Divider />
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* add upload doc modal dialog */}
+      <Dialog open={modalOpen} maxWidth="sm" fullWidth onClose={handleClose}>
+        <DialogTitle sx={{ color: "#2196f3", fontWeight: "bold" }}>
+          Upload Leave Document
+        </DialogTitle>
+        <Divider />
+        <DialogContent>
+          <UploadDocument leaveId={id} />
+          <br />
+        </DialogContent>
+        <Divider />
+        <DialogActions>
+          <Button onClick={handleClose} sx={{ color: "grey" }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            sx={{ backgroundColor: "grey" }}
+            onClick={handleClose}
+          >
+            Not now
+          </Button>
         </DialogActions>
       </Dialog>
     </>

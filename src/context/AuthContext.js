@@ -1,5 +1,17 @@
 import React, { createContext, useState, useEffect } from "react";
-
+import jwtDecode from "jwt-decode";
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+} from "@mui/material";
+import ExitToAppIcon from "@mui/icons-material/ExitToApp";
+import Paragraph from "../components/ui/Paragraph";
+import LoginIcon from "@mui/icons-material/Login";
 // Create the AuthContext
 export const AuthContext = createContext();
 
@@ -7,6 +19,7 @@ export const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   // State to store the user token
   const [token, setToken] = useState(localStorage.getItem("token"));
+  const [accessToken, setAccessToken] = useState(localStorage.getItem("access-token"));
 
   const [email, setEmail] = useState(localStorage.getItem("email"));
   const [password, setPassword] = useState(localStorage.getItem("pass"));
@@ -21,27 +34,46 @@ export const AuthProvider = ({ children }) => {
 
   const [isVerified, setVerification] = useState();
 
+  const [open, setOpen] = useState(false);
+
   // Function to handle user sign in and set token and role
-  const logIn = (userToken, userRole) => {
-    setToken(userToken);
-    setIsAuthenticated(userToken);
+  const logIn = (idToken, accessToken, userRole) => {
+    setToken(idToken);
+    setAccessToken(accessToken);
+    setIsAuthenticated(idToken !== "" && idToken !== null ? true : false);
     setIsAdmin(userRole);
-    localStorage.setItem("token", userToken);
+    localStorage.setItem("token", idToken);
+    localStorage.setItem("access-token", accessToken);
     localStorage.setItem("role", userRole);
   };
+  const handleSessionModal = () => {
+    signOut();
+    window.location.reload();
+  };
 
-  /*useEffect(() => {
-    const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role");
-    const email = localStorage.getItem("email");
-    const password = localStorage.getItem("pass");
+  // const isTokenExpired = (tokenExp) => {
+  //   const decode = jwtDecode(tokenExp);
+  //   const expTime = decode.exp * 1000;
+  //   const currentTime = Date.now();
+  //   return expTime <= currentTime;
+  // };
 
-    setToken(token);
-    setIsAdmin(role);
-    setIsAuthenticated(token !== "" && token !== null);
-    setEmail(email);
-    setPassword(password);
-  }, [token]);*/
+  // const checkExpiration = () => {
+  //   if (token && isTokenExpired(token)) {
+  //     setOpen(true);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   if (token) {
+  //     const interval = setInterval(() => {
+  //       checkExpiration();
+  //     }, 1000);
+  //     return () => {
+  //       clearInterval(interval);
+  //     };
+  //   }
+  // }, [token, open, checkExpiration]);
 
   const signup = (verified) => {
     setVerification(verified);
@@ -69,12 +101,14 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setIsAuthenticated(false);
     setIsAdmin(false);
+    setOpen(false);
     localStorage.clear();
   };
 
   // Value object to be provided to consuming components
   const authContextValue = {
     token,
+    accessToken,
     email,
     isAuthenticated,
     isAdmin,
@@ -91,6 +125,39 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={authContextValue}>
       {children}
+      <Dialog open={open} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ color: "#2196f3", fontWeight: "bold" }}>
+          Session Expired
+        </DialogTitle>
+        <Divider />
+        <DialogContent>
+          <Box sx={{ textAlign: "center" }}>
+            <ExitToAppIcon
+              sx={{
+                color: "#ef6266",
+                height: "100px",
+                width: "100px",
+              }}
+            />
+            <Paragraph
+              text={
+                "Oops! Your session has expired. Please log back in to continue."
+              }
+              fontWeight={"bold"}
+            />
+          </Box>
+        </DialogContent>
+        <Divider />
+        <DialogActions>
+          <Button
+            variant="contained"
+            onClick={handleSessionModal}
+            endIcon={<LoginIcon />}
+          >
+            GO TO LOGIN
+          </Button>
+        </DialogActions>
+      </Dialog>
     </AuthContext.Provider>
   );
 };

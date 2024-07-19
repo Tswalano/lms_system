@@ -3,34 +3,41 @@ import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SubmitButton from "../../../components/ui/Button";
 import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
-import { GetFormValues } from "../../../components/form/GetFormValues";
 import {
   Alert,
-  AlertTitle,
   Box,
   Collapse,
   Grid,
   IconButton,
   Typography,
+  Divider,
+  Button,
 } from "@mui/material";
-import Heading from "../../../components/ui/Heading";
 import PaperComponent from "../../../components/ui/Paper";
-import { validateDropDown } from "../../../components/form/Validations";
+import {
+  validateDropDown,
+  validateLeaveLength,
+  validateDate,
+  validateEndDate,
+} from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
 import ApplyForLeaveForm from "./ApplyForLeaveConfig";
-import { validateDate } from "../../../components/form/Validations";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import { Link } from "react-router-dom";
-import Paragraph from "../../../components/ui/Paragraph";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { AuthContext } from "../../../context/AuthContext";
 import { postData } from "../../../api/API";
 import CloseIcon from "@mui/icons-material/Close";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import UploadDocument from "./UploadDocument";
 
 function ApplyForLeave() {
   // declare the useState formValues object
   const [formValues, setFormValues] = useState({});
-  //const [leaveValid, setLeaveValid] = useState({});
+  const [leaveId, setLeaveId] = useState("");
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
@@ -43,23 +50,59 @@ function ApplyForLeave() {
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
 
+  const [modalOpen, setModalOpen] = useState(false);
+  const handleClose = () => {
+    setOpen(false);
+    setModalOpen(false);
+
+    window.location.reload();
+  };
+
   //Declaring usContext use stored values
   const ctx = useContext(AuthContext);
 
   // Update the isError state based on the validation results
   const handleValidation = () => {
     // use your existing validation functions to validate email and password.
-    const isSelectValid = validateDropDown(
-      formValues.leaveType,
-      formValues.leaveLength
+    const isLeaveTypeSelected = validateDropDown(formValues.leaveType);
+    const isLeaveLengthSelected = validateDropDown(formValues.leaveLength);
+    const isStartDate = validateDate(formValues.startDate);
+    const isEndDate = validateDate(formValues.endDate);
+    const endDateValidation = validateEndDate(
+      formValues.startDate,
+      formValues.endDate
+    );
+    const isHalfDay = validateLeaveLength(
+      formValues.leaveLength,
+      formValues.startDate,
+      formValues.endDate
     );
 
-    const isDate = validateDate(formValues.startDate);
-    const isEndDate = validateDate(formValues.endDate);
-    // const isDate = validateDate(formValues.Date)
-
     // Set isError based on the validation results
-    setIsError(isSelectValid !== null || isDate !== null || isEndDate !== null);
+    setIsError(
+      isLeaveTypeSelected !== null ||
+        isLeaveLengthSelected !== null ||
+        isStartDate !== null ||
+        isEndDate !== null ||
+        isHalfDay !== null ||
+        endDateValidation !== null
+    );
+    //
+    if (isHalfDay !== null || endDateValidation !== null) {
+      var errorMessage = "";
+      if (isHalfDay !== null) {
+        errorMessage = isHalfDay;
+      } else if (endDateValidation !== null) {
+        errorMessage = endDateValidation;
+      }
+      setAlertMessage(errorMessage);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
+    } else {
+      setOpen(false);
+    }
   };
 
   useEffect(() => {
@@ -76,6 +119,11 @@ function ApplyForLeave() {
     setProgress(true);
 
     const leave_type = formValues.leaveType;
+    const leave_length = formValues.leaveLength;
+    var leave_comment = "n/a";
+    if (formValues.leaveComment !== "") {
+      leave_comment = formValues.leaveComment;
+    }
     const startDateFormat = new Date(formValues.startDate);
     const endDateFormat = new Date(formValues.endDate);
     //creating startDate Format
@@ -89,12 +137,18 @@ function ApplyForLeave() {
     const leave_end =
       endDateFormat.getFullYear() +
       "/" +
-      (startDateFormat.getMonth() + 1) +
+      (endDateFormat.getMonth() + 1) +
       "/" +
       endDateFormat.getDate();
     //creating an array for data
 
-    const arrData = { leave_type, leave_start, leave_end };
+    const arrData = {
+      leave_type,
+      leave_start,
+      leave_end,
+      leave_length,
+      leave_comment,
+    };
     const endpoint = new APIEndPoints().applyForLeave();
 
     const response = await postData(endpoint, arrData, ctx.token);
@@ -106,6 +160,9 @@ function ApplyForLeave() {
       setProgress(false);
       setResponse(true);
       setOpen(true);
+      // open upload doc modal
+      setLeaveId(response.leaveData.id);
+      setModalOpen(true);
     } else {
       // set error
       setAlertMessage(response.message);
@@ -164,6 +221,28 @@ function ApplyForLeave() {
           </Grid>
         </form>
       </PaperComponent>
+
+      {/* add upload doc modal dialog */}
+      <Dialog open={modalOpen} maxWidth="sm" fullWidth onClose={handleClose}>
+        <DialogTitle sx={{ color: "#2196f3", fontWeight: "bold" }}>
+          Upload Leave Document
+        </DialogTitle>
+        <Divider />
+        <DialogContent>
+          <UploadDocument leaveId={leaveId} />
+          <br />
+        </DialogContent>
+        <Divider />
+        <DialogActions>
+          <Button
+            variant="contained"
+            sx={{ backgroundColor: "grey" }}
+            onClick={handleClose}
+          >
+            Not now
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -9,6 +9,7 @@ import {
   validateText,
   validateDate,
   validateEndDate,
+  validateDocument,
 } from "../form/Validations";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -40,6 +41,7 @@ function Input({ field, onChange }) {
     jobTitle: validateText,
     Date: validateDate,
     endDate: validateEndDate,
+    document: validateDocument,
 
     // Add more validation functions for other input fields
   };

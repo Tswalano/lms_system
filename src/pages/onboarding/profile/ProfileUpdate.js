@@ -88,7 +88,8 @@ function ProfileUpdate({ profileData, handleModalClose }) {
       setTimeout(() => {
         setProgress(false);
         handleModalClose();
-      }, 2000);
+        window.location.reload();
+      }, 500);
     } else {
       // set error
       setAlertMessage(response.message);

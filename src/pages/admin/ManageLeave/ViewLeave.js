@@ -34,7 +34,6 @@ function ViewLeave() {
   const [leaveLength, setLeaveLength] = useState("");
   const [comments, setComments] = useState("");
   const [attachments, setAttachments] = useState("");
-  const [approval, setApproval] = useState("");
   const [status, setStatus] = useState("");
   const [feedback, setFeedback] = useState("");
 
@@ -54,12 +53,11 @@ function ViewLeave() {
           setStartDate(dateFormat(data.start_date));
           setEndDate(dateFormat(data.end_date));
           setLeaveLength(data.duration);
-          setComments("Require Days off (Not Implemented)");
-          setAttachments(
-            "https://www.dexform.com/download/sample-letter-from-your-doctor-or-other-service-provider"
+          setComments(data.leave_comment);
+          setAttachments(data.document);
+          setStatus(
+            data.status.toUpperCase().charAt(0) + "" + data.status.slice(1)
           );
-          setApproval("Approved");
-          setStatus(data.status);
           setFeedback(data.feedback);
         }
       }
@@ -156,7 +154,7 @@ function ViewLeave() {
             </Grid>
             {/* Shows employees file attached from GET on axios */}
             {/* overflowwrap to wrap text */}
-            <Grid item xs={8} sx={{ overflowWrap: "break-word" }}>
+            {attachments !== null ? (
               <a
                 href={attachments}
                 style={{ textDecoration: "none" }}
@@ -164,7 +162,9 @@ function ViewLeave() {
               >
                 <Paragraph text={attachments} fontWeight={"normal"} />
               </a>
-            </Grid>
+            ) : (
+              <Paragraph text={attachments} fontWeight={"normal"} />
+            )}
           </Grid>
           <Grid container paddingY={"20px"}>
             <Grid item xs={12}>
@@ -177,15 +177,6 @@ function ViewLeave() {
               </Typography>
               <Divider />
               {isLoading ? <LinearProgress /> : null}
-            </Grid>
-          </Grid>
-          {/* Shows Leave approval status */}
-          <Grid container paddingTop={"10px"}>
-            <Grid item xs={4}>
-              <Paragraph text="Leave Approved / Rejected" fontWeight={"bold"} />
-            </Grid>
-            <Grid item xs={8}>
-              <Paragraph text={approval} fontWeight={"normal"} />
             </Grid>
           </Grid>
           {/* Shows Leave overall status */}

@@ -10,7 +10,7 @@ function Home() {
       <Breadcrumb />
       <br />
       <PaperComponent>
-        <Heading text="Welcome to Disraptor" />
+        <Heading text="Welcome to Disraptor " />
       </PaperComponent>
     </Box>
   );

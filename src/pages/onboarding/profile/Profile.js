@@ -125,8 +125,6 @@ function Profile() {
 
   const handleClose = () => {
     setOpen(false);
-    setIsLoading(true);
-    fetchData();
   };
 
   return (

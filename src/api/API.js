@@ -40,11 +40,14 @@ export const signUpAndVerify = async (endpoint, formValues) => {
 export const postData = async (endpoint, formValues, token) => {
   try {
     const response = axios.post(endpoint, formValues, {
-      headers: { Authorization: "Bearer " + token },
+      headers: {
+        Authorization: "Bearer " + token,
+      },
     });
     const responseData = {
       status: (await response).status,
       message: (await response).data.message,
+      leaveData: (await response).data.leaveRequest,
     };
     return responseData;
   } catch (error) {
@@ -151,5 +154,38 @@ export const getData = async (endpoint, token) => {
     }
   } catch (error) {
     return error;
+  }
+};
+
+// upload document
+export const uploadDocument = async (endpoint, formValues, token) => {
+  try {
+    if (token !== null) {
+      try {
+        const response = await axios.post(endpoint, formValues, {
+          headers: {
+            Authorization: "Bearer " + token,
+            "Content-Type": "multipart/form-data",
+          },
+        });
+        if (response.status === 200) {
+          return response;
+        }
+      } catch (error) {
+        // do something if there is an error
+        if (
+          error.response.status === 401 ||
+          error.response.status === 400 ||
+          error.response.status === 404 ||
+          error.response.status === 500
+        ) {
+          return error;
+        }
+      }
+    } else {
+      return "Token Invalid";
+    }
+  } catch (error) {
+    return error.response.data.message;
   }
 };

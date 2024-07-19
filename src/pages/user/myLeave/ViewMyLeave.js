@@ -5,6 +5,7 @@ import {
   Grid,
   Divider,
   LinearProgress,
+  Button,
 } from "@mui/material";
 import React, { useContext, useEffect, useState } from "react";
 import PaperComponent from "../../../components/ui/Paper";
@@ -13,6 +14,12 @@ import { Link } from "react-router-dom";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { getDataByID } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import UploadDocument from "../applyforleave/UploadDocument";
 
 function dateFormat(dateValue) {
   const date = new Date(dateValue);
@@ -22,19 +29,26 @@ function dateFormat(dateValue) {
 function ViewMyLeave() {
   // Create a URLSearchParams object with the current URL's query string
   const params = new URLSearchParams(window.location.search);
-
   // Access the value of employee id from query string
   const id = params.get("id");
+
   // declare useState variables
   const [leaveType, setLeaveType] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [leaveLength, setLeaveLength] = useState("");
+  const [duration, setLeaveDuration] = useState("");
   const [comments, setComments] = useState("");
   const [attachments, setAttachments] = useState("");
-  const [approval, setApproval] = useState("");
   const [status, setStatus] = useState("");
   const [feedback, setFeedback] = useState("");
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const handleClose = () => {
+    setModalOpen(false);
+  };
+  const handleClickOpen = () => {
+    setModalOpen(true);
+  };
 
   const [isLoading, setIsLoading] = useState(true);
   const ctx = useContext(AuthContext);
@@ -50,13 +64,12 @@ function ViewMyLeave() {
           setLeaveType(data.leave_type);
           setStartDate(dateFormat(data.start_date));
           setEndDate(dateFormat(data.end_date));
-          setLeaveLength(data.duration);
-          setComments("Comments Still need to be implemented");
-          setAttachments(
-            "https://www.dexform.com/download/sample-letter-from-your-doctor-or-other-service-provider"
+          setLeaveDuration(data.duration);
+          setComments(data.leave_comment);
+          setAttachments(data.document);
+          setStatus(
+            data.status.toUpperCase().charAt(0) + "" + data.status.slice(1)
           );
-          setApproval("Approved");
-          setStatus(data.status);
           setFeedback(data.feedback);
         }
         setIsLoading(false);
@@ -120,7 +133,7 @@ function ViewMyLeave() {
             </Grid>
             {/* Shows the date from GET on axios */}
             <Grid item xs={8}>
-              <Paragraph text={leaveLength} fontWeight={"normal"} />
+              <Paragraph text={duration + " day(s)"} fontWeight={"normal"} />
             </Grid>
           </Grid>
           {/* Shows Comments */}
@@ -144,13 +157,24 @@ function ViewMyLeave() {
             {/* Shows employees file attached from GET on axios */}
             {/* overflowwrap to wrap text */}
             <Grid item xs={8} sx={{ overflowWrap: "break-word" }}>
-              <a
-                href={attachments}
-                style={{ textDecoration: "none" }}
-                target="_blank"
-              >
-                <Paragraph text={attachments} fontWeight={"normal"} />
-              </a>
+              {attachments !== null ? (
+                <a
+                  href={attachments}
+                  style={{ textDecoration: "none" }}
+                  target="_blank"
+                >
+                  <Paragraph text={attachments} fontWeight={"normal"} />
+                </a>
+              ) : (
+                <Button
+                  id="uploadDocument"
+                  variant="contained"
+                  endIcon={<UploadFileIcon />}
+                  onClick={handleClickOpen}
+                >
+                  Upload Document
+                </Button>
+              )}
             </Grid>
           </Grid>
           <Grid container paddingY={"20px"}>
@@ -164,15 +188,6 @@ function ViewMyLeave() {
               </Typography>
               <Divider />
               {isLoading ? <LinearProgress /> : null}
-            </Grid>
-          </Grid>
-          {/* Shows Leave approval status */}
-          <Grid container paddingTop={"10px"}>
-            <Grid item xs={4}>
-              <Paragraph text="Leave Approved / Rejected" fontWeight={"bold"} />
-            </Grid>
-            <Grid item xs={8}>
-              <Paragraph text={approval} fontWeight={"normal"} />
             </Grid>
           </Grid>
           {/* Shows Leave overall status */}
@@ -199,6 +214,30 @@ function ViewMyLeave() {
           </Grid>
         </Grid>
       </PaperComponent>
+      {/* add upload doc modal dialog */}
+      <Dialog open={modalOpen} maxWidth="sm" fullWidth onClose={handleClose}>
+        <DialogTitle sx={{ color: "#2196f3", fontWeight: "bold" }}>
+          Upload Leave Document
+        </DialogTitle>
+        <Divider />
+        <DialogContent>
+          <UploadDocument leaveId={id} />
+          <br />
+        </DialogContent>
+        <Divider />
+        <DialogActions>
+          <Button onClick={handleClose} sx={{ color: "grey" }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            sx={{ backgroundColor: "grey" }}
+            onClick={handleClose}
+          >
+            Not now
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

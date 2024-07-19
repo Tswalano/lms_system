@@ -7,7 +7,7 @@ function Logo({ width }) {
       sx={{
         marginLeft: "auto",
         marginRight: "auto",
-        paddingTop: "5px",
+        padding: "30px",
         width: { width },
       }}
     >

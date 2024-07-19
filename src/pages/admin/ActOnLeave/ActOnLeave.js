@@ -10,6 +10,12 @@ import {
   Alert,
   IconButton,
   LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  CircularProgress,
 } from "@mui/material";
 import Paragraph from "../../../components/ui/Paragraph";
 import SubmitButton from "../../../components/ui/Button";
@@ -23,8 +29,11 @@ import { validateDropDown } from "../../../components/form/Validations";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { getDataByID, postData, putData } from "../../../api/API";
 import { AuthContext } from "../../../context/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import CloseIcon from "@mui/icons-material/Close";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import HighlightOffIcon from "@mui/icons-material/HighlightOff";
+import Heading from "../../../components/ui/Heading";
 
 //Formats the date and removes string and '0' values
 function dateFormat(dateValue) {
@@ -35,6 +44,9 @@ function dateFormat(dateValue) {
 function ActOnLeave() {
   // Create a URLSearchParams object with the current URL's query string
   const params = new URLSearchParams(window.location.search);
+
+  //declaring navigation
+  const navigate = useNavigate();
 
   // Access the value of employee id from query string
   const id = params.get("id");
@@ -56,7 +68,13 @@ function ActOnLeave() {
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
 
+  const [navigationLoad, setNavigationLoad] = useState(false);
+
   const [isLoading, setIsLoading] = useState(true);
+
+  const [openModal, setOpenModal] = useState(false);
+
+  const [statusCheck, setStatusCheck] = useState();
 
   // handle form field values on change
   const handleChange = handleFieldChange(setFormValues);
@@ -127,11 +145,19 @@ function ActOnLeave() {
     const dataArr = { id, status, feedback };
     const response = await putData(endpoint, dataArr, ctx.token);
     if (response.status === 200) {
+      setNavigationLoad(true);
       setAlertMessage(response.data.message);
       setAlertType("success");
-      setProgress(false);
       setResponse(true);
       setOpen(true);
+      setTimeout(() => {
+        setProgress(false);
+        handleClose();
+      }, 2000);
+
+      setTimeout(() => {
+        navigate("/manage-leave");
+      }, 3000);
     } else {
       // set error
       setAlertMessage(response.message);
@@ -149,6 +175,20 @@ function ActOnLeave() {
       setResponse(true);
       setOpen(true);
     }
+  };
+
+  const handleClickOpen = () => {
+    if (formValues.approval === "approved") {
+      setStatusCheck("Approve");
+    } else {
+      setStatusCheck("Reject");
+    }
+
+    setOpenModal(true);
+  };
+
+  const handleClose = () => {
+    setOpenModal(false);
   };
 
   return (
@@ -260,35 +300,12 @@ function ActOnLeave() {
                   Act On Leave
                 </Typography>
                 <Divider />
+                {navigationLoad && <LinearProgress />}
               </Grid>
             </Grid>
             <Grid container paddingY={"20px"}>
               <Grid item xs={12}>
-                {response ? (
-                  <Collapse in={open}>
-                    <Alert
-                      severity={alertType}
-                      action={
-                        <IconButton
-                          aria-label="close"
-                          color="inherit"
-                          size="small"
-                          onClick={() => {
-                            setOpen(false);
-                          }}
-                        >
-                          <CloseIcon fontSize="inherit" />
-                        </IconButton>
-                      }
-                      sx={{ mb: 2 }}
-                    >
-                      {alertMessage}
-                    </Alert>
-                  </Collapse>
-                ) : (
-                  <Box></Box>
-                )}
-                <form onSubmit={handleSubmit}>
+                <form>
                   <Grid container>
                     {/* Maps the dropdown box and TextField  */}
                     <FormFieldMapper
@@ -298,18 +315,95 @@ function ActOnLeave() {
                     />
                   </Grid>
                   {/* Submit the approval of leave */}
-                  <SubmitButton
+                  {/* <SubmitButton
                     label={"Act on Leave"}
                     type="submit"
                     disabled={isError}
                     progress={progress}
-                  />
+                  /> */}
+                  <Button
+                    id="actOnLeaveBtn"
+                    variant="contained"
+                    onClick={handleClickOpen}
+                    fullWidth
+                    disabled={isError}
+                  >
+                    Act On Leave
+                  </Button>
                 </form>
               </Grid>
             </Grid>
           </Grid>
         </PaperComponent>
       </Box>
+
+      {/* Propt to act on leave */}
+      <Dialog open={openModal} maxWidth="sm" fullWidth onClose={handleClose}>
+        <DialogTitle sx={{ color: "#2196f3", fontWeight: "bold" }}>
+          Act on Leave
+        </DialogTitle>
+        <Divider />
+        {progress && <LinearProgress />}
+        {response ? (
+          <Collapse in={open}>
+            <Alert
+              severity={alertType}
+              action={
+                <IconButton
+                  aria-label="close"
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    setOpen(false);
+                  }}
+                >
+                  <CloseIcon fontSize="inherit" />
+                </IconButton>
+              }
+              sx={{ mb: 2 }}
+            >
+              {alertMessage}
+            </Alert>
+          </Collapse>
+        ) : (
+          <Box></Box>
+        )}
+        <DialogContent>
+          <Box
+            sx={{
+              textAlign: "center",
+            }}
+          >
+            {statusCheck === "Approve" ? (
+              <CheckCircleOutlineIcon
+                sx={{ color: "#26f596", height: "100px", width: "100px" }}
+              />
+            ) : (
+              <HighlightOffIcon
+                sx={{ color: "#ef6266", height: "100px", width: "100px" }}
+              />
+            )}
+            <Heading text={statusCheck} />
+            <Paragraph
+              text={
+                "Are you sure you want to " +
+                statusCheck +
+                " this Leave Request?"
+              }
+              fontWeight={"bold"}
+            />
+          </Box>
+        </DialogContent>
+        <Divider />
+        <DialogActions>
+          <Button onClick={handleClose} sx={{ color: "#000000" }}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleSubmit}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }
