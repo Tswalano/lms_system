@@ -1,99 +1,75 @@
 class APIEndPoints {
-  apiBaseUrl = "https://vtiho5i399.execute-api.af-south-1.amazonaws.com";
-  apiStage = "dev";
-
-  constructor() {}
-
-  signinAPI() {
-    const signin = `${this.apiBaseUrl}/${this.apiStage}/sign-in`;
-
-    return signin;
+  constructor() {
+    // Check if NODE_ENV environment variable is set to 'production'
+    if (process.env.NODE_ENV === "production") {
+      this.baseURL =
+        "https://e08o1ifxrk.execute-api.eu-west-1.amazonaws.com/prod";
+    } else {
+      // Default to development URL if NODE_ENV is not 'production'
+      this.baseURL =
+        "https://vtiho5i399.execute-api.af-south-1.amazonaws.com/dev";
+    }
   }
 
-  signupAPI() {
-    const signup = `${this.apiBaseUrl}/${this.apiStage}/sign-up`;
-
-    return signup;
+  get signinAPI() {
+    return `${this.baseURL}/signin`;
   }
 
-  profileAPI() {
-    const profile = `${this.apiBaseUrl}/${this.apiStage}/user-service/profile`;
-
-    return profile;
+  get signupAPI() {
+    return `${this.baseURL}/signup`;
   }
 
-  otpApi() {
-    const otp = `${this.apiBaseUrl}/${this.apiStage}/verify-otp`;
-
-    return otp;
+  get profileAPI() {
+    return `${this.baseURL}/profile`;
   }
 
-  applyForLeave() {
-    const leaveApply = `${this.apiBaseUrl}/${this.apiStage}/apply-for-leave`;
-
-    return leaveApply;
+  get otpApi() {
+    return `${this.baseURL}/verify-otp`;
   }
 
-  editLeave() {
-    const editLeave = `${this.apiBaseUrl}/${this.apiStage}/edit-leave-req`;
-
-    return editLeave;
+  get applyForLeave() {
+    return `${this.baseURL}/apply-leave`;
   }
 
-  approveLeave() {
-    const approveLeave = `${this.apiBaseUrl}/${this.apiStage}/lms/updateleave`;
-
-    return approveLeave;
+  get editLeave() {
+    return `${this.baseURL}/edit-leave`;
   }
 
-  getAllLeavesData() {
-    const getLeaves = `${this.apiBaseUrl}/${this.apiStage}/get-all-leave-req`;
-
-    return getLeaves;
-  }
-  getLeaveByID() {
-    const getLeaveByID = `${this.apiBaseUrl}/${this.apiStage}/get-leave-by-id`;
-
-    return getLeaveByID;
+  get approveLeave() {
+    return `${this.baseURL}/updateleave`;
   }
 
-  addNewEmployee() {
-    const addNewEmployee = `${this.apiBaseUrl}/${this.apiStage}/user-service/invite-emp`;
-
-    return addNewEmployee;
-  }
-  viewAllEmployees() {
-    const viewAllEmployees = `${this.apiBaseUrl}/${this.apiStage}/user-service/employee`;
-
-    return viewAllEmployees;
+  get getAllLeavesData() {
+    return `${this.baseURL}/getleave`;
   }
 
-  viewEmployeeByID() {
-    const viewEmpByID = `${this.apiBaseUrl}/${this.apiStage}/user-service/employee/by-id`;
-
-    return viewEmpByID;
+  get getLeaveByID() {
+    return `${this.baseURL}/getleave/by-id`;
   }
 
-  forgotPassword() {
-    const forgotPassword = `${this.apiBaseUrl}/${this.apiStage}/forgot-password`;
-
-    return forgotPassword;
-  }
-  resetPassword() {
-    const resetPassword = `${this.apiBaseUrl}/${this.apiStage}/user-service/reset-password`;
-
-    return resetPassword;
-  }
-  uploadDocument() {
-    const uploadDocument = `${this.apiBaseUrl}/${this.apiStage}/lms/upload`;
-
-    return uploadDocument;
+  get addNewEmployee() {
+    return `${this.baseURL}/invite-emp`;
   }
 
-  getPublicHolidayDates() {
-    const getPublicHolidaysUrl = `${this.apiBaseUrl}/${this.apiStage}/public-holidays`;
+  get viewAllEmployees() {
+    return `${this.baseURL}/employee`;
+  }
 
-    return getPublicHolidaysUrl;
+  get viewEmployeeByID() {
+    return `${this.baseURL}/employee/by-id`;
+  }
+
+  get forgotPassword() {
+    return `${this.baseURL}/forgot-password`;
+  }
+
+  get resetPassword() {
+    return `${this.baseURL}/reset-password`;
+  }
+
+  get uploadDocument() {
+    return `${this.baseURL}/upload`;
   }
 }
+
 export default APIEndPoints;

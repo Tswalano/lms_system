@@ -314,6 +314,7 @@ function Sidenav({ menuItems }) {
           </Grid>
         </Toolbar>
       </AppBar>
+
       <Box
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
@@ -368,7 +369,6 @@ function Sidenav({ menuItems }) {
       >
         <Toolbar />
         <Outlet />
-        <br />
       </Box>
     </Box>
   );

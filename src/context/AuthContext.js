@@ -19,6 +19,7 @@ export const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   // State to store the user token
   const [token, setToken] = useState(localStorage.getItem("token"));
+  const [accessToken, setAccessToken] = useState(localStorage.getItem("access-token"));
 
   const [email, setEmail] = useState(localStorage.getItem("email"));
   const [password, setPassword] = useState(localStorage.getItem("pass"));
@@ -36,11 +37,13 @@ export const AuthProvider = ({ children }) => {
   const [open, setOpen] = useState(false);
 
   // Function to handle user sign in and set token and role
-  const logIn = (userToken, userRole) => {
-    setToken(userToken);
-    setIsAuthenticated(userToken);
+  const logIn = (idToken, accessToken, userRole) => {
+    setToken(idToken);
+    setAccessToken(accessToken);
+    setIsAuthenticated(idToken !== "" && idToken !== null ? true : false);
     setIsAdmin(userRole);
-    localStorage.setItem("token", userToken);
+    localStorage.setItem("token", idToken);
+    localStorage.setItem("access-token", accessToken);
     localStorage.setItem("role", userRole);
   };
   const handleSessionModal = () => {
@@ -48,29 +51,29 @@ export const AuthProvider = ({ children }) => {
     window.location.reload();
   };
 
-  const isTokenExpired = (tokenExp) => {
-    const decode = jwtDecode(tokenExp);
-    const expTime = decode.exp * 1000;
-    const currentTime = Date.now();
-    return expTime <= currentTime;
-  };
+  // const isTokenExpired = (tokenExp) => {
+  //   const decode = jwtDecode(tokenExp);
+  //   const expTime = decode.exp * 1000;
+  //   const currentTime = Date.now();
+  //   return expTime <= currentTime;
+  // };
 
-  const checkExpiration = () => {
-    if (token && isTokenExpired(token)) {
-      setOpen(true);
-    }
-  };
+  // const checkExpiration = () => {
+  //   if (token && isTokenExpired(token)) {
+  //     setOpen(true);
+  //   }
+  // };
 
-  useEffect(() => {
-    if (token) {
-      const interval = setInterval(() => {
-        checkExpiration();
-      }, 1000);
-      return () => {
-        clearInterval(interval);
-      };
-    }
-  }, [token, open, checkExpiration]);
+  // useEffect(() => {
+  //   if (token) {
+  //     const interval = setInterval(() => {
+  //       checkExpiration();
+  //     }, 1000);
+  //     return () => {
+  //       clearInterval(interval);
+  //     };
+  //   }
+  // }, [token, open, checkExpiration]);
 
   const signup = (verified) => {
     setVerification(verified);
@@ -105,6 +108,7 @@ export const AuthProvider = ({ children }) => {
   // Value object to be provided to consuming components
   const authContextValue = {
     token,
+    accessToken,
     email,
     isAuthenticated,
     isAdmin,
