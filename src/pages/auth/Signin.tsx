@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { object, string, TypeOf } from 'zod';
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, FormProvider, SubmitHandler } from "react-hook-form";
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Container, Box, Typography, Paper, Grid, Checkbox, FormControlLabel } from "@mui/material";
@@ -9,6 +9,8 @@ import { LoadingButton } from "@mui/lab";
 import { getMeFn, loginUserFn } from "../../api/authAPI";
 import FormInput from "../../components/ui/FormInput";
 import { useCookies } from "react-cookie";
+import jwtDecode from "jwt-decode";
+import { useUserQuery } from "../../hooks";
 import Logo from "../../components/ui/Logo";
 
 const loginSchema = object({
@@ -24,7 +26,8 @@ const loginSchema = object({
 export type LoginInput = TypeOf<typeof loginSchema>;
 
 function Signin() {
-  const [cookies, setCookie] = useCookies(['logged_in', 'token', 'accessToken']);
+  const [cookies, setCookie] = useCookies(['logged_in', 'token', 'accessToken', 'userId']);
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -34,13 +37,8 @@ function Signin() {
     resolver: zodResolver(loginSchema),
   });
 
-  const query = useQuery({
-    queryKey: ['authUser'],
-    queryFn: () => getMeFn(cookies.token, cookies.accessToken),
-    enabled: false,
-    select: (data) => data.body.payload,
-    retry: 1
-  });
+
+  const { isLoading } = useUserQuery(cookies.userId, cookies.token);
 
   //  API Login Mutation
   const { mutate: loginUser, isPending, error, isError } = useMutation({
@@ -56,11 +54,16 @@ function Signin() {
 
         console.log('payload', payload)
 
+        const decodedValue = jwtDecode(payload.IdToken) as { sub: string, 'custom:userId': string };
+        const uuid = decodedValue["custom:userId"];
+
         setCookie('logged_in', 'true', { secure: true, sameSite: 'strict' });
         setCookie('token', payload.IdToken, { secure: true, sameSite: 'strict' });
         setCookie('accessToken', payload.AccessToken, { secure: true, sameSite: 'strict' });
+        setCookie('userId', uuid, { secure: true, sameSite: 'strict' });
 
-        query.refetch();
+        // Invalidate queries to refetch with the updated `userId`
+        queryClient.invalidateQueries({ queryKey: ['authUser', uuid] });
         console.log('You successfully logged in');
         navigate(from);
       }
@@ -102,6 +105,10 @@ function Signin() {
     } catch (error) {
       return false;
     }
+  }
+
+  if (isLoading) {
+    return <>Getting User Details...</>
   }
 
   return (

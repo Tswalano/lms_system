@@ -138,12 +138,12 @@ export const forcePasswordChangeFn = async (user: {
   return response.data.body;
 };
 
-export const getMeFn = async (token: string, accessToken: string) => {
+export const getMeFn = async (token: string, userId: string) => {
   const response = await authApi.post<AuthUserAPIResponse>(
     "get-user",
     {
-      accessToken,
-      action: "GET_CURRENT_USER",
+      userId,
+      action: "GET_USER_BY_ID",
     },
     {
       headers: {
@@ -186,7 +186,7 @@ export const getAllLeaveRequestsFn = async (token: string) => {
   return response
 };
 
-export const applyForLeaveFN = async (token: string, apply_leave: LeaveType ) => {
+export const applyForLeaveFN = async (token: string, apply_leave: LeaveType) => {
   const response = await authApi.post<LeaveAPIResponse>(
     "apply-for-leave", apply_leave,
     {
@@ -209,7 +209,7 @@ export const getAllLeaveRequestByUID = async (token: string) => {
         "Content-Type": "application/json",
       },
     });
-     console.log(response.data.leaveData)
+    console.log(response.data.leaveData)
     // Check if response.data and response.data.body are defined
     if (!response.data || !response.data || !response.data.leaveData) {
       throw new Error("Invalid response format: Missing leave data");
@@ -230,7 +230,7 @@ export const getAllLeaveRequestByUID = async (token: string) => {
   }
 };
 
-export const updateLeaveStatusFn = async (token: string, leaveStatus: leaveStatus ) => {
+export const updateLeaveStatusFn = async (token: string, leaveStatus: leaveStatus) => {
   const response = await authApi.post<LeaveAPIResponse>(
     "update-leave-status", leaveStatus,
     {

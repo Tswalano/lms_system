@@ -6,7 +6,7 @@ import { getMeFn } from '../api/authAPI';
 import { useEffect } from 'react';
 
 const RequireUser = ({ allowedRoles }: { allowedRoles: string[] }) => {
-    const [cookies] = useCookies(['logged_in', 'accessToken', 'token']);
+    const [cookies] = useCookies(['logged_in', 'accessToken', 'token', "userId"]);
     const location = useLocation();
     const stateContext = useStateContext();
 
@@ -17,7 +17,7 @@ const RequireUser = ({ allowedRoles }: { allowedRoles: string[] }) => {
         isFetched, isSuccess
     } = useQuery({
         queryKey: ['authUser 1'],
-        queryFn: () => getMeFn(cookies.token, cookies.accessToken),
+        queryFn: () => getMeFn(cookies.token, cookies.userId),
         select: (data) => data.body.payload
     });
 

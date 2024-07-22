@@ -18,6 +18,7 @@ import { IconButton } from '@mui/material';
 import { useStateContext } from '../context';
 import { capitalizeName } from '../utils/Util';
 import { useCookies } from 'react-cookie';
+import { HiLogout } from 'react-icons/hi';
 
 type Props = {
     openNav: boolean;
@@ -62,12 +63,14 @@ function Nav({ openNav, onCloseNav, onOpenNav }: Props) {
             <Avatar src={''} alt="photoURL" />
 
             <Box sx={{ ml: 2 }}>
-                <Typography variant="subtitle2" sx={{ color: '#fff' }}>
-                    {capitalizeName(`${user?.firstName} ${user?.lastName}`)}
+                <Typography variant="subtitle2">
+                    <Link style={{ textDecoration: 'none', color: '#fff', fontWeight: 'bold' }} to="/view-profile">
+                        {capitalizeName(user?.firstName)} {capitalizeName(user?.lastName)}
+                    </Link>
                 </Typography>
 
                 <Typography variant="body2" sx={{ color: '#BDBDBD' }}>
-                    {user?.occupation}
+                    {user?.jobTitle}
                 </Typography>
             </Box>
         </Box>
@@ -98,7 +101,7 @@ function Nav({ openNav, onCloseNav, onOpenNav }: Props) {
                 }}
             >
                 <Box component="span" sx={{ width: 24, height: 24, mr: 2 }}>
-                    👋
+                    <HiLogout size={22} />
                 </Box>
 
                 <Box component="span">Logout</Box>

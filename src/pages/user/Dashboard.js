@@ -59,7 +59,7 @@ function Dashboard() {
       id: 1,
       title: "Sick Leave",
       value: 12,
-      icon: " 🤒",
+      icon: "🤒",
     },
     {
       id: 2,

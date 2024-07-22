@@ -1,6 +1,6 @@
 import { object, string, TypeOf } from 'zod';
 import { useNavigate, useLocation } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, FormProvider, SubmitHandler } from "react-hook-form";
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Container, Box, Typography, Paper, FormControl } from "@mui/material";
@@ -8,8 +8,9 @@ import { LoadingButton } from "@mui/lab";
 import Logo from "../../components/ui/Logo";
 import { forcePasswordChangeFn, getMeFn } from "../../api/authAPI";
 import FormInput from "../../components/ui/FormInput";
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useCookies } from 'react-cookie';
+import jwtDecode from 'jwt-decode';
 
 const PasswordSchema = object({
     newPassword: string().min(1, 'Password is required').min(8, 'Password must be more than 8 characters')
@@ -18,9 +19,10 @@ const PasswordSchema = object({
 export type PasswordInput = TypeOf<typeof PasswordSchema>;
 
 function ChangePassword() {
-    const [cookies, setCookie] = useCookies(['logged_in', 'token', 'accessToken']);
+    const [cookies, setCookie] = useCookies(['logged_in', 'token', 'accessToken', 'userId']);
     const navigate = useNavigate();
     const location = useLocation();
+    const queryClient = useQueryClient();
 
     const from = ((location.state as any)?.from.pathname as string) || '/';
 
@@ -28,13 +30,13 @@ function ChangePassword() {
         resolver: zodResolver(PasswordSchema),
     });
 
-    const query = useQuery({
-        queryKey: ['authUser'],
-        queryFn: () => getMeFn(cookies.token, cookies.accessToken),
-        enabled: false,
-        select: (data) => data.body.payload,
-        retry: 1
-    });
+    // const query = useQuery({
+    //     queryKey: ['authUser'],
+    //     queryFn: () => getMeFn(cookies.token, userId),
+    //     enabled: false,
+    //     select: (data) => data.body.payload,
+    //     retry: 1
+    // });
 
 
     const {
@@ -54,11 +56,16 @@ function ChangePassword() {
 
             const { payload } = data
 
+            const decodedValue = jwtDecode(payload.IdToken) as { sub: string, 'custom:userId': string };
+            const uuid = decodedValue["custom:userId"];
+
             setCookie('logged_in', 'true', { secure: true, sameSite: 'strict' });
             setCookie('token', payload.IdToken, { secure: true, sameSite: 'strict' });
             setCookie('accessToken', payload.AccessToken, { secure: true, sameSite: 'strict' });
+            setCookie('userId', uuid, { secure: true, sameSite: 'strict' });
 
-            query.refetch();
+            // Invalidate queries to refetch with the updated `userId`
+            queryClient.invalidateQueries({ queryKey: ['authUser', uuid] });
             console.log('You successfully logged in');
             navigate(from);
         },
