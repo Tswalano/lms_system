@@ -4,12 +4,12 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm, FormProvider, SubmitHandler } from "react-hook-form";
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Container, Box, Typography, Paper } from "@mui/material";
+import { Container, Box, Typography, Paper, Grid, Checkbox, FormControlLabel } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
 import { getMeFn, loginUserFn } from "../../api/authAPI";
-import Logo from "../../components/ui/Logo";
 import FormInput from "../../components/ui/FormInput";
 import { useCookies } from "react-cookie";
+import Logo from "../../components/ui/Logo";
 
 const loginSchema = object({
   username: string()
@@ -110,99 +110,124 @@ function Signin() {
       sx={{
         display: 'flex',
         justifyContent: 'center',
-        flexDirection: 'column',
         alignItems: 'center',
-        maxWidth: '600px',
         minHeight: '100vh',
+        background: '#f0f2f5', // Background color
       }}
     >
-      <Box sx={{ width: '480px' }}>
-        <Logo width="200px" />
-        {isError && (
-          <Typography
-            variant="body2"
-            sx={{
-              mb: 2,
-              width: 'auto',
-              color: 'red',
-              backgroundColor: 'rgba(255, 0, 0, 0.1)',
-              p: 2,
-              borderRadius: '10px',
-            }}
-          >
-            {isValidJSON(error.message) ? (
-              <>
-                <span style={{ fontWeight: 'bold' }}>{JSON.parse(error.message).code}: </span>
-                {JSON.parse(error.message).message}
-              </>
-            ) : (
-              <>
-                <span style={{ fontWeight: 'bold' }}>UNKNOWN_ERROR: </span>
-                Something went wrong. Please try again later.
-              </>
-            )}
-          </Typography>
-        )}
-
-        {/* if redirects from password recovery state is true, show success message */}
-        {location.state?.isRecovered && (
-          <Typography
-            variant="body2"
-            sx={{
-              mb: 2,
-              width: 'auto',
-              color: 'green',
-              backgroundColor: 'rgba(0, 255, 0, 0.1)',
-              p: 2,
-              borderRadius: '10px',
-            }}
-          >
-            <span style={{ fontWeight: 'bold' }}>SUCCESS: </span>
-            Your password has been successfully changed.
-          </Typography>
-        )}
-      </Box>
-
       <Paper elevation={3} sx={{
-        padding: "20px",
-        maxWidth: '27rem',
+        display: 'flex',
         width: '100%',
+        maxWidth: '960px',
         borderRadius: '15px',
+        overflow: 'hidden',
       }}>
-        <FormProvider {...methods}>
-          <Box
-            component='form'
-            onSubmit={handleSubmit(onSubmitHandler)}
-            noValidate
-            autoComplete='off'
-            sx={{
-              p: {},
-              borderRadius: 2,
-            }}
-          >
-            <FormInput name='username' label='Email Address' type='email' />
-            <FormInput name='password' label='Password' type='password' />
-
-            <Typography
-              sx={{ fontSize: '0.9rem', mb: '1rem', textAlign: 'right' }}
-            >
-              <Link to='/forgot-password' style={{ color: '#333' }}>
-                Forgot Password?
-              </Link>
+        <Grid container>
+          <Grid item xs={12} md={6} sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            padding: '40px',
+          }}>
+            <Logo width="200px" />
+            <Typography variant="h4" sx={{ mb: 1, mt: 2 }}>
+              Holla, Welcome Back
             </Typography>
-
-            <LoadingButton
-              variant='contained'
-              sx={{ mt: 1, borderRadius: '10px' }}
-              fullWidth
-              disableElevation
-              type='submit'
-              loading={isPending}
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              Hey, welcome back to your special place
+            </Typography>
+            {isError && (
+              <Typography
+                variant="body2"
+                sx={{
+                  mb: 2,
+                  width: 'auto',
+                  color: 'red',
+                  backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                  p: 2,
+                  borderRadius: '10px',
+                }}
+              >
+                {isValidJSON(error.message) ? (
+                  <>
+                    <span style={{ fontWeight: 'bold' }}>{JSON.parse(error.message).code}: </span>
+                    {JSON.parse(error.message).message}
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontWeight: 'bold' }}>UNKNOWN_ERROR: </span>
+                    Something went wrong. Please try again later.
+                  </>
+                )}
+              </Typography>
+            )}
+            {/* if redirects from password recovery state is true, show success message */}
+            {location.state?.isRecovered && (
+              <Typography
+                variant="body2"
+                sx={{
+                  mb: 2,
+                  width: 'auto',
+                  color: 'green',
+                  backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                  p: 2,
+                  borderRadius: '10px',
+                }}
+              >
+                <span style={{ fontWeight: 'bold' }}>SUCCESS: </span>
+                Your password has been successfully changed.
+              </Typography>
+            )}
+            <FormProvider {...methods}>
+              <Box
+                component='form'
+                onSubmit={handleSubmit(onSubmitHandler)}
+                noValidate
+                autoComplete='off'
+              >
+                <FormInput name='username' label='Email Address' type='email' />
+                <FormInput name='password' label='Password' type='password' />
+                <FormControlLabel
+                  control={<Checkbox name="rememberMe" />}
+                  label="Remember me"
+                />
+                <Typography
+                  sx={{ fontSize: '0.9rem', mb: '1rem', textAlign: 'right' }}
+                >
+                  <Link to='/forgot-password' style={{ color: '#333' }}>
+                    Forgot Password?
+                  </Link>
+                </Typography>
+                <LoadingButton
+                  variant='contained'
+                  sx={{ mt: 1, borderRadius: '10px' }}
+                  fullWidth
+                  disableElevation
+                  type='submit'
+                  loading={isPending}
+                >
+                  Sign In
+                </LoadingButton>
+              </Box>
+            </FormProvider>
+            <Typography
+              sx={{ fontSize: '0.9rem', mt: '1rem', textAlign: 'center' }}
             >
-              Login
-            </LoadingButton>
-          </Box>
-        </FormProvider>
+              Don't have an account? <Link to='/signup' style={{ color: '#333' }}>Sign Up</Link>
+            </Typography>
+          </Grid>
+          <Grid item xs={false} md={6} sx={{
+            display: { xs: 'none', md: 'flex' },
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#f5f5f5', // Background color of the right section
+          }}>
+            <Box sx={{ textAlign: 'center' }}>
+              {/* <img src={Logo} alt="Sign In" style={{ width: '100%', height: 'auto' }} /> */}
+              <Logo width="200px" />
+            </Box>
+          </Grid>
+        </Grid>
       </Paper>
     </Container>
   );
