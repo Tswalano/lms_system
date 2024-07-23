@@ -136,7 +136,7 @@ function Signin() {
             justifyContent: 'center',
             padding: '40px',
           }}>
-            <Logo width="200px" />
+            <Logo width="280px" />
             <Typography variant="h4" sx={{ mb: 1, mt: 2 }}>
               Holla, Welcome Back
             </Typography>
@@ -194,10 +194,6 @@ function Signin() {
               >
                 <FormInput name='username' label='Email Address' type='email' />
                 <FormInput name='password' label='Password' type='password' />
-                <FormControlLabel
-                  control={<Checkbox name="rememberMe" />}
-                  label="Remember me"
-                />
                 <Typography
                   sx={{ fontSize: '0.9rem', mb: '1rem', textAlign: 'right' }}
                 >
@@ -217,11 +213,6 @@ function Signin() {
                 </LoadingButton>
               </Box>
             </FormProvider>
-            <Typography
-              sx={{ fontSize: '0.9rem', mt: '1rem', textAlign: 'center' }}
-            >
-              Don't have an account? <Link to='/signup' style={{ color: '#333' }}>Sign Up</Link>
-            </Typography>
           </Grid>
           <Grid item xs={false} md={6} sx={{
             display: { xs: 'none', md: 'flex' },
@@ -231,7 +222,8 @@ function Signin() {
           }}>
             <Box sx={{ textAlign: 'center' }}>
               {/* <img src={Logo} alt="Sign In" style={{ width: '100%', height: 'auto' }} /> */}
-              <Logo width="200px" />
+              {/* <Logo width="200px" /> */}
+              <img src=".././LmsImage.png" alt="Logo" width={"230%"} height={"auto"} />
             </Box>
           </Grid>
         </Grid>
