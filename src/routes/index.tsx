@@ -18,7 +18,7 @@ import LoadingPage from '../pages/loadingPage';
 const Loadable =
     (Component: React.ComponentType<any>) => (props: JSX.IntrinsicAttributes) =>
     (
-        <Suspense fallback={<LoadingPage/>}>
+        <Suspense fallback={<LoadingPage />}>
             <Component {...props} />
         </Suspense>
     );
@@ -116,7 +116,7 @@ const normalRoutes: RouteObject = {
         },
         {
             path: 'manage-requests',
-            element: <RequireUser allowedRoles={['user', 'admin']} />,
+            element: <RequireUser allowedRoles={['admin']} />,
             children: [
                 {
                     path: '',
