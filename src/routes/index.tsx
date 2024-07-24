@@ -116,7 +116,7 @@ const normalRoutes: RouteObject = {
         },
         {
             path: 'manage-requests',
-            element: <RequireUser allowedRoles={['admin']} />,
+            element: <RequireUser allowedRoles={['user', 'admin']} />,
             children: [
                 {
                     path: '',

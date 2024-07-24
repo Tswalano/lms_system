@@ -12,6 +12,8 @@ import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 import TablePagination from '@mui/material/TablePagination';
 import Stack from '@mui/material/Stack';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import { useQuery } from '@tanstack/react-query';
 import { useCookies } from 'react-cookie';
 import { getAllLeaveRequestByUID } from '../api/authAPI';
@@ -19,6 +21,8 @@ import { LeaveRequest } from '../api/types';
 import { formatDateTimeToSAST } from '../utils/Util';
 import ErrorPage from './error/error';
 import LoadingPage from './loadingPage';
+import { Chip } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 
 type Props = {};
 
@@ -26,6 +30,13 @@ function LeaveHistory({ }: Props) {
     const [cookies] = useCookies(['token']);
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(5);
+    const [tabValue, setTabValue] = useState('Pending');
+
+    const navigate = useNavigate();
+
+    const handleNewRequest = () => {
+        navigate('/apply-leave');
+    };
 
     const { data, isError, isLoading, isFetching, refetch } = useQuery({
         queryKey: ['listLeaveRequests'],
@@ -47,6 +58,11 @@ function LeaveHistory({ }: Props) {
         setPage(0);
     };
 
+    const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
+        setTabValue(newValue);
+        setPage(0); // Reset page when tab changes
+    };
+
     if (isLoading) {
         return <Typography><LoadingPage /></Typography>;
     }
@@ -55,23 +71,36 @@ function LeaveHistory({ }: Props) {
         return <Typography><ErrorPage /></Typography>;
     }
 
-    const paginatedData = data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+    const filteredData = data.filter(leave => leave.status === tabValue);
+    const paginatedData = filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
     return (
         <Container maxWidth="xl">
             <Stack direction="row" alignItems="center" justifyContent="space-between" mb={5}>
-                <Typography variant="h4">Manage Leave Requests</Typography>
-                <Button variant="contained" color="primary" startIcon={<>➕</>}>
+                <Typography variant="h4">Leave History</Typography>
+                <Button variant="contained" color="primary" startIcon={<>➕</>} onClick={handleNewRequest}>
                     New Request
                 </Button>
             </Stack>
 
+            <Tabs value={tabValue} onChange={handleTabChange} aria-label="leave request tabs">
+                <Tab label="Pending" value="pending" />
+                <Tab label="Approved" value="Approved" />
+                <Tab label="Rejected" value="Rejected" />
+            </Tabs>
+
             <Card>
-                {leaveHistoryTable(paginatedData)}
+                {filteredData.length === 0 ? (
+                    <Typography variant="h6" align="center" sx={{ padding: 2 }}>
+                        No {tabValue.toLowerCase()} leave requests.
+                    </Typography>
+                ) : (
+                    leaveHistoryTable(paginatedData)
+                )}
                 <TablePagination
                     rowsPerPageOptions={[5, 10, 25]}
                     component="div"
-                    count={data.length}
+                    count={filteredData.length}
                     rowsPerPage={rowsPerPage}
                     page={page}
                     onPageChange={handleChangePage}
@@ -107,7 +136,9 @@ export const leaveHistoryTable = (leaveHistory: LeaveRequest[]) => (
                             </TableCell>
                             <TableCell>{lh.leave_comment}</TableCell>
                             <TableCell align="right">{lh.duration}</TableCell>
-                            <TableCell align="right">{lh.status}</TableCell>
+                            <TableCell align="right">
+                                <Chip label={lh.status} size='small' color={lh.status === 'Approved' ? 'success' : 'warning'} />
+                            </TableCell>
                             <TableCell align="right">{formatDateTimeToSAST(lh.start_date)}</TableCell>
                             <TableCell align="right">{formatDateTimeToSAST(lh.end_date)}</TableCell>
                         </TableRow>

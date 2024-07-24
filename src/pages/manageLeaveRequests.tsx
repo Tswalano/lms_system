@@ -115,14 +115,14 @@ export default function ManageLeaveRequests({ }: Props) {
                                             <TableCell>{leave.leave_comment}</TableCell>
                                             <TableCell align="center">{leave.duration}</TableCell>
                                             <TableCell align="right">
-                                                <Chip label={leave.status} size='small' color={leave.status === 'Approved' ? 'success' : 'error'} />
+                                                <Chip label={leave.status} size='small' color={leave.status === 'Approved' ? 'success' : 'warning'} />
                                             </TableCell>
                                             <TableCell align="right">{formatDateTimeToSAST(leave.start_date)}</TableCell>
                                             <TableCell align="right">{formatDateTimeToSAST(leave.end_date)}</TableCell>
                                             <TableCell align="right">
                                                 <ButtonGroup disabled={leave.status !== 'pending'} size="small" aria-label="Small button group">
                                                     <Button variant="contained" color="success" size="small" onClick={() => { mutate.mutate({ feedback: "Ok", id: leave.id, status: 'Approved' }) }}>Approve</Button>
-                                                    <Button variant="contained" color="error" size="small" onClick={() => { mutate.mutate({ feedback: "Rejected", id: leave.id, status: 'Rejected' }) }}>Reject</Button>
+                                                    <Button variant="contained" color="warning" size="small" onClick={() => { mutate.mutate({ feedback: "Rejected", id: leave.id, status: 'Rejected' }) }}>Reject</Button>
                                                 </ButtonGroup>
                                             </TableCell>
                                         </TableRow>
