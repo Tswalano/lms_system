@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
-import { Button, ButtonGroup, Card, Chip, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination } from '@mui/material';
+import { Button, ButtonGroup, Card, Chip, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination, Tabs, Tab } from '@mui/material';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getAllLeaveRequestsFn, updateLeaveStatusFn } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
@@ -18,6 +18,7 @@ export default function ManageLeaveRequests({ }: Props) {
     const [cookies] = useCookies(['token']);
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(5);
+    const [tabValue, setTabValue] = useState('Pending');
 
     const { data, isError, isLoading, isFetching, refetch } = useQuery({
         queryKey: ['listLeaveRequests'],
@@ -54,6 +55,11 @@ export default function ManageLeaveRequests({ }: Props) {
         setPage(0);
     };
 
+    const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
+        setTabValue(newValue);
+        setPage(0); // Reset page when tab changes
+    };
+
     if (isLoading) {
         return <LoadingPage />;
     }
@@ -62,13 +68,20 @@ export default function ManageLeaveRequests({ }: Props) {
         return <Typography>Error loading leave requests.</Typography>;
     }
 
-    const paginatedData = data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+    const filteredData = data.filter(leave => leave.status === tabValue);
+    const paginatedData = filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
     return (
         <Container maxWidth="xl">
             <Stack direction="row" alignItems="center" justifyContent="space-between" mb={5}>
                 <Typography variant="h4">Manage Leave Requests</Typography>
             </Stack>
+
+            <Tabs value={tabValue} onChange={handleTabChange} aria-label="leave request tabs">
+                <Tab label="Pending" value="pending" />
+                <Tab label="Approved" value="Approved" />
+                <Tab label="Rejected" value="Rejected" />
+            </Tabs>
 
             <Grid>
                 <Card>
@@ -94,7 +107,7 @@ export default function ManageLeaveRequests({ }: Props) {
                                             sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                                         >
                                             <TableCell component="th" scope="row">
-                                                ??USER_UNDEFINED
+                                                {leave.fullName}
                                             </TableCell>
                                             <TableCell component="th" scope="row">
                                                 {leave.leave_type}
@@ -120,7 +133,7 @@ export default function ManageLeaveRequests({ }: Props) {
                         <TablePagination
                             rowsPerPageOptions={[5, 10, 25]}
                             component="div"
-                            count={data.length}
+                            count={filteredData.length}
                             rowsPerPage={rowsPerPage}
                             page={page}
                             onPageChange={handleChangePage}

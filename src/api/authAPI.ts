@@ -200,7 +200,7 @@ export const applyForLeaveFN = async (token: string, apply_leave: LeaveType) => 
 };
 
 export const getAllLeaveRequestByUID = async (token: string) => {
-  const decode = jwtDecode(token) as { sub: string };
+  const decode = jwtDecode(token) as { 'custom:userId': string };
 
   try {
     const response = await authApi.get<LeaveAPIResponseUID>("get-all-leave-req", {
@@ -217,7 +217,7 @@ export const getAllLeaveRequestByUID = async (token: string) => {
 
     // Filter leave requests belonging to the user identified by decode.sub (UID)
     const userLeaveRequests = response.data.leaveData.filter(
-      (leaveRequest) => leaveRequest.uid === decode.sub
+      (leaveRequest) => leaveRequest.uid === decode['custom:userId']
     );
 
     return {

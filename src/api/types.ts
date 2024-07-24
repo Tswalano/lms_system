@@ -95,6 +95,7 @@ export interface LeaveRequest {
     leave_comment: string;
     createdAt: string;  // Assuming date strings are in ISO 8601 format
     updatedAt: string;  // Assuming date strings are in ISO 8601 format
+    fullName: string;
 }
 
 export type LeaveAPIResponse = {
