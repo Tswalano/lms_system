@@ -11,6 +11,7 @@ import { useCookies } from "react-cookie";
 import { useQuery } from "@tanstack/react-query";
 import { getAllLeaveRequestByUID } from "../../api/authAPI";
 import LoadingPage from "../loadingPage";
+import { useNavigate } from "react-router-dom";
 
 function Dashboard() {
   const ctx = useContext(AuthContext);
@@ -20,6 +21,12 @@ function Dashboard() {
   const [cookies] = useCookies(["token"]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  const navigate = useNavigate();
+
+  const handleNewRequest = () => {
+    navigate("/apply-leave");
+  };
 
   const { data, isError, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["listLeaveRequests"],
@@ -129,7 +136,12 @@ function Dashboard() {
         >
           <Typography variant="h4">Leave History</Typography>
 
-          <Button variant="contained" color="primary" startIcon={<>➕</>}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<>➕</>}
+            onClick={handleNewRequest}
+          >
             New Request
           </Button>
         </Stack>

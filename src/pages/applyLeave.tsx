@@ -43,10 +43,12 @@ const applyLeaveSchema = object({
 export type applyLeaveInput = TypeOf<typeof applyLeaveSchema>;
 
 const leaveTypes = [
-  { id: 1, value: "sick", label: "Sick Leave" },
-  { id: 2, value: "casual", label: "Casual Leave" },
-  { id: 3, value: "maternity", label: "Maternity Leave" },
-  { id: 4, value: "paternity", label: "Paternity Leave" },
+  { id: 1, value: "Sick", label: "Sick Leave" },
+  { id: 2, value: "Annual Leave", label: "Annual Leave" },
+  { id: 3, value: "Maternity", label: "Maternity Leave" },
+  { id: 4, value: "Paternity", label: "Paternity Leave" },
+  { id: 5, value: "Bereavement", label: "Bereavement" },
+  { id: 6, value: "Family Responsibility", label: "Family Responsibility" },
 ];
 
 function ApplyLeave() {

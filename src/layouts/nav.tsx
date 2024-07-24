@@ -4,13 +4,14 @@ import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Drawer from "@mui/material/Drawer";
 import Avatar from "@mui/material/Avatar";
-import { alpha } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
 import ListItemButton from "@mui/material/ListItemButton";
 import IconButton from "@mui/material/IconButton";
 import MenuIcon from "@mui/icons-material/Menu";
+import AppBar from "@mui/material/AppBar";
+import Toolbar from "@mui/material/Toolbar";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { useTheme } from "@mui/material/styles";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCookies } from "react-cookie";
 import { HiLogout } from "react-icons/hi";
@@ -114,6 +115,7 @@ function Nav() {
   const renderContent = (
     <Scrollbar
       sx={{
+        my: -2.5,
         height: 1,
         "& .simplebar-content": {
           height: 1,
@@ -122,7 +124,7 @@ function Nav() {
         },
       }}
     >
-      <Logo width="250px" />
+      <Logo width="180px" />
       {renderAccount}
       {renderMenu}
       <Box sx={{ flexGrow: 1 }} />
@@ -153,14 +155,27 @@ function Nav() {
           <IconButton
             onClick={openNav ? handleCloseNav : handleOpenNav}
             sx={{
+              my: -1,
               position: "fixed",
               top: 16,
               left: 16,
               zIndex: theme.zIndex.drawer + 1,
             }}
           >
-            <MenuIcon />
+            <MenuIcon sx={{ color: "#fff" }} />
           </IconButton>
+          <AppBar
+            position="fixed"
+            sx={{
+              display: 'block',
+              height: 56, // Smaller height for AppBar
+              backgroundImage: "linear-gradient(to right, #006699, #004477)",
+            }}
+          >
+            <Toolbar sx={{ minHeight: 56, display: 'flex', justifyContent: 'flex-start', my: -2 }}>
+              <Logo width="150px" />
+            </Toolbar>
+          </AppBar>
           <Drawer
             open={openNav}
             onClose={handleCloseNav}

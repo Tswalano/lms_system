@@ -142,7 +142,7 @@ export const getMeFn = async (token: string, userId: string) => {
   const response = await authApi.post<AuthUserAPIResponse>(
     "get-user",
     {
-      userId,
+      userId: userId,
       action: "GET_USER_BY_ID",
     },
     {

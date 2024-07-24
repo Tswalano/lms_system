@@ -138,11 +138,11 @@ function Signin() {
           }}>
             <Logo width="280px" />
             <Typography variant="h4" sx={{ mb: 1, mt: 2 }}>
-              Holla, Welcome Back
+              Holla Welcome Back
             </Typography>
-            <Typography variant="body1" sx={{ mb: 3 }}>
+            {/* <Typography variant="body1" sx={{ mb: 3 }}>
               Hey, welcome back to your special place
-            </Typography>
+            </Typography> */}
             {isError && (
               <Typography
                 variant="body2"
