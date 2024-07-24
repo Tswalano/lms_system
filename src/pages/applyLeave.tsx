@@ -4,8 +4,7 @@ import { FormProvider, SubmitHandler, useForm } from "react-hook-form";
 import FormInput from "../components/ui/FormInput";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoadingButton } from "@mui/lab";
-import { useEffect } from "react";
-import { LeaveType } from "../api/types";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { applyForLeaveFN, getPublicHolidayDatesFn } from "../api/authAPI";
 import { useCookies } from "react-cookie";
@@ -13,6 +12,7 @@ import dayjs from "dayjs";
 import dayjsutc from "dayjs/plugin/utc";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useNavigate } from "react-router-dom";
 
 dayjs.extend(dayjsutc);
 
@@ -43,16 +43,16 @@ const applyLeaveSchema = object({
 export type applyLeaveInput = TypeOf<typeof applyLeaveSchema>;
 
 const leaveTypes = [
-  { id: 1, value: "Sick", label: "Sick Leave" },
-  { id: 2, value: "Annual Leave", label: "Annual Leave" },
-  { id: 3, value: "Maternity", label: "Maternity Leave" },
-  { id: 4, value: "Paternity", label: "Paternity Leave" },
-  { id: 5, value: "Bereavement", label: "Bereavement" },
-  { id: 6, value: "Family Responsibility", label: "Family Responsibility" },
+  { id: 1, value: "sick", label: "Sick Leave" },
+  { id: 2, value: "casual", label: "Casual Leave" },
+  { id: 3, value: "maternity", label: "Maternity Leave" },
+  { id: 4, value: "paternity", label: "Paternity Leave" },
 ];
 
 function ApplyLeave() {
   const [cookies] = useCookies(["token"]);
+  const navigate = useNavigate();
+  const [leaveLength, setLeaveLength] = useState<string>("full"); // Track leave length state
   const methods = useForm<applyLeaveInput>({
     resolver: zodResolver(applyLeaveSchema),
   });
@@ -67,6 +67,7 @@ function ApplyLeave() {
       applyForLeaveFN(cookies.token, leaveData),
     onSuccess: () => {
       toast.success("Leave request submitted successfully!");
+      navigate("/"); // Redirect to dashboard
     },
     onError: (error: any) => {
       toast.error(
@@ -83,11 +84,25 @@ function ApplyLeave() {
     reset,
     handleSubmit,
     formState: { isSubmitSuccessful },
+    setValue,
+    watch,
   } = methods;
+
+  // Watch the leave length and leave start fields to conditionally set end date
+  const leaveLengthWatch = watch("leave_length");
+  const leaveStartWatch = watch("leave_start");
+
+  useEffect(() => {
+    if (leaveLengthWatch === "half") {
+      setValue("leave_end", leaveStartWatch);
+    }
+  }, [leaveLengthWatch, leaveStartWatch, setValue]);
+
   const onSubmitHandler: SubmitHandler<applyLeaveInput> = (values) => {
     applyForLeave(values);
     console.log("values", values);
   };
+
   const shouldDisableDate = (date: dayjs.Dayjs) => {
     const dayOfWeek = date.day();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -153,21 +168,28 @@ function ApplyLeave() {
                     { value: "half", label: "Half Day" },
                     { value: "full", label: "Full Day" },
                   ]}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    setLeaveLength(newValue);
+                    setValue("leave_length", newValue);
+                    if (newValue === "half") {
+                      setValue("leave_end", ""); // Clear end date if half day
+                    }
+                  }}
                 />
                 <FormInput
                   name="leave_start"
                   label="Start Date"
                   type="date"
                   disableDatesHandler={shouldDisableDate}
-                />{" "}
-                {/* TODO: provide grey date values or function */}
+                />
                 <FormInput
                   name="leave_end"
                   label="End Date"
                   type="date"
                   disableDatesHandler={shouldDisableDate}
-                />{" "}
-                {/* TODO: provide grey date values or function */}
+                  disabled={leaveLengthWatch === "half"} // Disable if "Half Day" is selected
+                />
                 <FormInput
                   name="leave_comment"
                   label="Comments"
