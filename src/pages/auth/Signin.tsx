@@ -57,10 +57,15 @@ function Signin() {
         const decodedValue = jwtDecode(payload.IdToken) as { sub: string, 'custom:userId': string };
         const uuid = decodedValue["custom:userId"];
 
-        setCookie('logged_in', 'true', { secure: true, sameSite: 'strict' });
-        setCookie('token', payload.IdToken, { secure: true, sameSite: 'strict' });
-        setCookie('accessToken', payload.AccessToken, { secure: true, sameSite: 'strict' });
-        setCookie('userId', uuid, { secure: true, sameSite: 'strict' });
+        // setCookie('logged_in', 'true', { secure: true, sameSite: 'strict' });
+        // setCookie('token', payload.IdToken, { secure: true, sameSite: 'strict' });
+        // setCookie('accessToken', payload.AccessToken, { secure: true, sameSite: 'strict' });
+        // setCookie('userId', uuid, { secure: true, sameSite: 'strict' });
+
+        setCookie('logged_in', 'true', { secure: true, sameSite: 'lax', domain: 'frontend-leave-management-system.s3-website.af-south-1.amazonaws.com' });
+        setCookie('token', payload.IdToken, { secure: true, sameSite: 'lax', domain: 'frontend-leave-management-system.s3-website.af-south-1.amazonaws.com' });
+        setCookie('accessToken', payload.AccessToken, { secure: true, sameSite: 'lax', domain: 'frontend-leave-management-system.s3-website.af-south-1.amazonaws.com' });
+        setCookie('userId', uuid, { secure: true, sameSite: 'lax', domain: 'frontend-leave-management-system.s3-website.af-south-1.amazonaws.com' });
 
         // Invalidate queries to refetch with the updated `userId`
         queryClient.invalidateQueries({ queryKey: ['authUser', uuid] });
