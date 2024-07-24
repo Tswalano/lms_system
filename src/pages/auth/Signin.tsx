@@ -62,10 +62,10 @@ function Signin() {
         // setCookie('accessToken', payload.AccessToken, { secure: true, sameSite: 'strict' });
         // setCookie('userId', uuid, { secure: true, sameSite: 'strict' });
 
-        setCookie('logged_in', 'true', { secure: true, sameSite: 'lax', domain: 'frontend-leave-management-system.s3-website.af-south-1.amazonaws.com' });
-        setCookie('token', payload.IdToken, { secure: true, sameSite: 'lax', domain: 'frontend-leave-management-system.s3-website.af-south-1.amazonaws.com' });
-        setCookie('accessToken', payload.AccessToken, { secure: true, sameSite: 'lax', domain: 'frontend-leave-management-system.s3-website.af-south-1.amazonaws.com' });
-        setCookie('userId', uuid, { secure: true, sameSite: 'lax', domain: 'frontend-leave-management-system.s3-website.af-south-1.amazonaws.com' });
+        setCookie('logged_in', 'true', { secure: true, sameSite: 'lax' });
+        setCookie('token', payload.IdToken, { secure: true, sameSite: 'lax' });
+        setCookie('accessToken', payload.AccessToken, { secure: true, sameSite: 'lax' });
+        setCookie('userId', uuid, { secure: true, sameSite: 'lax' });
 
         // Invalidate queries to refetch with the updated `userId`
         queryClient.invalidateQueries({ queryKey: ['authUser', uuid] });
