@@ -139,21 +139,23 @@ export const forcePasswordChangeFn = async (user: {
 };
 
 export const getMeFn = async (token: string, userId: string) => {
-  const response = await authApi.post<AuthUserAPIResponse>(
-    "get-user",
-    {
-      userId: userId,
-      action: "GET_USER_BY_ID",
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
+  try {
+    const response = await authApi.post<AuthUserAPIResponse>(
+      "get-user",
+      { userId, action: "GET_USER_BY_ID" },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching user data:", error);
+    throw error;
+  }
 };
 
 export const getAllUsersFn = async (token: string) => {

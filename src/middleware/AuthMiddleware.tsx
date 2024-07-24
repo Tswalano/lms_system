@@ -16,16 +16,21 @@ const AuthMiddleware: React.FC<AuthMiddlewareProps> = ({ children }) => {
 
   const query = useQuery({
     queryKey: ["authUser"],
-    queryFn: () => getMeFn(cookies.token, cookies.userId),
+    queryFn: () => {
+      console.log("Using token:", cookies.token);
+      return getMeFn(cookies.token, cookies.userId);
+    },
     enabled: !!cookies.logged_in,
     select: (data) => data.body.payload,
   });
 
   useEffect(() => {
-    console.log("Here....", cookies.logged_in, query.data, query.error);
+    console.log("Cookies:", cookies);
+    console.log("Query Data:", query.data);
+    console.log("Query Error:", query.error);
 
     if (cookies.logged_in && query.data) {
-      console.log("query.data", query.data);
+      console.log("Setting user data:", query.data);
       stateContext.dispatch({ type: "SET_USER", payload: query.data });
     }
 
