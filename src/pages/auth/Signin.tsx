@@ -4,7 +4,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, FormProvider, SubmitHandler } from "react-hook-form";
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Container, Box, Typography, Paper, Grid, Checkbox, FormControlLabel } from "@mui/material";
+import { Container, Box, Typography, Paper, Grid } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
 import { getMeFn, loginUserFn } from "../../api/authAPI";
 import FormInput from "../../components/ui/FormInput";
@@ -57,11 +57,6 @@ function Signin() {
 
         const decodedValue = jwtDecode(payload.IdToken) as { sub: string, 'custom:userId': string };
         const uuid = decodedValue["custom:userId"];
-
-        // setCookie('logged_in', 'true', { secure: true, sameSite: 'strict' });
-        // setCookie('token', payload.IdToken, { secure: true, sameSite: 'strict' });
-        // setCookie('accessToken', payload.AccessToken, { secure: true, sameSite: 'strict' });
-        // setCookie('userId', uuid, { secure: true, sameSite: 'strict' });
 
         setCookie('logged_in', 'true', { secure: true, sameSite: 'lax' });
         setCookie('token', payload.IdToken, { secure: true, sameSite: 'lax' });
@@ -146,9 +141,6 @@ function Signin() {
             <Typography variant="h4" sx={{ mb: 1, mt: 2 }}>
               Holla Welcome Back
             </Typography>
-            {/* <Typography variant="body1" sx={{ mb: 3 }}>
-              Hey, welcome back to your special place
-            </Typography> */}
             {isError && (
               <Typography
                 variant="body2"
@@ -174,7 +166,6 @@ function Signin() {
                 )}
               </Typography>
             )}
-            {/* if redirects from password recovery state is true, show success message */}
             {location.state?.isRecovered && (
               <Typography
                 variant="body2"
@@ -225,12 +216,18 @@ function Signin() {
             alignItems: 'center',
             justifyContent: 'center',
             background: '#f5f5f5', // Background color of the right section
+            position: 'relative',
+            overflow: 'hidden',
           }}>
-            <Box sx={{ textAlign: 'center' }}>
-              {/* <img src={Logo} alt="Sign In" style={{ width: '100%', height: 'auto' }} /> */}
-              {/* <Logo width="200px" /> */}
-              <img src=".././LmsImage.png" alt="Logo" width={"230%"} height={"auto"} />
-            </Box>
+            <Box sx={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: '100%',
+              height: '100%',
+              background: 'url(.././LmsImage.png) no-repeat left center',
+              backgroundSize: 'cover',
+            }} />
           </Grid>
         </Grid>
       </Paper>

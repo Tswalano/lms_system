@@ -11,7 +11,8 @@ import { Stack } from '@mui/material';
 import FormInput from './FormInput';
 import { LoadingButton } from '@mui/lab';
 import { CognitoUser } from '../../api/types';
-  
+import { toast } from "react-toastify";
+
 type Props = {
     children?: React.ReactNode;
     handleClose: () => void;
@@ -54,15 +55,18 @@ function AddUserModal({ open, handleClose, refetch }: Props) {
         mutationFn: (userData: CreateUserInput) => createUserFn(userData),
         onSuccess: () => {
             console.log('User has been created....');
+            toast.success("User Has Been Created successfully!");
             handleClose();
         },
         onError: (error: any) => {
             if (Array.isArray((error as any).response.data.error)) {
+                toast.error("Failed to submit leave request");
                 (error as any).response.data.error.forEach((el: any) =>
                     console.error(el.message)
                 );
             } else {
                 console.error((error as any).response.data.message);
+                toast.error("Failed to submit leave request");
             }
         },
     });
