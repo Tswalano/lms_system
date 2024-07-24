@@ -11,12 +11,14 @@ type AuthMiddlewareProps = {
 };
 
 const AuthMiddleware: React.FC<AuthMiddlewareProps> = ({ children }) => {
-    const [cookies] = useCookies(['logged_in', 'accessToken', 'token']);
+    const [cookies] = useCookies(['logged_in', 'accessToken', 'token', "userId"]);
     const stateContext = useStateContext();
+
+    const { authUser } = stateContext.state
 
     const query = useQuery({
         queryKey: ['authUser'],
-        queryFn: () => getMeFn(cookies.token, cookies.accessToken),
+        queryFn: () => getMeFn(cookies.token, cookies.userId),
         enabled: !!cookies.logged_in,
         select: (data) => data.body.payload
     });
@@ -34,7 +36,7 @@ const AuthMiddleware: React.FC<AuthMiddlewareProps> = ({ children }) => {
     }, [cookies.logged_in, query.data]);
 
     if (query.isLoading && cookies.logged_in) {
-        return <LoadingPage/>
+        return <LoadingPage />
     }
 
     return (

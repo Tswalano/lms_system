@@ -14,6 +14,7 @@ export interface IAuthUserResults {
     lastName: string;
     role: string;
     occupation?: string;
+    jobTitle?: string;
     username: string;
     userId: string;
     sub: string;
