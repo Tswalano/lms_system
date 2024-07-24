@@ -25,6 +25,7 @@ import ApplyForLeaveForm from "./ApplyForLeaveConfig";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import { Link } from "react-router-dom";
 import APIEndPoints from "../../../api/APIEndPoints";
+import { getPublicHolidays } from "../../../api/API"; 
 import { AuthContext } from "../../../context/AuthContext";
 import { postData } from "../../../api/API";
 import CloseIcon from "@mui/icons-material/Close";
@@ -49,6 +50,7 @@ function ApplyForLeave() {
   const [alertMessage, setAlertMessage] = useState();
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
+  const [publicHolidays, setPublicHolidays] = useState([]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const handleClose = () => {
@@ -110,6 +112,34 @@ function ApplyForLeave() {
 
     // Run the validation when formValues state changes
   }, [formValues]);
+
+  useEffect(() => {
+    const fetchPublicHolidays = async () => {
+      if (publicHolidays.length < 1) {
+        const endpoint = (new APIEndPoints()).getPublicHolidayDates();
+        const start = null;
+        const end = null;
+
+        // console.trace(`Fetching public holidays from [${endpoint}]`);
+
+        try {
+          const publicHolidaysResponse = await getPublicHolidays(endpoint, start, end);
+          const publicHolidayDates = publicHolidaysResponse.data;
+
+          // console.trace(`Public holidays fetched`, publicHolidayDates);
+
+          setPublicHolidays(publicHolidayDates);
+        }
+        catch (apiError) {
+          console.error(`Could not obtain public holidays`, apiError);
+      
+          setPublicHolidays([]);
+        }
+      }
+    };
+    
+    fetchPublicHolidays();
+  }, [ publicHolidays.length ]);
 
   // handle form submition
   const handleSubmit = async (event) => {
@@ -173,6 +203,23 @@ function ApplyForLeave() {
     }
   };
 
+  const disableWeekendsAndPublicHolidays = (date) => {
+    const publicHolidayDates = publicHolidays?.map(ph => new Date(ph)) || [];
+    const actualDate = new Date(date);
+
+    try {
+      const shouldDisable = actualDate.getDay() === 0 || actualDate.getDay() === 6
+        || publicHolidayDates.some(ph => ph.toISOString() === actualDate.toISOString());
+
+      console.log(`Should disable [${actualDate.toISOString()}] ? [${shouldDisable}]`);
+
+      return shouldDisable;
+    }
+    catch (error) {
+      console.error(`Could not disable weekends and public holidays: ${error}`);
+    }
+  };
+  
   // render output
   return (
     <Box sx={{ width: "100%" }}>
@@ -207,6 +254,7 @@ function ApplyForLeave() {
           <Grid container spacing={2}>
             <FormFieldMapper
               formFields={ApplyForLeaveForm.formFields}
+              customHandlers={{ disableDateHandler: disableWeekendsAndPublicHolidays }}
               onChange={handleChange}
               gridSizes={GridSizes.dashboardFieldSizes}
             />

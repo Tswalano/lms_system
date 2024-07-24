@@ -1,6 +1,6 @@
 const SigninForm = {
     formFields : [
-        { label: "Email Address", name: "email", type: "email" },
+        { label: "Email Address", name: "username", type: "email" },
         { label: "Password", name: "password", type: "password" },                
     ]
 };

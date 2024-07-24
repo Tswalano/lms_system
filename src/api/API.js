@@ -189,3 +189,22 @@ export const uploadDocument = async (endpoint, formValues, token) => {
     return error.response.data.message;
   }
 };
+
+export const getPublicHolidays = async (endpoint, start = null, end = null) => {
+  const token = localStorage.getItem("token");
+  const requestOptions = {
+    headers: {
+      Authorization: "Bearer " + token,
+    }};
+
+  if (!!start && !!end) {
+    requestOptions.params = {
+      start: start,
+      end: end
+    }
+  }
+
+  const apiResponse = await axios.get(endpoint, requestOptions);
+
+  return apiResponse;
+}

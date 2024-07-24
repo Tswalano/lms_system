@@ -182,13 +182,16 @@ export const getAllLeaveRequestsFn = async (token: string) => {
     },
   });
 
-
-  return response
+  return response;
 };
 
-export const applyForLeaveFN = async (token: string, apply_leave: LeaveType) => {
+export const applyForLeaveFN = async (
+  token: string,
+  apply_leave: LeaveType
+) => {
   const response = await authApi.post<LeaveAPIResponse>(
-    "apply-for-leave", apply_leave,
+    "apply-for-leave",
+    apply_leave,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -200,16 +203,19 @@ export const applyForLeaveFN = async (token: string, apply_leave: LeaveType) => 
 };
 
 export const getAllLeaveRequestByUID = async (token: string) => {
-  const decode = jwtDecode(token) as { 'custom:userId': string };
+  const decode = jwtDecode(token) as { "custom:userId": string };
 
   try {
-    const response = await authApi.get<LeaveAPIResponseUID>("get-all-leave-req", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-    console.log(response.data.leaveData)
+    const response = await authApi.get<LeaveAPIResponseUID>(
+      "get-all-leave-req",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    console.log(response.data.leaveData);
     // Check if response.data and response.data.body are defined
     if (!response.data || !response.data || !response.data.leaveData) {
       throw new Error("Invalid response format: Missing leave data");
@@ -217,7 +223,7 @@ export const getAllLeaveRequestByUID = async (token: string) => {
 
     // Filter leave requests belonging to the user identified by decode.sub (UID)
     const userLeaveRequests = response.data.leaveData.filter(
-      (leaveRequest) => leaveRequest.uid === decode['custom:userId']
+      (leaveRequest) => leaveRequest.uid === decode["custom:userId"]
     );
 
     return {
@@ -230,9 +236,13 @@ export const getAllLeaveRequestByUID = async (token: string) => {
   }
 };
 
-export const updateLeaveStatusFn = async (token: string, leaveStatus: leaveStatus) => {
+export const updateLeaveStatusFn = async (
+  token: string,
+  leaveStatus: leaveStatus
+) => {
   const response = await authApi.post<LeaveAPIResponse>(
-    "update-leave-status", leaveStatus,
+    "update-leave-status",
+    leaveStatus,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -243,19 +253,25 @@ export const updateLeaveStatusFn = async (token: string, leaveStatus: leaveStatu
   return response.data.leaveData;
 };
 
-export const getPublicHolidayDatesFn = async (token: string, start: Date | undefined = undefined, end: Date | undefined = undefined): Promise<string[]> => {
+export const getPublicHolidayDatesFn = async (
+  token: string,
+  start: Date | undefined = undefined,
+  end: Date | undefined = undefined
+): Promise<string[]> => {
   try {
     const options = {
       headers: {
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-      }};
+      },
+    };
     const response = await authApi.get<string[]>("public-holidays", options);
-  
+
     return Promise.resolve(response.data);
-  }
-  catch (apiError) {
-    const newError = new Error("Failed to get public holidays from API", { cause: apiError });
+  } catch (apiError) {
+    const newError = new Error("Failed to get public holidays from API", {
+      cause: apiError,
+    });
     return Promise.reject(newError);
   }
 };

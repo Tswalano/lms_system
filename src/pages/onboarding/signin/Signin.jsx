@@ -1,0 +1,150 @@
+import React, { useState, useContext } from "react";
+import FormFieldMapper from "../../../components/form/FormFieldMapper";
+import SubmitButton from "../../../components/ui/Button";
+import SigninForm from "./FormConfig";
+import { useEffect } from "react";
+import { handleFieldChange } from "../../../components/form/HandleFieldChange";
+import { GetFormValues } from "../../../components/form/GetFormValues";
+import { Alert, Box, Collapse, Grid, IconButton } from "@mui/material";
+import CenteredBox from "../../../components/ui/CenteredBox";
+import Heading from "../../../components/ui/Heading";
+import Logo from "../../../components/ui/Logo";
+import PaperComponent from "../../../components/ui/Paper";
+import {
+  validateEmail,
+  validatePassword,
+} from "../../../components/form/Validations";
+import { GridSizes } from "../../../components/form/GridSizes";
+// import { login, postFormData } from "../../../api/API";
+import { signIn } from "../../../api/API";
+import APIEndPoints from "../../../api/APIEndPoints";
+import { Link, useNavigate } from "react-router-dom";
+import { AuthContext } from "../../../context/AuthContext";
+import CloseIcon from "@mui/icons-material/Close";
+
+function Signin() {
+  // create a useNavigate hook
+  const navigate = useNavigate();
+  // declare the useState formValues object
+  const [formValues, setFormValues] = useState({});
+
+  //const { logIn } = useContext(AuthContext);
+
+  // handle form field values on change
+  const handleChange = handleFieldChange(setFormValues);
+
+  // State to track form field error
+  const [isError, setIsError] = useState(false);
+  const [progress, setProgress] = useState(false);
+  const [open, setOpen] = useState(true);
+  const [alertMessage, setAlertMessage] = useState();
+  const [alertType, setAlertType] = useState();
+  const [response, setResponse] = useState(false);
+
+  //initialise Auth Context
+  const ctx = useContext(AuthContext);
+
+  // Update the isError state based on the validation results
+  const handleValidation = () => {
+    // use your existing validation functions to validate email and password.
+    const isEmailValid = validateEmail(formValues.username);
+    const isPasswordValid = validatePassword(formValues.password);
+
+    // Set isError based on the validation results
+    setIsError(isEmailValid !== null || isPasswordValid !== null);
+  };
+
+  useEffect(() => {
+    handleValidation();
+    // Run the validation when formValues state changes
+    if (ctx.isAdmin === "admin") {
+      navigate("/home");
+    } else if (ctx.isAdmin === "user") {
+      navigate("/dashboard");
+    }
+  }, [formValues, ctx.isAdmin]);
+  // handle form submition
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    //progress
+    setProgress(true);
+
+    const formValues = GetFormValues(event);
+
+    const endPoint = new APIEndPoints().signinAPI();
+
+    const isLoggedIn = await signIn(endPoint, formValues);
+
+    if (isLoggedIn.statusCode === 200) {
+      ctx.logIn(isLoggedIn.body.payload.IdToken, isLoggedIn?.user?.role || "user");
+      //navigate();
+    } else {
+      // set error
+      setAlertMessage(isLoggedIn?.body?.message);
+      setAlertType("error");
+      setProgress(false);
+      setResponse(true);
+      setOpen(true);
+    }
+  };
+
+  // render output
+  return (
+    <CenteredBox>
+      <Box sx={{ maxWidth: "600px" }}>
+        <Logo width="35%" />
+        <br />
+        {response ? (
+          <Collapse in={open}>
+            <Alert
+              severity={alertType}
+              action={
+                <IconButton
+                  aria-label="close"
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    setOpen(false);
+                  }}
+                >
+                  <CloseIcon fontSize="inherit" />
+                </IconButton>
+              }
+              sx={{ mb: 2 }}
+            >
+              {alertMessage}
+            </Alert>
+          </Collapse>
+        ) : (
+          <Box></Box>
+        )}
+        <PaperComponent>
+          <Box sx={{ textAlign: "center", paddingBottom: "20px" }}>
+            <Heading text="Sign in to your account" />
+          </Box>
+          <form onSubmit={handleSubmit} autoComplete="off">
+            <Grid container>
+              <FormFieldMapper
+                formFields={SigninForm.formFields}
+                onChange={handleChange}
+                gridSizes={GridSizes.onbordingFieldSizes}
+              />
+              <SubmitButton
+                disabled={isError}
+                label="Sign in"
+                type="submit"
+                progress={progress}
+              />
+              <Box sx={{ marginTop: "20px" }}>
+                <Link to={"/forgot-password"}>Forgot your password?</Link>
+              </Box>
+            </Grid>
+          </form>
+        </PaperComponent>
+      </Box>
+    </CenteredBox>
+  );
+}
+
+export default Signin;
