@@ -49,7 +49,7 @@ authApi.interceptors.response.use(
       error.response.data.message.includes("The incoming token has expired")
     ) {
       // TODO refresh token
-      console.log("The incoming token has expired");
+      console.log("The incoming token has expired ");
     }
     // TODO: clear cookies
     return Promise.reject(error);
