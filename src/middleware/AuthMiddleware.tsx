@@ -12,6 +12,7 @@ type AuthMiddlewareProps = {
 const AuthMiddleware: React.FC<AuthMiddlewareProps> = ({ children }) => {
   const [cookies] = useCookies(["logged_in", "accessToken", "token", "userId"]);
   const stateContext = useStateContext();
+
   const { authUser } = stateContext.state;
 
   const query = useQuery({
@@ -22,18 +23,15 @@ const AuthMiddleware: React.FC<AuthMiddlewareProps> = ({ children }) => {
   });
 
   useEffect(() => {
-    console.log("Here....", cookies.logged_in, query.data, query.error);
+    console.log("Here....", cookies.logged_in, query.data);
 
     if (cookies.logged_in && query.data) {
       console.log("query.data", query.data);
       stateContext.dispatch({ type: "SET_USER", payload: query.data });
     }
 
-    if (query.error) {
-      console.error("Failed to load user data:", query.error);
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cookies.logged_in, query.data, query.error]);
+  }, [cookies.logged_in, query.data]);
 
   if (query.isLoading && cookies.logged_in) {
     return <LoadingPage />;
