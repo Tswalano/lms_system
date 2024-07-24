@@ -96,7 +96,7 @@ const normalRoutes: RouteObject = {
     },
     {
       path: "manage-employees",
-      element: <RequireUser allowedRoles={["user", "admin"]} />,
+      element: <RequireUser allowedRoles={["admin"]} />,
       children: [
         {
           path: "",
