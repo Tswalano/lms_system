@@ -12,6 +12,7 @@ import { useCookies } from "react-cookie";
 import jwtDecode from "jwt-decode";
 import { useUserQuery } from "../../hooks";
 import Logo from "../../components/ui/Logo";
+import LoadingPage from "../loadingPage";
 
 const loginSchema = object({
   username: string()
@@ -113,7 +114,7 @@ function Signin() {
   }
 
   if (isLoading) {
-    return <>Getting User Details...</>
+    return <><LoadingPage /></>
   }
 
   return (
