@@ -11,7 +11,7 @@ import { Stack } from '@mui/material';
 import FormInput from './FormInput';
 import { LoadingButton } from '@mui/lab';
 import { CognitoUser } from '../../api/types';
-
+ 
 type Props = {
     children?: React.ReactNode;
     handleClose: () => void;
