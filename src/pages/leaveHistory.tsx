@@ -153,7 +153,7 @@ export const leaveHistoryTable = (leaveHistory: LeaveRequest[]) => (
           <TableRow>
             <TableCell>Leave Type</TableCell>
             <TableCell>Note</TableCell>
-            <TableCell align="right">Value</TableCell>
+            <TableCell align="right">Duration</TableCell>
             <TableCell align="right">Status</TableCell>
             <TableCell align="right">Start Date</TableCell>
             <TableCell align="right">End Date</TableCell>
