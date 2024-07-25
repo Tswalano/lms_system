@@ -1,8 +1,7 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SubmitButton from "../../../components/ui/Button";
 import SigninForm from "./FormConfig";
-import { useEffect } from "react";
 import { handleFieldChange } from "../../../components/form/HandleFieldChange";
 import { GetFormValues } from "../../../components/form/GetFormValues";
 import { Alert, Box, Collapse, Grid, IconButton } from "@mui/material";
@@ -15,7 +14,6 @@ import {
   validatePassword,
 } from "../../../components/form/Validations";
 import { GridSizes } from "../../../components/form/GridSizes";
-// import { login, postFormData } from "../../../api/API";
 import { signIn } from "../../../api/API";
 import APIEndPoints from "../../../api/APIEndPoints";
 import { Link, useNavigate } from "react-router-dom";
@@ -63,7 +61,8 @@ function Signin() {
       navigate("/dashboard");
     }
   }, [formValues, ctx.isAdmin]);
-  // handle form submition
+
+  // handle form submission
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -77,7 +76,10 @@ function Signin() {
     const isLoggedIn = await signIn(endPoint, formValues);
 
     if (isLoggedIn.statusCode === 200) {
-      ctx.logIn(isLoggedIn.body.payload.IdToken, isLoggedIn?.user?.role || "user");
+      ctx.logIn(
+        isLoggedIn.body.payload.IdToken,
+        isLoggedIn?.user?.role || "user"
+      );
       //navigate();
     } else {
       // set error
@@ -131,10 +133,10 @@ function Signin() {
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
               <SubmitButton
-                disabled={isError}
+                disabled={isError || progress} // Disable button when there is an error or form is in progress
                 label="Sign in"
                 type="submit"
-                progress={progress}
+                progress={progress} // Show progress indicator when form is in progress
               />
               <Box sx={{ marginTop: "20px" }}>
                 <Link to={"/forgot-password"}>Forgot your password?</Link>

@@ -203,6 +203,7 @@ function ApplyLeave() {
                   disableElevation
                   type="submit"
                   loading={isPending}
+                  disabled={isPending} // Disable button when loading
                 >
                   Apply
                 </LoadingButton>

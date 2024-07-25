@@ -18,6 +18,7 @@ import {
   TablePagination,
   Tabs,
   Tab,
+  CircularProgress,
 } from "@mui/material";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getAllLeaveRequestsFn, updateLeaveStatusFn } from "../api/authAPI";
@@ -35,8 +36,9 @@ export default function ManageLeaveRequests({}: Props) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [tabValue, setTabValue] = useState("pending"); // default to 'pending'
+  const [processingId, setProcessingId] = useState<string | null>(null); // to track the currently processing leave request ID
 
-  const { data, isError, isLoading, isFetching, refetch } = useQuery({
+  const { data, isError, isLoading, refetch } = useQuery({
     queryKey: ["listLeaveRequests"],
     queryFn: () => getAllLeaveRequestsFn(cookies.token),
     select: (data) => {
@@ -55,12 +57,14 @@ export default function ManageLeaveRequests({}: Props) {
     onSuccess(data, variables) {
       console.log("leave request updated", data);
       refetch();
+      setProcessingId(null); // reset processing ID
       variables.status === "Approved"
         ? toast.success("Leave Status Approved")
         : toast.warning("Leave request rejected.");
     },
     onError: (error) => {
       toast.error("Failed to Update Leave Request");
+      setProcessingId(null); // reset processing ID
     },
   });
 
@@ -174,7 +178,10 @@ export default function ManageLeaveRequests({}: Props) {
                       </TableCell>
                       <TableCell align="right">
                         <ButtonGroup
-                          disabled={leave.status.toLowerCase() !== "pending"}
+                          disabled={
+                            leave.status.toLowerCase() !== "pending" ||
+                            processingId === leave.id.toString()
+                          }
                           size="small"
                           aria-label="Small button group"
                         >
@@ -183,6 +190,7 @@ export default function ManageLeaveRequests({}: Props) {
                             color="success"
                             size="small"
                             onClick={() => {
+                              setProcessingId(leave.id.toString());
                               mutate.mutate({
                                 feedback: "Ok",
                                 id: leave.id,
@@ -190,13 +198,18 @@ export default function ManageLeaveRequests({}: Props) {
                               });
                             }}
                           >
-                            Approve
+                            {processingId === leave.id.toString() ? (
+                              <CircularProgress size={24} />
+                            ) : (
+                              "Approve"
+                            )}
                           </Button>
                           <Button
                             variant="contained"
                             color="error"
                             size="small"
                             onClick={() => {
+                              setProcessingId(leave.id.toString());
                               mutate.mutate({
                                 feedback: "Rejected",
                                 id: leave.id,
@@ -204,7 +217,11 @@ export default function ManageLeaveRequests({}: Props) {
                               });
                             }}
                           >
-                            Reject
+                            {processingId === leave.id.toString() ? (
+                              <CircularProgress size={24} />
+                            ) : (
+                              "Reject"
+                            )}
                           </Button>
                         </ButtonGroup>
                       </TableCell>

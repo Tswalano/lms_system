@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import SubmitButton from "../../../components/ui/Button";
 import FormFieldMapper from "../../../components/form/FormFieldMapper";
 import SignupForm from "./FormConfig";
@@ -14,7 +14,6 @@ import {
   validatePassword,
   validateConfirmPassword,
 } from "../../../components/form/Validations";
-import { useEffect } from "react";
 import { GridSizes } from "../../../components/form/GridSizes";
 import { AuthContext } from "../../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -24,9 +23,7 @@ import CloseIcon from "@mui/icons-material/Close";
 
 function Signup() {
   const [formValues, setFormValues] = useState({});
-
   const handleInputChange = handleFieldChange(setFormValues);
-
   const [isError, setIsError] = useState(true);
   const [progress, setProgress] = useState(false);
   const [open, setOpen] = useState(true);
@@ -34,9 +31,8 @@ function Signup() {
   const [alertType, setAlertType] = useState();
   const [response, setResponse] = useState(false);
 
-  const { userEmail } = useContext(AuthContext);
-  const { userPassword } = useContext(AuthContext);
-  const ctx = useContext(AuthContext);
+  const { userEmail, userPassword, isVerified, signup } =
+    useContext(AuthContext);
   const nav = useNavigate();
 
   // Update the isError state based on the validation results
@@ -59,16 +55,16 @@ function Signup() {
 
   useEffect(() => {
     handleValidation();
-    if (ctx.isVerified === true) {
+    if (isVerified === true) {
       nav("/verify-account");
     }
     // Run the validation when formValues state changes
-  }, [formValues, ctx.isVerified]);
+  }, [formValues, isVerified]);
 
   const handleSignupSubmit = async (event) => {
     event.preventDefault();
 
-    //progress
+    // Disable the button by setting progress to true
     setProgress(true);
     userEmail(formValues.email);
     userPassword(formValues.password);
@@ -76,12 +72,12 @@ function Signup() {
     const endPoint = new APIEndPoints().signupAPI();
     const response = await signUpAndVerify(endPoint, formValues);
     if (response.status === 200) {
-      ctx.signup(true);
+      signup(true);
     } else {
       // set error
       setAlertMessage(response.message);
       setAlertType("error");
-      setProgress(false);
+      setProgress(false); // Re-enable the button if there's an error
       setResponse(true);
       setOpen(true);
     }
@@ -128,7 +124,7 @@ function Signup() {
                 gridSizes={GridSizes.onbordingFieldSizes}
               />
               <SubmitButton
-                disabled={isError}
+                disabled={isError || progress} // Disable button if there's an error or in progress
                 label="Sign up"
                 type="submit"
                 progress={progress}
