@@ -20,14 +20,15 @@
 
 // export default App;
 
-import { CssBaseline } from '@mui/material';
-import { useRoutes } from 'react-router-dom';
-import routes from './routes';
+import { CssBaseline } from "@mui/material";
+import { useRoutes } from "react-router-dom";
+import routes from "./routes";
 
 function App() {
   const content = useRoutes(routes);
   return (
     <>
+      //
       <CssBaseline />
       {content}
     </>
