@@ -104,6 +104,7 @@ function Dashboard() {
     page * rowsPerPage + rowsPerPage
   );
 
+  // Update leaveBalance to group Maternity and Paternity Leave
   const leaveBalance = [
     {
       id: 1,
@@ -119,18 +120,15 @@ function Dashboard() {
     },
     {
       id: 3,
-      title: "Maternity Leave",
-      value: Number(data[0]["Maternity Leave"]) + " day(s)" || 0,
+      title: "Maternity/Paternity Leave",
+      value:
+        Number(data[0]["Maternity Leave"]) +
+          Number(data[0]["Paternity Leave"]) +
+          " day(s)" || 0,
       icon: <FaBaby size={32} />,
     },
     {
       id: 4,
-      title: "Paternity Leave",
-      value: Number(data[0]["Paternity Leave"]) + " day(s)" || 0,
-      icon: <FaUserTie size={32} />,
-    },
-    {
-      id: 5,
       title: "Family Responsibility",
       value: Number(data[0]["Family Responsibility"]) + " day(s)" || 0,
       icon: <FaPeopleArrows size={32} />,
@@ -151,9 +149,9 @@ function Dashboard() {
         <Typography variant="h5" sx={{ mb: 2 }}>
           Total Leave Taken
         </Typography>
-        <Grid container spacing={2}>
+        <Grid container spacing={2} justifyContent="space-evenly">
           {leaveBalance.map((item) => (
-            <Grid key={item.id} xs={12} sm={6} md={4} lg={3} xl={2}>
+            <Grid key={item.id} xs={12} sm={6} md={4} lg={3}>
               <Card
                 component={Stack}
                 spacing={2}
