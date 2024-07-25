@@ -28,7 +28,7 @@ const applyLeaveSchema = object({
     const endDate = new Date(data.leave_end);
 
     // if leave_length is "half", end date must be the same as start date
-    if (data.leave_length === "half" && endDate > startDate) {
+    if (data.leave_length === "Half Day" && endDate > startDate) {
       return false;
     }
 
@@ -99,7 +99,7 @@ function ApplyLeave() {
   const leaveStartWatch = watch("leave_start");
 
   useEffect(() => {
-    if (leaveLengthWatch === "half") {
+    if (leaveLengthWatch === "Half Day") {
       setValue("leave_end", leaveStartWatch);
     }
   }, [leaveLengthWatch, leaveStartWatch, setValue]);
@@ -171,14 +171,14 @@ function ApplyLeave() {
                   label="Leave Length"
                   type="select"
                   options={[
-                    { value: "half", label: "Half Day" },
-                    { value: "full", label: "Full Day" },
+                    { value: "Half Day", label: "Half Day" },
+                    { value: "Full Day", label: "Full Day" },
                   ]}
                   onChange={(e) => {
                     const newValue = e.target.value;
                     setLeaveLength(newValue);
                     setValue("leave_length", newValue);
-                    if (newValue === "half") {
+                    if (newValue === "Half Day") {
                       setValue("leave_end", ""); // Clear end date if half day
                     }
                   }}
@@ -194,7 +194,7 @@ function ApplyLeave() {
                   label="End Date"
                   type="date"
                   disableDatesHandler={shouldDisableDate}
-                  disabled={leaveLengthWatch === "half"} // Disable if "Half Day" is selected
+                  disabled={leaveLengthWatch === "Half Day"} // Disable if "Half Day" is selected
                 />
                 <FormInput
                   name="leave_comment"
