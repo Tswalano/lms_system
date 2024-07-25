@@ -113,6 +113,16 @@ export type LeaveAPIResponseUID = {
 
 };
 
+export type LeavesGetTotalNumberOfDays = {
+ status: number;
+    body:{
+        message: string;
+    leaveCounts: {
+        [key: string]: string | number;
+    };
+    }
+};
+
 // export interface IUserResponse {
 //     status: string;
 //     data: {

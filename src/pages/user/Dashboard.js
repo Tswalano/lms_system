@@ -9,10 +9,21 @@ import { capitalizeName } from "../../utils/Util";
 import { leaveHistoryTable } from "../leaveHistory";
 import { useCookies } from "react-cookie";
 import { useQuery } from "@tanstack/react-query";
-import { getAllLeaveRequestByUID } from "../../api/authAPI";
+import {
+  getAllLeaveRequestByUID,
+  getTotalNumberOfLeaveDays,
+} from "../../api/authAPI";
 import LoadingPage from "../loadingPage";
 import { useNavigate } from "react-router-dom";
+import {
+  FaSyringe,
+  FaBook,
+  FaBaby,
+  FaUserTie,
+  FaPeopleArrows,
+} from "react-icons/fa";
 
+// Updated Dashboard Component
 function Dashboard() {
   const ctx = useContext(AuthContext);
   const stateContext = useStateContext();
@@ -28,7 +39,20 @@ function Dashboard() {
     navigate("/apply-leave");
   };
 
-  const { data, isError, isLoading, isFetching, refetch } = useQuery({
+  const { data, isError, isLoading } = useQuery({
+    queryKey: ["totalLeaveDays"],
+    queryFn: () => getTotalNumberOfLeaveDays(cookies.token),
+    select: (data) => {
+      const leaveData = [data.data.leaveCounts];
+      return leaveData;
+    },
+  });
+
+  const {
+    data: leaveData,
+    isError: leaveError,
+    isLoading: leaveLoading,
+  } = useQuery({
     queryKey: ["listLeaveRequests"],
     queryFn: () => getAllLeaveRequestByUID(cookies.token),
     select: (data) => {
@@ -48,43 +72,50 @@ function Dashboard() {
     setPage(0);
   };
 
-  if (isLoading) {
+  if (isLoading || leaveLoading) {
     return <LoadingPage />;
   }
 
-  if (isError || !data) {
-    return <Typography>Error loading leave requests.</Typography>;
+  if (isError || leaveError || !data) {
+    return <Typography>Error loading data.</Typography>;
   }
 
-  const paginatedData = data.slice(
+  const paginatedData = leaveData.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
 
+  // Update the leaveBalance to match the new data format
   const leaveBalance = [
     {
       id: 1,
       title: "Sick Leave",
-      value: 12,
-      icon: "🤒",
+      value: Number(data[0]["Sick Leave"]) || 0,
+      icon: <FaSyringe size={32} />,
     },
     {
       id: 2,
-      title: "Study Leave",
-      value: 15,
-      icon: "📚",
+      title: "Annual Leave",
+      value: Number(data[0]["Annual Leave"]) || 0,
+      icon: <FaBook size={32} />,
     },
     {
       id: 3,
       title: "Maternity Leave",
-      value: 14,
-      icon: "🍼",
+      value: Number(data[0]["Maternity Leave"]) || 0,
+      icon: <FaBaby size={32} />,
     },
     {
       id: 4,
-      title: "Annual Leave",
-      value: 21,
-      icon: "🎉",
+      title: "Paternity Leave",
+      value: Number(data[0]["Paternity Leave"]) || 0,
+      icon: <FaUserTie size={32} />,
+    },
+    {
+      id: 5,
+      title: "Family Responsibility",
+      value: Number(data[0]["Family Responsibility"]) || 0,
+      icon: <FaPeopleArrows size={32} />,
     },
   ];
 
@@ -98,25 +129,27 @@ function Dashboard() {
         , Welcome back 👋
       </Typography>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={2}>
         {leaveBalance.map((item) => (
-          <Grid key={item.id} xs={12} sm={6} md={3}>
+          <Grid key={item.id} xs={12} sm={6} md={4} lg={3} xl={2}>
             <Card
               component={Stack}
-              spacing={3}
+              spacing={2}
               direction="row"
+              alignItems="center"
+              justifyContent="center"
               sx={{
-                px: 3,
-                py: 5,
+                px: 2,
+                py: 3,
                 borderRadius: 2,
               }}
             >
-              <Box sx={{ width: 64, height: 64 }}>
-                <Typography variant="h2">{item.icon}</Typography>
+              <Box sx={{ width: 32, height: 32 }}>
+                <Typography variant="h5">{item.icon}</Typography>
               </Box>
 
-              <Stack spacing={0.5}>
-                <Typography variant="h4">{item.value}</Typography>
+              <Stack spacing={0.5} alignItems="center">
+                <Typography variant="h6">{item.value}</Typography>
 
                 <Typography variant="subtitle2" sx={{ color: "text.disabled" }}>
                   {item.title}
@@ -150,7 +183,7 @@ function Dashboard() {
           <TablePagination
             rowsPerPageOptions={[5, 10, 25]}
             component="div"
-            count={data.length}
+            count={leaveData.length}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}

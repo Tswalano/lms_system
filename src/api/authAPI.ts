@@ -10,6 +10,7 @@ import {
   LeaveType,
   LeaveAPIResponseUID,
   leaveStatus,
+  LeavesGetTotalNumberOfDays,
 } from "./types";
 import jwtDecode from "jwt-decode";
 
@@ -274,4 +275,14 @@ export const getPublicHolidayDatesFn = async (
     });
     return Promise.reject(newError);
   }
+};
+
+export const getTotalNumberOfLeaveDays = async (token: string) => {
+const response = await authApi.get<LeavesGetTotalNumberOfDays>("get-total-leaves",{
+  headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+});
+return response;  
 };
