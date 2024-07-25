@@ -20,15 +20,20 @@ const applyLeaveSchema = object({
   leave_type: string().min(1, "Leave type is required"),
   leave_start: string().min(1, "Start date is required"),
   leave_length: string().min(1, "Leave length is required"),
-  leave_comment: string().min(1, "Comments is required"),
+  leave_comment: string().default(""), // Default to empty string
   leave_end: string().min(1, "End date is required"),
 }).refine(
   (data) => {
-    // if half day is true, end date cant be the future date
-    if (
-      data.leave_length === "half" &&
-      new Date(data.leave_end) > new Date(data.leave_start)
-    ) {
+    const startDate = new Date(data.leave_start);
+    const endDate = new Date(data.leave_end);
+
+    // if leave_length is "half", end date must be the same as start date
+    if (data.leave_length === "half" && endDate > startDate) {
+      return false;
+    }
+
+    // end date should not be before start date
+    if (endDate < startDate) {
       return false;
     }
 
@@ -36,7 +41,7 @@ const applyLeaveSchema = object({
   },
   {
     path: ["leave_end"],
-    message: "End date cannot be in the future",
+    message: "End date must be the same as or after the start date",
   }
 );
 
