@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { object, string, TypeOf } from 'zod';
+import { object, string, TypeOf } from "zod";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, FormProvider, SubmitHandler } from "react-hook-form";
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Container, Box, Typography, Paper, Grid } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
 import { getMeFn, loginUserFn } from "../../api/authAPI";
@@ -16,56 +16,74 @@ import LoadingPage from "../loadingPage";
 
 const loginSchema = object({
   username: string()
-    .min(1, 'Email address is required')
-    .email('Email Address is invalid'),
+    .min(1, "Email address is required")
+    .email("Email Address is invalid"),
   password: string()
-    .min(1, 'Password is required')
-    .min(8, 'Password must be more than 8 characters')
-    .max(32, 'Password must be less than 32 characters'),
+    .min(1, "Password is required")
+    .min(8, "Password must be more than 8 characters")
+    .max(32, "Password must be less than 32 characters"),
 });
 
 export type LoginInput = TypeOf<typeof loginSchema>;
 
 function Signin() {
-  const [cookies, setCookie] = useCookies(['logged_in', 'token', 'accessToken', 'userId']);
+  const [cookies, setCookie] = useCookies([
+    "logged_in",
+    "token",
+    "accessToken",
+    "userId",
+  ]);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = ((location.state as any)?.from?.pathname as string) || '/';
+  const from = ((location.state as any)?.from?.pathname as string) || "/";
 
   const methods = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
   });
 
-
   const { isLoading } = useUserQuery(cookies.userId, cookies.token);
 
   //  API Login Mutation
-  const { mutate: loginUser, isPending, error, isError } = useMutation({
-    mutationKey: ['loginUser'],
+  const {
+    mutate: loginUser,
+    isPending,
+    error,
+    isError,
+  } = useMutation({
+    mutationKey: ["loginUser"],
     mutationFn: (userData: LoginInput) => loginUserFn(userData),
     onSuccess: ({ body: { code, payload } }) => {
-
       if (code === "NEW_PASSWORD_REQUIRED") {
-        console.log("payload", methods);
-        navigate(`/new-password`, { state: { from, session: payload.Session, isChangePassword: true, email: methods.getValues('username') } });
+        navigate(`/new-password`, {
+          state: {
+            from,
+            session: payload.Session,
+            isChangePassword: true,
+            email: methods.getValues("username"),
+          },
+        });
       } else {
         // store the token in cookies
 
-        console.log('payload', payload)
-
-        const decodedValue = jwtDecode(payload.IdToken) as { sub: string, 'custom:userId': string };
+        const decodedValue = jwtDecode(payload.IdToken) as {
+          sub: string;
+          "custom:userId": string;
+        };
         const uuid = decodedValue["custom:userId"];
 
-        setCookie('logged_in', 'true', { secure: true, sameSite: 'lax' });
-        setCookie('token', payload.IdToken, { secure: true, sameSite: 'lax' });
-        setCookie('accessToken', payload.AccessToken, { secure: true, sameSite: 'lax' });
-        setCookie('userId', uuid, { secure: true, sameSite: 'lax' });
+        setCookie("logged_in", "true", { secure: true, sameSite: "lax" });
+        setCookie("token", payload.IdToken, { secure: true, sameSite: "lax" });
+        setCookie("accessToken", payload.AccessToken, {
+          secure: true,
+          sameSite: "lax",
+        });
+        setCookie("userId", uuid, { secure: true, sameSite: "lax" });
 
         // Invalidate queries to refetch with the updated `userId`
-        queryClient.invalidateQueries({ queryKey: ['authUser', uuid] });
-        console.log('You successfully logged in');
+        queryClient.invalidateQueries({ queryKey: ["authUser", uuid] });
+
         navigate(from);
       }
     },
@@ -79,7 +97,6 @@ function Signin() {
       }
     },
   });
-
 
   const {
     // reset,
@@ -96,7 +113,7 @@ function Signin() {
 
   const onSubmitHandler: SubmitHandler<LoginInput> = (values) => {
     // 👇 Executing the loginUser Mutation
-    loginUser(values)
+    loginUser(values);
   };
 
   function isValidJSON(message: string): boolean {
@@ -109,34 +126,46 @@ function Signin() {
   }
 
   if (isLoading) {
-    return <><LoadingPage /></>
+    return (
+      <>
+        <LoadingPage />
+      </>
+    );
   }
 
   return (
     <Container
       maxWidth={false}
       sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        background: '#f0f2f5', // Background color
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "100vh",
+        background: "#f0f2f5", // Background color
       }}
     >
-      <Paper elevation={3} sx={{
-        display: 'flex',
-        width: '100%',
-        maxWidth: '960px',
-        borderRadius: '15px',
-        overflow: 'hidden',
-      }}>
+      <Paper
+        elevation={3}
+        sx={{
+          display: "flex",
+          width: "100%",
+          maxWidth: "960px",
+          borderRadius: "15px",
+          overflow: "hidden",
+        }}
+      >
         <Grid container>
-          <Grid item xs={12} md={6} sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            padding: '40px',
-          }}>
+          <Grid
+            item
+            xs={12}
+            md={6}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              padding: "40px",
+            }}
+          >
             <Logo width="280px" />
             <Typography variant="h4" sx={{ mb: 1, mt: 2 }}>
               Holla Welcome Back
@@ -146,21 +175,23 @@ function Signin() {
                 variant="body2"
                 sx={{
                   mb: 2,
-                  width: 'auto',
-                  color: 'red',
-                  backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                  width: "auto",
+                  color: "red",
+                  backgroundColor: "rgba(255, 0, 0, 0.1)",
                   p: 2,
-                  borderRadius: '10px',
+                  borderRadius: "10px",
                 }}
               >
                 {isValidJSON(error.message) ? (
                   <>
-                    <span style={{ fontWeight: 'bold' }}>{JSON.parse(error.message).code}: </span>
+                    <span style={{ fontWeight: "bold" }}>
+                      {JSON.parse(error.message).code}:{" "}
+                    </span>
                     {JSON.parse(error.message).message}
                   </>
                 ) : (
                   <>
-                    <span style={{ fontWeight: 'bold' }}>UNKNOWN_ERROR: </span>
+                    <span style={{ fontWeight: "bold" }}>UNKNOWN_ERROR: </span>
                     Something went wrong. Please try again later.
                   </>
                 )}
@@ -171,39 +202,39 @@ function Signin() {
                 variant="body2"
                 sx={{
                   mb: 2,
-                  width: 'auto',
-                  color: 'green',
-                  backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                  width: "auto",
+                  color: "green",
+                  backgroundColor: "rgba(0, 255, 0, 0.1)",
                   p: 2,
-                  borderRadius: '10px',
+                  borderRadius: "10px",
                 }}
               >
-                <span style={{ fontWeight: 'bold' }}>SUCCESS: </span>
+                <span style={{ fontWeight: "bold" }}>SUCCESS: </span>
                 Your password has been successfully changed.
               </Typography>
             )}
             <FormProvider {...methods}>
               <Box
-                component='form'
+                component="form"
                 onSubmit={handleSubmit(onSubmitHandler)}
                 noValidate
-                autoComplete='off'
+                autoComplete="off"
               >
-                <FormInput name='username' label='Email Address' type='email' />
-                <FormInput name='password' label='Password' type='password' />
+                <FormInput name="username" label="Email Address" type="email" />
+                <FormInput name="password" label="Password" type="password" />
                 <Typography
-                  sx={{ fontSize: '0.9rem', mb: '1rem', textAlign: 'right' }}
+                  sx={{ fontSize: "0.9rem", mb: "1rem", textAlign: "right" }}
                 >
-                  <Link to='/forgot-password' style={{ color: '#333' }}>
+                  <Link to="/forgot-password" style={{ color: "#333" }}>
                     Forgot Password?
                   </Link>
                 </Typography>
                 <LoadingButton
-                  variant='contained'
-                  sx={{ mt: 1, borderRadius: '10px' }}
+                  variant="contained"
+                  sx={{ mt: 1, borderRadius: "10px" }}
                   fullWidth
                   disableElevation
-                  type='submit'
+                  type="submit"
                   loading={isPending}
                 >
                   Sign In
@@ -211,23 +242,30 @@ function Signin() {
               </Box>
             </FormProvider>
           </Grid>
-          <Grid item xs={false} md={6} sx={{
-            display: { xs: 'none', md: 'flex' },
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: '#f5f5f5', // Background color of the right section
-            position: 'relative',
-            overflow: 'hidden',
-          }}>
-            <Box sx={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              width: '100%',
-              height: '100%',
-              background: 'url(.././LmsImage.png) no-repeat left center',
-              backgroundSize: 'cover',
-            }} />
+          <Grid
+            item
+            xs={false}
+            md={6}
+            sx={{
+              display: { xs: "none", md: "flex" },
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#f5f5f5", // Background color of the right section
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <Box
+              sx={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: "100%",
+                height: "100%",
+                background: "url(.././LmsImage.png) no-repeat left center",
+                backgroundSize: "cover",
+              }}
+            />
           </Grid>
         </Grid>
       </Paper>

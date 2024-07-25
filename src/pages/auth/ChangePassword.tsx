@@ -66,7 +66,6 @@ function ChangePassword() {
       }),
     onSuccess: (data) => {
       if (data.error) {
-        console.log("on change password error", data);
         throw new Error(data.message);
       }
 
@@ -88,7 +87,7 @@ function ChangePassword() {
 
       // Invalidate queries to refetch with the updated `userId`
       queryClient.invalidateQueries({ queryKey: ["authUser", uuid] });
-      console.log("You successfully logged in");
+
       navigate(from);
     },
     onError: (error: any) => {
@@ -97,13 +96,11 @@ function ChangePassword() {
           console.error(el.message)
         );
       } else {
-        console.error((error as any).response.data.message);
       }
     },
   });
 
   useEffect(() => {
-    console.log("location.state", location.state?.isChangePassword);
     // if we did not initiate the change password - redirect to home
     if (!location.state?.isChangePassword || null) {
       navigate("/signin", { state: { from } });
