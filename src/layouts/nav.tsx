@@ -48,44 +48,51 @@ function Nav() {
     setOpenNav(false);
   };
 
+  const handleNavItemClick = (path: string) => {
+    navigate(path);
+    if (!isLgUp) {
+      handleCloseNav();
+    }
+  };
+
   const renderAccount = (
-    <Box
-      sx={{
-        my: 3,
-        mx: 2.5,
-        py: 2,
-        px: 2.5,
-        display: "flex",
-        borderRadius: 1.5,
-        alignItems: "center",
-        bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
-      }}
-    >
-      <Avatar src={""} alt="photoURL" />
-      <Box sx={{ ml: 2 }}>
-        <Typography variant="subtitle2">
-          <Link
-            style={{
-              textDecoration: "none",
-              color: "#fff",
-              fontWeight: "bold",
-            }}
-            to="/view-profile"
-          >
+    <Link to="/view-profile" style={{ textDecoration: "none", color: "white" }}>
+      <Box
+        sx={{
+          my: 3,
+          mx: 2.5,
+          py: 2,
+          px: 2.5,
+          display: "flex",
+          borderRadius: 1.5,
+          alignItems: "center",
+          bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
+          "&:hover": {
+            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.2),
+          },
+        }}
+      >
+        <Avatar src={""} alt="photoURL" />
+        <Box sx={{ ml: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
             {capitalizeName(user?.firstName)} {capitalizeName(user?.lastName)}
-          </Link>
-        </Typography>
-        <Typography variant="body2" sx={{ color: "#BDBDBD" }}>
-          {user?.jobTitle}
-        </Typography>
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#BDBDBD" }}>
+            {user?.jobTitle}
+          </Typography>
+        </Box>
       </Box>
-    </Box>
+    </Link>
   );
 
   const renderMenu = (
     <Stack component="nav" spacing={0.5} sx={{ px: 2 }}>
       {authorizedRoutes.map((item) => (
-        <NavItem key={item.title} item={item} />
+        <NavItem
+          key={item.title}
+          item={item}
+          onClick={() => handleNavItemClick(item.path)}
+        />
       ))}
       <ListItemButton
         sx={{
@@ -167,12 +174,19 @@ function Nav() {
           <AppBar
             position="fixed"
             sx={{
-              display: 'block',
+              display: "block",
               height: 56, // Smaller height for AppBar
               backgroundImage: "linear-gradient(to right, #006699, #004477)",
             }}
           >
-            <Toolbar sx={{ minHeight: 56, display: 'flex', justifyContent: 'flex-start', my: -2 }}>
+            <Toolbar
+              sx={{
+                minHeight: 56,
+                display: "flex",
+                justifyContent: "flex-start",
+                my: -2,
+              }}
+            >
               <Logo width="150px" />
             </Toolbar>
           </AppBar>
@@ -204,7 +218,7 @@ Nav.propTypes = {
 
 // ----------------------------------------------------------------------
 
-function NavItem({ item }: any) {
+function NavItem({ item, onClick }: any) {
   const RouterLink = forwardRef(({ href, ...other }: any, ref) => (
     <Link ref={ref} to={href} {...other} />
   ));
@@ -215,6 +229,7 @@ function NavItem({ item }: any) {
     <ListItemButton
       component={RouterLink}
       href={item.path}
+      onClick={onClick}
       sx={{
         minHeight: 44,
         borderRadius: 0.75,
@@ -242,4 +257,5 @@ function NavItem({ item }: any) {
 
 NavItem.propTypes = {
   item: PropTypes.object,
+  onClick: PropTypes.func,
 };

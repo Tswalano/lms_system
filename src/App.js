@@ -28,7 +28,6 @@ function App() {
   const content = useRoutes(routes);
   return (
     <>
-      //
       <CssBaseline />
       {content}
     </>
