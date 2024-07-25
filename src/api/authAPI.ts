@@ -50,7 +50,6 @@ authApi.interceptors.response.use(
       error.response.data.message.includes("The incoming token has expired")
     ) {
       // TODO refresh token
-      console.log("The incoming token has expired ");
     }
     // TODO: clear cookies
     return Promise.reject(error);
@@ -63,8 +62,6 @@ export const loginUserFn = async (user: {
 }) => {
   const response = await authApi.post<AuthAPIResponse>("sign-in", user);
   const { statusCode, body } = response.data;
-
-  console.log("body", response);
 
   // TODO: refactor this
   if (statusCode !== 200) {
@@ -216,7 +213,7 @@ export const getAllLeaveRequestByUID = async (token: string) => {
         },
       }
     );
-    console.log(response.data.leaveData);
+
     // Check if response.data and response.data.body are defined
     if (!response.data || !response.data || !response.data.leaveData) {
       throw new Error("Invalid response format: Missing leave data");
@@ -232,7 +229,6 @@ export const getAllLeaveRequestByUID = async (token: string) => {
       body: userLeaveRequests,
     };
   } catch (error) {
-    console.error("Error fetching leave requests:", error);
     throw new Error("Failed to fetch leave requests");
   }
 };
@@ -278,11 +274,14 @@ export const getPublicHolidayDatesFn = async (
 };
 
 export const getTotalNumberOfLeaveDays = async (token: string) => {
-const response = await authApi.get<LeavesGetTotalNumberOfDays>("get-total-leaves",{
-  headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-});
-return response;  
+  const response = await authApi.get<LeavesGetTotalNumberOfDays>(
+    "get-total-leaves",
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response;
 };

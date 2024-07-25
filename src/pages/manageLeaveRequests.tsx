@@ -55,7 +55,6 @@ export default function ManageLeaveRequests({}: Props) {
       updateLeaveStatusFn(cookies.token, leaveData),
 
     onSuccess(data, variables) {
-      console.log("leave request updated", data);
       refetch();
       setProcessingId(null); // reset processing ID
       variables.status === "Approved"

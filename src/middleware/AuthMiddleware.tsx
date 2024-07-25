@@ -23,10 +23,7 @@ const AuthMiddleware: React.FC<AuthMiddlewareProps> = ({ children }) => {
   });
 
   useEffect(() => {
-    console.log("Here....", cookies.logged_in, query.data);
-
     if (cookies.logged_in && query.data) {
-      console.log("query.data", query.data);
       stateContext.dispatch({ type: "SET_USER", payload: query.data });
     }
 

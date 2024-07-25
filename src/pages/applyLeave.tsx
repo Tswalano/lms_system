@@ -106,7 +106,6 @@ function ApplyLeave() {
 
   const onSubmitHandler: SubmitHandler<applyLeaveInput> = (values) => {
     applyForLeave(values);
-    console.log("values", values);
   };
 
   const shouldDisableDate = (date: dayjs.Dayjs) => {

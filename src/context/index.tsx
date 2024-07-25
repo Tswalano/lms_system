@@ -62,8 +62,6 @@ const useCredentials = () => {
   const [accessToken, setAccessToken] = useState<string>("");
 
   const setCredentials = (token: string, accessToken: string) => {
-    console.log("setCredentials", token, accessToken);
-
     setToken(token);
     setAccessToken(accessToken);
   };
