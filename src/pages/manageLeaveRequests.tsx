@@ -31,7 +31,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 type Props = {};
 
-export default function ManageLeaveRequests({}: Props) {
+export default function ManageLeaveRequests({ }: Props) {
   const [cookies] = useCookies(["token"]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -41,11 +41,12 @@ export default function ManageLeaveRequests({}: Props) {
   const { data, isError, isLoading, refetch } = useQuery({
     queryKey: ["listLeaveRequests"],
     queryFn: () => getAllLeaveRequestsFn(cookies.token),
+
     select: (data) => {
-      if (data.status !== 200) {
+      if (data.statusCode !== 200) {
         return [];
       }
-      return data.data.leaveData;
+      return data.leaveData;
     },
   });
 
