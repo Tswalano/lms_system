@@ -180,7 +180,7 @@ export const getAllLeaveRequestsFn = async (token: string) => {
     },
   });
 
-  return response;
+  return response.data;
 };
 
 export const applyForLeaveFN = async (

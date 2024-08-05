@@ -77,7 +77,7 @@ function Nav() {
           <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
             {capitalizeName(user?.firstName)} {capitalizeName(user?.lastName)}
           </Typography>
-          <Typography variant="body2" sx={{ color: "#BDBDBD" }}>
+          <Typography variant="body2" sx={{ color: "#BDBDBD", fontSize: 12 }}>
             {user?.jobTitle}
           </Typography>
         </Box>
