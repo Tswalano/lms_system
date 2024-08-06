@@ -1,3 +1,4 @@
+import { FaCalendarAlt } from "react-icons/fa";
 import { HiHome, HiBell, HiDocumentText, HiClock, HiUserGroup } from "react-icons/hi";
 
 const navConfig = [
@@ -31,12 +32,6 @@ const navConfig = [
     icon: <HiClock size={22} />,
     permissions: ['admin', 'user'],
   },
-  // {
-  //   title: 'view profile',
-  //   path: '/view-profile',
-  //   icon: '🧑‍💻',
-  //   permissions: ['admin', 'user'],
-  // },
 ];
 
 export default navConfig;

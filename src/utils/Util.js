@@ -1,6 +1,19 @@
+export const sysColors = {
+  primary: "rgb(93, 135, 255)",
+  primarylight: "rgb(236,242,255)",
+  error: "rgb(250,137,107)",
+  errorlight: "rgb(253,237,232)",
+  warning: "rgb(255,174,31)",
+  warninglight: "rgb(254,245,229)",
+  secondary: "rgb(73,190,255)",
+  secondarylight: "rgb(232,247,255)",
+  success: "rgb(76,175,80)",
+  successlight: "rgb(237,247,237)"
+};
+
+
 export function capitalizeName(name) {
   // if (!name.trim()) return '';
-
   if (name) {
     const parts = name.split(" ");
 
