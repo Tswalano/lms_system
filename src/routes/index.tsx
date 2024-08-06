@@ -14,7 +14,7 @@ import UserProfile from "../pages/userProfile";
 import ForgotPassword from "../pages/auth/forgotPassword";
 import ChangePassword from "../pages/auth/ChangePassword";
 import LoadingPage from "../pages/loadingPage";
-import CalenderView from "../pages/calenderView";
+// import CalenderView from "../pages/calenderView";
 
 const Loadable =
   (Component: React.ComponentType<any>) => (props: JSX.IntrinsicAttributes) =>
@@ -45,9 +45,9 @@ const LeaveHistoryPage = Loadable(
 const UserProfilePage = Loadable(
   lazy(() => Promise.resolve({ default: () => <UserProfile /> }))
 );
-const CalenderPage = Loadable(
-  lazy(() => Promise.resolve({ default: () => <CalenderView /> }))
-);
+// const CalenderPage = Loadable(
+//   lazy(() => Promise.resolve({ default: () => <CalenderView /> }))
+// );
 
 const authRoutes: RouteObject = {
   path: "*",
@@ -148,16 +148,16 @@ const normalRoutes: RouteObject = {
         },
       ],
     },
-    {
-      path: "calender",
-      element: <RequireUser allowedRoles={["user", "admin"]} />,
-      children: [
-        {
-          path: "",
-          element: <CalenderPage />,
-        },
-      ],
-    },
+    // {
+    //   path: "calender",
+    //   element: <RequireUser allowedRoles={["user", "admin"]} />,
+    //   children: [
+    //     {
+    //       path: "",
+    //       element: <CalenderPage />,
+    //     },
+    //   ],
+    // },
     {
       path: "unauthorized",
       element: <UnauthorizePage />,
