@@ -32,12 +32,6 @@ const navConfig = [
     icon: <HiClock size={22} />,
     permissions: ['admin', 'user'],
   },
-  {
-    title: 'calender',
-    path: '/calender',
-    icon: <FaCalendarAlt size={22} />,
-    permissions: ['admin', 'user'],
-  },
 ];
 
 export default navConfig;

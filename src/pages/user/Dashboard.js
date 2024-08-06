@@ -8,6 +8,7 @@ import {
   TablePagination,
   Tabs,
   Tab,
+  Paper,
 } from "@mui/material";
 import { useState } from "react";
 import { useStateContext } from "../../context";
@@ -21,14 +22,10 @@ import {
 } from "../../api/authAPI";
 import LoadingPage from "../loadingPage";
 import { useNavigate } from "react-router-dom";
-import {
-  FaSyringe,
-  FaBaby,
-  FaPeopleArrows,
-  FaCalendar,
-} from "react-icons/fa";
+import { FaSyringe, FaBaby, FaPeopleArrows, FaCalendar } from "react-icons/fa";
 import AppWidgetSummary from "../../components/AppWidgetSummary";
 import styled from "@emotion/styled";
+import CalenderView from "../calenderView";
 
 function Dashboard() {
   const stateContext = useStateContext();
@@ -101,15 +98,15 @@ function Dashboard() {
     page * rowsPerPage + rowsPerPage
   );
 
-  const IconContainer = styled('div')(({ theme, bgcolor, size, padding }) => ({
+  const IconContainer = styled("div")(({ theme, bgcolor, size, padding }) => ({
     backgroundColor: bgcolor || theme.palette.grey[200],
-    borderRadius: '50%',
-    padding: padding || '8px',
-    width: size || '40px',
-    height: size || '40px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: "50%",
+    padding: padding || "8px",
+    width: size || "40px",
+    height: size || "40px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
   }));
 
   // Update leaveBalance to group Maternity and Paternity Leave
@@ -141,9 +138,10 @@ function Dashboard() {
     {
       id: 3,
       title: "Parental Leave",
-      value: `${(Number(data[0]["Maternity Leave"]) || 0) +
+      value: `${
+        (Number(data[0]["Maternity Leave"]) || 0) +
         (Number(data[0]["Paternity Leave"]) || 0)
-        } day(s)`,
+      } day(s)`,
       gradient: sysColors.warninglight,
       color: sysColors.warning,
       icon: (
@@ -195,19 +193,16 @@ function Dashboard() {
         justifyContent="space-between"
         sx={{ my: 5 }}
       >
-        <Typography variant="h4">Leave History</Typography>
-
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<>+</>}
-          onClick={handleNewRequest}
-        >
-          New Request
-        </Button>
+        <Typography variant="h4">
+          <span style={{ color: "#04A1EA", fontWeight: "bold" }}>
+            Leave It to the Calendar!
+          </span>
+        </Typography>
       </Stack>
 
-      {filteredData.length === 0 ? (
+      <CalenderView />
+
+      {/* {filteredData.length === 0 ? (
         <Typography variant="h6" align="center" sx={{ padding: 2 }}>
           No leave requests.
         </Typography>
@@ -237,8 +232,8 @@ function Dashboard() {
             />
           </Card>
         </>
-      )}
-    </Container >
+      )} */}
+    </Container>
   );
 }
 
