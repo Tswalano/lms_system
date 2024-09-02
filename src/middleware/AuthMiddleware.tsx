@@ -15,24 +15,24 @@ const AuthMiddleware: React.FC<AuthMiddlewareProps> = ({ children }) => {
 
   const { authUser } = stateContext.state;
 
-  // const query = useQuery({
-  //   queryKey: ["authUser"],
-  //   queryFn: () => getMeFn(cookies.token, cookies.userId),
-  //   enabled: !!cookies.logged_in,
-  //   select: (data) => data.body.payload,
-  // });
+  const query = useQuery({
+    queryKey: ["authUser"],
+    queryFn: () => getMeFn(cookies.token, cookies.userId),
+    enabled: !!cookies.logged_in,
+    select: (data) => data.body.payload,
+  });
 
-  // useEffect(() => {
-  //   if (cookies.logged_in && query.data) {
-  //     stateContext.dispatch({ type: "SET_USER", payload: query.data });
-  //   }
+  useEffect(() => {
+    if (cookies.logged_in && query.data) {
+      stateContext.dispatch({ type: "SET_USER", payload: query.data });
+    }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [cookies.logged_in, query.data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cookies.logged_in, query.data]);
 
-  // if (!authUser && cookies.logged_in) {
-  //   return <LoadingPage />;
-  // }
+  if (!authUser && cookies.logged_in) {
+    return <LoadingPage />;
+  }
 
   return <React.Fragment>{children}</React.Fragment>;
 };
