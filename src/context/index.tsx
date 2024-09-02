@@ -57,16 +57,5 @@ const useStateContext = () => {
   throw new Error(`useStateContext must be used within a StateContextProvider`);
 };
 
-const useCredentials = () => {
-  const [token, setToken] = useState<string>("");
-  const [accessToken, setAccessToken] = useState<string>("");
 
-  const setCredentials = (token: string, accessToken: string) => {
-    setToken(token);
-    setAccessToken(accessToken);
-  };
-
-  return { token, setCredentials, accessToken };
-};
-
-export { StateContextProvider, useStateContext, useCredentials };
+export { StateContextProvider, useStateContext };

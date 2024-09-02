@@ -33,18 +33,16 @@ root.render(
     <QueryClientProvider client={queryClient}>
       <Router>
         <StateContextProvider>
-          <AuthMiddleware>
-            <ToastContainer
-              draggable
-              pauseOnHover
-              closeOnClick
-              autoClose={5000}
-              pauseOnFocusLoss
-              position="top-right"
-              hideProgressBar={false}
-            />
-            <App />
-          </AuthMiddleware>
+          <ToastContainer
+            draggable
+            pauseOnHover
+            closeOnClick
+            autoClose={5000}
+            pauseOnFocusLoss
+            position="top-right"
+            hideProgressBar={false}
+          />
+          <App />
         </StateContextProvider>
         <ReactQueryDevtools initialIsOpen={false} />
       </Router>

@@ -138,10 +138,9 @@ function Dashboard() {
     {
       id: 3,
       title: "Parental Leave",
-      value: `${
-        (Number(data[0]["Maternity Leave"]) || 0) +
+      value: `${(Number(data[0]["Maternity Leave"]) || 0) +
         (Number(data[0]["Paternity Leave"]) || 0)
-      } day(s)`,
+        } day(s)`,
       gradient: sysColors.warninglight,
       color: sysColors.warning,
       icon: (
