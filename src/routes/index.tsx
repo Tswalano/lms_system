@@ -18,11 +18,11 @@ import LoadingPage from "../pages/loadingPage";
 
 const Loadable =
   (Component: React.ComponentType<any>) => (props: JSX.IntrinsicAttributes) =>
-  (
-    <Suspense fallback={<LoadingPage />}>
-      <Component {...props} />
-    </Suspense>
-  );
+    (
+      <Suspense fallback={<LoadingPage />}>
+        <Component {...props} />
+      </Suspense>
+    );
 
 const UnauthorizePage = Loadable(
   lazy(() => Promise.resolve({ default: () => <Unauthorized /> }))

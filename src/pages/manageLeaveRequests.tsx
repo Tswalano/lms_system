@@ -43,9 +43,9 @@ export default function ManageLeaveRequests({ }: Props) {
     queryFn: () => getAllLeaveRequestsFn(cookies.token),
 
     select: (data) => {
-      if (data.statusCode !== 200) {
-        return [];
-      }
+      // if (data.statusCode !== 200) {
+      //   return [];
+      // }
       return data.leaveData;
     },
   });
