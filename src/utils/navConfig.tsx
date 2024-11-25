@@ -9,7 +9,7 @@ const navConfig = [
     permissions: ['admin', 'user'],
   },
   {
-    title: 'apply leave',
+    title: 'apply for leave',
     path: '/apply-leave',
     icon: <HiBell size={22} />,
     permissions: ['admin', 'user'],
@@ -31,6 +31,12 @@ const navConfig = [
     path: '/leave-history',
     icon: <HiClock size={22} />,
     permissions: ['admin', 'user'],
+  },
+  {
+    title: 'Employees Leave History',
+    path: '/view-all-leave',
+    icon: <HiClock size={22} />,
+    permissions: ['admin'],
   },
 ];
 

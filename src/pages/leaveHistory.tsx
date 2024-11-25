@@ -38,6 +38,11 @@ function LeaveHistory({}: Props) {
     navigate("/apply-leave");
   };
 
+  const handleEditRequest = (leaveData: LeaveRequest) => {
+    console.log("Editing leave data:", leaveData); 
+    navigate("/edit-leave", { state: leaveData }); // Passing leaveData as state
+  };
+
   const { data, isError, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["listLeaveRequests"],
     queryFn: () => getAllLeaveRequestByUID(cookies.token),
@@ -73,9 +78,9 @@ function LeaveHistory({}: Props) {
     return <ErrorPage />;
   }
 
-  const filteredData = data.filter(
-    (leave) => leave.status.toLowerCase() === tabValue
-  );
+  const filteredData = data
+  .filter((leave) => leave.status.toLowerCase() === tabValue)
+  .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
   const paginatedData = filteredData.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
@@ -116,7 +121,7 @@ function LeaveHistory({}: Props) {
             No {tabValue} leave requests.
           </Typography>
         ) : (
-          leaveHistoryTable(paginatedData)
+          leaveHistoryTable(paginatedData, handleEditRequest)
         )}
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
@@ -145,7 +150,10 @@ const getStatusColor = (status: string) => {
   }
 };
 
-export const leaveHistoryTable = (leaveHistory: LeaveRequest[]) => (
+export const leaveHistoryTable = (
+  leaveHistory: LeaveRequest[],
+  handleEditRequest: (leaveData: LeaveRequest) => void
+) => (
   <TableContainer sx={{ overflow: "unset" }}>
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 650 }} aria-label="a dense table">
@@ -157,6 +165,7 @@ export const leaveHistoryTable = (leaveHistory: LeaveRequest[]) => (
             <TableCell align="right">Status</TableCell>
             <TableCell align="right">Start Date</TableCell>
             <TableCell align="right">End Date</TableCell>
+            
           </TableRow>
         </TableHead>
         <TableBody>
@@ -184,6 +193,7 @@ export const leaveHistoryTable = (leaveHistory: LeaveRequest[]) => (
                 <TableCell align="right">
                   {formatDateTimeToSAST(lh.end_date)}
                 </TableCell>
+                
               </TableRow>
             ))}
         </TableBody>
