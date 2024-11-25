@@ -78,9 +78,9 @@ function LeaveHistory({}: Props) {
     return <ErrorPage />;
   }
 
-  const filteredData = data.filter(
-    (leave) => leave.status.toLowerCase() === tabValue
-  );
+  const filteredData = data
+  .filter((leave) => leave.status.toLowerCase() === tabValue)
+  .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
   const paginatedData = filteredData.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
