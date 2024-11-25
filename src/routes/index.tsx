@@ -14,6 +14,7 @@ import UserProfile from "../pages/userProfile";
 import ForgotPassword from "../pages/auth/forgotPassword";
 import ChangePassword from "../pages/auth/ChangePassword";
 import LoadingPage from "../pages/loadingPage";
+import EditLeave from "../pages/editLeave";
 // import CalenderView from "../pages/calenderView";
 
 const Loadable =
@@ -29,6 +30,9 @@ const UnauthorizePage = Loadable(
 );
 const ApplyForLeavePage = Loadable(
   lazy(() => Promise.resolve({ default: () => <ApplyLeave /> }))
+);
+const EditLeavePage = Loadable(
+  lazy(() => Promise.resolve({ default: () => <EditLeave /> }))
 );
 const ManageEmployeesPage = Loadable(
   lazy(() => Promise.resolve({ default: () => <ManageEmployees /> }))
@@ -95,6 +99,16 @@ const normalRoutes: RouteObject = {
         {
           path: "",
           element: <ApplyForLeavePage />,
+        },
+      ],
+    },
+    {
+      path: "edit-leave",
+      element: <RequireUser allowedRoles={["user", "admin"]} />,
+      children: [
+        {
+          path: "",
+          element: <EditLeavePage />,
         },
       ],
     },
