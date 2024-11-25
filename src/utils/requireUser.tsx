@@ -9,29 +9,7 @@ const RequireUser = ({ allowedRoles }: { allowedRoles: string[] }) => {
     const [cookies] = useCookies(['logged_in', 'accessToken', 'token', "userId"]);
     const location = useLocation();
     const stateContext = useStateContext();
-
-    const {
-        isLoading,
-        isFetching,
-        data: user,
-        isFetched, isSuccess
-    } = useQuery({
-        queryKey: ['authUser 1'],
-        queryFn: () => getMeFn(cookies.token, cookies.userId),
-        select: (data) => data.body.payload
-    });
-
-    useEffect(() => {
-        if (isFetched && isSuccess) {
-            stateContext.dispatch({ type: "SET_USER", payload: user });
-        }
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isFetched, isSuccess, user]);
-
-    if (isLoading || isFetching) {
-        return <></>;
-    }
+    const user = stateContext.state.authUser;
 
     return (cookies.logged_in || user) &&
         allowedRoles.includes(user?.role as string) ? (

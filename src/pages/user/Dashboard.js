@@ -1,19 +1,10 @@
 import Container from "@mui/material/Container";
 import Grid from "@mui/material/Unstable_Grid2";
 import Typography from "@mui/material/Typography";
-import {
-  Button,
-  Card,
-  Stack,
-  TablePagination,
-  Tabs,
-  Tab,
-  Paper,
-} from "@mui/material";
+import { Stack } from "@mui/material";
 import { useState } from "react";
 import { useStateContext } from "../../context";
 import { capitalizeName, sysColors } from "../../utils/Util";
-import { leaveHistoryTable } from "../leaveHistory";
 import { useCookies } from "react-cookie";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -26,21 +17,11 @@ import { FaSyringe, FaBaby, FaPeopleArrows, FaCalendar } from "react-icons/fa";
 import AppWidgetSummary from "../../components/AppWidgetSummary";
 import styled from "@emotion/styled";
 import CalenderView from "../calenderView";
+import Greeting from "../../layouts/Greetings";
 
 function Dashboard() {
-  const stateContext = useStateContext();
-  const user = stateContext.state.authUser;
 
   const [cookies] = useCookies(["token"]);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [tabValue, setTabValue] = useState("pending");
-
-  const navigate = useNavigate();
-
-  const handleNewRequest = () => {
-    navigate("/apply-leave");
-  };
 
   const { data, isError, isLoading } = useQuery({
     queryKey: ["totalLeaveDays"],
@@ -66,20 +47,6 @@ function Dashboard() {
     },
   });
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-    setPage(0); // Reset page when tab changes
-  };
-
   if (isLoading || leaveLoading) {
     return <LoadingPage />;
   }
@@ -87,16 +54,6 @@ function Dashboard() {
   if (isError || leaveError || !data) {
     return <Typography>Error loading data.</Typography>;
   }
-
-  // Filter leaveData based on the selected tab
-  const filteredData = leaveData.filter(
-    (leave) => leave.status.toLowerCase() === tabValue.toLowerCase()
-  );
-
-  const paginatedData = filteredData.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
 
   const IconContainer = styled("div")(({ theme, bgcolor, size, padding }) => ({
     backgroundColor: bgcolor || theme.palette.grey[200],
@@ -138,10 +95,9 @@ function Dashboard() {
     {
       id: 3,
       title: "Parental Leave",
-      value: `${
-        (Number(data[0]["Maternity Leave"]) || 0) +
+      value: `${(Number(data[0]["Maternity Leave"]) || 0) +
         (Number(data[0]["Paternity Leave"]) || 0)
-      } day(s)`,
+        } day(s)`,
       gradient: sysColors.warninglight,
       color: sysColors.warning,
       icon: (
@@ -166,13 +122,7 @@ function Dashboard() {
 
   return (
     <Container maxWidth="xl">
-      <Typography variant="h4" sx={{ mb: 5 }}>
-        Hello{" "}
-        <span style={{ color: "#04A1EA", fontWeight: "bold" }}>
-          {capitalizeName(`${user?.firstName} ${user?.lastName}`)}
-        </span>
-        , Welcome back 👋
-      </Typography>
+      <Greeting />
 
       <Grid container spacing={3}>
         {leaveBalance.map((item) => (
@@ -199,40 +149,7 @@ function Dashboard() {
           </span>
         </Typography>
       </Stack>
-
       <CalenderView />
-
-      {/* {filteredData.length === 0 ? (
-        <Typography variant="h6" align="center" sx={{ padding: 2 }}>
-          No leave requests.
-        </Typography>
-      ) : (
-        <>
-          <Tabs
-            value={tabValue}
-            onChange={handleTabChange}
-            aria-label="leave request tabs"
-            sx={{ mb: 2 }}
-          >
-            <Tab label="Pending" value="pending" />
-            <Tab label="Approved" value="approved" />
-            <Tab label="Rejected" value="rejected" />
-          </Tabs>
-          <Card>
-            {leaveHistoryTable(paginatedData)}
-
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25]}
-              component="div"
-              count={filteredData.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handleChangePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-            />
-          </Card>
-        </>
-      )} */}
     </Container>
   );
 }

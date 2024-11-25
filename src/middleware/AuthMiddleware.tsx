@@ -30,7 +30,7 @@ const AuthMiddleware: React.FC<AuthMiddlewareProps> = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cookies.logged_in, query.data]);
 
-  if (query.isLoading && cookies.logged_in) {
+  if (!authUser && cookies.logged_in) {
     return <LoadingPage />;
   }
 

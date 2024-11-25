@@ -20,7 +20,7 @@ const applyLeaveSchema = object({
   leave_type: string().min(1, "Leave type is required"),
   leave_start: string().min(1, "Start date is required"),
   leave_length: string().min(1, "Leave length is required"),
-  leave_comment: string().default(""), // Default to empty string
+  leave_comment: string().min(1, "Comments are required").default(""), // Default to empty string
   leave_end: string().min(1, "End date is required"),
 }).refine(
   (data) => {
@@ -97,6 +97,15 @@ function ApplyLeave() {
   // Watch the leave length and leave start fields to conditionally set end date
   const leaveLengthWatch = watch("leave_length");
   const leaveStartWatch = watch("leave_start");
+  const allFields = watch(); // Watch all form fields
+
+  // Determine if all required fields are filled
+  const isFormValid =
+    allFields.leave_type &&
+    allFields.leave_start &&
+    allFields.leave_length &&
+    allFields.leave_comment && 
+    (leaveLengthWatch === "Half Day" || allFields.leave_end); // End date only required if not "Half Day"
 
   useEffect(() => {
     if (leaveLengthWatch === "Half Day") {
@@ -207,7 +216,7 @@ function ApplyLeave() {
                   disableElevation
                   type="submit"
                   loading={isPending}
-                  disabled={isPending} // Disable button when loading
+                  disabled={isPending || !isFormValid} // Disable if loading or form is incomplete
                 >
                   Apply
                 </LoadingButton>
