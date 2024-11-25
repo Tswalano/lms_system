@@ -15,6 +15,7 @@ import ForgotPassword from "../pages/auth/forgotPassword";
 import ChangePassword from "../pages/auth/ChangePassword";
 import LoadingPage from "../pages/loadingPage";
 import EditLeave from "../pages/editLeave";
+import ViewAllLeave from "../pages/ViewAllLeave";
 // import CalenderView from "../pages/calenderView";
 
 const Loadable =
@@ -48,6 +49,9 @@ const LeaveHistoryPage = Loadable(
 );
 const UserProfilePage = Loadable(
   lazy(() => Promise.resolve({ default: () => <UserProfile /> }))
+);
+const ViewAllLeavePage = Loadable(
+  lazy(() => Promise.resolve({ default: () => <ViewAllLeave /> }))
 );
 // const CalenderPage = Loadable(
 //   lazy(() => Promise.resolve({ default: () => <CalenderView /> }))
@@ -119,6 +123,16 @@ const normalRoutes: RouteObject = {
         {
           path: "",
           element: <ManageEmployeesPage />,
+        },
+      ],
+    },
+    {
+      path: "view-all-leave",
+      element: <RequireUser allowedRoles={["admin"]} />,
+      children: [
+        {
+          path: "",
+          element: <ViewAllLeavePage />,
         },
       ],
     },

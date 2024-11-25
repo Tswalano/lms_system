@@ -165,7 +165,7 @@ export const leaveHistoryTable = (
             <TableCell align="right">Status</TableCell>
             <TableCell align="right">Start Date</TableCell>
             <TableCell align="right">End Date</TableCell>
-            <TableCell align="right">Action</TableCell> {/* New Action Column */}
+            
           </TableRow>
         </TableHead>
         <TableBody>
@@ -193,15 +193,7 @@ export const leaveHistoryTable = (
                 <TableCell align="right">
                   {formatDateTimeToSAST(lh.end_date)}
                 </TableCell>
-                <TableCell align="right">
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    onClick={() => handleEditRequest(lh)} // Pass leave data to edit
-                  >
-                    Edit
-                  </Button>
-                </TableCell>
+                
               </TableRow>
             ))}
         </TableBody>
