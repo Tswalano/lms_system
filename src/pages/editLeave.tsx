@@ -6,13 +6,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LoadingButton } from "@mui/lab";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { applyForLeaveFN, getPublicHolidayDatesFn } from "../api/authAPI";
+import { updateLeaveFN, getPublicHolidayDatesFn } from "../api/authAPI"; // Ensure `updateLeaveFN` is correctly imported
 import { useCookies } from "react-cookie";
 import dayjs from "dayjs";
 import dayjsutc from "dayjs/plugin/utc";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 dayjs.extend(dayjsutc);
 
@@ -20,23 +20,19 @@ const applyLeaveSchema = object({
   leave_type: string().min(1, "Leave type is required"),
   leave_start: string().min(1, "Start date is required"),
   leave_length: string().min(1, "Leave length is required"),
-  leave_comment: string().min(1, "Comments are required").default(""), // Default to empty string
+  leave_comment: string().min(1, "Comments are required").default(""),
   leave_end: string().min(1, "End date is required"),
 }).refine(
   (data) => {
     const startDate = new Date(data.leave_start);
     const endDate = new Date(data.leave_end);
 
-    // if leave_length is "half", end date must be the same as start date
     if (data.leave_length === "Half Day" && endDate > startDate) {
       return false;
     }
-
-    // end date should not be before start date
     if (endDate < startDate) {
       return false;
     }
-
     return true;
   },
   {
@@ -56,36 +52,38 @@ const leaveTypes = [
 ];
 
 function UpdateLeave() {
+  const { state } = useLocation();
+  const { leaveData } = state || {}; // Retrieve leaveData from state
   const [cookies] = useCookies(["token"]);
   const navigate = useNavigate();
-  const [leaveLength, setLeaveLength] = useState<string>("full"); // Track leave length state
+  const [leaveLength, setLeaveLength] = useState<string>(leaveData?.leave_length || "Full Day");
+
   const methods = useForm<applyLeaveInput>({
     resolver: zodResolver(applyLeaveSchema),
+  
   });
-  const {
-    mutate: applyForLeave,
-    isPending,
-    error,
-    isError,
-  } = useMutation({
-    mutationKey: ["applyForLeave"],
-    mutationFn: (leaveData: applyLeaveInput) =>
-      applyForLeaveFN(cookies.token, leaveData),
+
+  const { mutate: updateLeave, isPending } = useMutation({
+    mutationKey: ["updateLeave"],
+    mutationFn: (updatedData: applyLeaveInput) =>
+      updateLeaveFN(cookies.token, updatedData), // Pass the leave ID
     onSuccess: () => {
-      toast.success("Leave request submitted successfully!");
-      navigate("/"); // Redirect to dashboard
+      toast.success("Leave updated successfully!");
+      navigate("/leave-history"); // Redirect to dashboard
     },
     onError: (error: any) => {
       toast.error(
-        error?.response?.data?.message || "Failed to submit leave request"
+        error?.response?.data?.message || "Failed to update leave request"
       );
     },
   });
+
   const callGetPublicHolidays = useQuery({
     queryKey: ["publicHolidays"],
-    queryFn: async ({ queryKey }) => getPublicHolidayDatesFn(cookies.token),
+    queryFn: async () => getPublicHolidayDatesFn(cookies.token),
     select: (publicHolidays) => publicHolidays.map((phd) => dayjs.utc(phd)),
   });
+
   const {
     reset,
     handleSubmit,
@@ -94,18 +92,16 @@ function UpdateLeave() {
     watch,
   } = methods;
 
-  // Watch the leave length and leave start fields to conditionally set end date
   const leaveLengthWatch = watch("leave_length");
   const leaveStartWatch = watch("leave_start");
-  const allFields = watch(); // Watch all form fields
 
-  // Determine if all required fields are filled
+  const allFields = watch();
   const isFormValid =
     allFields.leave_type &&
     allFields.leave_start &&
     allFields.leave_length &&
-    allFields.leave_comment && 
-    (leaveLengthWatch === "Half Day" || allFields.leave_end); // End date only required if not "Half Day"
+    allFields.leave_comment &&
+    (leaveLengthWatch === "Half Day" || allFields.leave_end);
 
   useEffect(() => {
     if (leaveLengthWatch === "Half Day") {
@@ -114,7 +110,16 @@ function UpdateLeave() {
   }, [leaveLengthWatch, leaveStartWatch, setValue]);
 
   const onSubmitHandler: SubmitHandler<applyLeaveInput> = (values) => {
-    applyForLeave(values);
+    // Format dates before submitting
+    const updatedData = {
+      ...values,
+      id: leaveData?.id,  // Add the leaveData id to the updatedData object
+      leave_start: dayjs(values.leave_start).format("YYYY-MM-DD"),
+      leave_end: dayjs(values.leave_end).format("YYYY-MM-DD"),
+    };
+  
+    updateLeave(updatedData); 
+    console.log(updatedData); // Pass the combined object to the mutation function
   };
 
   const shouldDisableDate = (date: dayjs.Dayjs) => {
@@ -123,9 +128,7 @@ function UpdateLeave() {
     const dayIsPublicHoliday = callGetPublicHolidays.isSuccess
       ? callGetPublicHolidays.data?.some((d) => d.isSame(date))
       : false;
-    const shouldDisableDate = isWeekend || dayIsPublicHoliday;
-
-    return shouldDisableDate;
+    return isWeekend || dayIsPublicHoliday;
   };
 
   useEffect(() => {
@@ -153,8 +156,6 @@ function UpdateLeave() {
             width: "100%",
             p: 2,
             borderRadius: 2,
-            alignItems: "flex-start",
-            justifyContent: "flex-start",
           }}
         >
           <Box sx={{ marginTop: 2 }}>
@@ -178,16 +179,13 @@ function UpdateLeave() {
                   name="leave_length"
                   label="Leave Length"
                   type="select"
-                  options={[
-                    { value: "Half Day", label: "Half Day" },
-                    { value: "Full Day", label: "Full Day" },
-                  ]}
+                  options={[{ value: "Half Day", label: "Half Day" }, { value: "Full Day", label: "Full Day" }]}
                   onChange={(e) => {
                     const newValue = e.target.value;
                     setLeaveLength(newValue);
                     setValue("leave_length", newValue);
                     if (newValue === "Half Day") {
-                      setValue("leave_end", ""); // Clear end date if half day
+                      setValue("leave_end", leaveStartWatch);
                     }
                   }}
                 />
@@ -202,7 +200,7 @@ function UpdateLeave() {
                   label="End Date"
                   type="date"
                   disableDatesHandler={shouldDisableDate}
-                  disabled={leaveLengthWatch === "Half Day"} // Disable if "Half Day" is selected
+                  disabled={leaveLengthWatch === "Half Day"}
                 />
                 <FormInput
                   name="leave_comment"
@@ -216,7 +214,7 @@ function UpdateLeave() {
                   disableElevation
                   type="submit"
                   loading={isPending}
-                  disabled={isPending || !isFormValid} // Disable if loading or form is incomplete
+                  disabled={isPending || !isFormValid}
                 >
                   Update Leave
                 </LoadingButton>

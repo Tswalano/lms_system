@@ -41,11 +41,7 @@ export default function ManageLeaveRequests({ }: Props) {
   const { data, isError, isLoading, refetch } = useQuery({
     queryKey: ["listLeaveRequests"],
     queryFn: () => getAllLeaveRequestsFn(cookies.token),
-
     select: (data) => {
-      // if (data.statusCode !== 200) {
-      //   return [];
-      // }
       return data.leaveData;
     },
   });
@@ -108,7 +104,15 @@ export default function ManageLeaveRequests({ }: Props) {
   const filteredData = data.filter(
     (leave) => leave.status.toLowerCase() === tabValue
   );
-  const paginatedData = filteredData.slice(
+
+  // Sort the data by start_date (latest to oldest)
+  const sortedData = filteredData.sort((a, b) => {
+    const dateA = new Date(a.start_date).getTime();
+    const dateB = new Date(b.start_date).getTime();
+    return dateB - dateA; // Sort descending (latest to oldest)
+  });
+
+  const paginatedData = sortedData.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
@@ -178,10 +182,7 @@ export default function ManageLeaveRequests({ }: Props) {
                       </TableCell>
                       <TableCell align="right">
                         <ButtonGroup
-                          disabled={
-                            leave.status.toLowerCase() !== "pending" ||
-                            processingId === leave.id.toString()
-                          }
+                          disabled={processingId === leave.id.toString()}
                           size="small"
                           aria-label="Small button group"
                         >
@@ -197,6 +198,7 @@ export default function ManageLeaveRequests({ }: Props) {
                                 status: "Approved",
                               });
                             }}
+                            disabled={leave.status.toLowerCase() === "approved" || processingId === leave.id.toString()}
                           >
                             {processingId === leave.id.toString() ? (
                               <CircularProgress size={24} />
@@ -216,6 +218,10 @@ export default function ManageLeaveRequests({ }: Props) {
                                 status: "Rejected",
                               });
                             }}
+                            disabled={
+                              leave.status.toLowerCase() === "rejected" || 
+                              processingId === leave.id.toString()
+                            }
                           >
                             {processingId === leave.id.toString() ? (
                               <CircularProgress size={24} />

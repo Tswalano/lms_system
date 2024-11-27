@@ -200,6 +200,24 @@ export const applyForLeaveFN = async (
   return response.data.leaveData;
 };
 
+export const updateLeaveFN = async (
+  token: string,
+   // The ID of the leave request to update
+  updatedLeave: LeaveType // Updated leave details
+) => {
+  const response = await authApi.post<LeaveAPIResponse>(
+    `update-leave`, // Include the leaveId as a path parameter
+    updatedLeave,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response.data.leaveData;
+};
+
 export const getAllLeaveRequestByUID = async (token: string) => {
   const decode = jwtDecode(token) as { "custom:userId": string };
 
