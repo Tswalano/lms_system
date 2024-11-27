@@ -40,7 +40,7 @@ function LeaveHistory({}: Props) {
 
   const handleEditRequest = (leaveData: LeaveRequest) => {
     console.log("Editing leave data:", leaveData); 
-    navigate("/edit-leave", { state: leaveData }); // Passing leaveData as state
+    navigate("/edit-leave", { state: { leaveData } }); // Passing leaveData as state
   };
 
   const { data, isError, isLoading, isFetching, refetch } = useQuery({
@@ -79,8 +79,8 @@ function LeaveHistory({}: Props) {
   }
 
   const filteredData = data
-  .filter((leave) => leave.status.toLowerCase() === tabValue)
-  .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
+    .filter((leave) => leave.status.toLowerCase() === tabValue)
+    .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
   const paginatedData = filteredData.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
@@ -161,11 +161,11 @@ export const leaveHistoryTable = (
           <TableRow>
             <TableCell>Leave Type</TableCell>
             <TableCell>Note</TableCell>
-            <TableCell align="right">Duration</TableCell>
+            <TableCell align="right">Days Taken</TableCell>
             <TableCell align="right">Status</TableCell>
             <TableCell align="right">Start Date</TableCell>
             <TableCell align="right">End Date</TableCell>
-            
+            <TableCell align="right">Actions</TableCell> {/* New Actions column */}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -193,7 +193,18 @@ export const leaveHistoryTable = (
                 <TableCell align="right">
                   {formatDateTimeToSAST(lh.end_date)}
                 </TableCell>
-                
+                <TableCell align="right">
+                  {/* Edit Button, only render if leave status is 'pending' */}
+                  {lh.status.toLowerCase() === "pending" && (
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      onClick={() => handleEditRequest(lh)} // Pass leave data to edit handler
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
         </TableBody>
