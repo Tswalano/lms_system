@@ -127,6 +127,7 @@ function ViewAllLeave() {
             <tbody>
               {leaveData
                 .filter(item => item.fullName === selectedUser)
+                .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
                 .map((leaveRequest, index) => (
                   <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white' }}>
                     <td style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>
