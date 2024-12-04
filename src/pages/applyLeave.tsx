@@ -58,7 +58,7 @@ const leaveTypes = [
 function ApplyLeave() {
   const [cookies] = useCookies(["token"]);
   const navigate = useNavigate();
-  const [leaveLength, setLeaveLength] = useState<string>("full"); // Track leave length state
+  //const [leaveLength, setLeaveLength] = useState<string>(); // Track leave length state
   const methods = useForm<applyLeaveInput>({
     resolver: zodResolver(applyLeaveSchema),
   });
@@ -95,7 +95,7 @@ function ApplyLeave() {
   } = methods;
 
   // Watch the leave length and leave start fields to conditionally set end date
-  const leaveLengthWatch = watch("leave_length");
+  const leaveLength = watch("leave_length");
   const leaveStartWatch = watch("leave_start");
   const allFields = watch(); // Watch all form fields
 
@@ -105,17 +105,19 @@ function ApplyLeave() {
     allFields.leave_start &&
     allFields.leave_length &&
     allFields.leave_comment && 
-    (leaveLengthWatch === "Half Day" || allFields.leave_end); // End date only required if not "Half Day"
+    (leaveLength === "Half Day" || allFields.leave_end); // End date only required if not "Half Day"
 
   useEffect(() => {
-    if (leaveLengthWatch === "Half Day") {
+    if (leaveLength === "Half Day") {
       setValue("leave_end", leaveStartWatch);
     }
-  }, [leaveLengthWatch, leaveStartWatch, setValue]);
+  }, [leaveLength, leaveStartWatch, setValue]);
+  
 
   const onSubmitHandler: SubmitHandler<applyLeaveInput> = (values) => {
     applyForLeave(values);
   };
+  
 
   const shouldDisableDate = (date: dayjs.Dayjs) => {
     const dayOfWeek = date.day();
@@ -179,18 +181,21 @@ function ApplyLeave() {
                   label="Leave Length"
                   type="select"
                   options={[
-                    { value: "Half Day", label: "Half Day" },
-                    { value: "Full Day", label: "Full Day" },
-                  ]}
+                 { value: "Half Day", label: "Half Day" },
+                 { value: "Full Day", label: "Full Day" },
+                 ]}
                   onChange={(e) => {
-                    const newValue = e.target.value;
-                    setLeaveLength(newValue);
-                    setValue("leave_length", newValue);
-                    if (newValue === "Half Day") {
-                      setValue("leave_end", ""); // Clear end date if half day
-                    }
-                  }}
-                />
+                  const newValue = e.target.value;
+    
+                  setValue("leave_length", newValue); // Update the form state
+   
+                  if (newValue === "Half Day") {
+                    setValue("leave_end", leaveStartWatch); // Automatically set the end date if "Half Day" is selected
+                } else {
+                    setValue("leave_end", ""); // Clear end date if not "Half Day"
+                 }
+                 }}
+                 />
                 <FormInput
                   name="leave_start"
                   label="Start Date"
@@ -202,7 +207,7 @@ function ApplyLeave() {
                   label="End Date"
                   type="date"
                   disableDatesHandler={shouldDisableDate}
-                  disabled={leaveLengthWatch === "Half Day"} // Disable if "Half Day" is selected
+                  disabled={leaveLength === "Half Day"} // Disable if "Half Day" is selected
                 />
                 <FormInput
                   name="leave_comment"
