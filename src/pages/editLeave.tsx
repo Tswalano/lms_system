@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LoadingButton } from "@mui/lab";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { updateLeaveFN, getPublicHolidayDatesFn } from "../api/authAPI"; // Ensure `updateLeaveFN` is correctly imported
+import { updateLeaveFN, getPublicHolidayDatesFn } from "../api/authAPI";
 import { useCookies } from "react-cookie";
 import dayjs from "dayjs";
 import dayjsutc from "dayjs/plugin/utc";
@@ -60,16 +60,24 @@ function UpdateLeave() {
 
   const methods = useForm<applyLeaveInput>({
     resolver: zodResolver(applyLeaveSchema),
-  
+    defaultValues: {
+      leave_type: leaveData?.leave_type || "",
+      leave_start: leaveData?.start_date || "",
+      leave_end: leaveData?.end_date || "",
+      leave_length: leaveData?.leave_length || "Full Day",
+      leave_comment: leaveData?.leave_comment || "",
+    },
   });
+
+  const { reset, handleSubmit, setValue, watch, formState } = methods;
 
   const { mutate: updateLeave, isPending } = useMutation({
     mutationKey: ["updateLeave"],
     mutationFn: (updatedData: applyLeaveInput) =>
-      updateLeaveFN(cookies.token, updatedData), // Pass the leave ID
+      updateLeaveFN(cookies.token, updatedData),
     onSuccess: () => {
       toast.success("Leave updated successfully!");
-      navigate("/leave-history"); // Redirect to dashboard
+      navigate("/leave-history");
     },
     onError: (error: any) => {
       toast.error(
@@ -83,14 +91,6 @@ function UpdateLeave() {
     queryFn: async () => getPublicHolidayDatesFn(cookies.token),
     select: (publicHolidays) => publicHolidays.map((phd) => dayjs.utc(phd)),
   });
-
-  const {
-    reset,
-    handleSubmit,
-    formState: { isSubmitSuccessful },
-    setValue,
-    watch,
-  } = methods;
 
   const leaveLengthWatch = watch("leave_length");
   const leaveStartWatch = watch("leave_start");
@@ -109,17 +109,27 @@ function UpdateLeave() {
     }
   }, [leaveLengthWatch, leaveStartWatch, setValue]);
 
+  useEffect(() => {
+    if (leaveData) {
+      reset({
+        leave_type: leaveData.leave_type,
+        leave_start: leaveData.leave_start,
+        leave_end: leaveData.leave_end,
+        leave_length: leaveData.leave_length,
+        leave_comment: leaveData.leave_comment,
+      });
+    }
+  }, [leaveData, reset]);
+
   const onSubmitHandler: SubmitHandler<applyLeaveInput> = (values) => {
-    // Format dates before submitting
     const updatedData = {
       ...values,
-      id: leaveData?.id,  // Add the leaveData id to the updatedData object
+      id: leaveData?.id, // Add leave ID
       leave_start: dayjs(values.leave_start).format("YYYY-MM-DD"),
       leave_end: dayjs(values.leave_end).format("YYYY-MM-DD"),
     };
-  
-    updateLeave(updatedData); 
-    console.log(updatedData); // Pass the combined object to the mutation function
+
+    updateLeave(updatedData);
   };
 
   const shouldDisableDate = (date: dayjs.Dayjs) => {
@@ -131,18 +141,11 @@ function UpdateLeave() {
     return isWeekend || dayIsPublicHoliday;
   };
 
-  useEffect(() => {
-    if (isSubmitSuccessful) {
-      reset();
-    }
-  }, [isSubmitSuccessful, reset]);
-
   return (
     <Container maxWidth="xl">
       <Stack>
         <Typography variant="h4">Edit Leave</Typography>
       </Stack>
-
       <Box
         sx={{
           display: "flex",
@@ -158,69 +161,70 @@ function UpdateLeave() {
             borderRadius: 2,
           }}
         >
-          <Box sx={{ marginTop: 2 }}>
-            <FormProvider {...methods}>
-              <Box
-                component="form"
-                onSubmit={handleSubmit(onSubmitHandler)}
-                noValidate
-                autoComplete="off"
+          <FormProvider {...methods}>
+            <Box
+              component="form"
+              onSubmit={handleSubmit(onSubmitHandler)}
+              noValidate
+              autoComplete="off"
+            >
+              <FormInput
+                type="select"
+                name="leave_type"
+                label="Leave Type"
+                options={leaveTypes.map((leave) => ({
+                  value: leave.value,
+                  label: leave.label,
+                }))}
+              />
+              <FormInput
+                name="leave_length"
+                label="Leave Length"
+                type="select"
+                options={[
+                  { value: "Half Day", label: "Half Day" },
+                  { value: "Full Day", label: "Full Day" },
+                ]}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  setLeaveLength(newValue);
+                  setValue("leave_length", newValue);
+                  if (newValue === "Half Day") {
+                    setValue("leave_end", leaveStartWatch);
+                  }
+                }}
+              />
+              <FormInput
+                name="leave_start"
+                label="Start Date"
+                type="date"
+                disableDatesHandler={shouldDisableDate}
+              />
+              <FormInput
+                name="leave_end"
+                label="End Date"
+                type="date"
+                disableDatesHandler={shouldDisableDate}
+                disabled={leaveLengthWatch === "Half Day"}
+              />
+              <FormInput
+                name="leave_comment"
+                label="Comments"
+                type="textarea"
+              />
+              <LoadingButton
+                variant="contained"
+                sx={{ mt: 2, borderRadius: "10px" }}
+                fullWidth
+                disableElevation
+                type="submit"
+                loading={isPending}
+                disabled={isPending || !isFormValid}
               >
-                <FormInput
-                  type="select"
-                  name="leave_type"
-                  label="Leave Type"
-                  options={leaveTypes.map((leave) => ({
-                    value: leave.value,
-                    label: leave.label,
-                  }))}
-                />
-                <FormInput
-                  name="leave_length"
-                  label="Leave Length"
-                  type="select"
-                  options={[{ value: "Half Day", label: "Half Day" }, { value: "Full Day", label: "Full Day" }]}
-                  onChange={(e) => {
-                    const newValue = e.target.value;
-                    setLeaveLength(newValue);
-                    setValue("leave_length", newValue);
-                    if (newValue === "Half Day") {
-                      setValue("leave_end", leaveStartWatch);
-                    }
-                  }}
-                />
-                <FormInput
-                  name="leave_start"
-                  label="Start Date"
-                  type="date"
-                  disableDatesHandler={shouldDisableDate}
-                />
-                <FormInput
-                  name="leave_end"
-                  label="End Date"
-                  type="date"
-                  disableDatesHandler={shouldDisableDate}
-                  disabled={leaveLengthWatch === "Half Day"}
-                />
-                <FormInput
-                  name="leave_comment"
-                  label="Comments"
-                  type="textarea"
-                />
-                <LoadingButton
-                  variant="contained"
-                  sx={{ mt: 2, borderRadius: "10px" }}
-                  fullWidth
-                  disableElevation
-                  type="submit"
-                  loading={isPending}
-                  disabled={isPending || !isFormValid}
-                >
-                  Update Leave
-                </LoadingButton>
-              </Box>
-            </FormProvider>
-          </Box>
+                Update Leave
+              </LoadingButton>
+            </Box>
+          </FormProvider>
         </Box>
       </Box>
     </Container>
