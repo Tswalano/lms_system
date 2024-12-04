@@ -195,7 +195,7 @@ export const leaveHistoryTable = (
                 </TableCell>
                 <TableCell align="right">
                   {/* Edit Button, only render if leave status is 'pending' */}
-                  {lh.status.toLowerCase() === "pending" && (
+                  {lh.status.toLowerCase() === "approved" && (
                     <Button
                       variant="outlined"
                       color="primary"
