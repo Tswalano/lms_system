@@ -27,6 +27,9 @@ import LoadingPage from "./loadingPage";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useNavigate } from "react-router-dom";
 import CloseIcon from '@mui/icons-material/Close';
+import EditIcon from '@mui/icons-material/Edit';
+import { deleteLeaveRequest } from "../api/authAPI";
+import { toast } from "react-toastify";
 
 type Props = {};
 
@@ -37,6 +40,7 @@ function LeaveHistory({ }: Props) {
   const [tabValue, setTabValue] = useState("pending"); // default to 'pending'
   const [isModalOpen, setModalOpen] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false); // For delete loading state
 
   const navigate = useNavigate();
 
@@ -58,7 +62,7 @@ function LeaveHistory({ }: Props) {
     setSelectedLeave(null);
   };
 
-  const { data, isError, isLoading } = useQuery({
+  const { data, isError, isLoading, refetch } = useQuery({
     queryKey: ["listLeaveRequests"],
     queryFn: () => getAllLeaveRequestByUID(cookies.token),
     select: (data) => {
@@ -68,6 +72,23 @@ function LeaveHistory({ }: Props) {
       return data.body;
     },
   });
+
+  const confirmDelete = async () => {
+    if (!selectedLeave) return;
+
+    setIsDeleting(true);
+
+    try {
+      await deleteLeaveRequest(cookies.token, selectedLeave.id); // Call the API
+      toast.success("Leave request deleted successfully!");
+      refetch(); // Refresh the leave history data
+      handleCloseModal(); // Close the modal
+    } catch (error: any) {
+      toast.error("Failed to delete leave request");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -168,7 +189,7 @@ function LeaveHistory({ }: Props) {
             <Button
               variant="text"
               color="inherit"
-              sx={{ position: "absolute"}}
+              sx={{ position: "absolute" }}
               onClick={handleCloseModal}
             >
               <CloseIcon />
@@ -200,11 +221,9 @@ function LeaveHistory({ }: Props) {
                 <Button
                   variant="contained"
                   color="warning"
-                  onClick={() => {
-                    console.log("Delete confirmed");
-                  }}
+                  onClick={confirmDelete}
                 >
-                  Delete
+                  {isDeleting ? "Deleting..." : "Delete"}
                 </Button>
               </Box>
             </>
@@ -269,18 +288,18 @@ export const leaveHistoryTable = (
                 <TableCell align="right">
                   {lh.status.toLowerCase() === "pending" && (
                     <Button
-                      variant="outlined"
+                      variant="text"
                       color="primary"
                       onClick={() => handleEditRequest(lh)}
                     >
-                      Edit
+                      <EditIcon />
                     </Button>
                   )}
                 </TableCell>
                 <TableCell align="right">
                   {lh.status.toLowerCase() === "pending" && (
                     <Button
-                      variant="outlined"
+                      variant="text"
                       color="error"
                       onClick={() => handleDeleteLeaveRequest(lh)}
                     >
