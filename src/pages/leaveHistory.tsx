@@ -16,21 +16,31 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import { useQuery } from "@tanstack/react-query";
 import { useCookies } from "react-cookie";
+import Modal from "@mui/material/Modal";
+import Box from "@mui/material/Box";
+import { Chip, Divider } from "@mui/material";
 import { getAllLeaveRequestByUID } from "../api/authAPI";
 import { LeaveRequest } from "../api/types";
 import { formatDateTimeToSAST } from "../utils/Util";
 import ErrorPage from "./error/error";
 import LoadingPage from "./loadingPage";
-import { Chip } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { useNavigate } from "react-router-dom";
+import CloseIcon from '@mui/icons-material/Close';
+import EditIcon from '@mui/icons-material/Edit';
+import { deleteLeaveRequest } from "../api/authAPI";
+import { toast } from "react-toastify";
 
 type Props = {};
 
-function LeaveHistory({}: Props) {
+function LeaveHistory({ }: Props) {
   const [cookies] = useCookies(["token"]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [tabValue, setTabValue] = useState("pending"); // default to 'pending'
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false); // For delete loading state
 
   const navigate = useNavigate();
 
@@ -39,11 +49,20 @@ function LeaveHistory({}: Props) {
   };
 
   const handleEditRequest = (leaveData: LeaveRequest) => {
-    console.log("Editing leave data:", leaveData); 
-    navigate("/edit-leave", { state: { leaveData } }); // Passing leaveData as state
+    navigate("/edit-leave", { state: { leaveData } });
   };
 
-  const { data, isError, isLoading, isFetching, refetch } = useQuery({
+  const handleDeleteLeaveRequest = (leaveData: LeaveRequest) => {
+    setSelectedLeave(leaveData);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedLeave(null);
+  };
+
+  const { data, isError, isLoading, refetch } = useQuery({
     queryKey: ["listLeaveRequests"],
     queryFn: () => getAllLeaveRequestByUID(cookies.token),
     select: (data) => {
@@ -53,6 +72,23 @@ function LeaveHistory({}: Props) {
       return data.body;
     },
   });
+
+  const confirmDelete = async () => {
+    if (!selectedLeave) return;
+
+    setIsDeleting(true);
+
+    try {
+      await deleteLeaveRequest(cookies.token, selectedLeave.id); // Call the API
+      toast.success("Leave request deleted successfully!");
+      refetch(); // Refresh the leave history data
+      handleCloseModal(); // Close the modal
+    } catch (error: any) {
+      toast.error("Failed to delete leave request");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -67,7 +103,7 @@ function LeaveHistory({}: Props) {
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
     setTabValue(newValue);
-    setPage(0); // Reset page when tab changes
+    setPage(0);
   };
 
   if (isLoading) {
@@ -121,7 +157,7 @@ function LeaveHistory({}: Props) {
             No {tabValue} leave requests.
           </Typography>
         ) : (
-          leaveHistoryTable(paginatedData, handleEditRequest)
+          leaveHistoryTable(paginatedData, handleEditRequest, handleDeleteLeaveRequest)
         )}
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
@@ -133,26 +169,76 @@ function LeaveHistory({}: Props) {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </Card>
+
+      <Modal open={isModalOpen} onClose={handleCloseModal}>
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 450,
+            bgcolor: "background.paper",
+            border: "2px solid #000",
+            boxShadow: 24,
+            p: 4,
+            borderRadius: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
+            <Button
+              variant="text"
+              color="inherit"
+              sx={{ position: "absolute" }}
+              onClick={handleCloseModal}
+            >
+              <CloseIcon />
+            </Button>
+          </Box>
+          <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
+            Confirm Deletion
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          {selectedLeave && (
+            <>
+              <Typography sx={{ mb: 1 }}>
+                <strong>Leave Type:</strong> {selectedLeave.leave_type}
+              </Typography>
+              <Typography sx={{ mb: 1 }}>
+                <strong>Start Date:</strong>{" "}
+                {formatDateTimeToSAST(selectedLeave.start_date)}
+              </Typography>
+              <Typography sx={{ mb: 1 }}>
+                <strong>End Date:</strong>{" "}
+                {formatDateTimeToSAST(selectedLeave.end_date)}
+              </Typography>
+              <Typography sx={{ mb: 2 }}>
+                <strong>Note:</strong> {selectedLeave.leave_comment}
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
+              <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
+
+                <Button
+                  variant="contained"
+                  color="warning"
+                  onClick={confirmDelete}
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </Button>
+              </Box>
+            </>
+          )}
+        </Box>
+      </Modal>
+
     </Container>
   );
 }
 
-const getStatusColor = (status: string) => {
-  switch (status.toLowerCase()) {
-    case "approved":
-      return "success";
-    case "rejected":
-      return "error";
-    case "pending":
-      return "warning";
-    default:
-      return "default";
-  }
-};
-
 export const leaveHistoryTable = (
   leaveHistory: LeaveRequest[],
-  handleEditRequest: (leaveData: LeaveRequest) => void
+  handleEditRequest: (leaveData: LeaveRequest) => void,
+  handleDeleteLeaveRequest: (leaveData: LeaveRequest) => void
 ) => (
   <TableContainer sx={{ overflow: "unset" }}>
     <TableContainer component={Paper}>
@@ -165,7 +251,13 @@ export const leaveHistoryTable = (
             <TableCell align="right">Status</TableCell>
             <TableCell align="right">Start Date</TableCell>
             <TableCell align="right">End Date</TableCell>
-            <TableCell align="right">Actions</TableCell> {/* New Actions column */}
+            {/* Conditionally render Update and Withdraw columns */}
+            {leaveHistory.some((lh) => lh.status.toLowerCase() === "pending") && (
+              <>
+                <TableCell align="right">Update</TableCell>
+                <TableCell align="right">Withdraw</TableCell>
+              </>
+            )}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -194,14 +286,24 @@ export const leaveHistoryTable = (
                   {formatDateTimeToSAST(lh.end_date)}
                 </TableCell>
                 <TableCell align="right">
-                  {/* Edit Button, only render if leave status is 'pending' */}
                   {lh.status.toLowerCase() === "pending" && (
                     <Button
-                      variant="outlined"
+                      variant="text"
                       color="primary"
-                      onClick={() => handleEditRequest(lh)} // Pass leave data to edit handler
+                      onClick={() => handleEditRequest(lh)}
                     >
-                      Edit
+                      <EditIcon />
+                    </Button>
+                  )}
+                </TableCell>
+                <TableCell align="right">
+                  {lh.status.toLowerCase() === "pending" && (
+                    <Button
+                      variant="text"
+                      color="error"
+                      onClick={() => handleDeleteLeaveRequest(lh)}
+                    >
+                      <DeleteIcon />
                     </Button>
                   )}
                 </TableCell>
@@ -212,5 +314,18 @@ export const leaveHistoryTable = (
     </TableContainer>
   </TableContainer>
 );
+
+const getStatusColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case "approved":
+      return "success";
+    case "rejected":
+      return "error";
+    case "pending":
+      return "warning";
+    default:
+      return "default";
+  }
+};
 
 export default LeaveHistory;

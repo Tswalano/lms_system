@@ -303,3 +303,36 @@ export const getTotalNumberOfLeaveDays = async (token: string) => {
   );
   return response;
 };
+
+export const deleteLeaveRequest = async (token: string, leaveId: number) => {
+  try {
+    // Send a POST-like DELETE request with the leave ID in the request body
+    const response = await authApi.post(
+      "/delete-leave-req",
+      { id: leaveId }, // Body contains the leave request ID
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    // Check if the response status indicates success
+    if (response.status !== 200) {
+      throw new Error("Failed to delete leave request");
+    }
+
+    return {
+      statusCode: 200,
+      body: { message: "Leave request deleted successfully" },
+    };
+  } catch (error) {
+    console.error("Error deleting leave request:", error);
+
+    return {
+      statusCode: 500,
+      body: { error: "Failed to delete leave request", message: (error as Error).message },
+    };
+  }
+};
