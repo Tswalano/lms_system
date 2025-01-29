@@ -304,6 +304,18 @@ export const getTotalNumberOfLeaveDays = async (token: string) => {
   return response;
 };
 
+
+/**
+ * Deletes a leave request from the API.
+ *
+ * @param token The authentication token from the authenticated user.
+ * @param leaveId The ID of the leave request to delete.
+ *
+ * @returns A promise with the API response. If the request is successful, the
+ * response will contain a status code of 200 and a message indicating the leave
+ * request was deleted successfully. If the request fails, the response will
+ * contain a status code of 500 and an error message.
+ */
 export const deleteLeaveRequest = async (token: string, leaveId: number) => {
   try {
     // Send a POST-like DELETE request with the leave ID in the request body
@@ -336,3 +348,49 @@ export const deleteLeaveRequest = async (token: string, leaveId: number) => {
     };
   }
 };
+
+/**
+ * Deletes a user with the given ID and email.
+ *
+ * @param userId The ID of the user to delete.
+ * @param email The email address of the user to delete.
+ * @param token The user's access token.
+ *
+ * @returns A promise with the API response. If the request is successful, the
+ * response will contain a status code of 200 and a message indicating the user
+ * was deleted successfully. If the request fails, the response will contain a
+ * status code of 500 and an error message.
+ */
+export const deleteUserFn = async (userId: string, email: string, token: string) => {
+    try {
+    // Send a POST-like DELETE request with the user ID in the request body
+    const response = await authApi.post(
+      "/delete-employee",
+      { id: userId, email: email }, // Body contains the userid and email
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    // Check if the response status indicates success
+    if (response.status !== 200) {
+      throw new Error("Failed to delete user");
+    }
+
+    return {
+      statusCode: 200,
+      body: { message: "User deleted successfully" },
+    };
+  } catch (error) {
+    console.error("Error deleting user:", error);
+
+    return {
+      statusCode: 500,
+      body: { error: "Failed to delete user", message: (error as Error).message },
+    };
+  }
+};
+
