@@ -18,8 +18,18 @@ import AppWidgetSummary from "../../components/AppWidgetSummary";
 import styled from "@emotion/styled";
 import CalenderView from "../calenderView";
 import Greeting from "../../layouts/Greetings";
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 function Dashboard() {
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  const handleYearChange = (increment) => {
+    setSelectedYear((prevYear) => {
+      const newYear = prevYear + increment;
+      return newYear > currentYear ? currentYear : newYear;
+    });
+  };
 
   const [cookies] = useCookies(["token"]);
 
@@ -95,9 +105,10 @@ function Dashboard() {
     {
       id: 3,
       title: "Parental Leave",
-      value: `${(Number(data[0]["Maternity Leave"]) || 0) +
+      value: `${
+        (Number(data[0]["Maternity Leave"]) || 0) +
         (Number(data[0]["Paternity Leave"]) || 0)
-        } day(s)`,
+      } day(s)`,
       gradient: sysColors.warninglight,
       color: sysColors.warning,
       icon: (
@@ -123,6 +134,41 @@ function Dashboard() {
   return (
     <Container maxWidth="xl">
       <Greeting />
+      <div
+        className="year-selector"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: "20px",
+        }}
+      >
+        <button
+          onClick={() => handleYearChange(-1)}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontSize: "18px",
+          }}
+        >
+          <FaChevronLeft />
+        </button>
+        <h2 style={{ margin: "0 15px", fontSize: "20px", fontWeight: "bold" }}>
+          {selectedYear}
+        </h2>
+        <button
+          onClick={() => handleYearChange(1)}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontSize: "18px",
+          }}
+        >
+          <FaChevronRight />
+        </button>
+      </div>
 
       <Grid container spacing={3}>
         {leaveBalance.map((item) => (

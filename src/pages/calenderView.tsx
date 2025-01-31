@@ -6,6 +6,7 @@ import { useCookies } from 'react-cookie';
 import { LeaveAPIResponseUID } from '../api/types';
 import { useState, useEffect } from 'react';
 import { FaTimes, FaCalendar, FaUser, FaAlignLeft } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 type CalendarEvent = {
     title: string;
@@ -35,6 +36,13 @@ function CalendarView() {
     const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
     const [cookies] = useCookies(["token"]);
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+
+    const currentYear = new Date().getFullYear();
+    const [selectedYear, setSelectedYear] = useState(currentYear);
+
+    const handleYearChange = (increment: number) => {
+        setSelectedYear(prevYear => prevYear + increment);
+    };
 
     const { data, isLoading, isError } = useQuery<LeaveAPIResponseUID>({
         queryKey: ['calendarLeaveRequest'],
