@@ -2,6 +2,7 @@ import { Box, Typography } from "@mui/material";
 import React, { useState, useEffect } from "react";
 import { capitalizeName } from "../utils/Util";
 import { useStateContext } from "../context";
+import { motion } from "framer-motion"; // Importing motion
 
 const Greeting = () => {
     const stateContext = useStateContext();
@@ -36,17 +37,23 @@ const Greeting = () => {
     });
 
     return (
-        <Box sx={{ mb: 4, textAlign: "center" }}>
-            <Typography variant="h4" sx={{ fontWeight: "500" }}>
-                {greeting},
-                <span style={{ color: "#04A1EA", fontWeight: "bold" }}>
-                    {capitalizeName(` ${user?.firstName} ${user?.lastName}`)}.
-                </span>
-            </Typography>
-            <Typography sx={{ color: "text.secondary", mt: 1 }}>
-                {formattedDate} | {formattedTime}
-            </Typography>
-        </Box>
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "anticipate" }}
+        >
+            <Box sx={{ mb: 4, textAlign: "center" }}>
+                <Typography variant="h4" sx={{ fontWeight: "500" }}>
+                    {greeting},
+                    <span style={{ color: "#04A1EA", fontWeight: "bold" }}>
+                        {capitalizeName(` ${user?.firstName} ${user?.lastName}`)}.
+                    </span>
+                </Typography>
+                <Typography sx={{ color: "text.secondary", mt: 1 }}>
+                    {formattedDate} | {formattedTime}
+                </Typography>
+            </Box>
+        </motion.div>
     );
 };
 
