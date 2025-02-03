@@ -7,6 +7,7 @@ import { LeaveAPIResponseUID } from '../api/types';
 import { useState, useEffect } from 'react';
 import { FaTimes, FaCalendar, FaUser, FaAlignLeft } from 'react-icons/fa';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { motion } from "framer-motion"; // Importing motion
 
 type CalendarEvent = {
     title: string;
@@ -89,49 +90,61 @@ function CalendarView() {
 
     const renderEventContent = (eventInfo: any) => {
         return (
-            <div
-                className="event-content cursor-pointer"
-                style={{
-                    cursor: 'pointer',
-                    padding: '8px 12px',
-                    borderRadius: '5px',
-                    backgroundColor: eventInfo.event.backgroundColor,
-                    color: '#fff',
-                    fontWeight: 'bold',
-                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-                    transition: 'transform 0.2s ease',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
             >
-                <span>{eventInfo.event.title}</span>
-            </div>
+                <div
+                    className="event-content cursor-pointer"
+                    style={{
+                        cursor: 'pointer',
+                        padding: '8px 12px',
+                        borderRadius: '5px',
+                        backgroundColor: eventInfo.event.backgroundColor,
+                        color: '#fff',
+                        fontWeight: 'bold',
+                        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+                        transition: 'transform 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                    <span>{eventInfo.event.title}</span>
+                </div>
+            </motion.div>
         );
     };
 
     return (
-        <div className="calendar-container" style={{ padding: '20px', backgroundColor: '#f9f9f9', borderRadius: '10px' }}>
-            <div className="calendar-wrapper" style={{ boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)', borderRadius: '10px' }}>
-                <FullCalendar
-                    plugins={[dayGridPlugin]}
-                    initialView="dayGridMonth"
-                    events={calendarEvents}
-                    eventClick={handleEventClick}
-                    headerToolbar={{
-                        left: 'prev,next today',
-                        center: 'title',
-                        right: 'dayGridMonth,dayGridWeek',
-                    }}
-                    height="auto"
-                    eventContent={renderEventContent}
-                    eventColor="#26F596"
-                />
-            </div>
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+            <div className="calendar-container" style={{ padding: '20px', backgroundColor: '#f9f9f9', borderRadius: '10px' }}>
+                <div className="calendar-wrapper" style={{ boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)', borderRadius: '10px' }}>
+                    <FullCalendar
+                        plugins={[dayGridPlugin]}
+                        initialView="dayGridMonth"
+                        events={calendarEvents}
+                        eventClick={handleEventClick}
+                        headerToolbar={{
+                            left: 'prev,next today',
+                            center: 'title',
+                            right: 'dayGridMonth,dayGridWeek',
+                        }}
+                        height="auto"
+                        eventContent={renderEventContent}
+                        eventColor="#26F596"
+                    />
+                </div>
 
-            {selectedEvent && (
-                <EventDetailsPopup event={selectedEvent} onClose={() => setSelectedEvent(null)} />
-            )}
-        </div>
+                {selectedEvent && (
+                    <EventDetailsPopup event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+                )}
+            </div>
+        </motion.div>
     );
 }
 
