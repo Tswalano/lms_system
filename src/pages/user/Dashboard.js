@@ -20,6 +20,7 @@ import CalenderView from "../calenderView";
 import Greeting from "../../layouts/Greetings";
 
 function Dashboard() {
+  const currentYear = new Date().getFullYear();
 
   const [cookies] = useCookies(["token"]);
 
@@ -95,9 +96,10 @@ function Dashboard() {
     {
       id: 3,
       title: "Parental Leave",
-      value: `${(Number(data[0]["Maternity Leave"]) || 0) +
+      value: `${
+        (Number(data[0]["Maternity Leave"]) || 0) +
         (Number(data[0]["Paternity Leave"]) || 0)
-        } day(s)`,
+      } day(s)`,
       gradient: sysColors.warninglight,
       color: sysColors.warning,
       icon: (
@@ -123,7 +125,6 @@ function Dashboard() {
   return (
     <Container maxWidth="xl">
       <Greeting />
-
       <Grid container spacing={3}>
         {leaveBalance.map((item) => (
           <Grid xs={12} sm={6} md={3} key={item.id}>
