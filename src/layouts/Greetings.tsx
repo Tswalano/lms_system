@@ -36,7 +36,7 @@ const Greeting = () => {
     });
 
     return (
-        <Box sx={{ mb: 2, textAlign: "center" }}>
+        <Box sx={{ mb: 4, textAlign: "center" }}>
             <Typography variant="h4" sx={{ fontWeight: "500" }}>
                 {greeting},
                 <span style={{ color: "#04A1EA", fontWeight: "bold" }}>
