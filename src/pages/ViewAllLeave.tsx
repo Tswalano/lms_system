@@ -3,8 +3,9 @@ import { getAllLeaveRequestsFn } from '../api/authAPI';
 import { useCookies } from 'react-cookie';
 import { LeaveAPIResponseUID, LeaveRequest } from '../api/types';
 import { useState, useEffect } from 'react';
+import { Button, Card, CardContent, Typography, Chip, IconButton, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Slide } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import { sysColors } from '../utils/Util';
-import { Button } from '@mui/material';
 
 function ViewAllLeave() {
   const [leaveData, setLeaveData] = useState<LeaveRequest[]>([]);
@@ -23,135 +24,86 @@ function ViewAllLeave() {
     }
   }, [data?.leaveData]);
 
-  // Get unique user names and sort them alphabetically
-  const uniqueUsers = Array.from(new Set(leaveData.map(item => item.fullName))).sort((a, b) =>
-    a.localeCompare(b)
-  );
+  const uniqueUsers = Array.from(new Set(leaveData.map(item => item.fullName))).sort((a, b) => a.localeCompare(b));
 
-  const handleEditRequest = (leaveData: LeaveRequest) => {
-    // Handle the edit request here
-    console.log("Edit Leave Request:", leaveData);
+  const formatDate = (dateString: string) => {
+    const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' };
+    return new Date(dateString).toLocaleDateString('en-GB', options);
   };
 
-  // Format date to "Day, Month Year" (e.g., "12, March 2024")
-  const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-        day: '2-digit', // Ensures the day is always two digits (e.g., "01", "11")
-        month: 'long',  // Full month name (e.g., "November")
-        year: 'numeric', // Full year (e.g., "2024")
-    };
-    return new Date(dateString).toLocaleDateString('en-GB', options); // 'en-GB' locale formats the date as "dd MMMM yyyy"
-};
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Approved': return 'success';
+      case 'Pending': return 'warning';
+      case 'Rejected': return 'error';
+      default: return 'default';
+    }
+  };
+
   return (
-    <div style={{ maxWidth: '100%', overflowX: 'auto', marginTop: '1rem' }}>
-      {/* If no user is selected, display the user names and "View" button */}
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" sx={{ color: "#04A1EA", mb: 2, fontWeight: 'bold' }}>
+        Employees Leave History
+      </Typography>
+
       {selectedUser === null ? (
-        <div>
-          <h2 style={{ color: 'black', marginBottom: '1rem' }}>Employees Leave History</h2>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead style={{ backgroundColor: sysColors.primary, color: 'white' }}>
-              <tr>
-                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>Name</th>
-                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>Action</th> {/* Add Action column */}
-              </tr>
-            </thead>
-            <tbody>
-              {uniqueUsers.map((user, index) => (
-                <tr
-                  key={index}
-                  style={{
-                    backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <td style={{ padding: '10px', borderBottom: '1px solid #ddd', color: 'black' }}>
-                    {user}
-                  </td>
-                  <td style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>
-                    {/* "View" button */}
-                    <Button
-                      variant="contained"
-                      size="small"
-                      onClick={() => setSelectedUser(user)} // Set selected user when clicked
-                    >
-                      View
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Box display="grid" gridTemplateColumns="repeat(auto-fill, minmax(250px, 1fr))" gap={2}>
+          {uniqueUsers.map((user, index) => (
+            <Card key={index} sx={{ background: index % 2 === 0 ? '#e3f2fd' : '#bbdefb', cursor: 'pointer' }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>{user}</Typography>
+                <Button variant="contained" color="primary" onClick={() => setSelectedUser(user)}>
+                  View Leave History
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
       ) : (
-        // If a user is selected, display their leave history
-        <div>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '10px',
-              padding: '10px',
-              backgroundColor: sysColors.primarylight,
-              borderRadius: '4px',
-              color: 'black',
-              fontWeight: 'bold',
-            }}
-          >
-            
-            <span><button
-              onClick={() => setSelectedUser(null)} // Reset selected user
-              style={{
-                backgroundColor: 'transparent',
-                border: 'none',
-                fontSize: '18px',
-                cursor: 'pointer',
-                color: 'black',
-              }}
-            >
-              ✕
-            </button>{selectedUser}'s Leave History</span>
-            
-          </div>
-          {/* Render leave history for selected user */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead style={{ backgroundColor: sysColors.primary, color: 'white' }}>
-              <tr>
-                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>Leave Type</th>
-                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>Start Date</th>
-                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>End Date</th>
-                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>Days Taken</th>
-                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leaveData
-                .filter(item => item.fullName === selectedUser)
-                .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
-                .map((leaveRequest, index) => (
-                  <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white' }}>
-                    <td style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>
-                      {leaveRequest.leave_type}
-                    </td>
-                    <td style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>
-                      {formatDate(leaveRequest.start_date)} {/* Formatted Start Date */}
-                    </td>
-                    <td style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>
-                      {formatDate(leaveRequest.end_date)} {/* Formatted End Date */}
-                    </td>
-                    <td style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>
-                      {leaveRequest.duration} {/* Duration directly from leaveRequest */}
-                    </td>
-                    <td style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>
-                      {leaveRequest.status}
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+        <Slide direction="left" in={!!selectedUser} mountOnEnter unmountOnExit>
+          <Box>
+            <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+              <Typography variant="h5" sx={{ color: "#00C7FA", fontWeight: 'bold' }}>
+                {selectedUser}'s Leave History
+              </Typography>
+              <IconButton onClick={() => setSelectedUser(null)}>
+                <CloseIcon />
+              </IconButton>
+            </Box>
+
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: sysColors.primary, color: 'white' }}>
+                    <TableCell sx={{ color: 'white' }}>Leave Type</TableCell>
+                    <TableCell sx={{ color: 'white' }}>Start Date</TableCell>
+                    <TableCell sx={{ color: 'white' }}>End Date</TableCell>
+                    <TableCell sx={{ color: 'white' }}>Days Taken</TableCell>
+                    <TableCell sx={{ color: 'white' }}>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {leaveData
+                    .filter(item => item.fullName === selectedUser)
+                    .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
+                    .map((leaveRequest, index) => (
+                      <TableRow key={index} sx={{ backgroundColor: index % 2 === 0 ? '#f1f8e9' : '#e8f5e9' }}>
+                        <TableCell>{leaveRequest.leave_type}</TableCell>
+                        <TableCell>{formatDate(leaveRequest.start_date)}</TableCell>
+                        <TableCell>{formatDate(leaveRequest.end_date)}</TableCell>
+                        <TableCell>{leaveRequest.duration}</TableCell>
+                        <TableCell>
+                          <Chip label={leaveRequest.status} color={getStatusColor(leaveRequest.status)} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+        </Slide>
       )}
-    </div>
+    </Box>
   );
 }
 
