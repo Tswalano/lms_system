@@ -2,7 +2,7 @@ import { Box, Typography } from "@mui/material";
 import React, { useState, useEffect } from "react";
 import { capitalizeName } from "../utils/Util";
 import { useStateContext } from "../context";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 interface User {
     firstName: string;
@@ -63,17 +63,17 @@ const Greeting: React.FC = () => {
                         gap: 1,
                     }}
                 >
-                    <AnimatePresence mode="wait">
-                        <motion.span
-                            key={icon}
-                            initial={{ scale: 0, rotate: -90, opacity: 0 }}
-                            animate={{ scale: 1.2, rotate: 0, opacity: 1 }}
-                            exit={{ scale: 0, rotate: 90, opacity: 0 }}
-                            transition={{ duration: 0.5, ease: "easeOut" }}
-                        >
-                            {icon}
-                        </motion.span>
-                    </AnimatePresence>
+                    {/* <AnimatePresence mode="wait"> */}
+                    <motion.span
+                        key={icon}
+                        initial={{ scale: 0, rotate: -90, opacity: 0 }}
+                        animate={{ scale: 1.2, rotate: 0, opacity: 1 }}
+                        exit={{ scale: 0, rotate: 90, opacity: 0 }}
+                        transition={{ duration: 1.5, ease: "easeOut" }}
+                    >
+                        {icon}
+                    </motion.span>
+                    {/* </AnimatePresence> */}
                     {greeting},
                     <span style={{ color: "#04A1EA", fontWeight: "bold" }}>
                         {capitalizeName(` ${user?.firstName ?? ""} ${user?.lastName ?? ""}`)}.
