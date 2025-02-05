@@ -2,13 +2,19 @@ import { Box, Typography } from "@mui/material";
 import React, { useState, useEffect } from "react";
 import { capitalizeName } from "../utils/Util";
 import { useStateContext } from "../context";
-import { motion } from "framer-motion"; // Importing motion
+import { motion, AnimatePresence } from "framer-motion";
 
-const Greeting = () => {
+interface User {
+    firstName: string;
+    lastName: string;
+}
+
+const Greeting: React.FC = () => {
     const stateContext = useStateContext();
     const user = stateContext.state.authUser;
-    const [greeting, setGreeting] = useState("");
-    const [time, setTime] = useState(new Date());
+    const [greeting, setGreeting] = useState<string>("");
+    const [icon, setIcon] = useState<string>("");
+    const [time, setTime] = useState<Date>(new Date());
 
     useEffect(() => {
         const interval = setInterval(() => setTime(new Date()), 60000);
@@ -18,19 +24,23 @@ const Greeting = () => {
     useEffect(() => {
         const currentHour = time.getHours();
         if (currentHour < 12) {
-            setGreeting("Good morning ☀️");
+            setGreeting("Good morning");
+            setIcon("☀️");
         } else if (currentHour < 18) {
-            setGreeting("Good afternoon 🌤️");
+            setGreeting("Good afternoon");
+            setIcon("🌤️");
         } else {
-            setGreeting("Good evening 🌙");
+            setGreeting("Good evening");
+            setIcon("🌙");
         }
     }, [time]);
 
-    const formattedTime = time.toLocaleTimeString([], {
+    const formattedTime: string = time.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
     });
-    const formattedDate = time.toLocaleDateString([], {
+
+    const formattedDate: string = time.toLocaleDateString([], {
         weekday: "long",
         month: "short",
         day: "numeric",
@@ -43,10 +53,30 @@ const Greeting = () => {
             transition={{ duration: 0.6, ease: "anticipate" }}
         >
             <Box sx={{ mb: 4, textAlign: "center" }}>
-                <Typography variant="h4" sx={{ fontWeight: "500" }}>
+                <Typography
+                    variant="h4"
+                    sx={{
+                        fontWeight: "500",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        gap: 1,
+                    }}
+                >
+                    <AnimatePresence mode="wait">
+                        <motion.span
+                            key={icon}
+                            initial={{ scale: 0, rotate: -90, opacity: 0 }}
+                            animate={{ scale: 1.2, rotate: 0, opacity: 1 }}
+                            exit={{ scale: 0, rotate: 90, opacity: 0 }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                        >
+                            {icon}
+                        </motion.span>
+                    </AnimatePresence>
                     {greeting},
                     <span style={{ color: "#04A1EA", fontWeight: "bold" }}>
-                        {capitalizeName(` ${user?.firstName} ${user?.lastName}`)}.
+                        {capitalizeName(` ${user?.firstName ?? ""} ${user?.lastName ?? ""}`)}.
                     </span>
                 </Typography>
                 <Typography sx={{ color: "text.secondary", mt: 1 }}>
