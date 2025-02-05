@@ -92,7 +92,7 @@ function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: item.id * 0.2 }}
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.15 }}
             >
               <Card
                 sx={{
