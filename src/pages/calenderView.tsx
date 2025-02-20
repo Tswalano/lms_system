@@ -91,26 +91,33 @@ function CalendarView() {
     const renderEventContent = (eventInfo: any) => {
         return (
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
+                initial={{ opacity: 0, scale: 0.8 }} // Initial scale for a "pop-in" effect
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, ease: "easeOut" }} // Smoother, quicker transition
+                style={{ width: '100%' }} // Ensure full width on mobile
             >
                 <div
                     className="event-content cursor-pointer"
                     style={{
                         cursor: 'pointer',
-                        padding: '8px 12px',
+                        padding: '5px 12px',
                         borderRadius: '5px',
                         backgroundColor: eventInfo.event.backgroundColor,
                         color: '#fff',
                         fontWeight: 'bold',
-                        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)', // Softer shadow
                         transition: 'transform 0.2s ease',
+                        width: '100%', // Ensure full width on mobile
+                        boxSizing: 'border-box', // Include padding and border in element's total width and height
+                        overflow: 'hidden', // Hide overflow text
+                        textOverflow: 'ellipsis', // Add ellipsis for overflow text
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                     onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                 >
-                    <span>{eventInfo.event.title}</span>
+                    <span style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}> {/* Smaller font */}
+                        {eventInfo.event.title}
+                    </span>
                 </div>
             </motion.div>
         );
@@ -122,8 +129,8 @@ function CalendarView() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
         >
-            <div className="calendar-container" style={{ padding: '20px', backgroundColor: '#f9f9f9', borderRadius: '10px' }}>
-                <div className="calendar-wrapper" style={{ boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)', borderRadius: '10px' }}>
+            <div className="calendar-container" style={{ padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '10px', overflowX: 'auto' }}> {/* Reduced padding, overflow for horizontal scrolling */}
+                <div className="calendar-wrapper" style={{ boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)', borderRadius: '10px', width: '100%' }}> {/* Ensure full width */}
                     <FullCalendar
                         plugins={[dayGridPlugin]}
                         initialView="dayGridMonth"
@@ -137,6 +144,9 @@ function CalendarView() {
                         height="auto"
                         eventContent={renderEventContent}
                         eventColor="#26F596"
+                        dayCellContent={(arg) => ( // Add day number with smaller font
+                            <div style={{ fontSize: '0.75rem' }}>{arg.dayNumberText}</div>
+                        )}
                     />
                 </div>
 
@@ -180,75 +190,84 @@ const EventDetailsPopup = ({ event, onClose }: EventDetailsPopupProps) => {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
+            backdropFilter: 'blur(2px)',
+            width: '100%',
         }}>
-            <div className="popup-content" style={{
-                backgroundColor: '#fff',
-                borderRadius: '8px',
-                padding: '20px',
-                maxWidth: '500px',
-                width: '100%',
-                boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)',
-            }}>
-                <div className="popup-header" style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '15px',
+            <motion.div // Wrap popup content with motion.div
+                initial={{ opacity: 0, scale: 0.8 }} // Start slightly smaller
+                animate={{ opacity: 1, scale: 1 }} // Animate to full size
+                transition={{ duration: 0.3, ease: "easeOut" }} // Smooth transition
+            >
+                <div className="popup-content" style={{
+                    backgroundColor: '#fff',
+                    borderRadius: '8px',
+                    padding: '20px',
+                    maxWidth: '500px',
+                    minWidth: '500px',
+                    width: '100%',
+                    boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)',
                 }}>
-                    <h3 className="popup-title" style={{ color: '#333', fontSize: '18px' }}>{event.leaveType}</h3>
-                    <button onClick={onClose} className="close-button" style={{
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: '#333',
+                    <div className="popup-header" style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '15px',
                     }}>
-                        <FaTimes className="close-icon" />
-                    </button>
-                </div>
-
-                <div className="event-details">
-                    <div className="date-range" style={{ marginBottom: '10px' }}>
-                        <FaCalendar className="detail-icon" style={{ color: '#26F596' }} />
-                        <div className="date-range-content" style={{ marginLeft: '10px' }}>
-                            <div className="date-item" style={{ fontSize: '14px' }}>
-                                {startDate.dateStr} at {startDate.timeStr}
-                            </div>
-                            <div className="date-item" style={{ fontSize: '14px' }}>
-                                {endDate.dateStr} at {endDate.timeStr}
-                            </div>
-                        </div>
+                        <h3 className="popup-title" style={{ color: '#333', fontSize: '18px' }}>{event.leaveType}</h3>
+                        <button onClick={onClose} className="close-button" style={{
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#333',
+                        }}>
+                            <FaTimes className="close-icon" />
+                        </button>
                     </div>
 
-                    <div className="detail-item" style={{ marginBottom: '10px' }}>
-                        <FaUser className="detail-icon" style={{ color: '#26F596' }} />
-                        <div className="detail-content">
-                            <p style={{ fontSize: '14px' }}>{event.fullName}</p>
+                    <div className="event-details">
+                        <div className="date-range" style={{ marginBottom: '10px' }}>
+                            <FaCalendar className="detail-icon" style={{ color: '#26F596' }} />
+                            <div className="date-range-content" style={{ marginLeft: '10px' }}>
+                                <div className="date-item" style={{ fontSize: '14px' }}>
+                                    {startDate.dateStr} at {startDate.timeStr}
+                                </div>
+                                <div className="date-item" style={{ fontSize: '14px' }}>
+                                    {endDate.dateStr} at {endDate.timeStr}
+                                </div>
+                            </div>
                         </div>
-                    </div>
 
-                    {event.description && (
                         <div className="detail-item" style={{ marginBottom: '10px' }}>
-                            <FaAlignLeft className="detail-icon" style={{ color: '#26F596' }} />
+                            <FaUser className="detail-icon" style={{ color: '#26F596' }} />
                             <div className="detail-content">
-                                <p style={{ fontSize: '14px' }}>{event.description}</p>
+                                <p style={{ fontSize: '14px' }}>{event.fullName}</p>
                             </div>
                         </div>
-                    )}
 
-                    <div className="leave-type-badge" style={{
-                        backgroundColor: '#00B1FF',
-                        color: '#fff',
-                        padding: '5px 10px',
-                        borderRadius: '20px',
-                        textAlign: 'center',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        display: 'inline-block',
-                    }}>
-                        {event.leaveType}
+                        {event.description && (
+                            <div className="detail-item" style={{ marginBottom: '10px' }}>
+                                <FaAlignLeft className="detail-icon" style={{ color: '#26F596' }} />
+                                <div className="detail-content">
+                                    <p style={{ fontSize: '14px' }}>{event.description}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="leave-type-badge" style={{
+                            backgroundColor: '#00B1FF',
+                            color: '#fff',
+                            padding: '5px 10px',
+                            borderRadius: '20px',
+                            textAlign: 'center',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            display: 'inline-block',
+                        }}>
+                            {event.leaveType}
+                        </div>
                     </div>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 };
