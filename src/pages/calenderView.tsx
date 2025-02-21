@@ -192,6 +192,7 @@ const EventDetailsPopup = ({ event, onClose }: EventDetailsPopupProps) => {
             alignItems: 'center',
             backdropFilter: 'blur(2px)',
             width: '100%',
+            padding: '10px', // Ensures spacing on mobile screens
         }}>
             <motion.div // Wrap popup content with motion.div
                 initial={{ opacity: 0, scale: 0.8 }} // Start slightly smaller
@@ -202,9 +203,9 @@ const EventDetailsPopup = ({ event, onClose }: EventDetailsPopupProps) => {
                     backgroundColor: '#fff',
                     borderRadius: '8px',
                     padding: '20px',
-                    maxWidth: '500px',
-                    minWidth: '500px',
-                    width: '100%',
+                    minWidth: '300px', // Ensures a minimum size
+                    maxWidth: '500px', // Prevents excessive stretching
+                    width: '90vw', // Adjusts for different screen size
                     boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)',
                 }}>
                     <div className="popup-header" style={{
