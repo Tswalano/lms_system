@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { FaTimes, FaCalendar, FaUser, FaAlignLeft } from 'react-icons/fa';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { motion } from "framer-motion"; // Importing motion
+import { List, ListItem, ListItemText, Avatar, Button } from '@mui/material';
 
 type CalendarEvent = {
     title: string;
@@ -37,6 +38,8 @@ function CalendarView() {
     const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
     const [cookies] = useCookies(["token"]);
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+    const [employeesOnLeave, setEmployeesOnLeave] = useState<CalendarEvent[]>([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState(currentYear);
@@ -52,6 +55,7 @@ function CalendarView() {
 
     useEffect(() => {
         if (data?.leaveData && data.leaveData.length > 0) {
+            const today = new Date().toISOString().split('T')[0];
             const newEvents = data.leaveData
                 .filter(item => item.status !== "Rejected")
                 .map((item) => ({
@@ -68,8 +72,12 @@ function CalendarView() {
                 }));
 
             setCalendarEvents(newEvents);
+            // Filter employees who are on leave today
+            const onLeaveToday = newEvents.filter(event => new Date(event.start) <= new Date(today) && new Date(new Date(event.end).setDate(new Date(event.end).getDate() - 1)) >= new Date(today));
+            setEmployeesOnLeave(onLeaveToday);
         }
     }, [data?.leaveData]);
+
 
     if (isLoading) return <div className="loading">Loading...</div>;
     if (isError) return <div className="error">Error loading leave requests</div>;
@@ -129,6 +137,26 @@ function CalendarView() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
         >
+            {/* Button used to open modal for viewing team Availability */}
+            <Button
+                variant="contained"
+                color="primary"
+                onClick={() => setIsModalOpen(true)}
+                startIcon={<FaCalendar />}
+                style={{
+                    padding: '10px 20px',
+                    marginBottom: '10px',
+                    backgroundColor: '#04A1EA',
+                    color: '#fff',
+                    borderRadius: '20px',
+                    boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)',
+                    textTransform: 'none',
+                    fontWeight: 'bold',
+                    marginLeft: 'auto',
+                }}
+            >
+                Team Availability
+            </Button>
             <div className="calendar-container" style={{ padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '10px', overflowX: 'auto' }}> {/* Reduced padding, overflow for horizontal scrolling */}
                 <div className="calendar-wrapper" style={{ boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)', borderRadius: '10px', width: '100%' }}> {/* Ensure full width */}
                     <FullCalendar
@@ -149,11 +177,11 @@ function CalendarView() {
                         )}
                     />
                 </div>
-
                 {selectedEvent && (
                     <EventDetailsPopup event={selectedEvent} onClose={() => setSelectedEvent(null)} />
                 )}
             </div>
+            {isModalOpen && (<TeamAvailibilityPopup event={employeesOnLeave} onClose={() => setIsModalOpen(false)} />)}
         </motion.div>
     );
 }
@@ -271,6 +299,89 @@ const EventDetailsPopup = ({ event, onClose }: EventDetailsPopupProps) => {
             </motion.div>
         </div>
     );
+};
+
+/**
+ * A popup component that displays a list of employees who are unavailable today.
+ * @param {{ event: CalendarEvent[], onClose: () => void }} props
+ * @returns {ReactElement}
+ */
+const TeamAvailibilityPopup = ({ event, onClose }: any) => {
+    return (
+        <div className="popup-overlay" style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backdropFilter: 'blur(2px)',
+            width: '100%',
+            padding: '10px', // Ensures spacing on mobile screens
+        }}>
+            <motion.div
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                className="modal-content"
+                style={{ background: 'white', padding: '20px', borderRadius: '10px', textAlign: 'center' }}
+            >
+                <div className="popup-header" style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '15px',
+                }}>
+                    <h3 className="popup-title" style={{ color: '#333', fontSize: '18px' }}>Cluster Check: Who's Out? </h3>
+                    <button onClick={onClose} className="close-button" style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#333',
+                    }}>
+                        <FaTimes className="close-icon" />
+                    </button>
+                </div>
+                {event.length === 0 ? (
+                    <p>No rollbacks needed—everyone’s deployed and ready to go! 🏗️</p>
+                ) : (
+                    <List>
+                        {event.map((employee: any, index: any) => (
+                            <ListItem key={index} divider>
+                                <Avatar sx={{ bgcolor: "#04A1EA", mr: 2 }}>
+                                    {employee.fullName.charAt(0)}
+                                </Avatar>
+                                <ListItemText
+                                    primary={`${employee.fullName} is on ${employee.leaveType}`}
+                                    secondary={formatLeaveDates(employee.start, employee.end)}
+                                />
+                            </ListItem>
+                        ))}
+                    </List>
+                )}
+            </motion.div>
+        </div>
+    );
+}
+
+/**
+ * Formats leave dates for display
+ * @param {string} start - The start date
+ * @param {string} end - The end date
+ * @returns {string} - The formatted leave dates
+ */
+const formatLeaveDates = (start: string, end: string) => {
+    const startDate = new Date(start);
+    const endDate = new Date(new Date().setDate(new Date(end).getDate() - 1));
+
+    const formattedStart = startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const formattedEnd = endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+    return startDate.toDateString() === endDate.toDateString()
+        ? `Unavailable on ${formattedStart}`
+        : `Unavailable from ${formattedStart} to ${formattedEnd}`;
 };
 
 export default CalendarView;
