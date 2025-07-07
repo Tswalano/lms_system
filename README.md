@@ -1,70 +1,136 @@
-# Getting Started with Create React App
+# LMS Application (Leave Management System)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Project Overview
 
-## Available Scripts
+A full-stack application for managing employee leave requests with:
+- **Frontend**: React.js single-page application
+- **Backend**: AWS serverless infrastructure deployed with CDK (TypeScript)
+- **CI/CD**: Automated deployment via GitHub Actions
 
-In the project directory, you can run:
+## Project Structure
 
-### `npm start`
+```
+lms-application/
+├── frontend/          # React frontend application
+├── backend/           # CDK backend infrastructure
+└── .github/workflows/ # CI/CD deployment pipelines
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Frontend (React Application)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Features
+- User authentication and authorization
+- Leave request submission and approval workflows
+- Team availability calendar
+- Responsive design
 
-### `npm test`
+### Development Setup
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. **Prerequisites**
+   - Node.js 18.x
+   - npm 9.x+
 
-### `npm run build`
+2. **Installation**
+   ```bash
+   cd frontend
+   npm install
+   ```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+3. **Running Locally**
+   ```bash
+   npm start
+   ```
+   Runs on: http://localhost:3000
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+4. **Environment Variables**
+   Create `.env` file with:
+   ```env
+   REACT_APP_API_URL=http://localhost:3001
+   REACT_APP_AWS_REGION=us-east-1
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Backend (AWS CDK Infrastructure)
 
-### `npm run eject`
+### Features
+- API Gateway REST API
+- Lambda function handlers
+- DynamoDB database
+- Cognito authentication
+- SES email notifications
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Development Setup
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1. **Prerequisites**
+   - AWS CLI configured
+   - AWS CDK v2.x
+   - Node.js 18.x
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+2. **Installation**
+   ```bash
+   cd backend
+   npm install
+   ```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+3. **Deployment**
+   ```bash
+   # Bootstrap CDK (first time only)
+   cdk bootstrap aws://ACCOUNT-NUMBER/REGION
 
-## Learn More
+   # Deploy to AWS
+   cdk deploy
+   ```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+4. **Environment Variables**
+   Create `.env` file with:
+   ```env
+   AWS_ACCOUNT_ID=1234567890
+   AWS_REGION=us-east-1
+   TABLE_NAME=LMS-Table
+   ```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Deployment Pipeline
 
-### Code Splitting
+### GitHub Actions Workflow
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Automatically deploys on push to `main` branch:
+1. Frontend deploys to S3 bucket
+2. Backend deploys CDK stack with:
+   - Lambda functions
+   - API Gateway
+   - Database resources
 
-### Analyzing the Bundle Size
+### Required Secrets
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION`
+- `AWS_S3_BUCKET`
+- `AWS_ACCOUNT_ID`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## Testing
 
-### Making a Progressive Web App
+```bash
+# Run frontend tests
+cd frontend
+npm test
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+# Run backend tests
+cd backend
+npm test
+```
 
-### Advanced Configuration
+## Troubleshooting
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+**Lambda Template Error**
+If seeing `ENOENT` for template files:
+1. Verify `index.html` exists in `frontend/public/`
+2. Check GitHub Actions logs for template copy step
 
-### Deployment
+## Contributing
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+1. Create feature branch from `main`
+2. Submit PR with description of changes
+3. Include relevant tests
 
-### `npm run build` fails to minify
+## License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+MIT License
