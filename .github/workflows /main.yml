@@ -52,12 +52,6 @@ jobs:
       run:
         working-directory: ./backend
     steps:
-      - uses: actions/checkout@v3
-      - name: Prepare Lambda assets
-        run: |
-          mkdir -p lambda/email
-          cp ../frontend/public/index.html lambda/template.html
-          cp ../frontend/public/index.html lambda/email/template.html
       - uses: actions/setup-node@v3
         with:
           node-version: '18.x'
