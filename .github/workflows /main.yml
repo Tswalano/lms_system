@@ -20,6 +20,8 @@ on:
           - deploy
           - destroy
 
+
+
 jobs:
   frontend-deploy:
     if: ${{ github.event.inputs.action == 'deploy' }}
@@ -42,7 +44,7 @@ jobs:
       - run: |
           BUCKET=${{ secrets.AWS_S3_BUCKET }}
           ENV=${{ github.event.inputs.environment }}
-          aws s3 sync dist/ s3://$BUCKET/$ENV --acl --delete public-read
+          aws s3 sync dist/ s3://$BUCKET/ --acl --delete public-read
 
   backend:
     needs: frontend-deploy

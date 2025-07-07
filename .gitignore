@@ -1,24 +1,51 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# =========================
+# Global Git Ignore (Monorepo)
+# =========================
 
-# dependencies
-/node_modules
-./*/node_modules
-/.pnp
-.pnp.js
+# === Dependencies ===
+node_modules/
+**/node_modules/
 
-# testing
-/coverage
+# === Build Artifacts ===
+dist/
+build/
+cdk.out/
+coverage/
+tmp/
+temp/
 
-# production
-/build
+# === CDK (Backend) ===
+/backend/.env
+/backend/cdk.out/
+/backend/node_modules/
+/backend/package-lock.json # optional if you want to ignore lockfile
+/backend/.jsii
+/backend/.tsbuildinfo
 
-# misc
+# === React + Vite (Frontend) ===
+/frontend/dist/
+/frontend/.env
+/frontend/.env.*.local
+/frontend/node_modules/
+/frontend/package-lock.json # optional if you want to ignore lockfile
+
+# === Environment and Local Configs ===
+.env
+.env.*
+!.env.example
+
+# === OS/Editor Junk ===
 .DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.swp
+*.swo
+*.sublime-workspace
+
+# === Misc ===
+.pnp
+.pnp.js
+.vscode/
+.idea/
