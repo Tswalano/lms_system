@@ -5,8 +5,8 @@ on:
     branches:
       - "main"
     paths:
-      - 'frontend/**'  # React app files
-      - 'backend/**'   # CDK backend files
+      - 'frontend/**'
+      - 'backend/**' 
       - 'package.json'
       - 'package-lock.json'
 
