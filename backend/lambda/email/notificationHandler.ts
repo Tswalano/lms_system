@@ -1,4 +1,4 @@
-import { sender, EmailResult } from './emailMiddleware';
+import { sender, EmailResult, LeaveStatus } from './emailMiddleware';
 
 // Define the expected structure of the email details
 interface EmailNotificationDetails {
@@ -6,7 +6,7 @@ interface EmailNotificationDetails {
     name: string;
     body: string;    // The specific message for this notification
     subject: string;
-    status: string;  // The leave status (e.g., 'approved', 'rejected', 'created', 'pending', 'cancelled')
+    status: LeaveStatus;  // The leave status (e.g., 'approved', 'rejected', 'created', 'pending', 'cancelled')
 }
 
 /**

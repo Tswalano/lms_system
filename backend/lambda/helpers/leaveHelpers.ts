@@ -2,12 +2,14 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+export type LeaveStatus = 'approved' | 'rejected' | 'pending' | 'cancelled';
+
 // Interfaces
 export interface LeaveRequest {
     id: number;
     uid: number;
     leave_type: string;
-    status: 'Pending' | 'Approved' | 'Rejected';
+    status: LeaveStatus;
     duration: string;
     start_date: string;
     end_date: string;

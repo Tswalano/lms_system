@@ -1,8 +1,10 @@
-import * as path from "path";
-import * as fs from "fs";
 import { SESClient, SendEmailCommand, SendEmailCommandInput, SESServiceException } from "@aws-sdk/client-ses";
-import * as ejs from "ejs"; // Added EJS import
-
+import {
+    emailTemplate,
+    managementEmailTemplate,
+    EmailTemplateData,
+    ManagementTemplateData
+} from "./templateHtml";
 
 // Types and Interfaces
 interface EmailResult {
@@ -16,21 +18,48 @@ interface EmailParams {
     name: string;
     body: string;
     subject: string;
-    status: string;
+    status: LeaveStatus;
 }
 
 interface TemplateVariables {
     subject: string;
     name: string;
     body: string;
-    status: string;
+    status: LeaveStatus;
     currentYear: number;
+}
+
+interface ManagementEmailParams {
+    employeeName: string;
+    employeeEmail: string;
+    body: string;
+    subject: string;
+    status: LeaveStatus;
+    leaveType?: string;
+    startDate?: string;
+    endDate?: string;
+    duration?: string;
+}
+
+interface ManagementTemplateVariables {
+    subject: string;
+    employeeName: string;
+    employeeEmail: string;
+    body: string;
+    status: LeaveStatus;
+    currentYear: number;
+    leaveType?: string;
+    startDate?: string;
+    endDate?: string;
+    duration?: string;
 }
 
 // Adjusted SESEmailParams to align more closely with SendEmailCommandInput
 interface SESEmailParams {
     Destination: {
         ToAddresses: string[];
+        CcAddresses?: string[];
+        BccAddresses?: string[];
     };
     Message: {
         Body: {
@@ -69,14 +98,94 @@ type LeaveStatus = 'approved' | 'rejected' | 'pending' | 'cancelled';
 // Constants
 const CHARSET = "UTF-8";
 const SES_REGION = "us-east-1"; // Consider making this configurable via environment variables
-const SENDER_EMAIL = "admin.mailer@disraptor-internal.net"; // Consider making this configurable
+const SENDER_EMAIL = "LMS Notifications <noreply@disraptor-internal.net>"; // Consider making this configurable
 const REPLY_TO_EMAIL = "noreply@disraptor-internal.net"; // Consider making this configurable
+const MANAGEMENT_EMAIL = "tswalano@gmail.com"; // Primary management recipient
+const MANAGEMENT_CC_EMAIL = "glen.mogane@disraptor.co.za"; // CC management recipient
 
 function createSESClient(): SESClient {
     return new SESClient({
         region: SES_REGION,
         maxAttempts: 3
     });
+}
+
+/**
+ * Send email notification to management recipients
+ */
+export async function senderManagement(
+    employeeName: string,
+    employeeEmail: string,
+    body: string,
+    subject: string,
+    status: LeaveStatus,
+    leaveType?: string,
+    startDate?: string,
+    endDate?: string,
+    duration?: string
+): Promise<EmailResult> {
+    console.log("=== Management Email Sending Process Started ===");
+    console.log("Employee:", employeeName);
+    console.log("Employee Email:", employeeEmail);
+    console.log("Subject:", subject);
+    console.log("Status:", status);
+    console.log("Primary Recipient:", MANAGEMENT_EMAIL);
+    console.log("CC Recipient:", MANAGEMENT_CC_EMAIL);
+
+    try {
+        // Validate management email parameters
+        validateManagementEmailParams({
+            employeeName,
+            employeeEmail,
+            body,
+            subject,
+            status,
+            leaveType,
+            startDate,
+            endDate,
+            duration
+        });
+
+        const html: string = await renderManagementEmailTemplate({
+            subject,
+            employeeName,
+            employeeEmail,
+            body,
+            status,
+            currentYear: new Date().getFullYear(),
+            leaveType,
+            startDate,
+            endDate,
+            duration
+        });
+
+        const params: SESEmailParams = buildManagementSESParams(
+            subject,
+            html,
+            employeeName,
+            employeeEmail,
+            body,
+            status
+        );
+
+        const sesClient = createSESClient();
+        const command = new SendEmailCommand(params as SendEmailCommandInput);
+        const data = await sesClient.send(command);
+
+        console.log("Management email sent successfully!");
+        console.log("MessageId:", data.MessageId);
+
+        return {
+            success: true,
+            messageId: data.MessageId ?? "unknown",
+            recipient: `${MANAGEMENT_EMAIL} (CC: ${MANAGEMENT_CC_EMAIL})`
+        };
+
+    } catch (err) {
+        console.error("Error sending management email:");
+        handleEmailError(err);
+        throw err;
+    }
 }
 
 /**
@@ -87,7 +196,7 @@ export async function sender(
     name: string,
     body: string,
     subject: string,
-    status: string
+    status: LeaveStatus
 ): Promise<EmailResult> {
     console.log("=== Email Sending Process Started ===");
     console.log("Recipient:", recipientEmail);
@@ -131,6 +240,43 @@ export async function sender(
 }
 
 /**
+ * Validate input parameters for management email sending
+ */
+function validateManagementEmailParams(params: ManagementEmailParams): void {
+    const { employeeName, employeeEmail, body, subject, status } = params;
+
+    if (!employeeName || !employeeEmail || !body || !subject || !status) {
+        throw new Error("Missing required parameters for management email sending");
+    }
+
+    // Validate employee email format
+    const emailRegex: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(employeeEmail)) {
+        throw new Error(`Invalid employee email format: ${employeeEmail}`);
+    }
+
+    // Validate employee name (should not be empty after trimming)
+    if (!employeeName.trim()) {
+        throw new Error("Employee name cannot be empty");
+    }
+
+    // Validate subject and body length
+    if (subject.length > 998) { // SES limit
+        throw new Error("Subject line too long (max 998 characters)");
+    }
+
+    if (body.length > 40000) { // Conservative limit for email body
+        console.warn("Email body is quite long, consider shortening it");
+    }
+
+    // Validate status
+    const validStatuses: LeaveStatus[] = ['approved', 'rejected', 'pending', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+        throw new Error(`Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}`);
+    }
+}
+
+/**
  * Validate input parameters for email sending
  */
 function validateEmailParams(params: EmailParams): void {
@@ -162,42 +308,143 @@ function validateEmailParams(params: EmailParams): void {
 }
 
 /**
+ * Render the management email template with provided variables
+ */
+async function renderManagementEmailTemplate(variables: ManagementTemplateVariables): Promise<string> {
+    console.log("Rendering management email template with variables:", variables);
+
+    try {
+        // Validate required variables
+        if (!variables.subject || !variables.employeeName || !variables.employeeEmail || !variables.status || !variables.body) {
+            throw new Error("Missing required management template variables. Required: subject, employeeName, employeeEmail, status, body");
+        }
+
+        // Validate status value
+        const validStatuses: LeaveStatus[] = ['approved', 'rejected', 'pending', 'cancelled'];
+        if (!validStatuses.includes(variables.status)) {
+            throw new Error(`Invalid status value: ${variables.status}. Must be one of: ${validStatuses.join(', ')}`);
+        }
+
+        console.log("Management template variables validated successfully");
+
+        // Create ManagementTemplateData object for the new template
+        const templateData: ManagementTemplateData = {
+            subject: variables.subject,
+            employeeName: variables.employeeName,
+            employeeEmail: variables.employeeEmail,
+            status: variables.status,
+            body: variables.body,
+            leaveType: variables.leaveType,
+            startDate: variables.startDate,
+            endDate: variables.endDate,
+            duration: variables.duration
+        };
+
+        console.log("Generating management HTML from template...");
+
+        // Render the HTML using our dedicated management template
+        const html: string = managementEmailTemplate(templateData);
+
+        console.log("Management template rendered successfully, HTML size:", html.length, "characters");
+
+        return html;
+    } catch (error) {
+        console.error("Error rendering management email template:", error);
+        throw new Error(`Failed to render management email template: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
+
+/**
  * Render the email template with provided variables
  */
 async function renderEmailTemplate(variables: TemplateVariables): Promise<string> {
-    // Verify if the email template exists
-    const emailTemplatePath: string = path.join(__dirname, "template.html");
-    console.log("Looking for template at:", emailTemplatePath);
+    console.log("Rendering email template with variables:", variables);
 
-    if (!fs.existsSync(emailTemplatePath)) {
-        console.error("Email template not found at:", emailTemplatePath);
+    try {
+        // Validate required variables
+        if (!variables.subject || !variables.name || !variables.status || !variables.body) {
+            throw new Error("Missing required template variables. Required: subject, name, status, body");
+        }
 
-        // List files in current directory for debugging
-        console.log("Files in current directory:");
-        const files: string[] = fs.readdirSync(__dirname);
-        files.forEach(file => console.log(" -", file));
+        // Validate status value
+        const validStatuses = ['approved', 'rejected', 'pending'];
+        if (!validStatuses.includes(variables.status)) {
+            throw new Error(`Invalid status value: ${variables.status}. Must be one of: ${validStatuses.join(', ')}`);
+        }
 
-        throw new Error(`Email template not found: ${emailTemplatePath}`);
+        console.log("Template variables validated successfully");
+
+        // Create EmailTemplateData object
+        const templateData: EmailTemplateData = {
+            subject: variables.subject,
+            name: variables.name,
+            status: variables.status,
+            body: variables.body
+        };
+
+        console.log("Generating HTML from template...");
+
+        // Render the HTML using our string template
+        const html: string = emailTemplate(templateData);
+
+        console.log("Template rendered successfully, HTML size:", html.length, "characters");
+
+        return html;
+    } catch (error) {
+        console.error("Error rendering email template:", error);
+        throw new Error(`Failed to render email template: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+}
 
-    console.log("Email template found, reading file...");
-
-    // Read the email template from a file
-    const emailTemplate: string = fs.readFileSync(emailTemplatePath, "utf-8");
-    console.log("Template loaded, size:", emailTemplate.length, "characters");
-
-    // Compile the email template using EJS
-    const compiledEmailTemplate = ejs.compile(emailTemplate, {
-        async: true,
-        filename: emailTemplatePath // Add filename for better error reporting
-    });
-
-    console.log("Template compiled, rendering HTML...");
-
-    // Render the HTML with template variables
-    const html: string = await compiledEmailTemplate(variables);
-
-    return html;
+/**
+ * Build SES parameters for sending management email
+ */
+function buildManagementSESParams(
+    subject: string,
+    html: string,
+    employeeName: string,
+    employeeEmail: string,
+    body: string,
+    status: string
+): SESEmailParams {
+    return {
+        Destination: {
+            ToAddresses: [MANAGEMENT_EMAIL],
+            CcAddresses: [MANAGEMENT_CC_EMAIL]
+        },
+        Message: {
+            Body: {
+                Html: {
+                    Charset: CHARSET,
+                    Data: html,
+                },
+                Text: {
+                    Charset: CHARSET,
+                    Data: generateManagementPlainTextVersion(employeeName, employeeEmail, body, status)
+                }
+            },
+            Subject: {
+                Charset: CHARSET,
+                Data: `[MANAGEMENT] ${subject}`,
+            },
+        },
+        Source: SENDER_EMAIL,
+        ReplyToAddresses: [REPLY_TO_EMAIL],
+        Tags: [
+            {
+                Name: "EmailType",
+                Value: "ManagementLeaveNotification"
+            },
+            {
+                Name: "Status",
+                Value: status
+            },
+            {
+                Name: "Employee",
+                Value: employeeName.replace(/[^a-zA-Z0-9._@-]/g, '_')
+            }
+        ]
+    };
 }
 
 /**
@@ -283,6 +530,35 @@ function handleEmailError(err: unknown): void {
 }
 
 /**
+ * Generate a plain text version of the management email as fallback
+ */
+export function generateManagementPlainTextVersion(
+    employeeName: string,
+    employeeEmail: string,
+    body: string,
+    status: string
+): string {
+    return `
+LEAVE MANAGEMENT NOTIFICATION
+
+Employee: ${employeeName}
+Email: ${employeeEmail}
+Status: ${status.toUpperCase()}
+
+Details:
+${body}
+
+${getStatusMessage(status)}
+
+Please review this leave request in the Disruptor Leave Management System.
+
+---
+This is an automated notification from the Disruptor Leave Management System.
+© ${new Date().getFullYear()} Disruptor. All rights reserved.
+`.trim();
+}
+
+/**
  * Generate a plain text version of the email as fallback
  */
 export function generatePlainTextVersion(name: string, body: string, status: string): string {
@@ -346,6 +622,33 @@ export async function testEmailConfiguration(testEmail: string = "test@example.c
 }
 
 /**
+ * Test function to verify management email configuration
+ */
+export async function testManagementEmailConfiguration(): Promise<boolean> {
+    console.log("Testing management email configuration...");
+
+    try {
+        await senderManagement(
+            "Test Employee",
+            "test.employee@company.com",
+            "This is a test management notification to verify the email configuration.",
+            "Management Email Configuration Test",
+            "pending",
+            "Annual Leave",
+            "2024-12-15",
+            "2024-12-22",
+            "5 working days"
+        );
+
+        console.log("Management email configuration test successful!");
+        return true;
+    } catch (error) {
+        console.error("Management email configuration test failed:", (error as Error).message);
+        return false;
+    }
+}
+
+/**
  * Batch send emails to multiple recipients
  */
 export async function batchSendEmails(
@@ -354,7 +657,7 @@ export async function batchSendEmails(
         name: string;
         body: string;
         subject: string;
-        status: string;
+        status: LeaveStatus;
     }>
 ): Promise<Array<EmailResult | Error>> {
     console.log(`Starting batch email send for ${emailList.length} recipients`);
@@ -385,21 +688,61 @@ export async function batchSendEmails(
 }
 
 /**
- * Validate email template syntax
+ * Validate email template (now validates the string template function)
  */
 export function validateEmailTemplate(): boolean {
     try {
-        // const templatePath = path.join(__dirname, "template.html");
-        const templatePath: string = path.join(__dirname, "./template.html");
-        if (!fs.existsSync(templatePath)) {
-            console.error("Template file not found");
-            return false;
+        console.log("Validating email template...");
+
+        // Test the employee template with sample data
+        const testData: EmailTemplateData = {
+            subject: "Test Subject",
+            name: "Test User",
+            status: "approved",
+            body: "This is a test message."
+        };
+
+        const html = emailTemplate(testData);
+
+        // Basic validation checks
+        if (!html || html.length === 0) {
+            throw new Error("Template generated empty HTML");
         }
 
-        const template = fs.readFileSync(templatePath, "utf-8");
+        if (!html.includes("<!DOCTYPE html>")) {
+            throw new Error("Template does not generate valid HTML structure");
+        }
 
-        // Try to compile the template
-        ejs.compile(template, { filename: templatePath });
+        if (!html.includes(testData.name)) {
+            throw new Error("Template does not properly substitute name variable");
+        }
+
+        if (!html.includes(testData.subject)) {
+            throw new Error("Template does not properly substitute subject variable");
+        }
+
+        if (!html.includes(testData.body)) {
+            throw new Error("Template does not properly substitute body variable");
+        }
+
+        // Test the management template
+        const managementTestData: ManagementTemplateData = {
+            subject: "Test Management Subject",
+            employeeName: "Test Employee",
+            employeeEmail: "test@company.com",
+            status: "pending",
+            body: "This is a test management message."
+        };
+
+        const managementHtml = managementEmailTemplate(managementTestData);
+
+        if (!managementHtml || managementHtml.length === 0) {
+            throw new Error("Management template generated empty HTML");
+        }
+
+        if (!managementHtml.includes(managementTestData.employeeName)) {
+            throw new Error("Management template does not properly substitute employee name");
+        }
 
         console.log("Email template validation successful");
         return true;
@@ -414,6 +757,8 @@ export type {
     EmailResult,
     EmailParams,
     TemplateVariables,
+    ManagementEmailParams,
+    ManagementTemplateVariables,
     SESEmailParams,
     SESResponse,
     LeaveStatus

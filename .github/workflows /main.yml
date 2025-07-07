@@ -42,7 +42,8 @@ jobs:
       - run: |
           BUCKET=${{ secrets.AWS_S3_BUCKET }}
           ENV=${{ github.event.inputs.environment }}
-          aws s3 sync dist/ s3://$BUCKET/$ENV --acl public-read --delete
+          aws s3 sync dist/ s3://frontend-leave-management-system-beta --delete
+
 
   backend:
     needs: frontend-deploy

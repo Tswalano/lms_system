@@ -11,7 +11,8 @@ import {
     formatDateTime,
     LeaveRequest,
     LeaveRequestWithUser,
-    ExcludedDaysDetails
+    ExcludedDaysDetails,
+    LeaveStatus
 } from '../helpers/leaveHelpers';
 import {
     leaveApplicationSchema,
@@ -36,6 +37,9 @@ import { calculateTotalLeaveDays, getExcludedDaysDetails, getPublicHolidayDatesU
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import isBetween from 'dayjs/plugin/isBetween';
+import { sender, senderManagement } from '../email/emailMiddleware';
+import { EmailNotificationDetails } from '../email/notificationHandler';
+import { get } from 'http';
 dayjs.extend(utc);
 dayjs.extend(isBetween);
 
@@ -43,7 +47,7 @@ const app = new Hono();
 
 // Types for query parameters
 interface LeaveQueryParams {
-    status?: 'Pending' | 'Approved' | 'Rejected';
+    status?: LeaveStatus;
     leave_type?: string;
     start_date?: string;
     end_date?: string;
@@ -67,135 +71,33 @@ interface LeaveCalendarResponse {
     publicHolidays: PublicHoliday[];
 }
 
-// POST /apply-leave - Submit leave application 
-// @deprecated
-// app.post('/apply-leave', async (c: Context): Promise<Response> => {
-//     let connection: mysql.Connection | null = null;
-//     try {
-//         const uid = getUserId(c);
-//         const decodedToken = getDecodedToken(c);
+// Format dates for display
+const formatDate = (date: string | Date): string => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const formattedDate = dateObj.toLocaleDateString('en-ZA', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
 
-//         const body = await c.req.json();
-//         const validatedData: LeaveApplicationData = leaveApplicationSchema.parse(body);
-//         const { leave_type, leave_start, leave_end, leave_length, leave_comment } = validatedData;
-
-//         const startDate = new Date(leave_start);
-//         const endDate = new Date(leave_end);
-
-//         if (startDate > endDate) {
-//             return c.json<ApiResponse>({
-//                 success: false,
-//                 message: 'Start date cannot be after end date'
-//             }, 400);
-//         }
-
-//         if (startDate < new Date()) {
-//             return c.json<ApiResponse>({
-//                 success: false,
-//                 message: 'Start date cannot be in the past'
-//             }, 400);
-//         }
-
-//         let numDays = 0;
-//         let excludedDetails: ExcludedDaysDetails = { weekends: 0, holidays: [], totalExcluded: 0 };
-
-//         if (leave_length === "full_day") {
-//             numDays = await calculateTotalLeaveDays(startDate, endDate);
-//             excludedDetails = getExcludedDaysDetails(startDate, endDate);
-//         } else if (leave_length === "half_day") {
-//             numDays = 0.5;
-//             if (isWeekend(startDate)) {
-//                 return c.json<ApiResponse>({
-//                     success: false,
-//                     message: 'Cannot apply for leave on weekends'
-//                 }, 400);
-//             }
-
-//             const allHolidays = getSouthAfricanPublicHolidays(startDate.getFullYear());
-//             if (isPublicHoliday(startDate, allHolidays)) {
-//                 return c.json<ApiResponse>({
-//                     success: false,
-//                     message: 'Cannot apply for leave on public holidays'
-//                 }, 400);
-//             }
-//         }
-
-//         let system_notes = `A total of ${numDays} leave day${numDays === 1 ? "" : "s"} will be deducted from your balance.`;
-//         if (leave_length === "full_day" && excludedDetails.totalExcluded > 0) {
-//             system_notes += ` Excluded: ${excludedDetails.weekends} weekend(s)`;
-//             if (excludedDetails.holidays.length > 0) {
-//                 system_notes += ` and ${excludedDetails.holidays.length} holiday(s)`;
-//             }
-//         }
-
-//         const createdAt = formatDateTime();
-
-//         connection = await DatabaseService.createConnection();
-
-//         const [result] = await connection.query<mysql.ResultSetHeader>(`
-//                 INSERT INTO leave_requests (
-//                     uid, leave_type, status, duration, start_date, end_date, system_notes, feedback,
-//                     document, leave_length, leave_comment, createdAt, updatedAt
-//                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-//             `, [
-//             uid,
-//             leave_type,
-//             "Pending",
-//             numDays.toString(),
-//             startDate,
-//             endDate,
-//             system_notes,
-//             "Your leave request is Pending, please wait for approval",
-//             "no supporting document",
-//             leave_length,
-//             leave_comment,
-//             createdAt,
-//             createdAt
-//         ]);
-
-//         return c.json<ApiResponse>({
-//             success: true,
-//             message: 'Leave request submitted successfully',
-//             data: {
-//                 leaveId: result.insertId,
-//                 duration: numDays,
-//                 system_notes: system_notes,
-//                 status: "Pending"
-//             }
-//         }, 200);
-
-//     } catch (error) {
-//         console.error('Apply leave error:', error);
-
-//         if (error instanceof z.ZodError) {
-//             return c.json<ApiResponse>({
-//                 success: false,
-//                 message: 'Invalid request data',
-//                 errors: error.errors
-//             }, 400);
-//         }
-
-//         if (error instanceof Error && error.message.includes('token')) {
-//             return c.json<ApiResponse>({
-//                 success: false,
-//                 message: error.message
-//             }, 401);
-//         }
-
-//         return c.json<ApiResponse>({
-//             success: false,
-//             message: 'Failed to submit leave request'
-//         }, 500);
-//     } finally {
-//         if (connection) await connection.end();
-//     }
-// });
+    return formattedDate;
+};
 
 app.post('/apply-leave', async (c: Context): Promise<Response> => {
     let connection: mysql.Connection | null = null;
     try {
         const uid = getUserId(c);
-        const decodedToken = getDecodedToken(c);
+        const recipientEmail = getDecodedToken(c).email;
+        const firstName = getDecodedToken(c).given_name || getDecodedToken(c).name || 'Unknown User';
+        const lastName = getDecodedToken(c).family_name || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+
+        if (!recipientEmail) {
+            return c.json<ApiResponse>({
+                success: false,
+                message: 'User email not found in token'
+            }, 401);
+        }
 
         const body = await c.req.json();
         const validatedData: LeaveApplicationData = leaveApplicationSchema.parse(body);
@@ -264,7 +166,7 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
             `, [
             uid,
             leave_type,
-            "Pending",
+            "pending",
             numDays.toString(),
             startDate,
             endDate,
@@ -277,6 +179,81 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
             createdAt
         ]);
 
+        // Track email results
+        const emailResults = {
+            employee: { success: false, error: null as string | null },
+            management: { success: false, error: null as string | null }
+        };
+
+        // 1. Send email notification to EMPLOYEE
+        console.log("=== Sending Employee Notification ===");
+        try {
+
+            const employeeEmailBody = `Your <strong>${leave_type}</strong> request has been successfully submitted and is pending approval.`;
+
+            await sender(
+                recipientEmail,
+                firstName,
+                employeeEmailBody,
+                `Leave Request Submitted - ${leave_type}`,
+                "pending"
+            );
+
+            emailResults.employee.success = true;
+            console.log("✅ Employee notification email sent successfully to:", recipientEmail);
+        } catch (emailError) {
+            emailResults.employee.error = (emailError as Error).message;
+            console.error("❌ Failed to send employee notification email:", emailError);
+        }
+
+        // 2. Send email notification to MANAGEMENT
+        console.log("=== Sending Management Notification ===");
+        try {
+            const managementEmailBody = `${leave_comment}.
+                <br><br>
+                <i>System Notes: ${system_notes}</i>`;
+
+            await senderManagement(
+                fullName,                               // employeeName
+                recipientEmail,                         // employeeEmail  
+                managementEmailBody,                    // body
+                `New Leave Request - ${leave_type}`,    // subject
+                "pending",                              // status
+                leave_type,                             // leaveType
+                formatDate(startDate),                     // startDate
+                formatDate(endDate),                       // endDate
+                `${numDays} day${numDays === 1 ? '' : 's'} (${leave_length})` // duration
+            );
+
+            emailResults.management.success = true;
+            console.log("✅ Management notification email sent successfully");
+        } catch (emailError) {
+            emailResults.management.error = (emailError as Error).message;
+            console.error("❌ Failed to send management notification email:", emailError);
+        }
+
+        // Log email summary
+        console.log("=== Email Notification Summary ===");
+        console.log(`Employee notification: ${emailResults.employee.success ? 'SUCCESS' : 'FAILED'}`);
+        console.log(`Management notification: ${emailResults.management.success ? 'SUCCESS' : 'FAILED'}`);
+
+        if (emailResults.employee.error) {
+            console.log(`Employee email error: ${emailResults.employee.error}`);
+        }
+        if (emailResults.management.error) {
+            console.log(`Management email error: ${emailResults.management.error}`);
+        }
+
+        // Prepare response with email status
+        const emailNotificationStatus = {
+            employee: emailResults.employee.success,
+            management: emailResults.management.success,
+            errors: {
+                employee: emailResults.employee.error,
+                management: emailResults.management.error
+            }
+        };
+
         return c.json<ApiResponse>({
             success: true,
             message: 'Leave request submitted successfully',
@@ -284,7 +261,8 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
                 leaveId: result.insertId,
                 duration: numDays,
                 system_notes: system_notes,
-                status: "Pending"
+                status: "pending",
+                emailNotifications: emailNotificationStatus
             }
         }, 200);
 
@@ -406,7 +384,7 @@ app.put('/leave/:id', async (c: Context): Promise<Response> => {
 
         const currentLeave = existingLeave[0] as LeaveRequest;
 
-        if (currentLeave.status !== 'Pending') {
+        if (currentLeave.status !== 'pending') {
             return c.json<ApiResponse>({
                 success: false,
                 message: 'Cannot update leave request that is not Pending'
@@ -466,6 +444,23 @@ app.put('/leave/:id', async (c: Context): Promise<Response> => {
         const updateQuery = `UPDATE leave_requests SET ${fieldsToUpdate.join(', ')} WHERE id = ? AND uid = ?`;
         await connection.query(updateQuery, valuesToUpdate);
 
+        // trigger email notification
+        const emailDetails: EmailNotificationDetails = {
+            recipientEmail: getDecodedToken(c).email,
+            name: `${getDecodedToken(c).given_name || getDecodedToken(c).name} ${getDecodedToken(c).family_name || ''}`,
+            body: `Your leave request for ${currentLeave.leave_type} has been updated.`,
+            subject: `Leave Request Updated - ${currentLeave.leave_type}`,
+            status: 'pending'
+        };
+
+        await sender(
+            emailDetails.recipientEmail,
+            emailDetails.name,
+            emailDetails.body,
+            emailDetails.subject,
+            emailDetails.status
+        );
+
         return c.json<ApiResponse>({
             success: true,
             message: 'Leave request updated successfully'
@@ -509,7 +504,7 @@ app.put('/:id/approve', async (c: Context): Promise<Response> => {
             SELECT lr.*, u.firstName, u.lastName, u.email 
             FROM leave_requests lr
             LEFT JOIN users u ON lr.uid = u.id
-            WHERE lr.id = ? AND lr.status = "Pending"
+            WHERE lr.id = ? AND lr.status = "pending"
         `, [leaveId]);
 
         if (!existingLeave || existingLeave.length === 0) {
@@ -520,7 +515,7 @@ app.put('/:id/approve', async (c: Context): Promise<Response> => {
         }
 
         const leaveRequest = existingLeave[0] as LeaveRequestWithUser;
-        const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
+        const newStatus = action === 'approve' ? 'approved' : 'rejected';
         const processedAt = new Date().toISOString();
 
         // Start transaction
@@ -538,9 +533,27 @@ app.put('/:id/approve', async (c: Context): Promise<Response> => {
             await connection.query<mysql.ResultSetHeader>(`
                 INSERT INTO leave_action_log (leave_id, manager_id, action, previous_status, new_status, timestamp)
                 VALUES (?, ?, ?, ?, ?, NOW())
-            `, [leaveId, managerId, action, 'Pending', newStatus]);
+            `, [leaveId, managerId, action, 'pending', newStatus]);
 
             await connection.commit();
+
+            // Send email notification
+            const emailDetails: EmailNotificationDetails = {
+                recipientEmail: leaveRequest.email,
+                name: `${leaveRequest.firstName} ${leaveRequest.lastName}`,
+                body: `Your leave request for <strong>${leaveRequest.leave_type}</strong> from ${formatDate(leaveRequest.start_date)} to ${formatDate(leaveRequest.end_date)} has been <strong>${newStatus}</strong>. 
+                <br><br>
+                Feedback: ${feedback}`,
+                subject: `Leave Request ${newStatus} - ${leaveRequest.leave_type}`,
+                status: newStatus.toLowerCase() as 'approved' | 'rejected'
+            };
+            await sender(
+                emailDetails.recipientEmail,
+                emailDetails.name,
+                emailDetails.body,
+                emailDetails.subject,
+                emailDetails.status
+            );
 
             return c.json<ApiResponse>({
                 success: true,
@@ -621,8 +634,8 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
         // - Approved/Rejected requests from last 30 days
         const statusFilter = `
             (
-                (lr.status = 'Pending' AND YEAR(lr.start_date) = ?) OR
-                ((lr.status = 'Approved' OR lr.status = 'Rejected') AND lr.start_date >= ?)
+                (lr.status = 'pending' AND YEAR(lr.start_date) = ?) OR
+                ((lr.status = 'approved' OR lr.status = 'rejected') AND lr.start_date >= ?)
             )
         `;
         conditions.push(statusFilter);
@@ -649,7 +662,7 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
             LEFT JOIN users m ON lr.approved_by = m.id
             ${whereClause}
             ORDER BY 
-                CASE lr.status WHEN 'Pending' THEN 1 WHEN 'Approved' THEN 2 WHEN 'Rejected' THEN 3 ELSE 4 END,
+                CASE lr.status WHEN 'pending' THEN 1 WHEN 'approved' THEN 2 WHEN 'rejected' THEN 3 ELSE 4 END,
                 lr.createdAt DESC
             LIMIT ? OFFSET ?
         `, [...params, limit, offset]);
@@ -771,50 +784,6 @@ app.post('/leave-calculation', async (c: Context): Promise<Response> => {
         }, 500);
     }
 });
-
-// GET /public-holidays/:year - Get public holidays
-// app.get('/public-holidays/:year', async (c: Context): Promise<Response> => {
-//     try {
-//         const year = parseInt(c.req.param('year'));
-
-//         if (isNaN(year) || year < 2020 || year > 2030) {
-//             return c.json<ApiResponse>({
-//                 success: false,
-//                 message: 'Invalid year. Please provide a year between 2020 and 2030'
-//             }, 400);
-//         }
-
-//         const holidays = getSouthAfricanPublicHolidays(year);
-//         const holidayNames = [
-//             "New Year's Day", "Human Rights Day", "Good Friday", "Family Day",
-//             "Freedom Day", "Workers' Day", "Youth Day", "National Women's Day",
-//             "Heritage Day", "Day of Reconciliation", "Christmas Day", "Day of Goodwill"
-//         ];
-
-//         const holidaysWithNames: PublicHoliday[] = holidays.map((holiday, index) => ({
-//             date: holiday.toISOString().split('T')[0],
-//             name: holidayNames[index] || 'Public Holiday',
-//             dayOfWeek: holiday.toLocaleDateString('en-US', { weekday: 'long' })
-//         })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-//         return c.json<ApiResponse<{ year: number; holidays: PublicHoliday[]; total: number }>>({
-//             success: true,
-//             message: `Public holidays for ${year}`,
-//             data: {
-//                 year: year,
-//                 holidays: holidaysWithNames,
-//                 total: holidaysWithNames.length
-//             }
-//         }, 200);
-
-//     } catch (error) {
-//         console.error('Get public holidays error:', error);
-//         return c.json<ApiResponse>({
-//             success: false,
-//             message: 'Failed to retrieve public holidays'
-//         }, 500);
-//     }
-// });
 
 // POST /leave/:id/upload-document - Upload document
 app.post('/leave/:id/upload-document', async (c: Context): Promise<Response> => {
@@ -969,7 +938,7 @@ app.delete('/leave/:id', async (c: Context): Promise<Response> => {
         const leave = existingLeave[0] as LeaveRequest;
 
         // Check if leave can be deleted (only Pending leaves)
-        if (leave.status !== 'Pending') {
+        if (leave.status !== 'pending') {
             return c.json<ApiResponse>({
                 success: false,
                 message: 'Cannot delete leave request that is not Pending'
@@ -1060,7 +1029,7 @@ app.get('/leave-calendar', async (c: Context): Promise<Response> => {
             LEFT JOIN users m ON lr.approved_by = m.id
             WHERE lr.start_date <= ? 
               AND lr.end_date >= ? 
-              AND lr.status = "Approved"
+              AND lr.status = "approved"
             ORDER BY lr.start_date ASC
         `, [queryParams.end_date, queryParams.start_date]);
 
@@ -1111,6 +1080,7 @@ app.get('/leave-calendar', async (c: Context): Promise<Response> => {
         if (connection) await connection.end();
     }
 });
+
 // GET /leave-balance - Get leave balance (placeholder)
 app.get('/leave-calendar', async (c: Context): Promise<Response> => {
     let connection: mysql.Connection | null = null;
@@ -1166,7 +1136,7 @@ app.get('/leave-calendar', async (c: Context): Promise<Response> => {
             LEFT JOIN users m ON lr.approved_by = m.id
             WHERE lr.start_date <= ? 
               AND lr.end_date >= ? 
-              AND lr.status = "Approved"
+              AND lr.status = "approved"
             ORDER BY lr.start_date ASC
         `, [queryParams.end_date, queryParams.start_date]);
 
@@ -1232,9 +1202,9 @@ app.get('/leave-stats/personal', async (c: Context): Promise<Response> => {
 
         const [totalUsed] = await connection.query<mysql.RowDataPacket[]>(`
             SELECT 
-                SUM(CASE WHEN status = 'Approved' THEN CAST(duration AS DECIMAL(5,1)) ELSE 0 END) as total_approved_days,
-                COUNT(CASE WHEN status = 'Pending' THEN 1 END) as pending_requests,
-                COUNT(CASE WHEN status = 'Rejected' THEN 1 END) as rejected_requests
+                SUM(CASE WHEN status = 'approved' THEN CAST(duration AS DECIMAL(5,1)) ELSE 0 END) as total_approved_days,
+                COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_requests,
+                COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_requests
             FROM leave_requests 
             WHERE uid = ? AND YEAR(start_date) = ?
         `, [uid, year]);
@@ -1279,9 +1249,9 @@ app.get('/leave-types', async (c: Context): Promise<Response> => {
 
         const [leaveTypes] = await connection.query<mysql.RowDataPacket[]>(`
             SELECT leave_type, COUNT(*) as total_requests,
-                   SUM(CASE WHEN status = 'Approved' THEN 1 ELSE 0 END) as approved_count,
-                   SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) as pending_count,
-                   SUM(CASE WHEN status = 'Rejected' THEN 1 ELSE 0 END) as rejected_count
+                   SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_count,
+                   SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+                   SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_count
             FROM leave_requests 
             WHERE YEAR(start_date) = YEAR(CURDATE())
             GROUP BY leave_type

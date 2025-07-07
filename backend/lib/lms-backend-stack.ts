@@ -418,6 +418,19 @@ export class LmsBackendStack extends cdk.Stack {
             }),
           ],
         }),
+        // SES ses:SendEmail permissions
+        EmailAccess: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: [
+                'ses:SendEmail',
+                'ses:SendRawEmail',
+              ],
+              resources: ['*'], //TODO: SES permissions can be broad, adjust as needed
+            }),
+          ],
+        }),
         CognitoAccess: new iam.PolicyDocument({
           statements: [
             new iam.PolicyStatement({

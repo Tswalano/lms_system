@@ -18,9 +18,9 @@ app.use(
     cors({
         origin: [
             'http://localhost:5173',
-            'https://7es7o4tcqc.execute-api.af-south-1.amazonaws.com',
-            'https://main.d10e0bk85semh2.amplifyapp.com',
-            'https://glenify.studio'
+            'https://lms.disraptor-internal.net',
+            'https://d2ao36j4lo1t1d.cloudfront.net',
+            'http://disraptor-website.s3-website-eu-west-1.amazonaws.com/'
         ],
         allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Cookie'],
@@ -84,19 +84,6 @@ app.notFound((c) => {
         404
     );
 });
-
-// Read the HTML file content when the Lambda function is initialized
-// This makes the content available to your handler without re-reading it on every invocation.
-const htmlTemplatePath = path.join(__dirname, 'template.html');
-let htmlContent: string;
-try {
-    htmlContent = fs.readFileSync(htmlTemplatePath, 'utf8');
-    console.log('template.html loaded successfully for Lambda bundling.');
-} catch (error) {
-    console.error('Failed to load template.html during Lambda initialization:', error);
-    // Provide a fallback or re-throw if the file is critical
-    htmlContent = '<h1>Error: HTML template not found!</h1>';
-}
 
 // Export the handler for AWS Lambda
 export const handler = handle(app);

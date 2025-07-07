@@ -317,8 +317,8 @@ const ApproveLeave = () => {
     }, [requests])
 
 
-    const pendingRequests = requests.filter(req => req.status === 'pending');
-    const processedRequests = requests.filter(req => req.status !== 'pending');
+    const pendingRequests = requests.filter(req => req.status.toLocaleLowerCase() === 'pending');
+    const processedRequests = requests.filter(req => req.status.toLocaleLowerCase() !== 'pending');
 
     if (!token) {
         return (
