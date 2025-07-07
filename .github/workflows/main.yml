@@ -1,17 +1,28 @@
 name: LMS Full Deployment
 
 on:
-  push:
-    branches:
-      - "main"
-    paths:
-      - 'frontend/**'
-      - 'backend/**' 
-      - 'package.json'
-      - 'package-lock.json'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'beta'
+        type: choice
+        options:
+          - beta
+          - prod
+      action:
+        description: 'Deploy or Destroy'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - destroy
 
 jobs:
-  frontend:
+  frontend-deploy:
+    if: ${{ github.event.inputs.action == 'deploy' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -28,43 +39,60 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-      - run: aws s3 sync build/ s3://${{ secrets.AWS_S3_BUCKET }} --acl public-read --delete
+      - run: |
+          BUCKET=${{ secrets.AWS_S3_BUCKET }}
+          ENV=${{ github.event.inputs.environment }}
+          aws s3 sync build/ s3://$BUCKET/$ENV --acl public-read --delete
 
   backend:
-    needs: frontend
+    needs: frontend-deploy
+    if: ${{ github.event.inputs.action == 'deploy' }}
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./backend
     steps:
       - uses: actions/checkout@v3
-      
-      # Copy template.html from frontend to lambda directory
       - name: Prepare Lambda assets
         run: |
           mkdir -p lambda/email
           cp ../frontend/public/index.html lambda/template.html
           cp ../frontend/public/index.html lambda/email/template.html
-          
       - uses: actions/setup-node@v3
         with:
           node-version: '18.x'
-          
       - run: npm ci
-      
       - run: npm run build
-      
       - uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-          
       - name: CDK Bootstrap
         run: npx cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/${{ secrets.AWS_REGION }}
-        
       - name: CDK Deploy
-        run: npx cdk deploy --require-approval never
+        run: npx cdk deploy --require-approval never --context env=${{ github.event.inputs.environment }}
         env:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+
+  backend-destroy:
+    if: ${{ github.event.inputs.action == 'destroy' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: CDK Destroy
+        run: npx cdk destroy --force --context env=${{ github.event.inputs.environment }}
+        env:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
