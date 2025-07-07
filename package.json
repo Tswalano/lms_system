@@ -1,63 +1,7 @@
 {
-  "name": "employee-management-system",
-  "version": "0.1.0",
-  "private": true,
-  "dependencies": {
-    "@emotion/react": "^11.11.1",
-    "@emotion/styled": "^11.11.0",
-    "@fullcalendar/core": "^6.1.15",
-    "@fullcalendar/daygrid": "^6.1.15",
-    "@fullcalendar/react": "^6.1.15",
-    "@hookform/resolvers": "^3.6.0",
-    "@mui/icons-material": "^5.15.21",
-    "@mui/lab": "^5.0.0-alpha.148",
-    "@mui/material": "^5.13.5",
-    "@mui/x-date-pickers": "^6.20.2",
-    "@tanstack/react-query": "^5.45.1",
-    "@tanstack/react-query-devtools": "^5.45.1",
-    "@testing-library/jest-dom": "^5.16.5",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "axios": "^1.7.9",
-    "dayjs": "^1.11.11",
-    "framer-motion": "^12.0.6",
-    "jwt-decode": "^3.1.2",
-    "react": "^18.2.0",
-    "react-cookie": "^7.1.4",
-    "react-dom": "^18.2.0",
-    "react-hook-form": "^7.52.0",
-    "react-icons": "^5.2.1",
-    "react-router-dom": "^6.23.1",
-    "react-scripts": "^5.0.1",
-    "react-toastify": "^10.0.5",
-    "web-vitals": "^2.1.4",
-    "zod": "^3.23.8"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
+    "private": true,
+    "workspaces": [
+        "backend",
+        "frontend"
     ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "devDependencies": {
-    "@tanstack/eslint-plugin-query": "^5.43.1"
-  }
 }
