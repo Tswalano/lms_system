@@ -50,7 +50,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
     return <Navigate to="/permission-denied" replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <>{children}</>
+  )
 };
 
 // Public Route Component (redirects to dashboard if already authenticated)

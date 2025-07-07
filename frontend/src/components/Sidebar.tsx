@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, FileText, Clock, LogOut, Users, CheckCircle, Moon, Sun, History } from "lucide-react";
+import { Home, FileText, Clock, LogOut, UserSearch, CheckCircle, Moon, Sun, History, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -16,7 +16,7 @@ const Sidebar = () => {
         { id: "dashboard", label: "Dashboard", icon: Home, path: "/" },
         { id: "apply", label: "Apply For Leave", icon: FileText, path: "/apply-leave" },
         { id: "history", label: "My Leave History", icon: Clock, path: "/leave-history" },
-        { id: "team", label: "Team Availability", icon: Users, path: "/team-availability" },
+        { id: "team", label: "Team Availability", icon: UserSearch, path: "/team-availability" },
     ];
 
     const adminMenuItems = [
@@ -42,11 +42,13 @@ const Sidebar = () => {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         {/* Replaced text logo with an image */}
-                        <img
-                            src='https://disraptor.co.za/wp-content/uploads/2023/05/AWS_Disraptor_Brand-Guidelines_V_031-1.svg' // Use .src if you're importing an image module
-                            alt="Disruptor Logo"
-                            className="h-14 w-auto" // Adjust height and width as needed
-                        />
+                        <Link to="/" className="flex items-center gap-2">
+                            <img
+                                src='https://disraptor.co.za/wp-content/uploads/2023/05/AWS_Disraptor_Brand-Guidelines_V_031-1.svg' // Use .src if you're importing an image module
+                                alt="Disruptor Logo"
+                                className="h-14 w-auto" // Adjust height and width as needed
+                            />
+                        </Link>
                         {/* <span className="font-bold text-gray-800 dark:text-gray-200 text-lg">Disruptor</span> */}
                     </div>
                     <Button
@@ -65,21 +67,20 @@ const Sidebar = () => {
             </div>
 
             <div className="p-4">
-
                 <Link
                     to="/profile"
                     className={cn(
                         "flex items-center gap-3 mb-6 p-3 rounded-xl border transition-all duration-200 group cursor-pointer",
                         isActive('/profile')
-                            ? "bg-gradient-to-r from-blue-500 to-blue-600 border-blue-600 shadow-lg shadow-blue-500/25"
-                            : "bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800 hover:from-blue-100 hover:to-blue-150 dark:hover:from-blue-900/30 dark:hover:to-blue-800/30"
+                            ? "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 border-green-500 shadow-lg shadow-cyan-500/25"
+                            : "bg-gradient-to-r from-blue-50 via-cyan-50 to-green-50 dark:from-blue-900/20 dark:via-cyan-900/20 dark:to-green-900/20 border-cyan-200 dark:border-cyan-800 hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30"
                     )}
                 >
                     <div className={cn(
                         "w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0",
                         isActive('/profile')
                             ? "bg-white/20 text-white"
-                            : "bg-gradient-to-br from-blue-500 to-blue-600 text-white"
+                            : "bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 text-white"
                     )}>
                         <span className="font-semibold text-sm">
                             {getInitials(user?.firstName, user?.lastName)}
@@ -90,7 +91,7 @@ const Sidebar = () => {
                             "font-semibold",
                             isActive('/profile')
                                 ? "text-white"
-                                : "text-gray-800 dark:text-gray-200 group-hover:text-blue-700 dark:group-hover:text-blue-300"
+                                : "bg-gradient-to-r from-blue-700 via-cyan-600 to-green-600 dark:from-blue-300 dark:via-cyan-300 dark:to-green-300 bg-clip-text text-transparent group-hover:from-blue-800 group-hover:via-cyan-700 group-hover:to-green-700 dark:group-hover:from-blue-200 dark:group-hover:via-cyan-200 dark:group-hover:to-green-200"
                         )}>
                             {`${user?.firstName} ${user?.lastName}`}
                         </p>
@@ -98,7 +99,7 @@ const Sidebar = () => {
                             "text-sm truncate",
                             isActive('/profile')
                                 ? "text-white/80"
-                                : "text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400"
+                                : "text-gray-500 dark:text-gray-400 group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-green-600 dark:group-hover:from-cyan-400 dark:group-hover:to-green-400 group-hover:bg-clip-text group-hover:text-transparent"
                         )}>
                             {user?.jobTitle}
                         </p>

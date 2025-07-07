@@ -1,7 +1,6 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Heart, Umbrella, Baby, Users, type LucideIcon } from "lucide-react";
-import { useEffect } from "react";
 
 export interface LeaveType {
     title: string;
@@ -13,11 +12,6 @@ export interface LeaveType {
 
 const LeaveBalanceCards = () => {
     const { user } = useAuth();
-
-
-    useEffect(() => {
-        console.log(user)
-    }, [user])
 
 
     // Leave type configuration with icons and styling

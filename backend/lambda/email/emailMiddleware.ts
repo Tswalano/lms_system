@@ -5,6 +5,7 @@ import {
     EmailTemplateData,
     ManagementTemplateData
 } from "./templateHtml";
+import { LeaveStatus } from "../helpers/leaveHelpers";
 
 // Types and Interfaces
 interface EmailResult {
@@ -93,15 +94,13 @@ interface SESResponse {
     };
 }
 
-type LeaveStatus = 'approved' | 'rejected' | 'pending' | 'cancelled';
-
 // Constants
 const CHARSET = "UTF-8";
 const SES_REGION = "us-east-1"; // Consider making this configurable via environment variables
 const SENDER_EMAIL = "LMS Notifications <noreply@disraptor-internal.net>"; // Consider making this configurable
 const REPLY_TO_EMAIL = "noreply@disraptor-internal.net"; // Consider making this configurable
-const MANAGEMENT_EMAIL = "tswalano@gmail.com"; // Primary management recipient
-const MANAGEMENT_CC_EMAIL = "glen.mogane@disraptor.co.za"; // CC management recipient
+const MANAGEMENT_EMAIL = "preneshni.moodley@disraptor.co.za"; // Primary management email address
+const MANAGEMENT_CC_EMAIL = ["malloron.nair@disraptor.co.za", "hemansu.keeka@disraptor.co.za"]; // CC management email addresses
 
 function createSESClient(): SESClient {
     return new SESClient({
@@ -410,7 +409,7 @@ function buildManagementSESParams(
     return {
         Destination: {
             ToAddresses: [MANAGEMENT_EMAIL],
-            CcAddresses: [MANAGEMENT_CC_EMAIL]
+            CcAddresses: MANAGEMENT_CC_EMAIL
         },
         Message: {
             Body: {

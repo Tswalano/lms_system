@@ -25,15 +25,12 @@ const Login: React.FC = (): JSX.Element => {
         try {
             const result = await login(username, password);
 
-            console.log("Login result:", result);
 
             if (result?.success) {
-                console.log("Login successful!");
                 return;
             }
 
             if (result?.challengeName === 'NEW_PASSWORD_REQUIRED') {
-                console.log("Password change required", result);
                 navigate("/change-password", {
                     state: {
                         forcedChange: true,

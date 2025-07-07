@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Calendar, ArrowLeft, Loader2, AlertCircle, Clock, CheckCircle, XCircle, Search, Mail, Briefcase } from "lucide-react";
+import { Users, Calendar, ArrowLeft, Loader2, AlertCircle, Clock, CheckCircle, XCircle, Search, Mail, Briefcase, History } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
@@ -378,11 +378,16 @@ const TeamListLeaveHistory = () => {
                             <div className="mb-6 lg:mb-8">
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                                            <Users className="w-6 h-6 text-white" />
+                                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                                            <History className="w-5 h-5 text-white" />
                                         </div>
-                                        <div>
+                                        {/* <div>
                                             <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-gray-200">Team Directory</h1>
+                                            <p className="text-gray-600 dark:text-gray-400">Manage team members and view leave history</p>
+                                        </div> */}
+
+                                        <div>
+                                            <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Team Directory</h1>
                                             <p className="text-gray-600 dark:text-gray-400">Manage team members and view leave history</p>
                                         </div>
                                     </div>

@@ -152,8 +152,6 @@ app.post('/login', async (c) => {
         // Authenticate with Cognito
         const authResult = await initiateAuth({ username, password });
 
-        console.log("Authentication result:", authResult);
-
         if (!authResult.success) {
             return c.json(authResult.data, authResult.statusCode as any);
         }

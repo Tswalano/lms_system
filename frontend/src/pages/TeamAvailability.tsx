@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Filter, Search, RefreshCw, AlertCircle, Loader2, Users, UserCheck, UserX, Calendar } from "lucide-react";
+import { Filter, Search, RefreshCw, AlertCircle, Loader2, Users, UserCheck, UserX, Calendar, UserSearch } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
@@ -87,7 +87,6 @@ const TeamAvailability = () => {
             throw new Error(result.message || 'Failed to fetch team availability');
         }
 
-        console.log("Team availability data:", result);
         return result.payload;
     };
 
@@ -227,8 +226,8 @@ const TeamAvailability = () => {
                             <div className="mb-8">
                                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                                            <Users className="w-5 h-5 text-white" />
+                                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                                            <UserSearch className="w-5 h-5 text-white" />
                                         </div>
                                         <div>
                                             <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Team Availability</h1>

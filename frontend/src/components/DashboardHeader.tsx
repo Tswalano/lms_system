@@ -27,19 +27,38 @@ const DashboardHeader = () => {
     };
 
     return (
-        <div className="bg-white dark:bg-slate-800 border-b border-gray-100 dark:border-slate-700 px-8 py-6">
-            <div className="flex flex-col items-center justify-center text-center space-y-4">
-                {/* Main Greeting */}
-                <div>
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-3xl">{getTimeEmoji()}</span>
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">
-                            {getGreeting()}, <span className="text-blue-600 dark:text-blue-400">{`${user?.firstName} ${user?.lastName}`}</span>
-                        </h1>
+        <div className="relative px-8 pt-16 overflow-hidden">
+            {/* Content Container */}
+            <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-6">
+                {/* Main Greeting Card */}
+                <div className="backdrop-blur-sm max-w-2xl mx-auto transform hover:scale-105 transition-all duration-300">
+                    {/* Emoji and Time Section */}
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                        <div className="text-5xl animate-bounce" style={{ animationDuration: '2s' }}>
+                            {getTimeEmoji()}
+                        </div>
+                        <div className="h-8 w-px bg-gradient-to-b from-transparent via-blue-300 dark:via-blue-500 to-transparent"></div>
+                        <div className="text-lg font-medium text-gray-700 dark:text-gray-200 bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/60 dark:to-green-900/60 px-4 py-2 rounded-full backdrop-blur-sm border border-blue-200/30 dark:border-blue-700/30">
+                            {currentTime}
+                        </div>
                     </div>
-                    <p className="text-lg text-gray-500 dark:text-gray-400 mb-1">{currentTime}</p>
+
+                    {/* Main Greeting Text - Disraptor Brand Gradient */}
+                    <div className="space-y-3">
+                        <div className="text-3xl md:text-4xl font-bold">
+                            <span className="bg-gradient-to-r from-blue-600 via-cyan-500 to-green-500 dark:from-blue-400 dark:via-cyan-400 dark:to-green-400 bg-clip-text text-transparent" style={{ animationDuration: '3s' }}>
+                                {getGreeting()}, {`${user?.firstName} ${user?.lastName}`}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Subtitle with Brand Accent */}
+                    <p className="text-lg text-gray-600 dark:text-gray-300 mt-4 font-medium">
+                        Welcome back to your dashboard
+                    </p>
                 </div>
             </div>
+
         </div>
     );
 };

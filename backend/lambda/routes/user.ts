@@ -75,7 +75,6 @@ class ResponseService {
 // User service
 class UserService {
     static mapUserAttributes(user: any): UserAttributes {
-        console.log("mapUserAttributes", user);
 
         const getAttributeValue = (attrName: string) =>
             user.UserAttributes?.find((attr: any) => attr.Name === attrName)?.Value;
@@ -255,8 +254,6 @@ app.get('/me/full', async (c) => {
 app.get('/', async (c) => {
     try {
         const users = await UserService.getAllUsers();
-
-        console.log("GET_USERS:", users);
 
         const response = ResponseService.success(
             "Users retrieved successfully",
@@ -471,8 +468,7 @@ app.post('/add-user', async (c) => {
         }
 
         // take first name and alst name and conver to email e.g John Doe -> john.doe
-        // const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@gmail.com`;
-        const email = `moganegb@gmail.com`;
+        const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@disraptor.co.za`;
         const role = isAdmin ? 'admin' : 'user';
 
         const connection = await DatabaseService.createConnection();
@@ -534,7 +530,6 @@ app.post('/add-user', async (c) => {
                 });
 
                 cognitoUser = await client.send(createUserCommand);
-                console.log('Cognito user created:', cognitoUser);
 
             } catch (cognitoError: any) {
                 console.error('Cognito user creation failed:', cognitoError);
@@ -607,9 +602,12 @@ app.post('/add-user', async (c) => {
     }
 });
 
-app.post('/add-user', async (c) => {
+// POST: /me/update
+// Update current user attributes
+app.post('/me/update', async (c) => {
     try {
-        const { firstName, lastName, jobTitle, isAdmin } = await c.req.json();
+        const userAttributes = UserService.createUserAttributesFromToken(c);
+        const { firstName, lastName, jobTitle, dob, gender, phoneNumber } = await c.req.json();
 
         // Validate required fields
         if (!firstName || !lastName || !jobTitle) {
@@ -620,171 +618,100 @@ app.post('/add-user', async (c) => {
             return c.json(response, 400);
         }
 
-        const email = `moganegb@gmail.com`; // You might want to make this dynamic
-        const role = isAdmin ? 'admin' : 'user';
-
         const connection = await DatabaseService.createConnection();
 
         try {
-            // Check if user already exists in database
-            const checkSql = `SELECT * FROM users WHERE email = ?`;
-            const [existingRows] = await connection.execute(checkSql, [email]);
-
-            if ((existingRows as any[]).length > 0) {
-                const response = ResponseService.error(
-                    "USER_EXISTS",
-                    "A user with this email already exists"
-                );
-                return c.json(response, 409);
-            }
-
-            // Generate a new UUID for each attempt
-            const uuid = randomUUID();
-
-            const requiredAttributes = {
-                firstName,
-                lastName,
-                email,
-                role,
-                userId: uuid
-            };
-
-            // Validate required attributes
-            for (const [key, value] of Object.entries(requiredAttributes)) {
-                if (!value) {
-                    const response = ResponseService.error(
-                        "MISSING_REQUIRED_FIELD",
-                        `Missing required field: ${key}`
-                    );
-                    return c.json(response, 400);
-                }
-            }
-
-            // Create user in Cognito first
-            let cognitoUser;
-            try {
-                const createUserCommand = new AdminCreateUserCommand({
-                    UserPoolId: USER_POOL_ID,
-                    Username: email,
-                    UserAttributes: [
-                        { Name: 'email', Value: email },
-                        { Name: 'email_verified', Value: 'true' },
-                        { Name: 'given_name', Value: firstName },
-                        { Name: 'family_name', Value: lastName },
-                        { Name: 'custom:role', Value: role },
-                        { Name: 'custom:occupation', Value: jobTitle },
-                        { Name: 'custom:userId', Value: uuid }
-                    ],
-                    TemporaryPassword: generateTemporaryPassword(),
-                    DesiredDeliveryMediums: ['EMAIL']
-                });
-
-                cognitoUser = await client.send(createUserCommand);
-                console.log('Cognito user created:', cognitoUser);
-
-            } catch (cognitoError: any) {
-                console.error('Cognito user creation failed:', cognitoError);
-
-                if (cognitoError.name === 'UsernameExistsException') {
-                    const response = ResponseService.error(
-                        "USER_EXISTS_COGNITO",
-                        "A user with this email already exists in Cognito"
-                    );
-                    return c.json(response, 409);
-                }
-
-                const response = ResponseService.error(
-                    "COGNITO_ERROR",
-                    "Failed to create user in Cognito",
-                    cognitoError.message
-                );
-                return c.json(response, 500);
-            }
-
-            // Only proceed to database insertion if Cognito creation succeeded
-            const insertSql = `
-                INSERT INTO users (id, email, firstName, lastName, role, jobTitle, phoneNumber, dob, gender, createdAt, updatedAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+            const updateSql = `
+                UPDATE users
+                SET firstName = ?, lastName = ?, jobTitle = ?, phoneNumber = ?, dob = ?, gender = ?
+                WHERE id = ? AND email = ?
             `;
 
-            await connection.execute(insertSql, [
-                uuid,
-                email,
+            await connection.execute(updateSql, [
                 firstName,
                 lastName,
-                role,
                 jobTitle,
-                '+27000000000',
-                '0000-01-01',
-                '-'
+                phoneNumber,
+                dob,
+                gender,
+                userAttributes.userId,
+                userAttributes.email
             ]);
 
             const response = ResponseService.success(
-                "User created successfully. Welcome email sent with temporary password.",
-                {
-                    cognitoUsername: cognitoUser.User?.Username,
-                    userStatus: cognitoUser.User?.UserStatus
-                }
+                "User updated successfully",
+                { firstName, lastName, jobTitle }
             );
             return c.json(response, 200);
 
         } finally {
             await connection.end();
         }
+
     } catch (error) {
-        console.error('Add user error:', error);
+        console.error('Update user error:', error);
         const response = ResponseService.error(
             "INTERNAL_SERVER_ERROR",
             "Internal server error",
-            error instanceof Error ? error.message : "Unknown error"
+            error
         );
         return c.json(response, 500);
     }
 });
 
-// app.get('/:userId', async (c) => {
-//     try {
-//         const userId = c.req.param('userId');
+// POST: /users/update-user
+// This endpoint is for admin to update any user attributes
+app.post('/update-user', async (c) => {
+    try {
+        const { id, firstName, lastName, jobTitle, phoneNumber, dob, gender } = await c.req.json();
 
-//         // Validate input
-//         const validation = getUserByIdSchema.safeParse({ userId });
-//         if (!validation.success) {
-//             const response = ResponseService.error(
-//                 "INVALID_INPUT",
-//                 "Invalid input data",
-//                 validation.error.errors
-//             );
-//             return c.json(response, 400);
-//         }
+        // Validate required fields
+        if (!id || !firstName || !lastName || !jobTitle) {
+            const response = ResponseService.error(
+                "INVALID_INPUT",
+                "id, jobTitle, firstName, lastName are required"
+            );
+            return c.json(response, 400);
+        }
 
-//         const { userId: validatedUserId } = validation.data;
-//         const user = await UserService.getUserById(validatedUserId);
+        const connection = await DatabaseService.createConnection();
 
-//         if (!user) {
-//             const response = ResponseService.error(
-//                 "USER_NOT_FOUND",
-//                 "User not found"
-//             );
-//             return c.json(response, 404);
-//         }
+        try {
+            const updateSql = `
+                UPDATE users
+                SET firstName = ?, lastName = ?, jobTitle = ?, phoneNumber = ?, dob = ?, gender = ?
+                WHERE id = ?
+            `;
 
-//         console.log("GET_USER_BY_ID:", user);
+            await connection.execute(updateSql, [
+                firstName,
+                lastName,
+                jobTitle,
+                phoneNumber,
+                dob,
+                gender,
+                id
+            ]);
 
-//         const response = ResponseService.success(
-//             "User retrieved successfully",
-//             user
-//         );
-//         return c.json(response, 200);
+            const response = ResponseService.success(
+                "User updated successfully",
+                { firstName, lastName, jobTitle }
+            );
+            return c.json(response, 200);
 
-//     } catch (error) {
-//         console.error("Error getting user by ID:", error);
-//         const response = ResponseService.error(
-//             "INTERNAL_SERVER_ERROR",
-//             "Internal server error",
-//             error
-//         );
-//         return c.json(response, 500);
-//     }
-// });
+        } finally {
+            await connection.end();
+        }
+
+    } catch (error) {
+        console.error('Update user error:', error);
+        const response = ResponseService.error(
+            "INTERNAL_SERVER_ERROR",
+            "Internal server error",
+            error
+        );
+        return c.json(response, 500);
+    }
+});
 
 export { app as users };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Lock, Edit2, Save, X, Eye, EyeOff, Camera, Loader2, Calendar, Users2 } from 'lucide-react';
+import { User, Mail, Phone, Lock, Edit2, Save, X, Eye, EyeOff, Camera, Loader2, Calendar, Users2, Info } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { Button } from '@/components/ui/button';
@@ -143,8 +143,8 @@ const UserProfile: React.FC = () => {
         try {
             setIsSaving(true);
 
-            const response = await authFetch('/users/update-user', {
-                method: 'PUT',
+            const response = await authFetch('/users/me/update', {
+                method: 'POST',
                 body: JSON.stringify({ ...profileData, id: userData?.id })
             });
 
@@ -283,7 +283,7 @@ const UserProfile: React.FC = () => {
                     <div className="flex-1 ml-64">
                         <DashboardHeader />
                         <main className="p-8">
-                            <div className="px-16 max-w-4xl mx-auto">
+                            <div className="px-16 max-w-6xl mx-auto">
                                 <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12">
                                     <div className="text-center">
                                         <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
@@ -307,7 +307,7 @@ const UserProfile: React.FC = () => {
                         <DashboardHeader />
                         <main className="p-8">
 
-                            <div className="px-16 max-w-4xl mx-auto">
+                            <div className="px-16 max-w-6xl mx-auto">
                                 <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12 text-center">
                                     <p className="text-gray-600 dark:text-gray-400">Failed to load profile data.</p>
                                     <Button onClick={fetchUserData} className="mt-4">
@@ -329,7 +329,7 @@ const UserProfile: React.FC = () => {
                 <div className="flex-1 ml-64">
                     <DashboardHeader />
                     <main className="p-8">
-                        <div className="px-16 max-w-4xl mx-auto">
+                        <div className="px-16 max-w-6xl mx-auto">
                             {/* Header */}
                             <div className="flex items-center justify-between">
                                 <div className="mb-8 flex items-center gap-3">
@@ -480,18 +480,32 @@ const UserProfile: React.FC = () => {
                                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                                     <Mail className="w-4 h-4 inline mr-2" />
                                                     Email
+                                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                                        <Lock className="w-3 h-3 mr-1" />
+                                                        Read-only
+                                                    </span>
                                                 </label>
                                                 {isEditing ? (
-                                                    <input
-                                                        type="email"
-                                                        value={profileData.email}
-                                                        onChange={(e) => handleProfileChange('email', e.target.value)}
-                                                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                        disabled={isSaving}
-                                                    />
+                                                    <div className="relative">
+                                                        <input
+                                                            type="email"
+                                                            value={profileData.email}
+                                                            onChange={(e) => handleProfileChange('email', e.target.value)}
+                                                            className="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 cursor-not-allowed opacity-60 focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 focus:border-transparent"
+                                                            disabled
+                                                        />
+                                                    </div>
                                                 ) : (
-                                                    <p className="text-gray-900 dark:text-gray-100 py-2">{profileData.email}</p>
+                                                    <div className="relative">
+                                                        <p className="text-gray-600 dark:text-gray-300 py-2 px-3 bg-gray-50 dark:bg-slate-800 rounded-lg opacity-75">
+                                                            {profileData.email}
+                                                        </p>
+                                                    </div>
                                                 )}
+                                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                                    <Info className="w-3 h-3 mr-1" />
+                                                    Email address cannot be changed for security reasons
+                                                </p>
                                             </div>
 
                                             <div>
