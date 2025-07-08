@@ -177,11 +177,6 @@ const CalendarSection = () => {
             const startDate = new Date(request.start_date);
             const endDate = new Date(request.end_date);
 
-            // For multi-day events, add one day to end date to make it inclusive in calendar
-            if (request.duration > 1) {
-                endDate.setDate(endDate.getDate() + 1);
-            }
-
             return {
                 id: request.id,
                 title: `${request.leave_type} - ${fullName}`,

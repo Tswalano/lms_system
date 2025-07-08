@@ -16,7 +16,7 @@ temp/
 
 # === CDK (Backend) ===
 /backend/.env
-/backend/cdk.out/
+/backend/cdk.out/*
 /backend/node_modules/
 /backend/package-lock.json # optional if you want to ignore lockfile
 /backend/.jsii
@@ -49,3 +49,6 @@ yarn-error.log*
 .pnp.js
 .vscode/
 .idea/
+
+.cdk.staging
+cdk.out

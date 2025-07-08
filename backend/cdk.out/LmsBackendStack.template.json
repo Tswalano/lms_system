@@ -231,7 +231,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-143671530412-af-south-1",
-     "S3Key": "8d579e0d0ff27b169792811b4191d057c1117c96ec6e84a0c4a055cd476ee236.zip"
+     "S3Key": "91a100d34d19ea62609c4e0856afbb0613fecacb30467328ffff7070299a8a7b.zip"
     },
     "Description": "Lambda function for Leave Management System backend",
     "Environment": {
@@ -266,7 +266,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "LmsBackendStack/lms-backend-function/Resource",
-    "aws:asset:path": "asset.8d579e0d0ff27b169792811b4191d057c1117c96ec6e84a0c4a055cd476ee236",
+    "aws:asset:path": "asset.91a100d34d19ea62609c4e0856afbb0613fecacb30467328ffff7070299a8a7b",
     "aws:asset:is-bundled": true,
     "aws:asset:property": "Code"
    }
