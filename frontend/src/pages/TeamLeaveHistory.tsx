@@ -513,35 +513,30 @@ const TeamListLeaveHistory = () => {
                     <main className="p-4 lg:p-8">
                         <div className="px-16 mx-auto space-y-8">
                             <div className="mb-6 lg:mb-8">
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+                                <div className="flex flex-col sm:flex-row gap-4 mb-6 items-start sm:items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
                                             <History className="w-5 h-5 text-white" />
                                         </div>
-                                        {/* <div>
-                                            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-gray-200">Team Directory</h1>
-                                            <p className="text-gray-600 dark:text-gray-400">Manage team members and view leave history</p>
-                                        </div> */}
-
                                         <div>
                                             <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Team Directory</h1>
                                             <p className="text-gray-600 dark:text-gray-400">Manage team members and view leave history</p>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                                    <div className="relative w-full sm:w-96">
-                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                        <Input
-                                            placeholder="Search team members..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="pl-10 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-600 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
-                                        />
-                                    </div>
-                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                        {searchTerm ? `${filteredUsers.length} of ${users.length} members` : `${users.length} team members`}
+                                    <div className="flex flex-col items-end gap-4 w-full sm:w-auto">
+                                        <div className="relative w-full sm:w-96">
+                                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                            <Input
+                                                placeholder="Search team members..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="pl-10 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-600 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
+                                            />
+                                        </div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                            {searchTerm ? `${filteredUsers.length} of ${users.length} members` : `${users.length} team members`}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
