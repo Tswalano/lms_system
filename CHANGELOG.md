@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.13...v1.2.0) (2025-07-09)
+
+
+### Features
+
+* **ci:** CDK Faulure Fix ([366aad0](https://github.com/Disraptor-Devs/employee-management-system/commit/366aad0811e7460a4ac9981a29cc414880fb179c))
+
 ## [1.1.13](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.12...v1.1.13) (2025-07-09)
 
 
