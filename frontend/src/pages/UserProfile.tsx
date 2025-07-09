@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Lock, Edit2, Save, X, Eye, EyeOff, Camera, Loader2, Calendar, Users2, Info } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { User, Mail, Phone, Lock, Edit2, Save, X, Eye, EyeOff, Camera, Loader2, Calendar as CalendarIcon, Users2, Info } from 'lucide-react';
+import { Calendar } from "@/components/ui/calendar";
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { format } from "date-fns";
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover';
+import { cn } from '@/lib/utils';
 
 interface LeaveData {
     leave_type: string;
@@ -82,7 +87,7 @@ const UserProfile: React.FC = () => {
     });
 
     // Fetch user data
-    const fetchUserData = async (): Promise<void> => {
+    const fetchUserData = useCallback(async () => {
         try {
             setIsLoading(true);
             const response = await authFetch('/users/me', {
@@ -118,11 +123,11 @@ const UserProfile: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [authFetch]);
 
     useEffect(() => {
         fetchUserData();
-    }, []);
+    }, [fetchUserData]);
 
     const handleProfileChange = (field: keyof ProfileFormData, value: string): void => {
         setProfileData(prev => ({
@@ -333,7 +338,7 @@ const UserProfile: React.FC = () => {
                             {/* Header */}
                             <div className="flex items-center justify-between">
                                 <div className="mb-8 flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
                                         <User className="w-5 h-5 text-white" />
                                     </div>
                                     <div>
@@ -383,7 +388,7 @@ const UserProfile: React.FC = () => {
                                     {userData.leaveData && userData.leaveData.length > 0 && (
                                         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6">
                                             <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-                                                <Calendar className="w-5 h-5" />
+                                                <CalendarIcon className="w-5 h-5" />
                                                 Leave Balance
                                             </h4>
                                             <div className="space-y-3">
@@ -392,7 +397,7 @@ const UserProfile: React.FC = () => {
                                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                                             {leave.leave_type}
                                                         </span>
-                                                        <span className="font-bold text-blue-600 dark:text-blue-400">
+                                                        <span className="font-bold text-cyan-600 dark:text-cyan-400">
                                                             {leave.leave_count} days
                                                         </span>
                                                     </div>
@@ -413,6 +418,8 @@ const UserProfile: React.FC = () => {
                                                     <Button
                                                         onClick={cancelEdit}
                                                         variant="outline"
+                                                        className="flex items-center bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200"
+                                                        type="button"
                                                         size="sm"
                                                         disabled={isSaving}
                                                     >
@@ -509,10 +516,10 @@ const UserProfile: React.FC = () => {
                                             </div>
 
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                <Label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                                     <Phone className="w-4 h-4 inline mr-2" />
                                                     Phone Number
-                                                </label>
+                                                </Label>
                                                 {isEditing ? (
                                                     <input
                                                         type="tel"
@@ -526,34 +533,67 @@ const UserProfile: React.FC = () => {
                                                 )}
                                             </div>
 
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                    <Calendar className="w-4 h-4 inline mr-2" />
-                                                    Date of Birth
-                                                </label>
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                                        <CalendarIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                    </div>
+                                                    <span>Date of Birth</span>
+                                                </Label>
+
                                                 {isEditing ? (
-                                                    <input
-                                                        type="date"
-                                                        value={profileData.dob}
-                                                        onChange={(e) => handleProfileChange('dob', e.target.value)}
-                                                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                        disabled={isSaving}
-                                                    />
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Button
+                                                                variant={"outline"}
+                                                                className={cn(
+                                                                    "w-full justify-start text-left font-normal h-[40px] bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600",
+                                                                    !profileData.dob && "text-muted-foreground"
+                                                                )}
+                                                                disabled={isSaving}
+                                                            >
+                                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                                {profileData.dob ? format(new Date(profileData.dob), "PPP") : <span>Pick a date</span>}
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0" align="start">
+                                                            <Calendar
+                                                                mode="single"
+                                                                selected={profileData.dob ? new Date(profileData.dob) : undefined}
+                                                                onSelect={(date) => {
+                                                                    if (date) {
+                                                                        handleProfileChange('dob', date.toISOString().split('T')[0]);
+                                                                    }
+                                                                }}
+                                                                initialFocus
+                                                                disabled={(date) => date > new Date()}
+                                                                captionLayout="dropdown"
+                                                                fromYear={1900}
+                                                                toYear={new Date().getFullYear()}
+                                                                className="rounded-md border"
+                                                            />
+                                                        </PopoverContent>
+                                                    </Popover>
                                                 ) : (
-                                                    <p className="text-gray-900 dark:text-gray-100 py-2">{profileData.dob ? formatDate(profileData.dob) : 'Not provided'}</p>
+                                                    <p className="text-gray-900 dark:text-gray-100 py-2 px-3 h-[40px] flex items-center">
+                                                        {profileData.dob ? formatDate(profileData.dob) : 'Not provided'}
+                                                    </p>
                                                 )}
                                             </div>
 
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                    <Users2 className="w-4 h-4 inline mr-2" />
-                                                    Gender
-                                                </label>
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                                        <Users2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                    </div>
+                                                    <span>Gender</span>
+                                                </Label>
+
                                                 {isEditing ? (
                                                     <select
                                                         value={profileData.gender}
                                                         onChange={(e) => handleProfileChange('gender', e.target.value)}
-                                                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        className="w-full px-3 py-2 h-[40px] border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                         disabled={isSaving}
                                                     >
                                                         <option value="">Select Gender</option>
@@ -563,7 +603,9 @@ const UserProfile: React.FC = () => {
                                                         <option value="-">Prefer not to say</option>
                                                     </select>
                                                 ) : (
-                                                    <p className="text-gray-900 dark:text-gray-100 py-2">{profileData.gender === '-' ? 'Not specified' : profileData.gender}</p>
+                                                    <p className="text-gray-900 dark:text-gray-100 py-2 px-3 h-[40px] flex items-center">
+                                                        {profileData.gender === '-' ? 'Not specified' : profileData.gender}
+                                                    </p>
                                                 )}
                                             </div>
                                         </div>
@@ -686,7 +728,7 @@ const UserProfile: React.FC = () => {
                                                             });
                                                         }}
                                                         variant="outline"
-                                                        className="flex-1"
+                                                        className="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200"
                                                         disabled={isChangingPasswordLoading}
                                                     >
                                                         Cancel

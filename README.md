@@ -27,7 +27,7 @@ lms-application/
 - We use [semantic-release](https://semantic-release.gitbook.io/) for:
   - Automatic semantic versioning based on commit messages
   - Generating and updating a changelog (`CHANGELOG.md`)
-  - Publishing GitHub releases with notes
+  - Publishing GitHub releases with release notes
   - Tagging releases with version numbers (e.g., `v1.2.3`)
 
 - Releases trigger deployments automatically for `prod`.
@@ -37,18 +37,19 @@ lms-application/
 
 Use **Conventional Commits** style to control version bumps:
 
-| Commit Type     | Effect                       | Example Commit Message             |
-|-----------------|------------------------------|----------------------------------|
-| `feat:`         | Minor version bump            | `feat(frontend): add login modal` |
-| `fix:`          | Patch version bump            | `fix(backend): correct validation`|
-| `BREAKING CHANGE:` | Major version bump           | `feat: remove deprecated API\n\nBREAKING CHANGE: updated endpoint` |
-| `chore:`, `docs:`, `style:`, `refactor:` | No version bump              | `docs: update README`             |
+| Commit Type           | Effect                       | Example Commit Message                                         |
+|-----------------------|------------------------------|---------------------------------------------------------------|
+| `feat:`               | Minor version bump           | `feat(frontend): add login modal`                             |
+| `fix:`                | Patch version bump           | `fix(backend): correct validation`                           |
+| `BREAKING CHANGE:`    | **Major version bump**       | `feat: remove deprecated API\n\nBREAKING CHANGE: updated endpoint` |
+| `!` (exclamation mark after type) | **Major version bump**       | `feat!: overhaul auth flow`                                   |
+| `chore:`, `docs:`, `style:`, `refactor:` | No version bump             | `docs: update README`                                          |
 
 ### Triggering a Release
 
-- Simply push your commits to the `main` branch with proper commit messages.
-- The GitHub Actions workflow runs semantic-release which:
-  - Calculates next version
+- Push commits to the `main` branch with properly formatted commit messages.
+- GitHub Actions runs semantic-release which:
+  - Calculates the next version
   - Updates `CHANGELOG.md` and `package.json`
   - Creates a GitHub release with notes and tags
   - Triggers deployment to production
@@ -57,7 +58,7 @@ Use **Conventional Commits** style to control version bumps:
 
 ## Manual Deployment
 
-You can also manually deploy or destroy any environment via the GitHub Actions UI:
+You can manually deploy or destroy any environment via the GitHub Actions UI:
 
 1. Go to **Actions** > **LMS Release and Deployment**
 2. Click **Run workflow**
@@ -79,10 +80,10 @@ s3://YOUR\_BUCKET/archive/vX.Y.Z/
 
 - The current version is synced to:
 
-- `s3://YOUR_BUCKET/latest/` (for manual deploys)
-- `s3://YOUR_BUCKET/vX.Y.Z/` (for release-triggered deploys)
+  - `s3://YOUR_BUCKET/latest/` (for manual deploys)
+  - `s3://YOUR_BUCKET/vX.Y.Z/` (for release-triggered deploys)
 
-- CloudFront cache is invalidated after deploy to ensure fresh content.
+- CloudFront cache is invalidated after deployment to ensure fresh content.
 
 ---
 
@@ -90,12 +91,13 @@ s3://YOUR\_BUCKET/archive/vX.Y.Z/
 
 | Secret Name                   | Description                                   |
 |------------------------------|-----------------------------------------------|
-| `AWS_ACCESS_KEY_ID`           | AWS credentials with deploy permissions        |
-| `AWS_SECRET_ACCESS_KEY`       | AWS secret key                                 |
-| `AWS_REGION`                  | AWS region (e.g., `us-east-1`)                  |
-| `AWS_ACCOUNT_ID`              | AWS Account ID for CDK bootstrapping            |
-| `AWS_S3_BUCKET`               | S3 bucket used for hosting frontend assets      |
+| `AWS_ACCESS_KEY_ID`           | AWS credentials with deployment permissions  |
+| `AWS_SECRET_ACCESS_KEY`       | AWS secret access key                         |
+| `AWS_REGION`                  | AWS region (e.g., `us-east-1`)                |
+| `AWS_ACCOUNT_ID`              | AWS Account ID for CDK bootstrapping          |
+| `AWS_S3_BUCKET`               | S3 bucket used for hosting frontend assets    |
 | `CLOUDFRONT_DISTRIBUTION_ID` | CloudFront distribution ID for cache invalidation |
+| `GH_TOKEN`                    | GitHub personal access token with repo permissions |
 
 ---
 
@@ -138,7 +140,7 @@ npm test
 
 1. Create a feature branch from `main`
 2. Commit using Conventional Commit format (see above)
-3. Open a Pull Request with clear description
+3. Open a Pull Request with a clear description
 4. Add tests if applicable
 
 ---

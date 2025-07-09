@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Filter, Search, RefreshCw, AlertCircle, Loader2, Users, UserCheck, UserX, Calendar, UserSearch } from "lucide-react";
+import { Filter, Search, RefreshCw, AlertCircle, Loader2, Users, UserCheck, UserX, Calendar as CalendarIcon, UserSearch } from "lucide-react";
+import { format } from "date-fns";
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
@@ -8,8 +9,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import type { DateRange } from "react-day-picker";
 
 interface TeamMember {
     id: string;
@@ -33,19 +38,11 @@ interface ApiResponse {
     payload: TeamMember[];
 }
 
-interface DateRange {
-    startDate: string;
-    endDate: string;
-}
-
 const TeamAvailability = () => {
     const { authFetch } = useAuth();
     const [filter, setFilter] = useState<string>("all");
     const [searchTerm, setSearchTerm] = useState<string>("");
-    const [dateRange, setDateRange] = useState<DateRange>({
-        startDate: "",
-        endDate: ""
-    });
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [showDateFilter, setShowDateFilter] = useState<boolean>(false);
 
     const queryClient = useQueryClient();
@@ -53,18 +50,12 @@ const TeamAvailability = () => {
 
     // Fetch team availability data
     const fetchTeamAvailability = async (): Promise<TeamMember[]> => {
-        if (!token) {
-            throw new Error('Unauthorized');
-        }
+        if (!token) throw new Error('Unauthorized');
 
         // Build query parameters
         const params = new URLSearchParams();
-        if (dateRange.startDate) {
-            params.append('startDate', dateRange.startDate);
-        }
-        if (dateRange.endDate) {
-            params.append('endDate', dateRange.endDate);
-        }
+        if (dateRange?.from) params.append('startDate', format(dateRange.from, 'yyyy-MM-dd'));
+        if (dateRange?.to) params.append('endDate', format(dateRange.to, 'yyyy-MM-dd'));
 
         const url = `/users/on-leave${params.toString() ? `?${params.toString()}` : ''}`;
 
@@ -77,48 +68,33 @@ const TeamAvailability = () => {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
         const result: ApiResponse = await response.json();
-
-        if (result.error) {
-            throw new Error(result.message || 'Failed to fetch team availability');
-        }
+        if (result.error) throw new Error(result.message || 'Failed to fetch team availability');
 
         return result.payload;
     };
 
-    const {
-        data: teamMembers = [],
-        isLoading,
-        error,
-        refetch,
-        isFetching
-    } = useQuery({
+    const { data: teamMembers = [], isLoading, error, refetch, isFetching } = useQuery({
         queryKey: ['teamAvailability', dateRange],
         queryFn: fetchTeamAvailability,
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: 5 * 60 * 1000,
         retry: 2,
     });
 
-    // Filter team members based on date range (client-side filtering for additional precision)
+    // Filter team members based on date range
     const isWithinDateRange = (member: TeamMember): boolean => {
-        if (!dateRange.startDate && !dateRange.endDate) return true;
-
-        // If member is available, they're always included unless we're specifically filtering by leave dates
+        if (!dateRange?.from && !dateRange?.to) return true;
         if (member.status === 'available') return true;
 
-        // For members on leave, check if their leave period overlaps with the selected date range
         if (member.status === 'on-leave' && member.startDate && member.endDate) {
-            const memberStartDate = new Date(member.startDate);
-            const memberEndDate = new Date(member.endDate);
-            const filterStartDate = dateRange.startDate ? new Date(dateRange.startDate) : new Date('1900-01-01');
-            const filterEndDate = dateRange.endDate ? new Date(dateRange.endDate) : new Date('2100-12-31');
+            const memberStart = new Date(member.startDate);
+            const memberEnd = new Date(member.endDate);
+            const filterStart = dateRange.from || new Date('1900-01-01');
+            const filterEnd = dateRange.to || new Date('2100-12-31');
 
-            // Check if leave period overlaps with filter date range
-            return memberStartDate <= filterEndDate && memberEndDate >= filterStartDate;
+            return memberStart <= filterEnd && memberEnd >= filterStart;
         }
 
         return true;
@@ -139,64 +115,33 @@ const TeamAvailability = () => {
         queryClient.invalidateQueries({ queryKey: ['teamAvailability'] });
     };
 
-    const handleDateRangeChange = (field: keyof DateRange, value: string) => {
-        setDateRange(prev => ({
-            ...prev,
-            [field]: value
-        }));
-    };
-
     const clearDateRange = () => {
-        setDateRange({
-            startDate: "",
-            endDate: ""
-        });
+        setDateRange(undefined);
     };
-
 
     const applyQuickDateRange = (days: number) => {
         const today = new Date();
         const futureDate = new Date();
         futureDate.setDate(today.getDate() + days);
-
-        setDateRange({
-            startDate: today.toISOString().split('T')[0],
-            endDate: futureDate.toISOString().split('T')[0]
-        });
+        setDateRange({ from: today, to: futureDate });
     };
 
     const getStatusBadge = (status: string) => {
-        if (status === "available") {
-            return (
-                <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 flex items-center gap-1">
-                    <UserCheck className="w-3 h-3" />
-                    Available
-                </Badge>
-            );
-        } else {
-            return (
-                <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 flex items-center gap-1">
-                    <UserX className="w-3 h-3" />
-                    On Leave
-                </Badge>
-            );
-        }
+        return status === "available" ? (
+            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 flex items-center gap-1">
+                <UserCheck className="w-3 h-3" /> Available
+            </Badge>
+        ) : (
+            <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 flex items-center gap-1">
+                <UserX className="w-3 h-3" /> On Leave
+            </Badge>
+        );
     };
 
     const formatDateRange = (startDate: string, endDate: string) => {
         const start = new Date(startDate);
         const end = new Date(endDate);
-
-        const formatOptions: Intl.DateTimeFormatOptions = {
-            month: 'short',
-            day: 'numeric'
-        };
-
-        if (start.getFullYear() !== end.getFullYear()) {
-            return `${start.toLocaleDateString('en-US', { ...formatOptions, year: 'numeric' })} - ${end.toLocaleDateString('en-US', { ...formatOptions, year: 'numeric' })}`;
-        }
-
-        return `${start.toLocaleDateString('en-US', formatOptions)} - ${end.toLocaleDateString('en-US', formatOptions)}`;
+        return `${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')}`;
     };
 
     // Statistics
@@ -237,58 +182,75 @@ const TeamAvailability = () => {
 
                                     <div className="flex items-center gap-3">
                                         <Button
-                                            onClick={() => setShowDateFilter(!showDateFilter)}
-                                            variant="outline"
-                                            className="flex items-center gap-2"
-                                        >
-                                            <Calendar className="w-4 h-4" />
-                                            Date Filter
-                                        </Button>
-                                        <Button
                                             onClick={handleRefresh}
                                             variant="outline"
-                                            className="flex items-center gap-2"
                                             disabled={isFetching}
+                                            className="bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600"
                                         >
-                                            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+                                            <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
                                             Refresh
+                                        </Button>
+                                        <Button
+                                            onClick={() => setShowDateFilter(!showDateFilter)}
+                                            variant="outline" className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                                        >
+                                            <CalendarIcon className="w-4 h-4" />
+                                            Date Filter
                                         </Button>
                                     </div>
                                 </div>
 
                                 {/* Date Range Filter */}
                                 {showDateFilter && (
-                                    <Card className="mb-6 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
-                                        <CardContent className="p-6">
-                                            <div className="flex items-center gap-2 mb-4">
-                                                <Calendar className="w-5 h-5 text-blue-500" />
-                                                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Date Range Filter</h3>
-                                            </div>
-
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                                                <div>
-                                                    <Label htmlFor="startDate" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                        Start Date
-                                                    </Label>
-                                                    <Input
-                                                        id="startDate"
-                                                        type="date"
-                                                        value={dateRange.startDate}
-                                                        onChange={(e) => handleDateRangeChange('startDate', e.target.value)}
-                                                        className="mt-1"
-                                                    />
+                                    <Card className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 mb-6">
+                                        <CardContent className="p-4">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                                    <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                                 </div>
                                                 <div>
-                                                    <Label htmlFor="endDate" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                        End Date
-                                                    </Label>
-                                                    <Input
-                                                        id="endDate"
-                                                        type="date"
-                                                        value={dateRange.endDate}
-                                                        onChange={(e) => handleDateRangeChange('endDate', e.target.value)}
-                                                        className="mt-1"
-                                                    />
+                                                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Date Range Filter</h3>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                <div className="space-y-2">
+                                                    <Label className="text-gray-600 dark:text-gray-400">Date Range</Label>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                className={cn(
+                                                                    "w-full justify-start text-left font-normal bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600",
+                                                                    !dateRange && "text-muted-foreground"
+                                                                )}
+                                                            >
+                                                                <CalendarIcon className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                                                {dateRange?.from ? (
+                                                                    dateRange.to ? (
+                                                                        <>
+                                                                            {format(dateRange.from, "MMM d, yyyy")} -{" "}
+                                                                            {format(dateRange.to, "MMM d, yyyy")}
+                                                                        </>
+                                                                    ) : (
+                                                                        format(dateRange.from, "MMM d, yyyy")
+                                                                    )
+                                                                ) : (
+                                                                    <span className="text-gray-500 dark:text-gray-400">Pick a date range</span>
+                                                                )}
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700" align="start">
+                                                            <Calendar
+                                                                mode="range"
+                                                                selected={dateRange}
+                                                                onSelect={setDateRange}
+                                                                numberOfMonths={2}
+                                                                initialFocus
+                                                                className="bg-white dark:bg-slate-800"
+                                                            />
+                                                        </PopoverContent>
+                                                    </Popover>
                                                 </div>
                                             </div>
 
@@ -297,7 +259,7 @@ const TeamAvailability = () => {
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => applyQuickDateRange(7)}
-                                                    className="text-xs"
+                                                    className="bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600"
                                                 >
                                                     Next 7 Days
                                                 </Button>
@@ -305,7 +267,7 @@ const TeamAvailability = () => {
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => applyQuickDateRange(14)}
-                                                    className="text-xs"
+                                                    className="bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600"
                                                 >
                                                     Next 14 Days
                                                 </Button>
@@ -313,7 +275,7 @@ const TeamAvailability = () => {
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => applyQuickDateRange(30)}
-                                                    className="text-xs"
+                                                    className="bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600"
                                                 >
                                                     Next 30 Days
                                                 </Button>
@@ -321,7 +283,7 @@ const TeamAvailability = () => {
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => applyQuickDateRange(90)}
-                                                    className="text-xs"
+                                                    className="bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600"
                                                 >
                                                     Next 3 Months
                                                 </Button>
@@ -332,13 +294,13 @@ const TeamAvailability = () => {
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={clearDateRange}
-                                                    className="text-xs"
+                                                    className="bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600"
                                                 >
                                                     Clear Filter
                                                 </Button>
-                                                {(dateRange.startDate || dateRange.endDate) && (
+                                                {dateRange && (
                                                     <div className="text-sm text-gray-600 dark:text-gray-400">
-                                                        Filtering: {dateRange.startDate || 'All dates'} to {dateRange.endDate || 'All dates'}
+                                                        Filtering: {dateRange.from ? format(dateRange.from, "MMM d, yyyy") : 'All dates'} to {dateRange.to ? format(dateRange.to, "MMM d, yyyy") : 'All dates'}
                                                     </div>
                                                 )}
                                             </div>
@@ -394,24 +356,43 @@ const TeamAvailability = () => {
                                 {/* Filters */}
                                 <div className="flex flex-col sm:flex-row gap-4 mb-6">
                                     <div className="relative flex-1">
-                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <Search className="text-gray-400 w-4 h-4 dark:text-gray-500" />
+                                        </div>
                                         <Input
                                             placeholder="Search by name or email..."
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="pl-10"
+                                            className="pl-10 bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-500"
                                         />
                                     </div>
 
                                     <Select value={filter} onValueChange={setFilter}>
-                                        <SelectTrigger className="w-full sm:w-48">
-                                            <Filter className="w-4 h-4 mr-2" />
-                                            <SelectValue placeholder="Filter by status" />
+                                        <SelectTrigger className="w-full sm:w-48 bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700">
+                                            <div className="flex items-center">
+                                                <Filter className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-500" />
+                                                <SelectValue placeholder="Filter by status" />
+                                            </div>
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">All Status</SelectItem>
-                                            <SelectItem value="available">Available</SelectItem>
-                                            <SelectItem value="on-leave">On Leave</SelectItem>
+                                        <SelectContent className="bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700">
+                                            <SelectItem
+                                                value="all"
+                                                className="text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700"
+                                            >
+                                                All Status
+                                            </SelectItem>
+                                            <SelectItem
+                                                value="available"
+                                                className="text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700"
+                                            >
+                                                Available
+                                            </SelectItem>
+                                            <SelectItem
+                                                value="on-leave"
+                                                className="text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700"
+                                            >
+                                                On Leave
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

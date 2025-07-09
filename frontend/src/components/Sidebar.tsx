@@ -115,20 +115,23 @@ const Sidebar = () => {
                             className={cn(
                                 "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group",
                                 isActive(item.path)
-                                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25"
-                                    : "text-gray-600 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400"
+                                    ? "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 text-white shadow-lg shadow-cyan-500/25"
+                                    : "text-gray-600 dark:text-gray-400 hover:bg-gradient-to-r hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30 hover:text-cyan-500 dark:hover:text-cyan-400"
                             )}
                         >
                             <item.icon
                                 className={cn(
                                     "w-5 h-5 transition-colors",
-                                    isActive(item.path) ? "text-white" : "text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400"
+                                    isActive(item.path)
+                                        ? "text-white"
+                                        : "text-gray-400 group-hover:text-cyan-500 dark:group-hover:text-cyan-400"
                                 )}
                             />
                             <span className="font-medium">{item.label}</span>
                         </Link>
                     ))}
                 </nav>
+
             </div>
 
             <div className="absolute bottom-4 left-4 right-4">

@@ -162,7 +162,7 @@ const LeaveHistory = () => {
                                         <Button
                                             onClick={handleRefresh}
                                             variant="outline"
-                                            className="flex items-center gap-2"
+                                            className="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200"
                                             disabled={isFetching}
                                         >
                                             <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
@@ -185,8 +185,8 @@ const LeaveHistory = () => {
                                         <Button
                                             key={key}
                                             onClick={() => setFilter(key as typeof filter)}
-                                            variant={filter === key ? 'default' : 'outline'}
-                                            className={`${filter === key ? 'bg-blue-600 hover:bg-blue-700' : ''} flex items-center gap-2`}
+                                            variant='ghost'
+                                            className={`${filter === key ? 'bg-cyan-600 text-white' : 'text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-300'} hover:bg-cyan-500 hover:text-white flex items-center gap-2`}
                                         >
                                             {label}
                                             <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">

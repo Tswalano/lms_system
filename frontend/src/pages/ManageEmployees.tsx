@@ -362,7 +362,7 @@ const ManageEmployees = () => {
                                         <Button
                                             onClick={handleRefresh}
                                             variant="outline"
-                                            className="flex items-center gap-2"
+                                            className="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200"
                                             disabled={isFetching}
                                         >
                                             <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
