@@ -1,6 +1,5 @@
 import React from 'react';
 import { ShieldX, Home, ArrowLeft, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 const PermissionDenied: React.FC = () => {
     const handleBack = () => {
@@ -17,12 +16,13 @@ const PermissionDenied: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 dark:from-red-950 dark:via-orange-950 dark:to-yellow-950 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-green-950 dark:to-cyan-950 flex items-center justify-center p-4">
             {/* Background Elements */}
             <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-red-200/30 dark:bg-red-800/20 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-1/3 right-1/3 w-48 h-48 bg-orange-200/30 dark:bg-orange-800/20 rounded-full blur-3xl"></div>
-                <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-yellow-200/30 dark:bg-yellow-800/20 rounded-full blur-2xl"></div>
+                <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-green-200/30 dark:bg-green-800/20 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-1/3 right-1/3 w-48 h-48 bg-emerald-200/30 dark:bg-emerald-800/20 rounded-full blur-3xl"></div>
+                <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-cyan-200/30 dark:bg-cyan-800/20 rounded-full blur-2xl"></div>
+                <div className="absolute bottom-1/4 left-1/3 w-36 h-36 bg-teal-200/30 dark:bg-teal-800/20 rounded-full blur-3xl"></div>
             </div>
 
             <div className="relative z-10 max-w-2xl mx-auto text-center">
@@ -71,30 +71,29 @@ const PermissionDenied: React.FC = () => {
 
                     {/* Action Buttons */}
                     <div className="flex flex-col sm:flex-row gap-4 mt-8 justify-center">
-                        <Button
+                        <button
                             onClick={handleBack}
-                            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+                            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Go Back
-                        </Button>
+                        </button>
 
-                        <Button
+                        <button
                             onClick={handleGoHome}
-                            variant="outline"
-                            className="border-2 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium px-8 py-3 rounded-xl transition-all duration-200 flex items-center gap-2 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800"
+                            className="border-2 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium px-8 py-3 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800"
                         >
                             <Home className="w-4 h-4" />
                             Go Home
-                        </Button>
+                        </button>
                     </div>
 
                     {/* Help Section */}
                     <div className="mt-8 pt-6 border-t border-gray-200/50 dark:border-slate-700/50">
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                            Need help getting access?
+                            Need Help? If you think you should have access to this page, please reach out to your system administrator or support team for assistance.
                         </p>
-                        <div className="flex flex-wrap justify-center gap-4 text-sm">
+                        {/* <div className="flex flex-wrap justify-center gap-4 text-sm">
                             <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
                                 Contact Support
                             </button>
@@ -106,7 +105,7 @@ const PermissionDenied: React.FC = () => {
                             <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
                                 View FAQ
                             </button>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
 
@@ -119,9 +118,10 @@ const PermissionDenied: React.FC = () => {
             </div>
 
             {/* Floating Animation Elements */}
-            <div className="absolute top-20 left-10 w-2 h-2 bg-red-400 rounded-full animate-ping opacity-75"></div>
-            <div className="absolute bottom-32 right-16 w-3 h-3 bg-orange-400 rounded-full animate-pulse"></div>
-            <div className="absolute top-1/3 right-8 w-1.5 h-1.5 bg-yellow-400 rounded-full animate-bounce"></div>
+            <div className="absolute top-20 left-10 w-2 h-2 bg-green-400 rounded-full animate-ping opacity-75"></div>
+            <div className="absolute bottom-32 right-16 w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
+            <div className="absolute top-1/3 right-8 w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce"></div>
+            <div className="absolute bottom-1/4 left-8 w-2 h-2 bg-teal-400 rounded-full animate-ping opacity-60" style={{ animationDelay: '1s' }}></div>
         </div>
     );
 };
