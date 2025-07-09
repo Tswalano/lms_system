@@ -1,3 +1,12 @@
+## [1.1.13](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.12...v1.1.13) (2025-07-09)
+
+
+### Bug Fixes
+
+* **backend:** leave api to retrieve current year ([a026401](https://github.com/Disraptor-Devs/employee-management-system/commit/a026401bf102f803e16409ecb761eb34c5b391d6))
+* **backend:** leave api to retrieve current year ([06006e4](https://github.com/Disraptor-Devs/employee-management-system/commit/06006e463c668671a32a8162dba48aed804751f0))
+* **backend:** leave api to retrieve current year ([c779d41](https://github.com/Disraptor-Devs/employee-management-system/commit/c779d414e0c04327b8963715c1646f827a8de214))
+
 ## [1.1.12](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.11...v1.1.12) (2025-07-09)
 
 
