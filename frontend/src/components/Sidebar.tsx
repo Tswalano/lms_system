@@ -136,18 +136,28 @@ const Sidebar = () => {
 
             <div className="absolute bottom-4 left-4 right-4">
                 {/* Version */}
-                <div className="mb-3 px-4 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <div className="mb-4 px-3 py-2 text-xs from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/30 backdrop-blur-sm shadow-sm">
                     <div className="flex items-center justify-between">
-                        <span>Version</span>
-                        <span className="font-mono">{import.meta.env.VITE_VERSION || '1.0.0'}</span>
+                        <span className="text-slate-600 dark:text-slate-400 font-medium">Version</span>
+                        <div className="flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                            <span className="font-mono text-slate-700 dark:text-slate-300 font-semibold tracking-wider">
+                                v{import.meta.env.VITE_VERSION || '1.0.0'}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 <button
                     onClick={logout}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 bg-red-50 dark:bg-red-900/20 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 group">
-                    <LogOut className="w-5 h-5 text-red-600 group-hover:text-red-500 transition-colors" />
-                    <span className="font-medium text-red-600">Logout</span>
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/20 border border-red-200/50 dark:border-red-800/30 text-red-700 dark:text-red-400 hover:from-red-100 hover:to-rose-100 dark:hover:from-red-950/50 dark:hover:to-rose-950/40 hover:border-red-300/60 dark:hover:border-red-700/50 hover:shadow-lg hover:shadow-red-500/10 dark:hover:shadow-red-500/5 transition-all duration-300 group backdrop-blur-sm"
+                >
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/40 group-hover:bg-red-200 dark:group-hover:bg-red-900/60 transition-colors duration-300">
+                        <LogOut className="w-4 h-4 text-red-600 dark:text-red-400 group-hover:text-red-700 dark:group-hover:text-red-300 transition-colors duration-300" />
+                    </div>
+                    <span className="font-semibold text-red-700 dark:text-red-400 group-hover:text-red-800 dark:group-hover:text-red-300 transition-colors duration-300">
+                        Sign Out
+                    </span>
                 </button>
             </div>
         </div>
