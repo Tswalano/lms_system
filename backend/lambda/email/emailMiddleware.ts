@@ -397,6 +397,7 @@ async function renderEmailTemplate(variables: TemplateVariables): Promise<string
 
 /**
  * Build SES parameters for sending management email
+ * @see https://docs.aws.amazon.com/ses/latest/DeveloperGuide/send-personalized-email-api.html
  */
 function buildManagementSESParams(
     subject: string,
