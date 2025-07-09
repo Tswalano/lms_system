@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Calendar, ArrowLeft, Loader2, AlertCircle, Clock, CheckCircle, XCircle, Search, Mail, Briefcase, History } from "lucide-react";
+import { Users, Calendar, ArrowLeft, Loader2, AlertCircle, Clock, CheckCircle, XCircle, Search, Mail, Briefcase, History, ChevronUp, ChevronDown, MessageSquare } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,7 @@ const TeamListLeaveHistory = () => {
     const { authFetch } = useAuth();
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [expandedLeaveId, setExpandedLeaveId] = useState<number | null>(null);
 
     const token: string | null = localStorage.getItem('authToken');
 
@@ -220,6 +221,10 @@ const TeamListLeaveHistory = () => {
         ).join(' ');
     };
 
+    const toggleLeaveDetails = (leaveId: number) => {
+        setExpandedLeaveId(expandedLeaveId === leaveId ? null : leaveId);
+    };
+
 
     if (!token) {
         return (
@@ -241,6 +246,7 @@ const TeamListLeaveHistory = () => {
                         <DashboardHeader />
                         <main className="p-4 lg:p-8">
                             <div className="px-16 mx-auto space-y-8">
+                                {/* User Header - keep existing */}
                                 <div className="mb-6 lg:mb-8">
                                     <Button
                                         onClick={() => setSelectedUser(null)}
@@ -275,6 +281,7 @@ const TeamListLeaveHistory = () => {
                                     </div>
                                 </div>
 
+                                {/* Leave History Table */}
                                 <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
                                     <div className="p-4 lg:p-6 border-b border-gray-100 dark:border-slate-700">
                                         <div className="flex items-center gap-3">
@@ -303,58 +310,188 @@ const TeamListLeaveHistory = () => {
                                                 <p className="text-gray-500 dark:text-gray-400">No leave history found</p>
                                             </div>
                                         ) : (
-                                            <div className="space-y-4">
-                                                {leaveHistory.map((leave) => (
-                                                    <div
-                                                        key={leave.id}
-                                                        className="p-4 lg:p-6 border border-gray-200 dark:border-slate-600 rounded-xl hover:shadow-md dark:hover:shadow-slate-900/20 transition-all duration-200 hover:border-gray-300 dark:hover:border-slate-500"
-                                                    >
-                                                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                                                            <div className="flex-1">
-                                                                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
-                                                                    <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-lg">
-                                                                        {toTitleCase(leave.leave_type)}
-                                                                    </h3>
-                                                                    <span className={`px-3 py-1 rounded-full text-sm border flex items-center gap-2 w-fit ${getStatusBadge(leave.status)}`}>
-                                                                        {getStatusIcon(leave.status)}
-                                                                        {toTitleCase(leave.status)}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <Clock className="w-4 h-4" />
-                                                                        <span><strong>Duration:</strong> {leave.duration} day{leave.duration > 1 ? 's' : ''}</span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <Calendar className="w-4 h-4" />
-                                                                        <span><strong>Start:</strong> {moment(leave.start_date).format('MMM DD, YYYY')}</span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <Calendar className="w-4 h-4" />
-                                                                        <span><strong>End:</strong> {moment(leave.end_date).format('MMM DD, YYYY')}</span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span><strong>Type:</strong> {formatLeaveLength(leave.leave_length)}</span>
-                                                                    </div>
-                                                                </div>
-                                                                {leave.leave_comment && (
-                                                                    <div className="mb-3">
-                                                                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Comment:</span>
-                                                                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 bg-gray-50 dark:bg-slate-700 p-3 rounded-lg whitespace-pre-line">
-                                                                            {leave.leave_comment}
-                                                                        </p>
-                                                                    </div>
-                                                                )}
-                                                                <div className="text-xs text-gray-500 bg-gray-50 dark:bg-slate-700 p-2 rounded">
-                                                                    Applied on {moment(leave.createdAt).format('MMM DD, YYYY')}
-                                                                    {leave.updatedAt && (
-                                                                        <span> • Last updated on {moment(leave.updatedAt).format('MMM DD, YYYY')}</span>
+                                            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full">
+                                                        <thead className="bg-gray-50 dark:bg-slate-700/30">
+                                                            <tr>
+                                                                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                    Leave Type
+                                                                </th>
+                                                                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                    Duration
+                                                                </th>
+                                                                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                    Dates
+                                                                </th>
+                                                                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                    Status
+                                                                </th>
+                                                                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                    Applied
+                                                                </th>
+                                                                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                    Actions
+                                                                </th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-gray-200 dark:divide-slate-600">
+                                                            {leaveHistory.map((leave) => (
+                                                                <>
+                                                                    <tr key={leave.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors duration-150">
+                                                                        {/* Leave Type */}
+                                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <div>
+                                                                                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                                                        {toTitleCase(leave.leave_type)}
+                                                                                    </div>
+                                                                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                                                        {formatLeaveLength(leave.leave_length)}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </td>
+
+                                                                        {/* Duration */}
+                                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                                            <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                                                                <Clock className="w-4 h-4 text-gray-400" />
+                                                                                <span>{leave.duration} day{leave.duration > 1 ? 's' : ''}</span>
+                                                                            </div>
+                                                                        </td>
+
+                                                                        {/* Dates */}
+                                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                                            <div className="text-sm text-gray-700 dark:text-gray-300">
+                                                                                <div className="flex items-center gap-2 mb-1">
+                                                                                    <Calendar className="w-4 h-4 text-gray-400" />
+                                                                                    <span>{moment(leave.start_date).format('MMM DD, YYYY')}</span>
+                                                                                </div>
+                                                                                <div className="text-xs text-gray-500 dark:text-gray-400 pl-6">
+                                                                                    to {moment(leave.end_date).format('MMM DD, YYYY')}
+                                                                                </div>
+                                                                            </div>
+                                                                        </td>
+
+                                                                        {/* Status */}
+                                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                                            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadge(leave.status)}`}>
+                                                                                {getStatusIcon(leave.status)}
+                                                                                {toTitleCase(leave.status)}
+                                                                            </span>
+                                                                        </td>
+
+                                                                        {/* Applied Date */}
+                                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                                            <div>{moment(leave.createdAt).format('MMM DD, YYYY')}</div>
+                                                                            {leave.updatedAt && (
+                                                                                <div className="text-xs text-gray-400 dark:text-gray-500">
+                                                                                    Updated {moment(leave.updatedAt).format('MMM DD')}
+                                                                                </div>
+                                                                            )}
+                                                                        </td>
+
+                                                                        {/* Actions */}
+                                                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                                            <button
+                                                                                onClick={() => toggleLeaveDetails(leave.id)}
+                                                                                className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors duration-150"
+                                                                            >
+                                                                                View Details
+                                                                                {expandedLeaveId === leave.id ? (
+                                                                                    <ChevronUp className="w-4 h-4" />
+                                                                                ) : (
+                                                                                    <ChevronDown className="w-4 h-4" />
+                                                                                )}
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+
+                                                                    {/* Expandable Details Row */}
+                                                                    {expandedLeaveId === leave.id && (
+                                                                        <tr>
+                                                                            <td colSpan={6} className="px-0 py-0">
+                                                                                <div className="bg-gray-50 dark:bg-slate-700/30 border-t border-gray-200 dark:border-slate-600">
+                                                                                    <div className="px-6 py-4">
+                                                                                        <div className="px-16 max-w-7xl mx-auto ">
+                                                                                            <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
+                                                                                                <MessageSquare className="w-4 h-4" />
+                                                                                                Leave Details
+                                                                                            </h4>
+
+                                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                                                                <div className="space-y-2">
+                                                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Leave Information</div>
+                                                                                                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3 space-y-2">
+                                                                                                        <div className="flex justify-between items-center">
+                                                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">Type:</span>
+                                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{toTitleCase(leave.leave_type)}</span>
+                                                                                                        </div>
+                                                                                                        <div className="flex justify-between items-center">
+                                                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">Length:</span>
+                                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatLeaveLength(leave.leave_length)}</span>
+                                                                                                        </div>
+                                                                                                        <div className="flex justify-between items-center">
+                                                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">Duration:</span>
+                                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{leave.duration} day{leave.duration > 1 ? 's' : ''}</span>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </div>
+
+                                                                                                <div className="space-y-2">
+                                                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timeline</div>
+                                                                                                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3 space-y-2">
+                                                                                                        <div className="flex justify-between items-center">
+                                                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">Applied:</span>
+                                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{moment(leave.createdAt).format('MMM DD, YYYY')}</span>
+                                                                                                        </div>
+                                                                                                        <div className="flex justify-between items-center">
+                                                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">Start Date:</span>
+                                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{moment(leave.start_date).format('MMM DD, YYYY')}</span>
+                                                                                                        </div>
+                                                                                                        <div className="flex justify-between items-center">
+                                                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">End Date:</span>
+                                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{moment(leave.end_date).format('MMM DD, YYYY')}</span>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+
+                                                                                            {/* Comments Section */}
+                                                                                            {leave.leave_comment && (
+                                                                                                <div className="space-y-2">
+                                                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Employee Comment</div>
+                                                                                                    <div className="bg-white dark:bg-slate-800 rounded-lg p-4">
+                                                                                                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+                                                                                                            {leave.leave_comment}
+                                                                                                        </p>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            )}
+
+                                                                                            {/* Feedback Section */}
+                                                                                            {leave.feedback && (
+                                                                                                <div className="space-y-2 mt-4">
+                                                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Manager Feedback</div>
+                                                                                                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                                                                                                        <p className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">
+                                                                                                            {leave.feedback}
+                                                                                                        </p>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
                                                                     )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                                </>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
