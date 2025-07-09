@@ -159,14 +159,13 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: CDK Bootstrap
-        run: |
-          export AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
-          export AWS_REGION=${{ secrets.AWS_REGION }}
-          npx cdk bootstrap
+        run: npx cdk bootstrap
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
+          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
 
       - name: Determine environment for deploy
         id: envvar
@@ -187,7 +186,11 @@ jobs:
           npx cdk deploy --require-approval never --context env=$ENV
         env:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
 
   backend-destroy:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
