@@ -1,6 +1,9 @@
 name: LMS Full Deployment
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       environment:
@@ -20,76 +23,103 @@ on:
           - deploy
           - destroy
 
-
-
 jobs:
   frontend-deploy:
-    if: ${{ github.event.inputs.action == 'deploy' }}
+    if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./frontend
     steps:
       - uses: actions/checkout@v3
+
       - uses: actions/setup-node@v3
         with:
           node-version: '18.x'
+
       - run: npm ci
       - run: npm run build
+
       - uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-      - run: |
+
+      - name: Upload to S3
+        run: |
           BUCKET=${{ secrets.AWS_S3_BUCKET }}
           ENV=${{ github.event.inputs.environment }}
-          aws s3 sync dist/ s3://$BUCKET/ --acl --delete public-read
+          if [ -z "$ENV" ]; then
+            ENV="beta"
+          fi
+          echo "Deploying to s3://$BUCKET/$ENV/"
+          aws s3 sync dist/ s3://$BUCKET/$ENV/ --delete --acl public-read
 
   backend:
     needs: frontend-deploy
-    if: ${{ github.event.inputs.action == 'deploy' }}
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18.x'
-      - run: npm ci
-      - run: npm run build
-      - uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: CDK Bootstrap
-        run: npx cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/${{ secrets.AWS_REGION }}
-      - name: CDK Deploy
-        run: npx cdk deploy --require-approval never --context env=${{ github.event.inputs.environment }}
-        env:
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-
-
-  backend-destroy:
-    if: ${{ github.event.inputs.action == 'destroy' }}
+    if: (github.event_name == 'push' || github.event.inputs.action == 'deploy') && success()
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./backend
     steps:
       - uses: actions/checkout@v3
+
       - uses: actions/setup-node@v3
         with:
           node-version: '18.x'
+
+      - run: npm ci
+      - run: npm run build
+
       - uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: CDK Bootstrap
+        run: |
+          REGION=${{ secrets.AWS_REGION }}
+          ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+          npx cdk bootstrap aws://$ACCOUNT_ID/$REGION
+
+      - name: CDK Deploy
+        run: |
+          ENV=${{ github.event.inputs.environment }}
+          if [ -z "$ENV" ]; then
+            ENV="beta"
+          fi
+          echo "Deploying backend for $ENV"
+          npx cdk deploy --require-approval never --context env=$ENV
+        env:
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+
+  backend-destroy:
+    if: github.event.inputs.action == 'destroy'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
       - name: CDK Destroy
-        run: npx cdk destroy --force --context env=${{ github.event.inputs.environment }}
+        run: |
+          ENV=${{ github.event.inputs.environment }}
+          echo "Destroying backend for $ENV"
+          npx cdk destroy --force --context env=$ENV
         env:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
