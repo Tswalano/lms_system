@@ -305,6 +305,7 @@ app.get('/leave-history', async (c: Context): Promise<Response> => {
                    leave_length, leave_comment, createdAt, updatedAt
             FROM leave_requests 
             WHERE uid = ? 
+            AND YEAR(createdAt) = YEAR(NOW())
             ORDER BY createdAt DESC
         `, [uid]);
 
@@ -334,10 +335,11 @@ app.get('/leave-history/:uid', async (c: Context): Promise<Response> => {
 
         const [rows] = await connection.query<mysql.RowDataPacket[]>(`
             SELECT id, leave_type, status, duration, start_date, end_date, feedback,
-                   leave_length, leave_comment, createdAt, updatedAt
+                leave_length, leave_comment, createdAt, updatedAt
             FROM leave_requests 
             WHERE uid = ? 
-            ORDER BY createdAt DESC
+            AND YEAR(createdAt) = YEAR(NOW())
+            ORDER BY createdAt DESC;
         `, [uid]);
 
         return c.json<ApiResponse<LeaveRequest[]>>({
@@ -641,7 +643,7 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
         conditions.push(statusFilter);
         params.push(currentYear, thirtyDaysAgoStr);
 
-        const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+        const whereClause = conditions.length ? `AND createdAt >= DATE_FORMAT(NOW(), '%Y-01-01') AND createdAt < DATE_FORMAT(DATE_ADD(NOW(), INTERVAL 1 YEAR), '%Y-01-01') AND ${conditions.join(' AND ')}` : '';
 
         // Count query
         const [countResult] = await connection.query<mysql.RowDataPacket[]>(`
@@ -863,6 +865,8 @@ app.get('/leave/:id', async (c: Context): Promise<Response> => {
             LEFT JOIN users u ON lr.uid = u.id
             LEFT JOIN users m ON lr.approved_by = m.id
             WHERE lr.id = ? AND lr.uid = ?
+            AND createdAt >= DATE_FORMAT(NOW(), '%Y-01-01')
+            AND createdAt < DATE_FORMAT(DATE_ADD(NOW(), INTERVAL 1 YEAR), '%Y-01-01')
         `, [leaveId, uid]);
 
         if (!leaveRequest || leaveRequest.length === 0) {
