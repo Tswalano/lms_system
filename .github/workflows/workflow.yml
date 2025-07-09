@@ -46,26 +46,6 @@ jobs:
           echo "frontend=$FRONTEND" >> $GITHUB_OUTPUT
           echo "backend=$BACKEND" >> $GITHUB_OUTPUT
 
-  semantic-release:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GH_TOKEN }}
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '20.9.0'
-
-      - run: npm ci
-
-      - name: Run semantic-release
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: npx semantic-release
-
   frontend-deploy:
     needs: [detect-changes]
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.frontend == 'true' || github.event_name == 'release'
@@ -81,22 +61,7 @@ jobs:
           node-version: '18.x'
 
       - run: npm ci
-
-      # - name: Set version environment variable
-      #   run: |
-      #     if [ "${{ github.event_name }}" = "release" ]; then
-      #       VERSION="${{ github.event.release.tag_name }}"
-      #     else
-      #       VERSION=$(node -p "require('../package.json').version")
-      #     fi
-      #     echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
-      #     echo "Building with version: $VERSION"
-
-      - name: Build with version
-        run: npm run build
-        env:
-          VITE_VERSION: ${{ env.VITE_VERSION }}
-
+      
       - name: Set version environment variable
         run: |
           echo "=== DEBUG INFO ==="
@@ -119,6 +84,11 @@ jobs:
           echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
           echo "=== FINAL VERSION: $VERSION ==="
 
+      - name: Build with version
+        run: npm run build
+        env:
+          VITE_VERSION: ${{ env.VITE_VERSION }}
+          
       - uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -170,6 +140,7 @@ jobs:
           aws cloudfront create-invalidation \
             --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "$INVALIDATION_PATH"
+
   backend:
     needs: [frontend-deploy, detect-changes]
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.backend == 'true' || github.event_name == 'release'
@@ -226,6 +197,31 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
           CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+
+  semantic-release:
+    needs: [detect-changes, frontend-deploy]
+    if: |
+      always() && 
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/main' &&
+      needs.frontend-deploy.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20.9.0'
+
+      - run: npm ci
+
+      - name: Run semantic-release
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: npx semantic-release
 
   backend-destroy:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
