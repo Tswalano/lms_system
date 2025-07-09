@@ -97,6 +97,7 @@ const LeaveHistory = () => {
         }
     };
 
+    // TODO - The colors don't blend well in the UI
     const getStatusIcon = (status: string) => {
         const statusLower = status.toLowerCase();
         switch (statusLower) {
