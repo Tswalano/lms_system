@@ -81,7 +81,21 @@ jobs:
           node-version: '18.x'
 
       - run: npm ci
-      - run: npm run build
+
+      - name: Set version environment variable
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION=$(node -p "require('../package.json').version")
+          fi
+          echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Building with version: $VERSION"
+
+      - name: Build with version
+        run: npm run build
+        env:
+          VITE_VERSION: ${{ env.VITE_VERSION }}
 
       - uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -134,7 +148,6 @@ jobs:
           aws cloudfront create-invalidation \
             --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "$INVALIDATION_PATH"
-
   backend:
     needs: [frontend-deploy, detect-changes]
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.backend == 'true' || github.event_name == 'release'
