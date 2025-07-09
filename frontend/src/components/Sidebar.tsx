@@ -135,6 +135,14 @@ const Sidebar = () => {
             </div>
 
             <div className="absolute bottom-4 left-4 right-4">
+                {/* Version */}
+                <div className="mb-3 px-4 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                        <span>Version</span>
+                        <span className="font-mono">{import.meta.env.VITE_VERSION || '1.0.0'}</span>
+                    </div>
+                </div>
+
                 <button
                     onClick={logout}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 bg-red-50 dark:bg-red-900/20 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 group">

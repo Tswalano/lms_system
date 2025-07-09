@@ -100,7 +100,7 @@ const TeamAvailability = () => {
         return true;
     };
 
-    // Filter team members
+    // Filter team members based 
     const filteredMembers = teamMembers.filter(member => {
         const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             member.email.toLowerCase().includes(searchTerm.toLowerCase());
