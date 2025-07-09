@@ -1,72 +1,3 @@
-Certainly! Below are:
-
-1. A recommended `.releaserc` config file for semantic-release.
-2. The relevant additions to your `package.json` scripts.
-3. A full README section including your requested project overview, deployment, commit examples for release stages, and usage instructions.
-
----
-
-## 1. `.releaserc` (in your repo root)
-
-```json
-{
-  "branches": [
-    "main",
-    {
-      "name": "staging",
-      "prerelease": true
-    }
-  ],
-  "plugins": [
-    "@semantic-release/commit-analyzer",
-    "@semantic-release/release-notes-generator",
-    [
-      "@semantic-release/changelog",
-      {
-        "changelogFile": "CHANGELOG.md"
-      }
-    ],
-    [
-      "@semantic-release/git",
-      {
-        "assets": ["CHANGELOG.md", "package.json"],
-        "message": "chore(release): ${nextRelease.version} [skip ci]"
-      }
-    ],
-    [
-      "@semantic-release/github",
-      {
-        "assets": [
-          {"path": "frontend/build/**", "label": "Frontend Build"},
-          {"path": "backend/dist/**", "label": "Backend Build"}
-        ]
-      }
-    ]
-  ]
-}
-```
-
----
-
-## 2. Add these scripts to your **root** `package.json` (or split into frontend/backend accordingly)
-
-```json
-{
-  "scripts": {
-    "release": "semantic-release",
-    "release:dry": "semantic-release --dry-run"
-  }
-}
-```
-
-* Run `npm run release` on CI to trigger release & version bump.
-* Run `npm run release:dry` locally to test.
-
----
-
-## 3. README additions with commit examples and release info
-
-```markdown
 # LMS Application (Leave Management System)
 
 ## Project Overview
@@ -216,9 +147,4 @@ npm test
 
 MIT License
 
-```
-
----
-
-### If you want, I can help you scaffold the semantic-release config and CI workflow with exact commands or Docker setup — just ask!
 ```
