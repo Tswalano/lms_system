@@ -82,20 +82,42 @@ jobs:
 
       - run: npm ci
 
-      - name: Set version environment variable
-        run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            VERSION="${{ github.event.release.tag_name }}"
-          else
-            VERSION=$(node -p "require('../package.json').version")
-          fi
-          echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Building with version: $VERSION"
+      # - name: Set version environment variable
+      #   run: |
+      #     if [ "${{ github.event_name }}" = "release" ]; then
+      #       VERSION="${{ github.event.release.tag_name }}"
+      #     else
+      #       VERSION=$(node -p "require('../package.json').version")
+      #     fi
+      #     echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
+      #     echo "Building with version: $VERSION"
 
       - name: Build with version
         run: npm run build
         env:
           VITE_VERSION: ${{ env.VITE_VERSION }}
+
+      - name: Set version environment variable
+        run: |
+          echo "=== DEBUG INFO ==="
+          echo "Current directory: $(pwd)"
+          echo "Root package.json exists: $(test -f ../package.json && echo 'YES' || echo 'NO')"
+          
+          if [ -f ../package.json ]; then
+            echo "Root package.json version:"
+            node -p "require('../package.json').version" || echo "Error reading version"
+          fi
+          
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            echo "Using release tag version: $VERSION"
+          else
+            VERSION=$(node -p "require('../package.json').version")
+            echo "Using package.json version: $VERSION"
+          fi
+          
+          echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "=== FINAL VERSION: $VERSION ==="
 
       - uses: aws-actions/configure-aws-credentials@v2
         with:
