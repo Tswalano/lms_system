@@ -1,3 +1,13 @@
+# [1.1.0](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.0.0...v1.1.0) (2025-07-09)
+
+
+### Features
+
+* **frontend:** added color on buttons and used shadcn calender popovers ([141fa45](https://github.com/Disraptor-Devs/employee-management-system/commit/141fa4560dbc02c0bf2e7d0e5588902e08948769))
+* **frontend:** leave history overhaul table designwith expandable leave details ([6e7360e](https://github.com/Disraptor-Devs/employee-management-system/commit/6e7360e6c590b29a11704e36230f19515a3ed4cd))
+* **frontend:** leave history overhaul table designwith expandable leave details ([086aff0](https://github.com/Disraptor-Devs/employee-management-system/commit/086aff035ad636d18e39a588ec47858334395515))
+* **frontend:** Merge pull request [#40](https://github.com/Disraptor-Devs/employee-management-system/issues/40) from Disraptor-Devs/docs ([8bfec7a](https://github.com/Disraptor-Devs/employee-management-system/commit/8bfec7a57987a73da8b30016f1ab9162e975a572))
+
 # 1.0.0 (2025-07-09)
 
 
