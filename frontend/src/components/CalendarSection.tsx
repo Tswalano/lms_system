@@ -664,7 +664,6 @@ const CalendarSection = () => {
                                         <div className="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-800 dark:from-gray-400 dark:to-gray-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg transform hover:scale-105 transition-transform duration-300">
                                             {selectedLeave.resource.avatar}
                                         </div>
-                                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse"></div>
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">

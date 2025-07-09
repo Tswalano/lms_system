@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
-import { Calendar, FileText, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, FileText, Loader2 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
@@ -173,7 +177,8 @@ const ApplyLeave = () => {
     }
 
     // Get minimum date (today)
-    const today = new Date().toISOString().split('T')[0];
+    const startDate = formData.startDate ? new Date(formData.startDate) : undefined;
+    const endDate = formData.endDate ? new Date(formData.endDate) : undefined;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950">
@@ -207,7 +212,7 @@ const ApplyLeave = () => {
                                             <SelectTrigger className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600">
                                                 <SelectValue placeholder="Select leave type" />
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600">
                                                 <SelectItem value="Annual Leave">Annual Leave</SelectItem>
                                                 <SelectItem value="Sick Leave">Sick Leave</SelectItem>
                                                 <SelectItem value="Paternity Leave">Paternity Leave</SelectItem>
@@ -236,39 +241,91 @@ const ApplyLeave = () => {
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                    <Calendar className="w-4 h-4 inline mr-2" />
-                                                    Start Date *
-                                                </label>
-                                                <input
-                                                    type="date"
-                                                    value={formData.startDate}
-                                                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                    disabled={isPending}
-                                                />
-                                            </div>
+                                            <Label className="text-gray-700 dark:text-gray-300">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                                        <CalendarIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                    </div>
+                                                    <span>Start Date *</span>
+                                                </div>
+                                            </Label>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant={"outline"}
+                                                        className={cn(
+                                                            "w-full justify-start text-left font-normal bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600",
+                                                            !startDate && "text-muted-foreground"
+                                                        )}
+                                                        disabled={isPending}
+                                                    >
+                                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                                        {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
+                                                    <Calendar
+                                                        mode="single"
+                                                        className="bg-white dark:bg-slate-800"
+                                                        selected={startDate}
+                                                        onSelect={(date) => {
+                                                            if (date) {
+                                                                const dateString = date.toISOString().split('T')[0];
+                                                                setFormData({ ...formData, startDate: dateString });
+                                                                if (formData.leaveLength === 'half_day') {
+                                                                    setFormData(prev => ({ ...prev, endDate: dateString }));
+                                                                }
+                                                            }
+                                                        }}
+                                                        initialFocus
+                                                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                                    />
+                                                </PopoverContent>
+                                            </Popover>
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label htmlFor="endDate" className="text-gray-700 dark:text-gray-300">
-                                                {formData.leaveLength === 'half_day' ? 'Date' : 'End Date *'}
+                                            <Label className="text-gray-700 dark:text-gray-300">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                                        <CalendarIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                    </div>
+                                                    <span>{formData.leaveLength === 'half_day' ? 'Date' : 'End Date *'}</span>
+                                                </div>
                                             </Label>
-
-                                            <input
-                                                id="endDate"
-                                                type="date"
-                                                min={formData.leaveLength === 'full_day' ? formData.startDate || today : undefined}
-                                                value={formData.endDate}
-                                                onChange={(e) => {
-                                                    if (formData.leaveLength === 'full_day') {
-                                                        setFormData({ ...formData, endDate: e.target.value });
-                                                    }
-                                                }}
-                                                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                disabled={isPending || formData.leaveLength === 'half_day'}
-                                            />
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant={"outline"}
+                                                        className={cn(
+                                                            "w-full justify-start text-left font-normal bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600",
+                                                            !endDate && "text-muted-foreground"
+                                                        )}
+                                                        disabled={isPending || formData.leaveLength === 'half_day'}
+                                                    >
+                                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                                        {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
+                                                    <Calendar
+                                                        mode="single"
+                                                        className="bg-white dark:bg-slate-800"
+                                                        selected={endDate}
+                                                        onSelect={(date) => {
+                                                            if (date && formData.leaveLength === 'full_day') {
+                                                                setFormData({ ...formData, endDate: date.toISOString().split('T')[0] });
+                                                            }
+                                                        }}
+                                                        initialFocus
+                                                        disabled={(date) =>
+                                                            formData.leaveLength === 'full_day' && formData.startDate
+                                                                ? date < new Date(formData.startDate)
+                                                                : false
+                                                        }
+                                                    />
+                                                </PopoverContent>
+                                            </Popover>
                                         </div>
                                     </div>
 
@@ -312,9 +369,9 @@ const ApplyLeave = () => {
                                         </Button>
                                         <Button
                                             type="button"
-                                            variant="outline"
                                             onClick={clearForm}
-                                            className="border-gray-300 dark:border-slate-600"
+                                            variant="outline"
+                                            className="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200"
                                             disabled={isPending}
                                         >
                                             Clear Form
