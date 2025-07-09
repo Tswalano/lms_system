@@ -68,21 +68,39 @@ jobs:
           echo "Current directory: $(pwd)"
           echo "Root package.json exists: $(test -f ../package.json && echo 'YES' || echo 'NO')"
           
-          if [ -f ../package.json ]; then
-            echo "Root package.json version:"
-            node -p "require('../package.json').version" || echo "Error reading version"
+          # First try to get the latest GitHub release version
+          GITHUB_VERSION=""
+          if [ "${{ github.event_name }}" = "release" ]; then
+            GITHUB_VERSION="${{ github.event.release.tag_name }}"
+            echo "Using release tag version: $GITHUB_VERSION"
+          else
+            # Try to get latest release from GitHub API
+            echo "Checking for latest GitHub release..."
+            LATEST_RELEASE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/latest" | \
+              grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]*).*/\1/' || echo "")
+            
+            if [ ! -z "$LATEST_RELEASE" ]; then
+              GITHUB_VERSION="$LATEST_RELEASE"
+              echo "Found latest GitHub release: $GITHUB_VERSION"
+            else
+              echo "No GitHub releases found"
+            fi
           fi
           
-          if [ "${{ github.event_name }}" = "release" ]; then
-            VERSION="${{ github.event.release.tag_name }}"
-            echo "Using release tag version: $VERSION"
-          else
+          # Fallback to package.json version if no GitHub release found
+          if [ -z "$GITHUB_VERSION" ]; then
             VERSION=$(node -p "require('../package.json').version")
-            echo "Using package.json version: $VERSION"
+            echo "Using package.json version as fallback: $VERSION"
+          else
+            VERSION="$GITHUB_VERSION"
+            echo "Using GitHub release version: $VERSION"
           fi
           
           echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
           echo "=== FINAL VERSION: $VERSION ==="
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build with version
         run: npm run build
