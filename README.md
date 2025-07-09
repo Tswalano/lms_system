@@ -1,3 +1,72 @@
+Certainly! Below are:
+
+1. A recommended `.releaserc` config file for semantic-release.
+2. The relevant additions to your `package.json` scripts.
+3. A full README section including your requested project overview, deployment, commit examples for release stages, and usage instructions.
+
+---
+
+## 1. `.releaserc` (in your repo root)
+
+```json
+{
+  "branches": [
+    "main",
+    {
+      "name": "staging",
+      "prerelease": true
+    }
+  ],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogFile": "CHANGELOG.md"
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["CHANGELOG.md", "package.json"],
+        "message": "chore(release): ${nextRelease.version} [skip ci]"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {"path": "frontend/build/**", "label": "Frontend Build"},
+          {"path": "backend/dist/**", "label": "Backend Build"}
+        ]
+      }
+    ]
+  ]
+}
+```
+
+---
+
+## 2. Add these scripts to your **root** `package.json` (or split into frontend/backend accordingly)
+
+```json
+{
+  "scripts": {
+    "release": "semantic-release",
+    "release:dry": "semantic-release --dry-run"
+  }
+}
+```
+
+* Run `npm run release` on CI to trigger release & version bump.
+* Run `npm run release:dry` locally to test.
+
+---
+
+## 3. README additions with commit examples and release info
+
+```markdown
 # LMS Application (Leave Management System)
 
 ## Project Overview
@@ -5,132 +74,151 @@
 A full-stack application for managing employee leave requests with:
 - **Frontend**: React.js single-page application
 - **Backend**: AWS serverless infrastructure deployed with CDK (TypeScript)
-- **CI/CD**: Automated deployment via GitHub Actions
+- **CI/CD**: Automated deployment via GitHub Actions with semantic-release versioning
 
 ## Project Structure
 
 ```
+
 lms-application/
 ├── frontend/          # React frontend application
 ├── backend/           # CDK backend infrastructure
 └── .github/workflows/ # CI/CD deployment pipelines
+
 ```
 
-## Frontend (React Application)
+---
 
-### Features
-- User authentication and authorization
-- Leave request submission and approval workflows
-- Team availability calendar
-- Responsive design
+## Deployment Pipeline & Releases
 
-### Development Setup
+### Automated Releases
 
-1. **Prerequisites**
-   - Node.js 18.x
-   - npm 9.x+
+- We use [semantic-release](https://semantic-release.gitbook.io/) for:
+  - Automatic semantic versioning based on commit messages
+  - Generating and updating a changelog (`CHANGELOG.md`)
+  - Publishing GitHub releases with notes
+  - Tagging releases with version numbers (e.g., `v1.2.3`)
 
-2. **Installation**
-   ```bash
-   cd frontend
-   npm install
-   ```
+- Releases trigger deployments automatically for `prod`.
+- Staging environment releases are marked as prereleases.
 
-3. **Running Locally**
-   ```bash
-   npm start
-   ```
-   Runs on: http://localhost:3000
+### Commit Message Conventions
 
-4. **Environment Variables**
-   Create `.env` file with:
-   ```env
-   REACT_APP_API_URL=http://localhost:3001
-   REACT_APP_AWS_REGION=us-east-1
-   ```
+Use **Conventional Commits** style to control version bumps:
 
-## Backend (AWS CDK Infrastructure)
+| Commit Type     | Effect                       | Example Commit Message             |
+|-----------------|------------------------------|----------------------------------|
+| `feat:`         | Minor version bump            | `feat(frontend): add login modal` |
+| `fix:`          | Patch version bump            | `fix(backend): correct validation`|
+| `BREAKING CHANGE:` | Major version bump           | `feat: remove deprecated API\n\nBREAKING CHANGE: updated endpoint` |
+| `chore:`, `docs:`, `style:`, `refactor:` | No version bump              | `docs: update README`             |
 
-### Features
-- API Gateway REST API
-- Lambda function handlers
-- DynamoDB database
-- Cognito authentication
-- SES email notifications
+### Triggering a Release
 
-### Development Setup
+- Simply push your commits to the `main` branch with proper commit messages.
+- The GitHub Actions workflow runs semantic-release which:
+  - Calculates next version
+  - Updates `CHANGELOG.md` and `package.json`
+  - Creates a GitHub release with notes and tags
+  - Triggers deployment to production
 
-1. **Prerequisites**
-   - AWS CLI configured
-   - AWS CDK v2.x
-   - Node.js 18.x
+---
 
-2. **Installation**
-   ```bash
-   cd backend
-   npm install
-   ```
+## Manual Deployment
 
-3. **Deployment**
-   ```bash
-   # Bootstrap CDK (first time only)
-   cdk bootstrap aws://ACCOUNT-NUMBER/REGION
+You can also manually deploy or destroy any environment via the GitHub Actions UI:
 
-   # Deploy to AWS
-   cdk deploy
-   ```
+1. Go to **Actions** > **LMS Release and Deployment**
+2. Click **Run workflow**
+3. Select environment (`staging` or `prod`)
+4. Select action (`deploy` or `destroy`)
+5. Click **Run workflow**
 
-4. **Environment Variables**
-   Create `.env` file with:
-   ```env
-   AWS_ACCOUNT_ID=1234567890
-   AWS_REGION=us-east-1
-   TABLE_NAME=LMS-Table
-   ```
+---
 
-## Deployment Pipeline
+## S3 Version Archiving
 
-### GitHub Actions Workflow
+- Each release archives the current frontend build under:
 
-Automatically deploys on push to `main` branch:
-1. Frontend deploys to S3 bucket
-2. Backend deploys CDK stack with:
-   - Lambda functions
-   - API Gateway
-   - Database resources
+```
 
-### Required Secrets
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_REGION`
-- `AWS_S3_BUCKET`
-- `AWS_ACCOUNT_ID`
+s3://YOUR\_BUCKET/archive/vX.Y.Z/
+
+````
+
+- The current version is synced to:
+
+- `s3://YOUR_BUCKET/latest/` (for manual deploys)
+- `s3://YOUR_BUCKET/vX.Y.Z/` (for release-triggered deploys)
+
+- CloudFront cache is invalidated after deploy to ensure fresh content.
+
+---
+
+## Required GitHub Secrets
+
+| Secret Name                   | Description                                   |
+|------------------------------|-----------------------------------------------|
+| `AWS_ACCESS_KEY_ID`           | AWS credentials with deploy permissions        |
+| `AWS_SECRET_ACCESS_KEY`       | AWS secret key                                 |
+| `AWS_REGION`                  | AWS region (e.g., `us-east-1`)                  |
+| `AWS_ACCOUNT_ID`              | AWS Account ID for CDK bootstrapping            |
+| `AWS_S3_BUCKET`               | S3 bucket used for hosting frontend assets      |
+| `CLOUDFRONT_DISTRIBUTION_ID` | CloudFront distribution ID for cache invalidation |
+
+---
+
+## Development Setup
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm start
+````
+
+### Backend
+
+```bash
+cd backend
+npm install
+cdk bootstrap aws://ACCOUNT-NUMBER/REGION
+cdk deploy
+```
+
+---
 
 ## Testing
 
 ```bash
-# Run frontend tests
+# Frontend tests
 cd frontend
 npm test
 
-# Run backend tests
+# Backend tests
 cd backend
 npm test
 ```
 
-## Troubleshooting
+---
 
-**Lambda Template Error**
-If seeing `ENOENT` for template files:
-1. Verify `index.html` exists in `frontend/public/`
-2. Check GitHub Actions logs for template copy step
+## Contribution Workflow
 
-## Contributing
+1. Create a feature branch from `main`
+2. Commit using Conventional Commit format (see above)
+3. Open a Pull Request with clear description
+4. Add tests if applicable
 
-1. Create feature branch from `main`
-2. Submit PR with description of changes
-3. Include relevant tests
+---
 
 ## License
 
 MIT License
+
+```
+
+---
+
+### If you want, I can help you scaffold the semantic-release config and CI workflow with exact commands or Docker setup — just ask!
+```

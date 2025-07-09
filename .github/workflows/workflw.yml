@@ -1,4 +1,4 @@
-name: LMS Full Deployment
+name: LMS Release and Deployment
 
 on:
   push:
@@ -22,6 +22,8 @@ on:
         options:
           - deploy
           - destroy
+  release:
+    types: [published]
 
 jobs:
   detect-changes:
@@ -34,28 +36,38 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Detect changes
-        id: filter
+      - id: filter
         run: |
           git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changes.txt
-
           FRONTEND=false
           BACKEND=false
-
-          if grep -q "^frontend/" changes.txt; then
-            FRONTEND=true
-          fi
-
-          if grep -q "^backend/" changes.txt; then
-            BACKEND=true
-          fi
-
+          if grep -q "^frontend/" changes.txt; then FRONTEND=true; fi
+          if grep -q "^backend/" changes.txt; then BACKEND=true; fi
           echo "frontend=$FRONTEND" >> $GITHUB_OUTPUT
           echo "backend=$BACKEND" >> $GITHUB_OUTPUT
 
+  semantic-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - run: npm ci
+
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
   frontend-deploy:
     needs: [detect-changes]
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.frontend == 'true'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.frontend == 'true' || github.event_name == 'release'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -76,34 +88,55 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Upload to S3 and Invalidate CloudFront
+      - name: Determine deployment target and version
+        id: vars
         run: |
-          ENV="${{ github.event.inputs.environment }}"
-          if [ -z "$ENV" ]; then
+          ENV=""
+          VERSION=""
+          if [ "${{ github.event_name }}" = "release" ]; then
             ENV="prod"
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            ENV="${{ github.event.inputs.environment }}"
+            if [ -z "$ENV" ]; then ENV="prod"; fi
+            VERSION="latest"
           fi
+          echo "env=$ENV" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-          BUCKET="${{ secrets.AWS_S3_BUCKET }}"
+      - name: Archive old version (only on release)
+        if: github.event_name == 'release'
+        run: |
+          BUCKET=${{ secrets.AWS_S3_BUCKET }}
+          VERSION=${{ steps.vars.outputs.version }}
+          echo "Archiving current 'latest' as version $VERSION"
+          aws s3 cp s3://$BUCKET/ s3://$BUCKET/archive/$VERSION/ --recursive
+
+      - name: Upload to S3 and invalidate CloudFront
+        run: |
+          BUCKET=${{ secrets.AWS_S3_BUCKET }}
+          ENV=${{ steps.vars.outputs.env }}
+          VERSION=${{ steps.vars.outputs.version }}
 
           if [ "$ENV" = "prod" ]; then
-            S3_TARGET="s3://$BUCKET/"
+            TARGET="s3://$BUCKET/$VERSION/"
             INVALIDATION_PATH="/*"
           else
-            S3_TARGET="s3://$BUCKET/$ENV/"
+            TARGET="s3://$BUCKET/$ENV/"
             INVALIDATION_PATH="/$ENV/*"
           fi
 
-          echo "Syncing to $S3_TARGET"
-          aws s3 sync dist/ "$S3_TARGET" --delete --acl public-read
+          echo "Syncing to $TARGET"
+          aws s3 sync dist/ "$TARGET" --delete --acl public-read
 
-          echo "Invalidating CloudFront path $INVALIDATION_PATH"
+          echo "Invalidating CloudFront cache at $INVALIDATION_PATH"
           aws cloudfront create-invalidation \
             --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "$INVALIDATION_PATH"
 
   backend:
     needs: [frontend-deploy, detect-changes]
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.backend == 'true'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.backend == 'true' || github.event_name == 'release'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -134,13 +167,21 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
+      - name: Determine environment for deploy
+        id: envvar
+        run: |
+          ENV=""
+          if [ "${{ github.event_name }}" = "release" ]; then
+            ENV="prod"
+          else
+            ENV="${{ github.event.inputs.environment }}"
+            if [ -z "$ENV" ]; then ENV="prod"; fi
+          fi
+          echo "env=$ENV" >> $GITHUB_OUTPUT
+
       - name: CDK Deploy
         run: |
-          ENV="${{ github.event.inputs.environment }}"
-          if [ -z "$ENV" ]; then
-            ENV="prod"
-          fi
-
+          ENV=${{ steps.envvar.outputs.env }}
           echo "Deploying backend for $ENV"
           npx cdk deploy --require-approval never --context env=$ENV
         env:
