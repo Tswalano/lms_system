@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.0...v1.1.1) (2025-07-09)
+
+
+### Bug Fixes
+
+* **workflow:** CDK workflow envs ([9d768ac](https://github.com/Disraptor-Devs/employee-management-system/commit/9d768ac0d3d11fb472f5120b928009badc0b7e6e))
+
 # [1.1.0](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.0.0...v1.1.0) (2025-07-09)
 
 
