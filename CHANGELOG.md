@@ -1,3 +1,11 @@
+## [1.1.7](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.6...v1.1.7) (2025-07-09)
+
+
+### Bug Fixes
+
+* **frontend:** test version sync ([22fc84e](https://github.com/Disraptor-Devs/employee-management-system/commit/22fc84e9b737c471995592f28b0c66fa79df90f9))
+* **frontend:** test version sync ([6baf9b2](https://github.com/Disraptor-Devs/employee-management-system/commit/6baf9b2f02c9d714090d48aa8d57404e7474f234))
+
 ## [1.1.6](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.5...v1.1.6) (2025-07-09)
 
 
