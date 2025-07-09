@@ -6,7 +6,6 @@
   },
   "scripts": {
     "watch": "tsc -w",
-    "test": "jest",
     "cdk": "cdk",
     "clean": "rm -f lambda/*.js lambda/*.js.map lambda/*.d.ts ",
     "build": "tsc && npm run copy-lambda",
