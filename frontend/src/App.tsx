@@ -18,6 +18,7 @@ import ChangePassword from "./pages/ChangePassword";
 import TeamListLeaveHistory from "./pages/TeamLeaveHistory";
 import UserProfile from "./pages/UserProfile";
 import PermissionDenied from "./pages/PermissionDenied";
+import DashboardLayout from "./components/DashboardLayout";
 
 const queryClient = new QueryClient();
 
@@ -51,7 +52,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   }
 
   return (
-    <>{children}</>
+    <DashboardLayout>{children}</DashboardLayout>
   )
 };
 
