@@ -280,6 +280,8 @@ app.get('/on-leave', async (c) => {
         const startDate = c.req.query('start_date') || new Date().toISOString().split('T')[0];
         const endDate = c.req.query('end_date') || startDate;
 
+        console.log('Debug - Query params:', { startDate, endDate });
+
         // Validate parameters exist
         if (!startDate || !endDate) {
             return c.json(ResponseService.error(
@@ -297,67 +299,123 @@ app.get('/on-leave', async (c) => {
             ), 400);
         }
 
+        // Validate date range (startDate should not be after endDate)
+        if (new Date(startDate) > new Date(endDate)) {
+            return c.json(ResponseService.error(
+                "INVALID_DATE_RANGE",
+                "Start date cannot be after end date"
+            ), 400);
+        }
+
         // Get all users
         const [users] = await connection.execute(`SELECT * FROM users`);
+        console.log('Debug - Total users found:', (users as any[]).length);
 
-        // Get users on leave overlapping date range
-        const [leaveRows] = await connection.execute(`
+        // Improved query with better date handling and debugging
+        const leaveQuery = `
             SELECT
                 lr.uid,
                 lr.leave_type,
                 lr.start_date,
-                lr.end_date
+                lr.end_date,
+                lr.status,
+                DATE(lr.start_date) as start_date_only,
+                DATE(lr.end_date) as end_date_only
             FROM leave_requests lr
             WHERE lr.status = 'approved'
                 AND (
-                    (lr.start_date BETWEEN ? AND ?) OR
-                    (lr.end_date BETWEEN ? AND ?) OR
-                    (lr.start_date <= ? AND lr.end_date >= ?)
+                    -- Leave period overlaps with query range
+                    DATE(lr.start_date) <= ? AND DATE(lr.end_date) >= ?
                 )
-        `, [startDate, endDate, startDate, endDate, startDate, endDate]);
+            ORDER BY lr.start_date
+        `;
 
+        console.log('Debug - Executing leave query with params:', [endDate, startDate]);
 
-        // Map leave data by uid
+        const [leaveRows] = await connection.execute(leaveQuery, [endDate, startDate]);
+
+        console.log('Debug - Leave requests found:', (leaveRows as any[]).length);
+        console.log('Debug - Leave requests:', leaveRows);
+
+        // Map leave data by uid (handle multiple leave periods for same user)
         const leaveMap = new Map<string, {
             leaveType: string;
             leaveDates: string;
             startDate: string;
             endDate: string;
             duration: number;
+            allLeaves: Array<{
+                leaveType: string;
+                startDate: string;
+                endDate: string;
+                duration: number;
+            }>;
         }>();
 
         for (const row of leaveRows as any[]) {
+            // Ensure we're working with Date objects
             const startDateObj = new Date(row.start_date);
             const endDateObj = new Date(row.end_date);
 
+            // Calculate duration in days
             const durationMs = endDateObj.getTime() - startDateObj.getTime();
             const duration = Math.floor(durationMs / (1000 * 60 * 60 * 24)) + 1;
 
             const formattedStart = startDateObj.toLocaleDateString('en-US', {
                 month: 'short',
-                day: 'numeric'
+                day: 'numeric',
+                year: 'numeric'
             });
             const formattedEnd = endDateObj.toLocaleDateString('en-US', {
                 month: 'short',
-                day: 'numeric'
+                day: 'numeric',
+                year: 'numeric'
             });
 
-            leaveMap.set(row.uid, {
+            const leaveInfo = {
                 leaveType: row.leave_type,
-                leaveDates: `${formattedStart} - ${formattedEnd}`,
                 startDate: startDateObj.toISOString(),
                 endDate: endDateObj.toISOString(),
                 duration
-            });
+            };
+
+            // Check if user already has leave entry
+            const existingLeave = leaveMap.get(row.uid);
+            if (existingLeave) {
+                // Add to existing leaves array
+                existingLeave.allLeaves.push(leaveInfo);
+
+                // Update main leave info if this is a longer or more recent leave
+                if (duration > existingLeave.duration ||
+                    startDateObj > new Date(existingLeave.startDate)) {
+                    existingLeave.leaveType = row.leave_type;
+                    existingLeave.leaveDates = `${formattedStart} - ${formattedEnd}`;
+                    existingLeave.startDate = startDateObj.toISOString();
+                    existingLeave.endDate = endDateObj.toISOString();
+                    existingLeave.duration = duration;
+                }
+            } else {
+                // First leave for this user
+                leaveMap.set(row.uid, {
+                    leaveType: row.leave_type,
+                    leaveDates: `${formattedStart} - ${formattedEnd}`,
+                    startDate: startDateObj.toISOString(),
+                    endDate: endDateObj.toISOString(),
+                    duration,
+                    allLeaves: [leaveInfo]
+                });
+            }
         }
+
+        console.log('Debug - Users with leave:', Array.from(leaveMap.keys()));
 
         // Build team member output
         const teamMembers = (users as any[]).map(user => {
-            const leaveInfo = leaveMap.get(user.id);
-            const fullName = `${user.firstName} ${user.lastName}`;
+            const leaveInfo = leaveMap.get(user.id.toString()); // Ensure string comparison
+            const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
             const initials = `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase();
 
-            return {
+            const member = {
                 id: user.id,
                 name: fullName,
                 email: user.email,
@@ -368,11 +426,38 @@ app.get('/on-leave', async (c) => {
                 leaveDates: leaveInfo?.leaveDates || null,
                 startDate: leaveInfo?.startDate || null,
                 endDate: leaveInfo?.endDate || null,
-                duration: leaveInfo?.duration || null
+                duration: leaveInfo?.duration || null,
+                // Additional debug info
+                allLeaves: leaveInfo?.allLeaves || []
             };
+
+            console.log(`Debug - User ${user.id} (${fullName}): ${member.status}`,
+                leaveInfo ? { leaveType: member.leaveType, dates: member.leaveDates } : 'No leave');
+
+            return member;
         });
 
-        const response = ResponseService.success("Leave status fetched successfully", teamMembers);
+        // Summary for debugging
+        const onLeaveCount = teamMembers.filter(m => m.status === 'on-leave').length;
+        const availableCount = teamMembers.filter(m => m.status === 'available').length;
+
+        console.log('Debug - Summary:', {
+            totalUsers: teamMembers.length,
+            onLeave: onLeaveCount,
+            available: availableCount,
+            queryRange: `${startDate} to ${endDate}`
+        });
+
+        const response = ResponseService.success("Leave status fetched successfully", {
+            teamMembers,
+            summary: {
+                totalUsers: teamMembers.length,
+                onLeave: onLeaveCount,
+                available: availableCount,
+                queryRange: `${startDate} to ${endDate}`
+            }
+        });
+
         return c.json(response, 200);
 
     } catch (error) {
