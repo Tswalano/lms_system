@@ -142,7 +142,7 @@ const Sidebar = () => {
                         <div className="flex items-center gap-1">
                             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
                             <span className="font-mono text-slate-700 dark:text-slate-300 font-semibold tracking-wider">
-                                v{import.meta.env.VITE_VERSION || '1.0.0'}
+                                {import.meta.env.VITE_VERSION || '1.0.0'}
                             </span>
                         </div>
                     </div>
