@@ -120,7 +120,7 @@ jobs:
           VERSION=${{ steps.vars.outputs.version }}
 
           if [ "$ENV" = "prod" ]; then
-            TARGET="s3://$BUCKET/$VERSION/"
+            TARGET="s3://$BUCKET/"
             INVALIDATION_PATH="/*"
           else
             TARGET="s3://$BUCKET/$ENV/"
