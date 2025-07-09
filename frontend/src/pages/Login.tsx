@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent, type ChangeEvent } from "react";
-import { Link, useNavigate, type NavigateFunction } from "react-router-dom";
+import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, Loader2, ArrowRight, Clock, Calendar, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -74,24 +74,24 @@ const Login: React.FC = (): JSX.Element => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950 flex">
+        <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-green-950 dark:to-cyan-950 flex">
             {/* Background Elements */}
             <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-blue-200/30 dark:bg-blue-800/20 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-1/3 right-1/3 w-48 h-48 bg-indigo-200/30 dark:bg-indigo-800/20 rounded-full blur-3xl"></div>
-                <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-purple-200/30 dark:bg-purple-800/20 rounded-full blur-2xl"></div>
-                <div className="absolute bottom-1/4 left-1/3 w-36 h-36 bg-cyan-200/30 dark:bg-cyan-800/20 rounded-full blur-3xl"></div>
+                <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-green-200/30 dark:bg-green-800/20 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-1/3 right-1/3 w-48 h-48 bg-emerald-200/30 dark:bg-emerald-800/20 rounded-full blur-3xl"></div>
+                <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-cyan-200/30 dark:bg-cyan-800/20 rounded-full blur-2xl"></div>
+                <div className="absolute bottom-1/4 left-1/3 w-36 h-36 bg-teal-200/30 dark:bg-teal-800/20 rounded-full blur-3xl"></div>
             </div>
 
             {/* Floating Animation Elements */}
-            <div className="absolute top-20 left-10 w-2 h-2 bg-blue-400 rounded-full animate-ping opacity-75"></div>
-            <div className="absolute bottom-32 right-16 w-3 h-3 bg-indigo-400 rounded-full animate-pulse"></div>
-            <div className="absolute top-1/3 right-8 w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce"></div>
-            <div className="absolute bottom-1/4 left-8 w-2 h-2 bg-cyan-400 rounded-full animate-ping opacity-60" style={{ animationDelay: '1s' }}></div>
+            <div className="absolute top-20 left-10 w-2 h-2 bg-green-400 rounded-full animate-ping opacity-75"></div>
+            <div className="absolute bottom-32 right-16 w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
+            <div className="absolute top-1/3 right-8 w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce"></div>
+            <div className="absolute bottom-1/4 left-8 w-2 h-2 bg-teal-400 rounded-full animate-ping opacity-60" style={{ animationDelay: '1s' }}></div>
 
             {/* Left Side - Image/Branding */}
             <div className="hidden lg:flex lg:w-1/2 relative">
-                <div className="w-full h-full bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 relative overflow-hidden">
+                <div className="w-full h-full bg-gradient-to-br from-green-500 via-emerald-500 to-cyan-500 relative overflow-hidden">
                     {/* Decorative Elements */}
                     <div className="absolute inset-0">
                         <div className="absolute top-1/4 left-1/4 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
@@ -106,9 +106,9 @@ const Login: React.FC = (): JSX.Element => {
                                 <Calendar className="w-10 h-10 text-white" />
                             </div>
                             <h1 className="text-4xl font-bold text-white mb-4">
-                                Welcome to <span className="text-blue-200">Disraptor LMS</span>
+                                Welcome to <span className="text-green-100">Disraptor LMS</span>
                             </h1>
-                            <p className="text-blue-100 text-lg leading-relaxed mb-8">
+                            <p className="text-green-100 text-lg leading-relaxed mb-8">
                                 Streamline your leave requests and workforce management with ease
                             </p>
                         </div>
@@ -121,7 +121,7 @@ const Login: React.FC = (): JSX.Element => {
                                 </div>
                                 <div className="text-left">
                                     <h3 className="font-semibold">Easy Leave Requests</h3>
-                                    <p className="text-sm text-blue-100">Submit and track leave applications in just a few clicks</p>
+                                    <p className="text-sm text-green-100">Submit and track leave applications in just a few clicks</p>
                                 </div>
                             </div>
 
@@ -131,7 +131,7 @@ const Login: React.FC = (): JSX.Element => {
                                 </div>
                                 <div className="text-left">
                                     <h3 className="font-semibold">Real-time Approval</h3>
-                                    <p className="text-sm text-blue-100">Instant notifications and quick approval workflows</p>
+                                    <p className="text-sm text-green-100">Instant notifications and quick approval workflows</p>
                                 </div>
                             </div>
 
@@ -141,8 +141,7 @@ const Login: React.FC = (): JSX.Element => {
                                 </div>
                                 <div className="text-left">
                                     <h3 className="font-semibold">Team Visibility</h3>
-                                    <p className="text-sm text-blue-100"
-                                    >Keep your team informed and on the same page with real-time visibility of leave requests</p>
+                                    <p className="text-sm text-green-100">Keep your team informed and on the same page with real-time visibility of leave requests</p>
                                 </div>
                             </div>
                         </div>
@@ -162,16 +161,16 @@ const Login: React.FC = (): JSX.Element => {
                     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 p-8">
                         {/* Header */}
                         <div className="text-center mb-8">
-                            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-2xl mb-4">
                                 <span className="text-white font-bold text-xl">D</span>
                             </div>
-                            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                            <h2 className="text-3xl font-bold bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent mb-2">
                                 Welcome Back
                             </h2>
                             <p className="text-gray-600 dark:text-gray-400">
                                 Sign in to your account to continue
                             </p>
-                            <div className="w-16 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full mx-auto mt-4"></div>
+                            <div className="w-16 h-1 bg-gradient-to-r from-green-500 to-cyan-500 rounded-full mx-auto mt-4"></div>
                         </div>
 
                         {/* Form */}
@@ -194,7 +193,7 @@ const Login: React.FC = (): JSX.Element => {
                                         placeholder="Enter your username"
                                         value={username}
                                         onChange={handleEmailChange}
-                                        className="w-full pl-10 pr-4 py-3 bg-white/70 dark:bg-slate-800/70 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                        className="w-full pl-10 pr-4 py-3 bg-white/70 dark:bg-slate-800/70 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
                                         required
                                         disabled={loading}
                                         autoComplete="username"
@@ -214,7 +213,7 @@ const Login: React.FC = (): JSX.Element => {
                                         placeholder="Enter your password"
                                         value={password}
                                         onChange={handlePasswordChange}
-                                        className="w-full pl-10 pr-12 py-3 bg-white/70 dark:bg-slate-800/70 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                        className="w-full pl-10 pr-12 py-3 bg-white/70 dark:bg-slate-800/70 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
                                         required
                                         disabled={loading}
                                         autoComplete="current-password"
@@ -236,24 +235,24 @@ const Login: React.FC = (): JSX.Element => {
                                     <input
                                         id="remember"
                                         type="checkbox"
-                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                        className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                     />
                                     <label htmlFor="remember" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
                                         Remember me
                                     </label>
                                 </div>
-                                <Link
-                                    to="/forgot-password"
-                                    className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                                <a
+                                    href="/forgot-password"
+                                    className="text-sm text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300 transition-colors"
                                 >
                                     Forgot password?
-                                </Link>
+                                </a>
                             </div>
 
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? (
                                     <>
@@ -278,7 +277,7 @@ const Login: React.FC = (): JSX.Element => {
                     </div>
                 </div>
             </div>
-        </div >
+        </div>
     );
 };
 

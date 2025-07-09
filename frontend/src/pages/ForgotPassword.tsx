@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { ArrowLeft, Mail, CheckCircle, Lock, Key, Loader2, Shield, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
 
 const ForgotPassword = () => {
     const { forgotPassword, resetPassword } = useAuth();
@@ -69,22 +69,22 @@ const ForgotPassword = () => {
 
     if (step === "success") {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-slate-900 dark:via-green-950 dark:to-emerald-950 flex">
+            <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-green-950 dark:to-cyan-950 flex">
                 {/* Background Elements */}
                 <div className="absolute inset-0 overflow-hidden">
                     <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-green-200/30 dark:bg-green-800/20 rounded-full blur-3xl"></div>
                     <div className="absolute bottom-1/3 right-1/3 w-48 h-48 bg-emerald-200/30 dark:bg-emerald-800/20 rounded-full blur-3xl"></div>
-                    <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-teal-200/30 dark:bg-teal-800/20 rounded-full blur-2xl"></div>
+                    <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-cyan-200/30 dark:bg-cyan-800/20 rounded-full blur-2xl"></div>
                 </div>
 
                 {/* Floating Animation Elements */}
                 <div className="absolute top-20 left-10 w-2 h-2 bg-green-400 rounded-full animate-ping opacity-75"></div>
                 <div className="absolute bottom-32 right-16 w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
-                <div className="absolute top-1/3 right-8 w-1.5 h-1.5 bg-teal-400 rounded-full animate-bounce"></div>
+                <div className="absolute top-1/3 right-8 w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce"></div>
 
                 {/* Left Side - Branding */}
                 <div className="hidden lg:flex lg:w-1/2 relative">
-                    <div className="w-full h-full bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600 relative overflow-hidden">
+                    <div className="w-full h-full bg-gradient-to-br from-green-500 via-emerald-500 to-cyan-500 relative overflow-hidden">
                         <div className="absolute inset-0">
                             <div className="absolute top-1/4 left-1/4 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
                             <div className="absolute bottom-1/3 right-1/4 w-60 h-60 bg-white/5 rounded-full blur-3xl"></div>
@@ -96,7 +96,7 @@ const ForgotPassword = () => {
                                     <CheckCircle className="w-10 h-10 text-white" />
                                 </div>
                                 <h1 className="text-4xl font-bold text-white mb-4">
-                                    Password <span className="text-green-200">Reset Complete</span>
+                                    Password <span className="text-green-100">Reset Complete</span>
                                 </h1>
                                 <p className="text-green-100 text-lg leading-relaxed mb-8">
                                     Your password has been successfully updated. You can now sign in with your new credentials.
@@ -124,21 +124,21 @@ const ForgotPassword = () => {
                     <div className="w-full max-w-md">
                         <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 p-8">
                             <div className="text-center mb-8">
-                                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl mb-4">
+                                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-2xl mb-4">
                                     <CheckCircle className="w-8 h-8 text-white" />
                                 </div>
-                                <h2 className="text-3xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
+                                <h2 className="text-3xl font-bold bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent mb-2">
                                     Success!
                                 </h2>
                                 <p className="text-gray-600 dark:text-gray-400">
                                     {successMessage}
                                 </p>
-                                <div className="w-16 h-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full mx-auto mt-4"></div>
+                                <div className="w-16 h-1 bg-gradient-to-r from-green-500 to-cyan-500 rounded-full mx-auto mt-4"></div>
                             </div>
 
                             <Link
-                                to="/login"
-                                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                                to='/login'
+                                className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
                             >
                                 Back to Login
                             </Link>
@@ -151,24 +151,24 @@ const ForgotPassword = () => {
 
     if (step === "verify") {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950 flex">
+            <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-green-950 dark:to-cyan-950 flex">
                 {/* Background Elements */}
                 <div className="absolute inset-0 overflow-hidden">
-                    <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-blue-200/30 dark:bg-blue-800/20 rounded-full blur-3xl"></div>
-                    <div className="absolute bottom-1/3 right-1/3 w-48 h-48 bg-indigo-200/30 dark:bg-indigo-800/20 rounded-full blur-3xl"></div>
-                    <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-purple-200/30 dark:bg-purple-800/20 rounded-full blur-2xl"></div>
-                    <div className="absolute bottom-1/4 left-1/3 w-36 h-36 bg-cyan-200/30 dark:bg-cyan-800/20 rounded-full blur-3xl"></div>
+                    <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-green-200/30 dark:bg-green-800/20 rounded-full blur-3xl"></div>
+                    <div className="absolute bottom-1/3 right-1/3 w-48 h-48 bg-emerald-200/30 dark:bg-emerald-800/20 rounded-full blur-3xl"></div>
+                    <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-cyan-200/30 dark:bg-cyan-800/20 rounded-full blur-2xl"></div>
+                    <div className="absolute bottom-1/4 left-1/3 w-36 h-36 bg-teal-200/30 dark:bg-teal-800/20 rounded-full blur-3xl"></div>
                 </div>
 
                 {/* Floating Animation Elements */}
-                <div className="absolute top-20 left-10 w-2 h-2 bg-blue-400 rounded-full animate-ping opacity-75"></div>
-                <div className="absolute bottom-32 right-16 w-3 h-3 bg-indigo-400 rounded-full animate-pulse"></div>
-                <div className="absolute top-1/3 right-8 w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce"></div>
-                <div className="absolute bottom-1/4 left-8 w-2 h-2 bg-cyan-400 rounded-full animate-ping opacity-60" style={{ animationDelay: '1s' }}></div>
+                <div className="absolute top-20 left-10 w-2 h-2 bg-green-400 rounded-full animate-ping opacity-75"></div>
+                <div className="absolute bottom-32 right-16 w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
+                <div className="absolute top-1/3 right-8 w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce"></div>
+                <div className="absolute bottom-1/4 left-8 w-2 h-2 bg-teal-400 rounded-full animate-ping opacity-60" style={{ animationDelay: '1s' }}></div>
 
                 {/* Left Side - Branding */}
                 <div className="hidden lg:flex lg:w-1/2 relative">
-                    <div className="w-full h-full bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 relative overflow-hidden">
+                    <div className="w-full h-full bg-gradient-to-br from-green-500 via-emerald-500 to-cyan-500 relative overflow-hidden">
                         <div className="absolute inset-0">
                             <div className="absolute top-1/4 left-1/4 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
                             <div className="absolute bottom-1/3 right-1/4 w-60 h-60 bg-white/5 rounded-full blur-3xl"></div>
@@ -180,9 +180,9 @@ const ForgotPassword = () => {
                                     <Key className="w-10 h-10 text-white" />
                                 </div>
                                 <h1 className="text-4xl font-bold text-white mb-4">
-                                    Almost <span className="text-purple-200">There!</span>
+                                    Almost <span className="text-green-100">There!</span>
                                 </h1>
-                                <p className="text-purple-100 text-lg leading-relaxed mb-8">
+                                <p className="text-green-100 text-lg leading-relaxed mb-8">
                                     Check your email for the verification code and create your new secure password
                                 </p>
                             </div>
@@ -195,7 +195,7 @@ const ForgotPassword = () => {
                                     </div>
                                     <div className="text-left">
                                         <h3 className="font-semibold">Check Your Email</h3>
-                                        <p className="text-sm text-purple-100">Verification code sent to {email}</p>
+                                        <p className="text-sm text-green-100">Verification code sent to {email}</p>
                                     </div>
                                 </div>
 
@@ -205,7 +205,7 @@ const ForgotPassword = () => {
                                     </div>
                                     <div className="text-left">
                                         <h3 className="font-semibold">Create New Password</h3>
-                                        <p className="text-sm text-purple-100">Choose a strong, secure password</p>
+                                        <p className="text-sm text-green-100">Choose a strong, secure password</p>
                                     </div>
                                 </div>
                             </div>
@@ -218,16 +218,16 @@ const ForgotPassword = () => {
                     <div className="w-full max-w-md">
                         <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 p-8">
                             <div className="text-center mb-8">
-                                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl mb-4">
+                                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-2xl mb-4">
                                     <Key className="w-8 h-8 text-white" />
                                 </div>
-                                <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 bg-clip-text text-transparent mb-2">
+                                <h2 className="text-3xl font-bold bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent mb-2">
                                     Reset Password
                                 </h2>
                                 <p className="text-gray-600 dark:text-gray-400">
                                     {successMessage || `Enter the code sent to ${email}`}
                                 </p>
-                                <div className="w-16 h-1 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full mx-auto mt-4"></div>
+                                <div className="w-16 h-1 bg-gradient-to-r from-green-500 to-cyan-500 rounded-full mx-auto mt-4"></div>
                             </div>
 
                             <div className="space-y-6">
@@ -246,7 +246,7 @@ const ForgotPassword = () => {
                                         placeholder="Enter verification code (try: 123456)"
                                         value={code}
                                         onChange={(e) => setCode(e.target.value)}
-                                        className="w-full px-4 py-3 bg-white/70 dark:bg-slate-800/70 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                                        className="w-full px-4 py-3 bg-white/70 dark:bg-slate-800/70 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
                                         required
                                     />
                                 </div>
@@ -262,7 +262,7 @@ const ForgotPassword = () => {
                                             placeholder="Enter new password (min 8 characters)"
                                             value={newPassword}
                                             onChange={(e) => setNewPassword(e.target.value)}
-                                            className="w-full pl-10 pr-4 py-3 bg-white/70 dark:bg-slate-800/70 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                                            className="w-full pl-10 pr-4 py-3 bg-white/70 dark:bg-slate-800/70 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
                                             required
                                             minLength={8}
                                         />
@@ -280,7 +280,7 @@ const ForgotPassword = () => {
                                             placeholder="Confirm new password"
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full pl-10 pr-4 py-3 bg-white/70 dark:bg-slate-800/70 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                                            className="w-full pl-10 pr-4 py-3 bg-white/70 dark:bg-slate-800/70 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
                                             required
                                             minLength={8}
                                         />
@@ -290,7 +290,7 @@ const ForgotPassword = () => {
                                 <button
                                     onClick={handleResetPassword}
                                     disabled={isLoading}
-                                    className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isLoading ? (
                                         <>
@@ -305,7 +305,7 @@ const ForgotPassword = () => {
                                 <div className="text-center">
                                     <button
                                         onClick={() => setStep("request")}
-                                        className="inline-flex items-center text-sm text-purple-600 hover:text-purple-500 dark:text-purple-400 transition-colors"
+                                        className="inline-flex items-center text-sm text-green-600 hover:text-green-500 dark:text-green-400 transition-colors"
                                     >
                                         <ArrowLeft className="w-4 h-4 mr-1" />
                                         Back to email entry
@@ -316,8 +316,8 @@ const ForgotPassword = () => {
 
                         {/* Demo Info */}
                         <div className="mt-6 text-center">
-                            <div className="bg-purple-50 dark:bg-purple-950/30 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
-                                <p className="text-sm text-purple-700 dark:text-purple-300">
+                            <div className="bg-green-50 dark:bg-green-950/30 rounded-xl p-4 border border-green-200 dark:border-green-800">
+                                <p className="text-sm text-green-700 dark:text-green-300">
                                     <strong>Demo:</strong> Use code "123456"
                                 </p>
                             </div>
@@ -329,27 +329,29 @@ const ForgotPassword = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950 flex">
+        <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-green-950 dark:to-cyan-950 flex">
             {/* Background Elements */}
             <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-blue-200/30 dark:bg-blue-800/20 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-1/3 right-1/3 w-48 h-48 bg-indigo-200/30 dark:bg-indigo-800/20 rounded-full blur-3xl"></div>
-                <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-purple-200/30 dark:bg-purple-800/20 rounded-full blur-2xl"></div>
-                <div className="absolute bottom-1/4 left-1/3 w-36 h-36 bg-cyan-200/30 dark:bg-cyan-800/20 rounded-full blur-3xl"></div>
+                <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-green-200/30 dark:bg-green-800/20 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-1/3 right-1/3 w-48 h-48 bg-emerald-200/30 dark:bg-emerald-800/20 rounded-full blur-3xl"></div>
+                <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-cyan-200/30 dark:bg-cyan-800/20 rounded-full blur-2xl"></div>
+                <div className="absolute bottom-1/4 left-1/3 w-36 h-36 bg-teal-200/30 dark:bg-teal-800/20 rounded-full blur-3xl"></div>
             </div>
 
             {/* Floating Animation Elements */}
-            <div className="absolute top-20 left-10 w-2 h-2 bg-blue-400 rounded-full animate-ping opacity-75"></div>
-            <div className="absolute bottom-32 right-16 w-3 h-3 bg-indigo-400 rounded-full animate-pulse"></div>
-            <div className="absolute top-1/3 right-8 w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce"></div>
-            <div className="absolute bottom-1/4 left-8 w-2 h-2 bg-cyan-400 rounded-full animate-ping opacity-60" style={{ animationDelay: '1s' }}></div>
+            <div className="absolute top-20 left-10 w-2 h-2 bg-green-400 rounded-full animate-ping opacity-75"></div>
+            <div className="absolute bottom-32 right-16 w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
+            <div className="absolute top-1/3 right-8 w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce"></div>
+            <div className="absolute bottom-1/4 left-8 w-2 h-2 bg-teal-400 rounded-full animate-ping opacity-60" style={{ animationDelay: '1s' }}></div>
 
-            {/* Left Side - Branding */}
+            {/* Left Side - Image/Branding */}
             <div className="hidden lg:flex lg:w-1/2 relative">
-                <div className="w-full h-full bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 relative overflow-hidden">
+                <div className="w-full h-full bg-gradient-to-br from-green-500 via-emerald-500 to-cyan-500 relative overflow-hidden">
+                    {/* Decorative Elements */}
                     <div className="absolute inset-0">
                         <div className="absolute top-1/4 left-1/4 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
                         <div className="absolute bottom-1/3 right-1/4 w-60 h-60 bg-white/5 rounded-full blur-3xl"></div>
+                        <div className="absolute top-1/2 right-1/3 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
                     </div>
 
                     <div className="relative z-10 h-full flex flex-col justify-center items-center text-center p-12">
@@ -358,9 +360,9 @@ const ForgotPassword = () => {
                                 <Mail className="w-10 h-10 text-white" />
                             </div>
                             <h1 className="text-4xl font-bold text-white mb-4">
-                                Forgot Your <span className="text-blue-200">Password?</span>
+                                Forgot Your <span className="text-green-100">Password?</span>
                             </h1>
-                            <p className="text-blue-100 text-lg leading-relaxed mb-8">
+                            <p className="text-green-100 text-lg leading-relaxed mb-8">
                                 No worries! We'll help you reset your password quickly and securely
                             </p>
                         </div>
@@ -373,7 +375,7 @@ const ForgotPassword = () => {
                                 </div>
                                 <div className="text-left">
                                     <h3 className="font-semibold">Email Verification</h3>
-                                    <p className="text-sm text-blue-100">Secure code sent to your email</p>
+                                    <p className="text-sm text-green-100">Secure code sent to your email</p>
                                 </div>
                             </div>
 
@@ -383,7 +385,7 @@ const ForgotPassword = () => {
                                 </div>
                                 <div className="text-left">
                                     <h3 className="font-semibold">Quick Process</h3>
-                                    <p className="text-sm text-blue-100">Reset your password in minutes</p>
+                                    <p className="text-sm text-green-100">Reset your password in minutes</p>
                                 </div>
                             </div>
 
@@ -393,11 +395,16 @@ const ForgotPassword = () => {
                                 </div>
                                 <div className="text-left">
                                     <h3 className="font-semibold">Secure Reset</h3>
-                                    <p className="text-sm text-blue-100">Bank-level security protection</p>
+                                    <p className="text-sm text-green-100">Bank-level security protection</p>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    {/* Floating Elements */}
+                    <div className="absolute top-20 left-20 w-3 h-3 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '0.5s' }}></div>
+                    <div className="absolute bottom-32 right-20 w-2 h-2 bg-white/60 rounded-full animate-pulse"></div>
+                    <div className="absolute top-1/3 left-16 w-1.5 h-1.5 bg-white/50 rounded-full animate-ping"></div>
                 </div>
             </div>
 
@@ -406,16 +413,16 @@ const ForgotPassword = () => {
                 <div className="w-full max-w-md">
                     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 p-8">
                         <div className="text-center mb-8">
-                            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-2xl mb-4">
                                 <span className="text-white font-bold text-xl">D</span>
                             </div>
-                            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                            <h2 className="text-3xl font-bold bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent mb-2">
                                 Reset Password
                             </h2>
                             <p className="text-gray-600 dark:text-gray-400">
                                 Enter your email address to reset your password
                             </p>
-                            <div className="w-16 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full mx-auto mt-4"></div>
+                            <div className="w-16 h-1 bg-gradient-to-r from-green-500 to-cyan-500 rounded-full mx-auto mt-4"></div>
                         </div>
 
                         <div className="space-y-6">
@@ -436,7 +443,7 @@ const ForgotPassword = () => {
                                         placeholder="Enter your email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-3 bg-white/70 dark:bg-slate-800/70 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                        className="w-full pl-10 pr-4 py-3 bg-white/70 dark:bg-slate-800/70 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
                                         required
                                     />
                                 </div>
@@ -445,7 +452,7 @@ const ForgotPassword = () => {
                             <button
                                 onClick={handleRequestReset}
                                 disabled={isLoading}
-                                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? (
                                     <>
@@ -458,13 +465,13 @@ const ForgotPassword = () => {
                             </button>
 
                             <div className="text-center">
-                                <Link
-                                    to="/login"
-                                    className="inline-flex items-center text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 transition-colors"
+                                <button
+                                    onClick={() => window.history.back()}
+                                    className="inline-flex items-center text-sm text-green-600 hover:text-green-500 dark:text-green-400 transition-colors"
                                 >
                                     <ArrowLeft className="w-4 h-4 mr-1" />
                                     Back to login
-                                </Link>
+                                </button>
                             </div>
                         </div>
                     </div>
