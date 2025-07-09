@@ -450,9 +450,9 @@ const UserProfile: React.FC = () => {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                                                     First Name
-                                                </label>
+                                                </Label>
                                                 {isEditing ? (
                                                     <input
                                                         type="text"
@@ -467,9 +467,9 @@ const UserProfile: React.FC = () => {
                                             </div>
 
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                                                     Last Name
-                                                </label>
+                                                </Label>
                                                 {isEditing ? (
                                                     <input
                                                         type="text"
@@ -484,14 +484,15 @@ const UserProfile: React.FC = () => {
                                             </div>
 
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                    <Mail className="w-4 h-4 inline mr-2" />
-                                                    Email
+                                                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                                        <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                    </div>
                                                     <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                                                         <Lock className="w-3 h-3 mr-1" />
                                                         Read-only
                                                     </span>
-                                                </label>
+                                                </Label>
                                                 {isEditing ? (
                                                     <div className="relative">
                                                         <input
@@ -515,10 +516,12 @@ const UserProfile: React.FC = () => {
                                                 </p>
                                             </div>
 
-                                            <div>
-                                                <Label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                    <Phone className="w-4 h-4 inline mr-2" />
-                                                    Phone Number
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                                        <Phone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                    </div>
+                                                    <span>Cell No.</span>
                                                 </Label>
                                                 {isEditing ? (
                                                     <input
