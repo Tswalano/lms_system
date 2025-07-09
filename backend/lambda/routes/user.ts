@@ -290,7 +290,7 @@ app.get('/on-leave', async (c) => {
             ), 400);
         }
 
-        // Validate date format
+        // Validate date format 
         const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
         if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
             return c.json(ResponseService.error(
