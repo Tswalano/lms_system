@@ -1,3 +1,11 @@
+## [1.1.2](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.1...v1.1.2) (2025-07-09)
+
+
+### Bug Fixes
+
+* **frontend:** Added versioning to dislay on the UI ([5ef69d8](https://github.com/Disraptor-Devs/employee-management-system/commit/5ef69d8b2dc2de63cf5439c3865976f5bc0c8358))
+* **frotend:** deployment versioning on s3 trigger test workflow ([61626c4](https://github.com/Disraptor-Devs/employee-management-system/commit/61626c4f221206d0e1923cf36849844b56297513))
+
 ## [1.1.1](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.0...v1.1.1) (2025-07-09)
 
 
