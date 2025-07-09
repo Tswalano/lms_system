@@ -46,19 +46,72 @@ jobs:
           echo "frontend=$FRONTEND" >> $GITHUB_OUTPUT
           echo "backend=$BACKEND" >> $GITHUB_OUTPUT
 
-  frontend-deploy:
+  semantic-release:
     needs: [detect-changes]
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.frontend == 'true' || github.event_name == 'release'
+    if: |
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/main' &&
+      needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      new-release-published: ${{ steps.semantic.outputs.new-release-published }}
+      new-release-version: ${{ steps.semantic.outputs.new-release-version }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20.9.0'
+
+      - run: npm ci
+
+      - name: Run semantic-release
+        id: semantic
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          npx semantic-release
+          # Check if a new release was published
+          if [ -f .semantic-release-output ]; then
+            NEW_VERSION=$(cat .semantic-release-output)
+            echo "new-release-published=true" >> $GITHUB_OUTPUT
+            echo "new-release-version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "new-release-published=false" >> $GITHUB_OUTPUT
+          fi
+
+  frontend-deploy:
+    needs: [detect-changes, semantic-release]
+    if: |
+      always() && 
+      (
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy') ||
+        (needs.detect-changes.result == 'success' && needs.detect-changes.outputs.frontend == 'true') ||
+        (github.event_name == 'release') ||
+        (needs.semantic-release.result == 'success')
+      )
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./frontend
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
 
       - uses: actions/setup-node@v3
         with:
           node-version: '18.x'
+
+      # Pull latest changes if semantic-release updated package.json
+      - name: Pull latest changes
+        if: needs.semantic-release.outputs.new-release-published == 'true'
+        run: |
+          git pull origin main
 
       - run: npm ci
       
@@ -68,33 +121,26 @@ jobs:
           echo "Current directory: $(pwd)"
           echo "Root package.json exists: $(test -f ../package.json && echo 'YES' || echo 'NO')"
           
-          # First try to get the latest GitHub release version
-          GITHUB_VERSION=""
           if [ "${{ github.event_name }}" = "release" ]; then
-            GITHUB_VERSION="${{ github.event.release.tag_name }}"
-            echo "Using release tag version: $GITHUB_VERSION"
+            VERSION="${{ github.event.release.tag_name }}"
+            echo "Using release tag version: $VERSION"
+          elif [ "${{ needs.semantic-release.outputs.new-release-published }}" = "true" ]; then
+            VERSION="${{ needs.semantic-release.outputs.new-release-version }}"
+            echo "Using new semantic release version: $VERSION"
           else
-            # Try to get latest release from GitHub API
+            # Try to get latest release from GitHub API as fallback
             echo "Checking for latest GitHub release..."
             LATEST_RELEASE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
               "https://api.github.com/repos/${{ github.repository }}/releases/latest" | \
               grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]*).*/\1/' || echo "")
             
             if [ ! -z "$LATEST_RELEASE" ]; then
-              GITHUB_VERSION="$LATEST_RELEASE"
-              echo "Found latest GitHub release: $GITHUB_VERSION"
+              VERSION="$LATEST_RELEASE"
+              echo "Using latest GitHub release: $VERSION"
             else
-              echo "No GitHub releases found"
+              VERSION=$(node -p "require('../package.json').version")
+              echo "Using package.json version as fallback: $VERSION"
             fi
-          fi
-          
-          # Fallback to package.json version if no GitHub release found
-          if [ -z "$GITHUB_VERSION" ]; then
-            VERSION=$(node -p "require('../package.json').version")
-            echo "Using package.json version as fallback: $VERSION"
-          else
-            VERSION="$GITHUB_VERSION"
-            echo "Using GitHub release version: $VERSION"
           fi
           
           echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
@@ -215,31 +261,6 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
           CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-
-  semantic-release:
-    needs: [detect-changes, frontend-deploy]
-    if: |
-      always() && 
-      github.event_name == 'push' && 
-      github.ref == 'refs/heads/main' &&
-      needs.frontend-deploy.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GH_TOKEN }}
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '20.9.0'
-
-      - run: npm ci
-
-      - name: Run semantic-release
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: npx semantic-release
 
   backend-destroy:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
