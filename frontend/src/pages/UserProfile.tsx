@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, Mail, Phone, Lock, Edit2, Save, X, Eye, EyeOff, Camera, Loader2, Calendar as CalendarIcon, Users2, Info } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import Sidebar from '@/components/Sidebar';
@@ -87,7 +87,7 @@ const UserProfile: React.FC = () => {
     });
 
     // Fetch user data
-    const fetchUserData = async (): Promise<void> => {
+    const fetchUserData = useCallback(async () => {
         try {
             setIsLoading(true);
             const response = await authFetch('/users/me', {
@@ -123,11 +123,11 @@ const UserProfile: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [authFetch]);
 
     useEffect(() => {
         fetchUserData();
-    }, []);
+    }, [fetchUserData]);
 
     const handleProfileChange = (field: keyof ProfileFormData, value: string): void => {
         setProfileData(prev => ({
