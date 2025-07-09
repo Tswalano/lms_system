@@ -18,6 +18,7 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.10"
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.0.12"
   }
 }

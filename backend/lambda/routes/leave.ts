@@ -619,18 +619,6 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
         const conditions: string[] = [];
         const params: any[] = [];
 
-        // Apply leave_type if present
-        if (queryParams.leave_type) {
-            conditions.push('lr.leave_type = ?');
-            params.push(queryParams.leave_type);
-        }
-
-        // Search condition
-        if (queryParams.search) {
-            conditions.push('(CONCAT(u.firstName, " ", u.lastName) LIKE ? OR u.email LIKE ?)');
-            params.push(`%${queryParams.search}%`, `%${queryParams.search}%`);
-        }
-
         // Core status + date logic - Updated to check:
         // - Pending requests from current year
         // - Approved/Rejected requests from last 30 days
@@ -643,7 +631,23 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
         conditions.push(statusFilter);
         params.push(currentYear, thirtyDaysAgoStr);
 
-        const whereClause = conditions.length ? `AND createdAt >= DATE_FORMAT(NOW(), '%Y-01-01') AND createdAt < DATE_FORMAT(DATE_ADD(NOW(), INTERVAL 1 YEAR), '%Y-01-01') AND ${conditions.join(' AND ')}` : '';
+        // Apply leave_type if present
+        if (queryParams.leave_type) {
+            conditions.push('lr.leave_type = ?');
+            params.push(queryParams.leave_type);
+        }
+
+        // Search condition
+        if (queryParams.search) {
+            conditions.push('(CONCAT(u.firstName, " ", u.lastName) LIKE ? OR u.email LIKE ?)');
+            params.push(`%${queryParams.search}%`, `%${queryParams.search}%`);
+        }
+
+        // Add year filter for createdAt
+        conditions.push('YEAR(lr.createdAt) = ?');
+        params.push(currentYear);
+
+        const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
         // Count query
         const [countResult] = await connection.query<mysql.RowDataPacket[]>(`
@@ -695,7 +699,6 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
         if (connection) await connection.end();
     }
 });
-
 
 // POST /leave-calculation - Preview leave calculation
 app.post('/leave-calculation', async (c: Context): Promise<Response> => {
