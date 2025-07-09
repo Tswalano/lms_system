@@ -1,3 +1,14 @@
+## [1.1.10](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.9...v1.1.10) (2025-07-09)
+
+
+### Bug Fixes
+
+* **frontend:** add package name for semantic-release ([eed0571](https://github.com/Disraptor-Devs/employee-management-system/commit/eed0571976aeac97089cbd00c907ce132be6d041))
+* **frontend:** add package name for semantic-release ([a33266a](https://github.com/Disraptor-Devs/employee-management-system/commit/a33266a34b5a750ed95ff7b4ff5af527b80f01a6))
+* **frontend:** add package name for semantic-release ([8c2fc28](https://github.com/Disraptor-Devs/employee-management-system/commit/8c2fc283039d562fc8035df389ac96c2b6995424))
+* **frontend:** Version ([851c496](https://github.com/Disraptor-Devs/employee-management-system/commit/851c496d8046a2e4221c9a86b50641cef59fb1d0))
+* **frontend:** Version ([7108f5d](https://github.com/Disraptor-Devs/employee-management-system/commit/7108f5d4e8d2f719f8c882ea19dcfcccb28545d0))
+
 ## [1.1.9](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.8...v1.1.9) (2025-07-09)
 
 
