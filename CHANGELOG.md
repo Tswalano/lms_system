@@ -1,3 +1,10 @@
+## [1.1.11](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.10...v1.1.11) (2025-07-09)
+
+
+### Bug Fixes
+
+* **frontend:** add package name for semantic-release ([e087100](https://github.com/Disraptor-Devs/employee-management-system/commit/e087100f588b0e153e0aee21f8773811372919ea))
+
 ## [1.1.10](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.9...v1.1.10) (2025-07-09)
 
 
