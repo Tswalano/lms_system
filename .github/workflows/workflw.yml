@@ -24,8 +24,38 @@ on:
           - destroy
 
 jobs:
+  detect-changes:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Detect changes
+        id: filter
+        run: |
+          git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changes.txt
+
+          FRONTEND=false
+          BACKEND=false
+
+          if grep -q "^frontend/" changes.txt; then
+            FRONTEND=true
+          fi
+
+          if grep -q "^backend/" changes.txt; then
+            BACKEND=true
+          fi
+
+          echo "frontend=$FRONTEND" >> $GITHUB_OUTPUT
+          echo "backend=$BACKEND" >> $GITHUB_OUTPUT
+
   frontend-deploy:
-    if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
+    needs: [detect-changes]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -72,8 +102,8 @@ jobs:
             --paths "$INVALIDATION_PATH"
 
   backend:
-    needs: frontend-deploy
-    if: (github.event_name == 'push' || github.event.inputs.action == 'deploy') && success()
+    needs: [frontend-deploy, detect-changes]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -98,7 +128,6 @@ jobs:
         run: |
           export AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
           export AWS_REGION=${{ secrets.AWS_REGION }}
-          echo "Bootstrapping CDK"
           npx cdk bootstrap aws://$AWS_ACCOUNT_ID/$AWS_REGION
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -119,7 +148,7 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
 
   backend-destroy:
-    if: github.event.inputs.action == 'destroy'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
     runs-on: ubuntu-latest
     defaults:
       run:
