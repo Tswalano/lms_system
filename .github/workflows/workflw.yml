@@ -46,16 +46,40 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Upload to S3
+      - name: Upload to S3 and Invalidate CloudFront
         run: |
-          BUCKET=${{ secrets.AWS_S3_BUCKET }}
-          ENV=${{ github.event.inputs.environment }}
-          if [ -z "$ENV" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+            if [ -z "$ENV" ]; then
             ENV="beta"
-          fi
-          echo "Deploying to s3://$BUCKET/$ENV/"
-          aws s3 sync dist/ s3://$BUCKET/$ENV/ --delete --acl public-read
+            fi
 
+            BUCKET="${{ secrets.AWS_S3_BUCKET }}"
+
+            if [ "$ENV" = "prod" ]; then
+            S3_TARGET="s3://$BUCKET/"
+            INVALIDATION_PATH="/*"
+            else
+            S3_TARGET="s3://$BUCKET/$ENV/"
+            INVALIDATION_PATH="/$ENV/*"
+            fi
+
+      - name: Invalidate CloudFront cache
+        run: |
+            ENV="${{ github.event.inputs.environment }}"
+            if [ -z "$ENV" ]; then
+            ENV="beta"
+            fi
+
+            if [ "$ENV" = "prod" ]; then
+            PATHS="/*"
+            else
+            PATHS="/$ENV/*"
+            fi
+
+            echo "Invalidating CloudFront distribution ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} at path: $PATHS"
+            aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "$PATHS"
   backend:
     needs: frontend-deploy
     if: (github.event_name == 'push' || github.event.inputs.action == 'deploy') && success()
