@@ -360,7 +360,7 @@ app.get('/leave-history/:uid', async (c: Context): Promise<Response> => {
 });
 
 // PUT /leave/:id - Update leave request
-app.put('/leave/:id', async (c: Context): Promise<Response> => {
+app.put('/:id', async (c: Context): Promise<Response> => {
     let connection: mysql.Connection | null = null;
     try {
         const uid = getUserId(c);
