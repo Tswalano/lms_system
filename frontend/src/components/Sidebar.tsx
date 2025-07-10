@@ -134,13 +134,12 @@ const Sidebar = () => {
 
             </div>
 
-            <div className="absolute bottom-4 left-4 right-4 py-6">
+            <div className="absolute bottom-4 left-4 right-4 py-2">
                 {/* Version */}
                 <div className="mb-4 px-3 py-2 text-xs from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/30 backdrop-blur-sm shadow-sm">
                     <div className="flex items-center justify-between">
                         <span className="text-slate-600 dark:text-slate-400 font-medium">Version</span>
                         <div className="flex items-center gap-1">
-                            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
                             <span className="font-mono text-slate-700 dark:text-slate-300 font-semibold tracking-wider">
                                 {import.meta.env.VITE_VERSION || '1.0.0'}
                             </span>

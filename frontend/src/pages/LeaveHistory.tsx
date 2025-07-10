@@ -1,10 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Clock, Download, Eye, RefreshCw, AlertCircle, X, CheckCircle, XCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { Clock, Download, Eye, RefreshCw, AlertCircle, X, CheckCircle, XCircle, AlertTriangle, Loader2, Edit, Calendar as CalendarIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { toast } from "sonner";
+
+interface LeaveApplicationData {
+    leaveType: string;
+    startDate: string;
+    endDate: string;
+    reason: string;
+    leaveLength: 'half_day' | 'full_day';
+}
 
 interface LeaveRecord {
     id: number;
@@ -30,7 +47,15 @@ const LeaveHistory = () => {
     const { authFetch } = useAuth()
     const [filter, setFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedLeave, setSelectedLeave] = useState<LeaveRecord | null>(null);
+    const [editFormData, setEditFormData] = useState<LeaveApplicationData>({
+        leaveType: '',
+        startDate: '',
+        endDate: '',
+        reason: '',
+        leaveLength: 'full_day'
+    });
     const queryClient = useQueryClient();
     const token: string | null = localStorage.getItem('authToken');
 
@@ -74,6 +99,88 @@ const LeaveHistory = () => {
         retry: 2,
     });
 
+    // Effect to handle leave length changes in edit form
+    useEffect(() => {
+        if (editFormData.leaveLength === 'half_day' && editFormData.startDate) {
+            setEditFormData(prev => ({
+                ...prev,
+                endDate: editFormData.startDate
+            }));
+        }
+    }, [editFormData.leaveLength, editFormData.startDate]);
+
+    // Helper function for date formatting without timezone issues
+    const formatDateToLocal = (date: Date): string => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    // API function to update leave application
+    const updateLeaveApplication = async (leaveId: number, data: LeaveApplicationData): Promise<ApiResponse> => {
+        const payload = {
+            leave_type: data.leaveType,
+            leave_start: data.startDate,
+            leave_end: data.endDate,
+            leave_comment: data.reason,
+            leave_length: data.leaveLength
+        };
+
+        const response = await authFetch(`/leave/${leaveId}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+
+        const result: ApiResponse = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to update leave application');
+        }
+
+        return result;
+    };
+
+    // React Query mutation for updating leave application
+    const {
+        mutate: updateApplication,
+        isPending: isUpdating
+    } = useMutation({
+        mutationFn: ({ leaveId, data }: { leaveId: number; data: LeaveApplicationData }) =>
+            updateLeaveApplication(leaveId, data),
+        onSuccess: (data) => {
+            toast.success("Leave Application Updated", {
+                description: data.message || "Your leave request has been updated successfully.",
+            });
+
+            // Close edit modal
+            setIsEditModalOpen(false);
+            setSelectedLeave(null);
+
+            // Reset form data
+            setEditFormData({
+                leaveType: '',
+                startDate: '',
+                endDate: '',
+                reason: '',
+                leaveLength: 'full_day'
+            });
+
+            // Invalidate and refetch leave history
+            queryClient.invalidateQueries({ queryKey: ['leaveHistory'] });
+        },
+        onError: (error) => {
+            toast.error("Update Failed", {
+                description: error instanceof Error ? error.message : "Failed to update leave application. Please try again.",
+            });
+        }
+    });
+
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['leaveHistory'] });
     };
@@ -81,6 +188,60 @@ const LeaveHistory = () => {
     const openLeaveDetails = (leave: LeaveRecord) => {
         setSelectedLeave(leave);
         setIsDialogOpen(true);
+    };
+
+    const handleEditLeave = (leave: LeaveRecord) => {
+        setSelectedLeave(leave);
+        setEditFormData({
+            leaveType: leave.leave_type,
+            startDate: leave.start_date,
+            endDate: leave.end_date,
+            reason: leave.leave_comment,
+            leaveLength: leave.leave_length === 0.5 ? 'half_day' : 'full_day'
+        });
+        setIsEditModalOpen(true);
+    };
+
+    const handleUpdateSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!selectedLeave) return;
+
+        // Basic validation
+        if (!editFormData.leaveType || !editFormData.startDate || !editFormData.endDate || !editFormData.reason) {
+            toast.error("Missing Required Fields", {
+                description: "Please fill in all required fields.",
+            });
+            return;
+        }
+
+        // Date validation
+        const startDate = new Date(editFormData.startDate);
+        const endDate = new Date(editFormData.endDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (startDate < today) {
+            toast.error("Invalid Start Date", {
+                description: "Start date cannot be in the past."
+            });
+            return;
+        }
+
+        if (editFormData.leaveLength === 'full_day' && endDate < startDate) {
+            toast.error("Invalid Date Range", {
+                description: "End date cannot be before start date."
+            });
+            return;
+        }
+
+        // Submit the update
+        updateApplication({ leaveId: selectedLeave.id, data: editFormData });
+    };
+
+    const canEditLeave = (leave: LeaveRecord): boolean => {
+        // Only allow editing of pending leaves
+        return leave.status.toLowerCase() === 'pending';
     };
 
     const getStatusColor = (status: string) => {
@@ -97,7 +258,6 @@ const LeaveHistory = () => {
         }
     };
 
-    // TODO - The colors don't blend well in the UI: trigger build
     const getStatusIcon = (status: string) => {
         const statusLower = status.toLowerCase();
         switch (statusLower) {
@@ -268,14 +428,27 @@ const LeaveHistory = () => {
                                         {formatDate(record.createdAt)}
                                     </TableCell>
                                     <TableCell>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/50 dark:text-blue-400 dark:hover:text-blue-300"
-                                            onClick={() => openLeaveDetails(record)}
-                                        >
-                                            <Eye className="w-4 h-4" />
-                                        </Button>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/50 dark:text-blue-400 dark:hover:text-blue-300"
+                                                onClick={() => openLeaveDetails(record)}
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </Button>
+                                            {canEditLeave(record) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/50 dark:text-orange-400 dark:hover:text-orange-300"
+                                                    onClick={() => handleEditLeave(record)}
+                                                    title="Edit Leave Application"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </Button>
+                                            )}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -381,12 +554,240 @@ const LeaveHistory = () => {
 
                         {/* Footer */}
                         <div className="p-6 bg-gray-50 dark:bg-slate-700/30 border-t border-gray-100 dark:border-slate-600/30">
-                            <Button
-                                onClick={() => setIsDialogOpen(false)}
-                                className="w-full bg-gray-800 hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-white"
-                            >
-                                Close
-                            </Button>
+                            <div className="flex gap-3">
+                                {canEditLeave(selectedLeave) && (
+                                    <Button
+                                        onClick={() => handleEditLeave(selectedLeave)}
+                                        className="bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2"
+                                    >
+                                        <Edit className="w-4 h-4" />
+                                        Edit Application
+                                    </Button>
+                                )}
+                                <Button
+                                    onClick={() => setIsDialogOpen(false)}
+                                    variant="outline"
+                                    className="flex-1 bg-gray-800 hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-white"
+                                >
+                                    Close
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Leave Modal */}
+            {isEditModalOpen && selectedLeave && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200/50 dark:border-slate-600/50">
+                        {/* Header */}
+                        <div className="p-6 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/30 border-b border-gray-200/50 dark:border-slate-600/50">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
+                                        <Edit className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                                            Edit Leave Application
+                                        </h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            Application #{selectedLeave.id}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setIsEditModalOpen(false)}
+                                    className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-all duration-200"
+                                    disabled={isUpdating}
+                                >
+                                    <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Form Content */}
+                        <div className="p-6">
+                            <form onSubmit={handleUpdateSubmit} className="space-y-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="editLeaveType" className="text-gray-700 dark:text-gray-300">Leave Type *</Label>
+                                    <Select
+                                        value={editFormData.leaveType}
+                                        onValueChange={(value) => setEditFormData({ ...editFormData, leaveType: value })}
+                                        disabled={isUpdating}
+                                    >
+                                        <SelectTrigger className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600">
+                                            <SelectValue placeholder="Select leave type" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600">
+                                            <SelectItem value="Annual Leave">Annual Leave</SelectItem>
+                                            <SelectItem value="Sick Leave">Sick Leave</SelectItem>
+                                            <SelectItem value="Paternity Leave">Paternity Leave</SelectItem>
+                                            <SelectItem value="Family Responsibility">Family Responsibility</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <Label className="text-gray-700 dark:text-gray-300">Leave Length *</Label>
+                                    <RadioGroup
+                                        value={editFormData.leaveLength}
+                                        onValueChange={(value: 'half_day' | 'full_day') => setEditFormData({ ...editFormData, leaveLength: value })}
+                                        className="flex gap-6"
+                                        disabled={isUpdating}
+                                    >
+                                        <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value="full_day" id="edit_full_day" />
+                                            <Label htmlFor="edit_full_day">Full Day</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value="half_day" id="edit_half_day" />
+                                            <Label htmlFor="edit_half_day">Half Day</Label>
+                                        </div>
+                                    </RadioGroup>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label className="text-gray-700 dark:text-gray-300">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+                                                    <CalendarIcon className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                                                </div>
+                                                <span>Start Date *</span>
+                                            </div>
+                                        </Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant={"outline"}
+                                                    className={cn(
+                                                        "w-full justify-start text-left font-normal bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600",
+                                                        !editFormData.startDate && "text-muted-foreground"
+                                                    )}
+                                                    disabled={isUpdating}
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {editFormData.startDate ? format(new Date(editFormData.startDate), "PPP") : <span>Pick a date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
+                                                <Calendar
+                                                    mode="single"
+                                                    className="bg-white dark:bg-slate-800"
+                                                    selected={editFormData.startDate ? new Date(editFormData.startDate) : undefined}
+                                                    onSelect={(date) => {
+                                                        if (date) {
+                                                            const dateString = formatDateToLocal(date);
+                                                            setEditFormData({ ...editFormData, startDate: dateString });
+                                                            if (editFormData.leaveLength === 'half_day') {
+                                                                setEditFormData(prev => ({ ...prev, endDate: dateString }));
+                                                            }
+                                                        }
+                                                    }}
+                                                    initialFocus
+                                                    disabled={(date) => {
+                                                        const today = new Date();
+                                                        const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                                                        const compareToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                                                        return compareDate < compareToday;
+                                                    }}
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-gray-700 dark:text-gray-300">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+                                                    <CalendarIcon className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                                                </div>
+                                                <span>{editFormData.leaveLength === 'half_day' ? 'Date' : 'End Date *'}</span>
+                                            </div>
+                                        </Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant={"outline"}
+                                                    className={cn(
+                                                        "w-full justify-start text-left font-normal bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600",
+                                                        !editFormData.endDate && "text-muted-foreground"
+                                                    )}
+                                                    disabled={isUpdating || editFormData.leaveLength === 'half_day'}
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {editFormData.endDate ? format(new Date(editFormData.endDate), "PPP") : <span>Pick a date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
+                                                <Calendar
+                                                    mode="single"
+                                                    className="bg-white dark:bg-slate-800"
+                                                    selected={editFormData.endDate ? new Date(editFormData.endDate) : undefined}
+                                                    onSelect={(date) => {
+                                                        if (date && editFormData.leaveLength === 'full_day') {
+                                                            setEditFormData({ ...editFormData, endDate: formatDateToLocal(date) });
+                                                        }
+                                                    }}
+                                                    initialFocus
+                                                    disabled={(date) => {
+                                                        if (editFormData.leaveLength === 'full_day' && editFormData.startDate) {
+                                                            const startDateObj = new Date(editFormData.startDate);
+                                                            const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                                                            const compareStart = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
+                                                            return compareDate < compareStart;
+                                                        }
+                                                        return false;
+                                                    }}
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="editReason" className="text-gray-700 dark:text-gray-300">Reason for Leave *</Label>
+                                    <Textarea
+                                        id="editReason"
+                                        placeholder="Please provide a detailed reason for your leave request..."
+                                        value={editFormData.reason}
+                                        onChange={(e) => setEditFormData({ ...editFormData, reason: e.target.value })}
+                                        className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600 min-h-[120px]"
+                                        disabled={isUpdating}
+                                    />
+                                </div>
+
+                                <div className="flex gap-4 pt-4">
+                                    <Button
+                                        type="submit"
+                                        className="bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2 px-8"
+                                        disabled={isUpdating}
+                                    >
+                                        {isUpdating ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Updating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Edit className="w-4 h-4" />
+                                                Update Application
+                                            </>
+                                        )}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        onClick={() => setIsEditModalOpen(false)}
+                                        variant="outline"
+                                        className="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200"
+                                        disabled={isUpdating}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>

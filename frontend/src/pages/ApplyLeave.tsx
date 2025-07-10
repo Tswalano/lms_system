@@ -174,6 +174,14 @@ const ApplyLeave = () => {
         );
     }
 
+    const formatDateToLocal = (date: Date): string => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+
     // Get minimum date (today)
     const startDate = formData.startDate ? new Date(formData.startDate) : undefined;
     const endDate = formData.endDate ? new Date(formData.endDate) : undefined;
@@ -263,7 +271,7 @@ const ApplyLeave = () => {
                                         selected={startDate}
                                         onSelect={(date) => {
                                             if (date) {
-                                                const dateString = date.toISOString().split('T')[0];
+                                                const dateString = formatDateToLocal(date);
                                                 setFormData({ ...formData, startDate: dateString });
                                                 if (formData.leaveLength === 'half_day') {
                                                     setFormData(prev => ({ ...prev, endDate: dateString }));
@@ -271,7 +279,13 @@ const ApplyLeave = () => {
                                             }
                                         }}
                                         initialFocus
-                                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                        disabled={(date) => {
+                                            // Compare dates without time components
+                                            const today = new Date();
+                                            const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                                            const compareToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                                            return compareDate < compareToday;
+                                        }}
                                     />
                                 </PopoverContent>
                             </Popover>
@@ -307,15 +321,19 @@ const ApplyLeave = () => {
                                         selected={endDate}
                                         onSelect={(date) => {
                                             if (date && formData.leaveLength === 'full_day') {
-                                                setFormData({ ...formData, endDate: date.toISOString().split('T')[0] });
+                                                setFormData({ ...formData, endDate: formatDateToLocal(date) });
                                             }
                                         }}
                                         initialFocus
-                                        disabled={(date) =>
-                                            formData.leaveLength === 'full_day' && formData.startDate
-                                                ? date < new Date(formData.startDate)
-                                                : false
-                                        }
+                                        disabled={(date) => {
+                                            if (formData.leaveLength === 'full_day' && formData.startDate) {
+                                                const startDateObj = new Date(formData.startDate);
+                                                const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                                                const compareStart = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
+                                                return compareDate < compareStart;
+                                            }
+                                            return false;
+                                        }}
                                     />
                                 </PopoverContent>
                             </Popover>
