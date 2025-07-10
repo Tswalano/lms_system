@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.2.0...v1.2.1) (2025-07-10)
+
+
+### Bug Fixes
+
+* **frontend:** Apply for leave selecting one day before. and edit leave history functionality ([d66ee3b](https://github.com/Disraptor-Devs/employee-management-system/commit/d66ee3b90a5b603595e44a70401d3111733cdca1))
+
 # [1.2.0](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.1.13...v1.2.0) (2025-07-09)
 
 
