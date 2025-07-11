@@ -1,3 +1,11 @@
+## [1.2.2](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.2.1...v1.2.2) (2025-07-11)
+
+
+### Bug Fixes
+
+* **backend:** Endpoint APIs to allow update leave request ([38a78d0](https://github.com/Disraptor-Devs/employee-management-system/commit/38a78d0bf2797437a80f23c27496d40c2fa522f4))
+* **frontend:** Color scheme on edit leave modal to match the application color pallet ([ee094be](https://github.com/Disraptor-Devs/employee-management-system/commit/ee094befc7a4192a72d029de16c17c351611ea0f))
+
 ## [1.2.1](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.2.0...v1.2.1) (2025-07-10)
 
 
