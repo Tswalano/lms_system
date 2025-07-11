@@ -441,7 +441,7 @@ const LeaveHistory = () => {
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/50 dark:text-orange-400 dark:hover:text-orange-300"
+                                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/50 dark:text-blue-400 dark:hover:text-blue-300"
                                                     onClick={() => handleEditLeave(record)}
                                                     title="Edit Leave Application"
                                                 >
@@ -558,7 +558,7 @@ const LeaveHistory = () => {
                                 {canEditLeave(selectedLeave) && (
                                     <Button
                                         onClick={() => handleEditLeave(selectedLeave)}
-                                        className="bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
                                     >
                                         <Edit className="w-4 h-4" />
                                         Edit Application
@@ -582,10 +582,10 @@ const LeaveHistory = () => {
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200/50 dark:border-slate-600/50">
                         {/* Header */}
-                        <div className="p-6 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/30 border-b border-gray-200/50 dark:border-slate-600/50">
+                        <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border-b border-gray-200/50 dark:border-slate-600/50">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
                                         <Edit className="w-5 h-5 text-white" />
                                     </div>
                                     <div>
@@ -652,8 +652,8 @@ const LeaveHistory = () => {
                                     <div className="space-y-2">
                                         <Label className="text-gray-700 dark:text-gray-300">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
-                                                    <CalendarIcon className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                                                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                                    <CalendarIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                                 </div>
                                                 <span>Start Date *</span>
                                             </div>
@@ -701,8 +701,8 @@ const LeaveHistory = () => {
                                     <div className="space-y-2">
                                         <Label className="text-gray-700 dark:text-gray-300">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
-                                                    <CalendarIcon className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                                                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                                    <CalendarIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                                 </div>
                                                 <span>{editFormData.leaveLength === 'half_day' ? 'Date' : 'End Date *'}</span>
                                             </div>
@@ -762,7 +762,7 @@ const LeaveHistory = () => {
                                 <div className="flex gap-4 pt-4">
                                     <Button
                                         type="submit"
-                                        className="bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2 px-8"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-8"
                                         disabled={isUpdating}
                                     >
                                         {isUpdating ? (
