@@ -33,7 +33,7 @@ interface LeaveRecord {
     leave_comment: string;
     createdAt: string;
     feedback?: string;
-    leave_length: number;
+    leave_length: 'half_day' | 'full_day';
     updatedAt: string;
 }
 
@@ -197,7 +197,7 @@ const LeaveHistory = () => {
             startDate: leave.start_date,
             endDate: leave.end_date,
             reason: leave.leave_comment,
-            leaveLength: leave.leave_length === 0.5 ? 'half_day' : 'full_day'
+            leaveLength: leave.leave_length === 'half_day' ? 'half_day' : 'full_day'
         });
         setIsEditModalOpen(true);
     };
@@ -248,13 +248,13 @@ const LeaveHistory = () => {
         const statusLower = status.toLowerCase();
         switch (statusLower) {
             case 'approved':
-                return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-3 py-1 rounded-full text-sm font-medium';
+                return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-green-200 dark:hover:bg-green-800';
             case 'pending':
-                return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-3 py-1 rounded-full text-sm font-medium';
+                return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-yellow-200 dark:hover:bg-yellow-800';
             case 'rejected':
-                return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-3 py-1 rounded-full text-sm font-medium';
+                return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-red-200 dark:hover:bg-red-800';
             default:
-                return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 px-3 py-1 rounded-full text-sm font-medium';
+                return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600';
         }
     };
 
@@ -417,7 +417,7 @@ const LeaveHistory = () => {
                                         {formatDate(record.start_date)} - {formatDate(record.end_date)}
                                     </TableCell>
                                     <TableCell className="text-gray-600 dark:text-gray-400">
-                                        {record.duration} day{record.duration > 1 ? 's' : ''}
+                                        {`${record.duration} day${record.duration > 1 ? 's' : ''}${record.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
                                     </TableCell>
                                     <TableCell>
                                         <Badge className={getStatusColor(record.status)}>
@@ -435,7 +435,7 @@ const LeaveHistory = () => {
                                                 className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/50 dark:text-blue-400 dark:hover:text-blue-300"
                                                 onClick={() => openLeaveDetails(record)}
                                             >
-                                                <Eye className="w-4 h-4" />
+                                                <Eye className="w-4 h-4" /> View
                                             </Button>
                                             {canEditLeave(record) && (
                                                 <Button
@@ -505,7 +505,7 @@ const LeaveHistory = () => {
                                     <div>
                                         <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Duration</label>
                                         <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                                            {selectedLeave.duration} day{selectedLeave.duration > 1 ? 's' : ''}
+                                            {selectedLeave.duration} day{selectedLeave.duration > 1 ? 's' : ''} {selectedLeave.leave_length === 'half_day' ? '(Half Day)' : ''}
                                         </p>
                                     </div>
                                 </div>

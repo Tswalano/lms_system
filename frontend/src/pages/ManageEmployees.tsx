@@ -693,7 +693,10 @@ const ManageEmployees = () => {
                                 <TableHead className="text-gray-700 dark:text-gray-300">Role</TableHead>
                                 {/* <TableHead className="text-gray-700 dark:text-gray-300">Join Date</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Status</TableHead> */}
-                                <TableHead className="text-gray-700 dark:text-gray-300">Actions</TableHead>
+                                <TableHead className="text-xs font-semibold tracking-wide text-gray-700 dark:text-gray-300 uppercase gap-2">
+                                    Actions
+                                </TableHead>
+
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -710,12 +713,12 @@ const ManageEmployees = () => {
                                     <TableCell className="text-gray-600 dark:text-gray-400">{employee.jobTitle}</TableCell>
                                     <TableCell>
                                         {employee.role === 'admin' ? (
-                                            <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 flex items-center gap-1 w-fit">
+                                            <Badge className="bg-green-100 text-green-600 dark:bg-green-700 dark:text-green-200 flex items-center gap-1 w-fit">
                                                 <Shield className="w-3 h-3" />
                                                 Admin
                                             </Badge>
                                         ) : (
-                                            <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 flex items-center gap-1 w-fit">
+                                            <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200 flex items-center gap-1 w-fit">
                                                 <User className="w-3 h-3" />
                                                 Employee
                                             </Badge>
@@ -729,26 +732,29 @@ const ManageEmployees = () => {
                                                         active
                                                     </span>
                                                 </TableCell> */}
-                                    <TableCell>
-                                        <div className="flex gap-2">
+                                    <TableCell className="flex items-cente gap-2">
+                                        <div className="inline-flex items-center gap-2">
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900"
+                                                className="group text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
                                                 onClick={() => handleOpenEditDialog(employee)}
                                             >
-                                                <Edit className="w-4 h-4" />
+                                                <Edit className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
+                                                <span className="text-sm font-medium">Edit</span>
                                             </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900"
+                                                className="group text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40 transition-colors"
                                                 onClick={() => handleOpenDeleteDialog(employee)}
                                             >
-                                                <UserMinus className="w-4 h-4" />
+                                                <UserMinus className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
+                                                <span className="text-sm font-medium">Delete</span>
                                             </Button>
                                         </div>
                                     </TableCell>
+
                                 </TableRow>
                             ))}
                         </TableBody>

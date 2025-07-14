@@ -19,6 +19,7 @@ interface LeaveRequest {
     end_date: string;
     duration: number;
     leave_comment: string;
+    leave_length: 'half_day' | 'full_day';
     createdAt: string;
     status: 'pending' | 'approved' | 'rejected';
     feedback?: string;
@@ -291,10 +292,10 @@ const ApproveLeave = () => {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-            case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-            case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-            default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+            case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800';
+            case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-800';
+            case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800';
+            default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800';
         }
     };
 
@@ -365,7 +366,7 @@ const ApproveLeave = () => {
                                 <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Approved Today</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Recently Approved</p>
                                 <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                                     {processedRequests.filter(r => r.status === 'approved').length}
                                 </p>
@@ -443,7 +444,8 @@ const ApproveLeave = () => {
                                                     {formatDate(request.start_date)} - {formatDate(request.end_date)}
                                                 </TableCell>
                                                 <TableCell className="text-gray-600 dark:text-gray-400">
-                                                    {request.duration} day{request.duration > 1 ? 's' : ''}
+                                                    {request.duration} day{request.duration > 1 ? 's' : ''}{' '}
+                                                    {request.leave_length === 'half_day' ? '(Half Day)' : ''}
                                                 </TableCell>
                                                 <TableCell className="text-gray-600 dark:text-gray-400 max-w-xs">
                                                     <div className="truncate" title={request.leave_comment}>
@@ -472,9 +474,9 @@ const ApproveLeave = () => {
                                                             size="sm"
                                                             variant="ghost"
                                                             onClick={() => openDetailsModal(request)}
-                                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/50"
+                                                            className="text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
                                                         >
-                                                            <Eye className="w-4 h-4" />
+                                                            <Eye className="w-4 h-4" /> View
                                                         </Button>
                                                     </div>
                                                 </TableCell>
@@ -533,10 +535,10 @@ const ApproveLeave = () => {
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
-                                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/50"
+                                                        className="text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
                                                         onClick={() => openDetailsModal(request)}
                                                     >
-                                                        <Eye className="w-4 h-4" />
+                                                        <Eye className="w-4 h-4" /> View
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
@@ -628,7 +630,7 @@ const ApproveLeave = () => {
                                     <div>
                                         <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Duration</label>
                                         <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                                            {selectedLeaveDetails.duration} day{selectedLeaveDetails.duration > 1 ? 's' : ''}
+                                            {`${selectedLeaveDetails.duration} day${selectedLeaveDetails.duration > 1 ? 's' : ''}${selectedLeaveDetails.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
                                         </p>
                                     </div>
                                     <div>

@@ -743,7 +743,9 @@ const managementEmailTemplate = (data: ManagementTemplateData): string => {
                 ${duration ? `
                 <div class="info-row">
                     <span class="info-label">Duration:</span>
-                    <span class="info-value">${duration}</span>
+                    <span class="info-value">
+                        ${duration}
+                    </span>
                 </div>` : ''}
             </div>
 

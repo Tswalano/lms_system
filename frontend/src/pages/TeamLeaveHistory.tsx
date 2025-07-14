@@ -349,7 +349,9 @@ const TeamListLeaveHistory = () => {
                                                         <td className="px-6 py-4 whitespace-nowrap">
                                                             <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                                                                 <Clock className="w-4 h-4 text-gray-400" />
-                                                                <span>{leave.duration} day{leave.duration > 1 ? 's' : ''}</span>
+                                                                <span>
+                                                                    {`${leave.duration} day${leave.duration > 1 ? 's' : ''}${leave.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
+                                                                </span>
                                                             </div>
                                                         </td>
 
@@ -426,7 +428,9 @@ const TeamListLeaveHistory = () => {
                                                                                         </div>
                                                                                         <div className="flex justify-between items-center">
                                                                                             <span className="text-sm text-gray-600 dark:text-gray-400">Duration:</span>
-                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{leave.duration} day{leave.duration > 1 ? 's' : ''}</span>
+                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                                                                {`${leave.duration} day${leave.duration > 1 ? 's' : ''}${leave.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
+                                                                                            </span>
                                                                                         </div>
                                                                                     </div>
                                                                                 </div>
