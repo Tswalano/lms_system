@@ -1,3 +1,11 @@
+## [1.2.3](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.2.2...v1.2.3) (2025-07-15)
+
+
+### Bug Fixes
+
+* **ui:** Improve colors, padding, and action menu labels for better visibility ([ffcee3b](https://github.com/Disraptor-Devs/employee-management-system/commit/ffcee3b63fb8c29e260acb031ac2f7a9087d6dfe))
+* **UI:** Status color on dialogs ([72f912c](https://github.com/Disraptor-Devs/employee-management-system/commit/72f912cd56a0d2f6f93d1ce38129c2afb8d85bad))
+
 ## [1.2.2](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.2.1...v1.2.2) (2025-07-11)
 
 
