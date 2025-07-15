@@ -21,6 +21,7 @@ interface TeamMember {
     status: 'available' | 'on-leave' | string;
     avatar: string;
     leaveType: string | null;
+    leave_length: 'half_day' | 'full_day';
     leaveDates: string | null;
     startDate?: string;
     endDate?: string;
@@ -520,9 +521,13 @@ const TeamAvailability = () => {
                                                 onClick={() => openMemberDetails(member.id)}
                                             >
                                                 {expandedRow === member.id ? (
-                                                    <ChevronDown className="w-4 h-4" />
+                                                    <>
+                                                        Hide Details <ChevronDown className="w-4 h-4" />
+                                                    </>
                                                 ) : (
-                                                    <ChevronRight className="w-4 h-4" />
+                                                    <>
+                                                        View Details <ChevronRight className="w-4 h-4" />
+                                                    </>
                                                 )}
                                             </Button>
                                         </TableCell>
@@ -640,7 +645,7 @@ const TeamAvailability = () => {
                                                                                         Duration
                                                                                     </span>
                                                                                     <p className="text-gray-900 dark:text-white font-semibold mt-1">
-                                                                                        {member.duration} day{member.duration > 1 ? 's' : ''}
+                                                                                        {`${member.duration} day${member.duration > 1 ? 's' : ''}${member.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
                                                                                     </p>
                                                                                 </div>
                                                                             )}

@@ -33,7 +33,7 @@ interface LeaveRecord {
     leave_comment: string;
     createdAt: string;
     feedback?: string;
-    leave_length: number;
+    leave_length: 'half_day' | 'full_day';
     updatedAt: string;
 }
 
@@ -197,7 +197,7 @@ const LeaveHistory = () => {
             startDate: leave.start_date,
             endDate: leave.end_date,
             reason: leave.leave_comment,
-            leaveLength: leave.leave_length === 0.5 ? 'half_day' : 'full_day'
+            leaveLength: leave.leave_length === 'half_day' ? 'half_day' : 'full_day'
         });
         setIsEditModalOpen(true);
     };
@@ -248,13 +248,13 @@ const LeaveHistory = () => {
         const statusLower = status.toLowerCase();
         switch (statusLower) {
             case 'approved':
-                return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-3 py-1 rounded-full text-sm font-medium';
+                return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-green-200 dark:hover:bg-green-800';
             case 'pending':
-                return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-3 py-1 rounded-full text-sm font-medium';
+                return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-yellow-200 dark:hover:bg-yellow-800';
             case 'rejected':
-                return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-3 py-1 rounded-full text-sm font-medium';
+                return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-red-200 dark:hover:bg-red-800';
             default:
-                return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 px-3 py-1 rounded-full text-sm font-medium';
+                return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600';
         }
     };
 
@@ -297,6 +297,32 @@ const LeaveHistory = () => {
             </div>
         );
     }
+
+    const getStatusStyles = (status: string) => {
+        const statusLower = status.toLowerCase();
+        switch (statusLower) {
+            case 'approved':
+                return {
+                    icon: <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />,
+                    bgGradient: "from-green-100 to-green-200 dark:from-green-800 dark:to-green-900",
+                };
+            case 'pending':
+                return {
+                    icon: <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />,
+                    bgGradient: "from-yellow-100 to-yellow-200 dark:from-yellow-800 dark:to-yellow-900",
+                };
+            case 'rejected':
+                return {
+                    icon: <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />,
+                    bgGradient: "from-red-100 to-red-200 dark:from-red-800 dark:to-red-900",
+                };
+            default:
+                return {
+                    icon: <Clock className="w-5 h-5 text-gray-600 dark:text-gray-400" />,
+                    bgGradient: "from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900",
+                };
+        }
+    };
 
     return (
         <div>
@@ -417,7 +443,7 @@ const LeaveHistory = () => {
                                         {formatDate(record.start_date)} - {formatDate(record.end_date)}
                                     </TableCell>
                                     <TableCell className="text-gray-600 dark:text-gray-400">
-                                        {record.duration} day{record.duration > 1 ? 's' : ''}
+                                        {`${record.duration} day${record.duration > 1 ? 's' : ''}${record.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
                                     </TableCell>
                                     <TableCell>
                                         <Badge className={getStatusColor(record.status)}>
@@ -435,7 +461,7 @@ const LeaveHistory = () => {
                                                 className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/50 dark:text-blue-400 dark:hover:text-blue-300"
                                                 onClick={() => openLeaveDetails(record)}
                                             >
-                                                <Eye className="w-4 h-4" />
+                                                <Eye className="w-4 h-4" /> View
                                             </Button>
                                             {canEditLeave(record) && (
                                                 <Button
@@ -465,8 +491,8 @@ const LeaveHistory = () => {
                         <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                                        {getStatusIcon(selectedLeave.status)}
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br ${getStatusStyles(selectedLeave.status).bgGradient}`}>
+                                        {getStatusStyles(selectedLeave.status).icon}
                                     </div>
                                     <div>
                                         <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
@@ -505,7 +531,7 @@ const LeaveHistory = () => {
                                     <div>
                                         <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Duration</label>
                                         <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                                            {selectedLeave.duration} day{selectedLeave.duration > 1 ? 's' : ''}
+                                            {selectedLeave.duration} day{selectedLeave.duration > 1 ? 's' : ''} {selectedLeave.leave_length === 'half_day' ? '(Half Day)' : ''}
                                         </p>
                                     </div>
                                 </div>

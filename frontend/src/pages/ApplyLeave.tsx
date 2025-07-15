@@ -210,16 +210,37 @@ const ApplyLeave = () => {
                             onValueChange={(value) => setFormData({ ...formData, leaveType: value })}
                             disabled={isPending}
                         >
-                            <SelectTrigger className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600">
+                            <SelectTrigger className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
                                 <SelectValue placeholder="Select leave type" />
                             </SelectTrigger>
-                            <SelectContent className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600">
-                                <SelectItem value="Annual Leave">Annual Leave</SelectItem>
-                                <SelectItem value="Sick Leave">Sick Leave</SelectItem>
-                                <SelectItem value="Paternity Leave">Paternity Leave</SelectItem>
-                                <SelectItem value="Family Responsibility">Family Responsibility</SelectItem>
+                            <SelectContent className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                <SelectItem
+                                    value="Annual Leave"
+                                    className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                >
+                                    Annual Leave
+                                </SelectItem>
+                                <SelectItem
+                                    value="Sick Leave"
+                                    className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                >
+                                    Sick Leave
+                                </SelectItem>
+                                <SelectItem
+                                    value="Paternity Leave"
+                                    className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                >
+                                    Paternity Leave
+                                </SelectItem>
+                                <SelectItem
+                                    value="Family Responsibility"
+                                    className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                >
+                                    Family Responsibility
+                                </SelectItem>
                             </SelectContent>
                         </Select>
+
                     </div>
 
                     <div className="space-y-4">
@@ -241,6 +262,7 @@ const ApplyLeave = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Start Date */}
                         <div className="space-y-2">
                             <Label className="text-gray-700 dark:text-gray-300">
                                 <div className="flex items-center gap-2">
@@ -253,92 +275,91 @@ const ApplyLeave = () => {
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
-                                        variant={"outline"}
+                                        variant="outline"
                                         className={cn(
-                                            "w-full justify-start text-left font-normal bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600",
+                                            "w-full justify-start text-left font-normal bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600",
                                             !startDate && "text-muted-foreground"
                                         )}
                                         disabled={isPending}
                                     >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        <CalendarIcon className="mr-2 h-4 w-4 text-gray-600 dark:text-gray-300" />
                                         {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
+                                <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
                                     <Calendar
                                         mode="single"
-                                        className="bg-white dark:bg-slate-800"
                                         selected={startDate}
                                         onSelect={(date) => {
                                             if (date) {
                                                 const dateString = formatDateToLocal(date);
                                                 setFormData({ ...formData, startDate: dateString });
-                                                if (formData.leaveLength === 'half_day') {
-                                                    setFormData(prev => ({ ...prev, endDate: dateString }));
+                                                if (formData.leaveLength === "half_day") {
+                                                    setFormData((prev) => ({ ...prev, endDate: dateString }));
                                                 }
                                             }
                                         }}
                                         initialFocus
                                         disabled={(date) => {
-                                            // Compare dates without time components
                                             const today = new Date();
                                             const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
                                             const compareToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                                             return compareDate < compareToday;
                                         }}
+                                        className="bg-white dark:bg-slate-800"
                                     />
                                 </PopoverContent>
                             </Popover>
                         </div>
 
+                        {/* End Date */}
                         <div className="space-y-2">
                             <Label className="text-gray-700 dark:text-gray-300">
                                 <div className="flex items-center gap-2">
                                     <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
                                         <CalendarIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                     </div>
-                                    <span>{formData.leaveLength === 'half_day' ? 'Date' : 'End Date *'}</span>
+                                    <span>End Date *</span>
                                 </div>
                             </Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
-                                        variant={"outline"}
+                                        variant="outline"
                                         className={cn(
-                                            "w-full justify-start text-left font-normal bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600",
+                                            "w-full justify-start text-left font-normal bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600",
                                             !endDate && "text-muted-foreground"
                                         )}
-                                        disabled={isPending || formData.leaveLength === 'half_day'}
+                                        disabled={isPending || formData.leaveLength === "half_day"}
                                     >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        <CalendarIcon className="mr-2 h-4 w-4 text-gray-600 dark:text-gray-300" />
                                         {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
+                                <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
                                     <Calendar
                                         mode="single"
-                                        className="bg-white dark:bg-slate-800"
                                         selected={endDate}
                                         onSelect={(date) => {
-                                            if (date && formData.leaveLength === 'full_day') {
-                                                setFormData({ ...formData, endDate: formatDateToLocal(date) });
+                                            if (date) {
+                                                const dateString = formatDateToLocal(date);
+                                                setFormData({ ...formData, endDate: dateString });
                                             }
                                         }}
                                         initialFocus
                                         disabled={(date) => {
-                                            if (formData.leaveLength === 'full_day' && formData.startDate) {
-                                                const startDateObj = new Date(formData.startDate);
-                                                const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-                                                const compareStart = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
-                                                return compareDate < compareStart;
-                                            }
-                                            return false;
+                                            const today = new Date();
+                                            const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                                            const compareToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                                            return compareDate < compareToday;
                                         }}
+                                        className="bg-white dark:bg-slate-800"
                                     />
                                 </PopoverContent>
                             </Popover>
                         </div>
                     </div>
+
 
                     <div className="space-y-2">
                         <Label htmlFor="reason" className="text-gray-700 dark:text-gray-300">Reason for Leave *</Label>
