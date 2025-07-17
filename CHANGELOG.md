@@ -1,3 +1,10 @@
+## [1.2.4](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.2.3...v1.2.4) (2025-07-17)
+
+
+### Bug Fixes
+
+* **ui:** Sidebar to expand and collapse ([60a008a](https://github.com/Disraptor-Devs/employee-management-system/commit/60a008aed8d62a06765ee9687a2730b786b7c318))
+
 ## [1.2.3](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.2.2...v1.2.3) (2025-07-15)
 
 
