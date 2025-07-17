@@ -19,6 +19,8 @@ import TeamListLeaveHistory from "./pages/TeamLeaveHistory";
 import UserProfile from "./pages/UserProfile";
 import PermissionDenied from "./pages/PermissionDenied";
 import DashboardLayout from "./components/DashboardLayout";
+import TicketingService from "./pages/TicketingService";
+import ProjectManagement from "./pages/ProjectManagement";
 
 const queryClient = new QueryClient();
 
@@ -103,6 +105,16 @@ const App: React.FC = () => (
               <Route path="/leave-history" element={
                 <ProtectedRoute>
                   <LeaveHistory />
+                </ProtectedRoute>
+              } />
+              <Route path="/support" element={
+                <ProtectedRoute>
+                  <TicketingService />
+                </ProtectedRoute>
+              } />
+              <Route path="/project-management" element={
+                <ProtectedRoute>
+                  <ProjectManagement />
                 </ProtectedRoute>
               } />
               <Route path="/approve-leave" element={

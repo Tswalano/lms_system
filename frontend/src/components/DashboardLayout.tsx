@@ -1,4 +1,4 @@
-import React, { type ReactNode } from 'react';
+import React, { useState, type ReactNode } from 'react';
 import Sidebar from './Sidebar';
 import DashboardHeader from './DashboardHeader';
 
@@ -10,7 +10,6 @@ interface DashboardLayoutProps {
     showHeader?: boolean;
 }
 
-
 // Main Dashboard Layout Component
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     children,
@@ -19,6 +18,21 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     showSidebar = true,
     showHeader = true
 }) => {
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    // Calculate margin based on sidebar state
+    const getMainContentMargin = () => {
+        if (!showSidebar) return '';
+
+        // Desktop margins
+        if (isCollapsed) {
+            return 'lg:ml-20'; // 5rem = 80px
+        } else {
+            return 'lg:ml-72'; // 18rem = 288px
+        }
+    };
+
     return (
         <div className={`min-h-screen bg-gradient-to-br from-green-50/30 via-emerald-50/30 to-cyan-50/30 dark:from-slate-900 dark:via-gray-950/30 dark:to-gray-950/30 transition-colors duration-200 ${className}`}>
             {/* Background Elements */}
@@ -35,32 +49,40 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <div className="absolute top-1/3 right-8 w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce"></div>
             <div className="absolute bottom-1/4 left-8 w-2 h-2 bg-teal-400 rounded-full animate-ping opacity-60" style={{ animationDelay: '1s' }}></div>
 
-
             {/* Sidebar */}
-            {showSidebar && <Sidebar />}
+            {showSidebar && (
+                <Sidebar
+                    isMobileMenuOpen={isMobileMenuOpen}
+                    setIsMobileMenuOpen={setIsMobileMenuOpen}
+                    isCollapsed={isCollapsed}
+                    setIsCollapsed={setIsCollapsed}
+                />
+            )}
 
             {/* Main Content Area */}
-            <div className={`${showSidebar ? 'ml-64' : ''} relative z-10`}>
+            <div className={`${getMainContentMargin()} relative z-10 transition-all duration-300 ease-in-out`}>
                 {/* Header */}
-                {showHeader && <DashboardHeader />}
+                {showHeader && (
+                    <DashboardHeader
+                        isCollapsed={isCollapsed}
+                        showSidebar={showSidebar}
+                    />
+                )}
 
                 {/* Main Content */}
-                <main className={`p-8 min-h-screen ${contentClassName}`}>
-                    <div className="px-16 mx-auto space-y-8">
+                <main className={`p-4 lg:p-8 min-h-screen ${contentClassName}`}>
+                    <div className="px-4 lg:px-16 mx-auto space-y-8">
                         {children}
                     </div>
                 </main>
             </div>
-
 
             {/* Additional Floating Elements for Visual Interest */}
             <div className="absolute top-1/4 left-1/2 w-1 h-1 bg-green-300 rounded-full animate-ping opacity-50" style={{ animationDelay: '2s' }}></div>
             <div className="absolute bottom-1/3 left-1/4 w-2 h-2 bg-emerald-300 rounded-full animate-pulse opacity-60" style={{ animationDelay: '3s' }}></div>
             <div className="absolute top-3/4 right-1/3 w-1.5 h-1.5 bg-cyan-300 rounded-full animate-bounce opacity-70" style={{ animationDelay: '4s' }}></div>
             <div className="absolute bottom-1/4 right-1/4 w-2 h-2 bg-teal-300 rounded-full animate-ping opacity-80" style={{ animationDelay: '5s' }}></div>
-
-
-        </div >
+        </div>
     );
 };
 
