@@ -1,16 +1,36 @@
-import { useState } from "react";
-import { Home, FileText, Clock, LogOut, UserSearch, CheckCircle, Moon, Sun, History, Users } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Home, FileText, Clock, LogOut, UserSearch, CheckCircle, Moon, Sun, History, Users, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
-const Sidebar = () => {
+interface SidebarProps {
+    isMobileMenuOpen: boolean;
+    setIsMobileMenuOpen: (open: boolean) => void;
+    isCollapsed: boolean;
+    setIsCollapsed: (collapsed: boolean) => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({
+    isMobileMenuOpen,
+    setIsMobileMenuOpen,
+    isCollapsed,
+    setIsCollapsed
+}) => {
     const location = useLocation();
     const { theme, toggleTheme } = useTheme();
-    const { user, logout } = useAuth()
+    const { user, logout } = useAuth();
     const [userRole] = useState<'admin' | 'user'>(user?.role === 'admin' ? 'admin' : 'user');
+
+    // Load collapse state from localStorage on component mount
+    useEffect(() => {
+        const savedCollapseState = localStorage.getItem('sidebarCollapsed');
+        if (savedCollapseState !== null) {
+            setIsCollapsed(savedCollapseState === 'true');
+        }
+    }, [setIsCollapsed]);
 
     const employeeMenuItems = [
         { id: "dashboard", label: "Dashboard", icon: Home, path: "/" },
@@ -36,130 +56,283 @@ const Sidebar = () => {
         return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
     };
 
+    const handleMenuItemClick = () => {
+        // Close mobile menu when item is clicked
+        setIsMobileMenuOpen(false);
+    };
+
+    const toggleCollapse = () => {
+        const newCollapseState = !isCollapsed;
+        // Save collapse state to localStorage
+        localStorage.setItem('sidebarCollapsed', String(newCollapseState));
+        setIsCollapsed(newCollapseState);
+    };
+
+    // Dynamic width based on collapse state
+    const sidebarWidth = isCollapsed ? 'w-20' : 'w-72';
+
     return (
-        <div className="fixed left-0 top-0 h-full w-72 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 shadow-lg z-10">
-            <div className="p-6 border-b border-gray-100 dark:border-slate-700">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        {/* Replaced text logo with an image */}
-                        <Link to="/" className="flex items-center gap-2">
-                            <img
-                                src='https://disraptor.co.za/wp-content/uploads/2023/05/AWS_Disraptor_Brand-Guidelines_V_031-1.svg' // Use .src if you're importing an image module
-                                alt="Disruptor Logo"
-                                className="h-14 w-auto" // Adjust height and width as needed
-                            />
-                        </Link>
-                        {/* <span className="font-bold text-gray-800 dark:text-gray-200 text-lg">Disruptor</span> */}
-                    </div>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={toggleTheme}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800"
-                    >
-                        {theme === 'light' ? (
-                            <Moon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                        ) : (
-                            <Sun className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                        )}
-                    </Button>
-                </div>
-            </div>
+        <>
+            {/* Mobile Menu Button - Fixed at top */}
+            <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-lg bg-white dark:bg-slate-900 shadow-lg border border-gray-200 dark:border-slate-700"
+            >
+                {isMobileMenuOpen ? (
+                    <X className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                ) : (
+                    <Menu className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                )}
+            </button>
 
-            <div className="p-4">
-                <Link
-                    to="/profile"
-                    className={cn(
-                        "flex items-center gap-3 mb-6 p-3 rounded-xl border transition-all duration-200 group cursor-pointer",
-                        isActive('/profile')
-                            ? "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 border-green-500 shadow-lg shadow-cyan-500/25"
-                            : "bg-gradient-to-r from-blue-50 via-cyan-50 to-green-50 dark:from-blue-900/20 dark:via-cyan-900/20 dark:to-green-900/20 border-cyan-200 dark:border-cyan-800 hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30"
-                    )}
-                >
-                    <div className={cn(
-                        "w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0",
-                        isActive('/profile')
-                            ? "bg-white/20 text-white"
-                            : "bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 text-white"
-                    )}>
-                        <span className="font-semibold text-sm">
-                            {getInitials(user?.firstName, user?.lastName)}
-                        </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className={cn(
-                            "font-semibold",
-                            isActive('/profile')
-                                ? "text-white"
-                                : "bg-gradient-to-r from-blue-700 via-cyan-600 to-green-600 dark:from-blue-300 dark:via-cyan-300 dark:to-green-300 bg-clip-text text-transparent group-hover:from-blue-800 group-hover:via-cyan-700 group-hover:to-green-700 dark:group-hover:from-blue-200 dark:group-hover:via-cyan-200 dark:group-hover:to-green-200"
-                        )}>
-                            {`${user?.firstName} ${user?.lastName}`}
-                        </p>
-                        <p className={cn(
-                            "text-sm truncate",
-                            isActive('/profile')
-                                ? "text-white/80"
-                                : "text-gray-500 dark:text-gray-400 group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-green-600 dark:group-hover:from-cyan-400 dark:group-hover:to-green-400 group-hover:bg-clip-text group-hover:text-transparent"
-                        )}>
-                            {user?.jobTitle}
-                        </p>
-                    </div>
-                </Link>
+            {/* Mobile Overlay */}
+            {isMobileMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
 
-
-                <nav className="space-y-2">
-                    {menuItems.map((item) => (
-                        <Link
-                            key={item.id}
-                            to={item.path}
-                            className={cn(
-                                "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group",
-                                isActive(item.path)
-                                    ? "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 text-white shadow-lg shadow-cyan-500/25"
-                                    : "text-gray-600 dark:text-gray-400 hover:bg-gradient-to-r hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30 hover:text-cyan-500 dark:hover:text-cyan-400"
-                            )}
-                        >
-                            <item.icon
-                                className={cn(
-                                    "w-5 h-5 transition-colors",
-                                    isActive(item.path)
-                                        ? "text-white"
-                                        : "text-gray-400 group-hover:text-cyan-500 dark:group-hover:text-cyan-400"
-                                )}
-                            />
-                            <span className="font-medium">{item.label}</span>
-                        </Link>
-                    ))}
-                </nav>
-
-            </div>
-
-            <div className="absolute bottom-4 left-4 right-4 py-2">
-                {/* Version */}
-                <div className="mb-4 px-3 py-2 text-xs from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/30 backdrop-blur-sm shadow-sm">
+            {/* Sidebar */}
+            <div className={cn(
+                "fixed left-0 top-0 h-full bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 shadow-lg z-50 transition-all duration-300 ease-in-out",
+                // Desktop: Dynamic width based on collapse state
+                `lg:${sidebarWidth}`,
+                // Mobile: Always full width when open
+                "w-72",
+                // Desktop: Always visible
+                "lg:translate-x-0",
+                // Mobile: Hidden by default, shown when menu is open
+                isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+            )}>
+                {/* Header */}
+                <div className="p-6 border-b border-gray-100 dark:border-slate-700">
                     <div className="flex items-center justify-between">
-                        <span className="text-slate-600 dark:text-slate-400 font-medium">Version</span>
-                        <div className="flex items-center gap-1">
-                            <span className="font-mono text-slate-700 dark:text-slate-300 font-semibold tracking-wider">
-                                {import.meta.env.VITE_VERSION || '1.0.0'}
-                            </span>
+                        <div className="flex items-center gap-3">
+                            <Link to="/" className="flex items-center gap-2" onClick={handleMenuItemClick}>
+                                {!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches ? (
+                                    <img
+                                        src='https://disraptor.co.za/wp-content/uploads/2023/05/AWS_Disraptor_Brand-Guidelines_V_031-1.svg'
+                                        alt="Disruptor Logo"
+                                        className="h-14 w-auto"
+                                    />
+                                ) : (
+                                    <div className="w-10 h-10 rounded-lg flex items-center justify-center mx-auto">
+                                        <img
+                                            src='favicon.png'
+                                            alt="Disruptor Logo"
+                                            className="h-10 w-10 object-contain mx-auto"
+                                        />
+                                    </div>
+                                )}
+                            </Link>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            {/* Desktop Collapse Toggle Button - Improved with Background */}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={toggleCollapse}
+                                className="hidden lg:flex items-center justify-center w-8 h-8 p-0 rounded-full bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-200 dark:hover:bg-slate-700 hover:shadow-sm transition-all duration-300"
+                            >
+                                {isCollapsed ? (
+                                    <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                ) : (
+                                    <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                )}
+                            </Button>
                         </div>
                     </div>
                 </div>
-                {/* logout  should be a button */}
-                <button
-                    onClick={logout}
-                    className="w-full flex items-center gap-3 px-4 py-2 rounded-xl bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/20 border border-red-200/50 dark:border-red-800/30 text-red-700 dark:text-red-400 hover:from-red-100 hover:to-rose-100 dark:hover:from-red-950/50 dark:hover:to-rose-950/40 hover:border-red-300/60 dark:hover:border-red-700/50 hover:shadow-lg hover:shadow-red-500/10 dark:hover:shadow-red-500/5 transition-all duration-300 group backdrop-blur-sm"
-                >
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/40 group-hover:bg-red-200 dark:group-hover:bg-red-900/60 transition-colors duration-300">
-                        <LogOut className="w-4 h-4 text-red-600 dark:text-red-400 group-hover:text-red-700 dark:group-hover:text-red-300 transition-colors duration-300" />
-                    </div>
-                    <span className="font-semibold text-red-700 dark:text-red-400 group-hover:text-red-800 dark:group-hover:text-red-300 transition-colors duration-300">
-                        Sign Out
-                    </span>
-                </button>
+
+                {/* User Profile */}
+                <div className={cn("p-4", isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "" : "")}>
+                    <Link
+                        to="/profile"
+                        onClick={handleMenuItemClick}
+                        className={cn(
+                            "flex items-center gap-3 mb-6 p-3 rounded-xl transition-all duration-200 group cursor-pointer",
+                            isActive('/profile')
+                                ? isCollapsed ? "" : "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 border border-green-500 shadow-lg shadow-cyan-500/25"
+                                : isCollapsed && window.matchMedia('(min-width: 1024px)').matches
+                                    ? "bg-transparent border-transparent hover:bg-transparent"
+                                    : "bg-gradient-to-r from-blue-50 via-cyan-50 to-green-50 dark:from-blue-900/20 dark:via-cyan-900/20 dark:to-green-900/20 border border-cyan-200 dark:border-cyan-800 hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30",
+                            isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "justify-center" : ""
+                        )}
+                        title={isCollapsed ? `${user?.firstName} ${user?.lastName}` : undefined}
+                    >
+                        <div
+                            className={cn(
+                                "w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300",
+                                isCollapsed
+                                    ? "bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 text-white"
+                                    : isActive("/profile")
+                                        ? "bg-white/20 text-white"
+                                        : "bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 text-white"
+                            )}
+                        >
+                            <span className="font-semibold text-sm">
+                                {getInitials(user?.firstName, user?.lastName)}
+                            </span>
+                        </div>
+
+
+                        {(!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) && (
+                            <div className="flex-1 min-w-0">
+                                <p className={cn(
+                                    "font-semibold",
+                                    isActive('/profile')
+                                        ? "text-white"
+                                        : "bg-gradient-to-r from-blue-700 via-cyan-600 to-green-600 dark:from-blue-300 dark:via-cyan-300 dark:to-green-300 bg-clip-text text-transparent group-hover:from-blue-800 group-hover:via-cyan-700 group-hover:to-green-700 dark:group-hover:from-blue-200 dark:group-hover:via-cyan-200 dark:group-hover:to-green-200"
+                                )}>
+                                    {`${user?.firstName} ${user?.lastName}`}
+                                </p>
+                                <p className={cn(
+                                    "text-sm truncate",
+                                    isActive('/profile')
+                                        ? "text-white/80"
+                                        : "text-gray-500 dark:text-gray-400 group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-green-600 dark:group-hover:from-cyan-400 dark:group-hover:to-green-400 group-hover:bg-clip-text group-hover:text-transparent"
+                                )}>
+                                    {user?.jobTitle}
+                                </p>
+                            </div>
+                        )}
+                    </Link>
+
+                    {/* Navigation */}
+                    <nav className="space-y-2">
+                        {menuItems.map((item) => (
+                            <Link
+                                key={item.id}
+                                to={item.path}
+                                onClick={handleMenuItemClick}
+                                title={isCollapsed ? item.label : undefined}
+                                className={cn(
+                                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group",
+                                    isActive(item.path)
+                                        ? "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 text-white shadow-lg shadow-cyan-500/25"
+                                        : "text-gray-600 dark:text-gray-400 hover:bg-gradient-to-r hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30 hover:text-cyan-500 dark:hover:text-cyan-400",
+                                    isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "justify-center px-2" : ""
+                                )}
+                            >
+                                <item.icon
+                                    className={cn(
+                                        "w-5 h-5 transition-colors",
+                                        isActive(item.path)
+                                            ? "text-white"
+                                            : "text-gray-400 group-hover:text-cyan-500 dark:group-hover:text-cyan-400"
+                                    )}
+                                />
+                                {(!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) && (
+                                    <span className="font-medium transition-all duration-500 ease-in-out overflow-hidden whitespace-nowrap">
+                                        {item.label}
+                                    </span>
+                                )}
+                            </Link>
+                        ))}
+                    </nav>
+                </div>
+
+                {/* Footer */}
+                <div className={cn("absolute bottom-4 py-2 transition-all duration-300",
+                    isCollapsed && window.matchMedia('(min-width: 1024px)').matches
+                        ? "left-2 right-2"
+                        : "left-4 right-4"
+                )}>
+
+                    {/* Dark Mode Toggle - Responsive Style with Hover Effects */}
+                    {isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? (
+                        // Collapsed Mode - Show only active icon
+                        <button
+                            onClick={toggleTheme}
+                            className="w-10 h-10 mx-auto flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800 shadow-inner border border-slate-300 dark:border-slate-700 hover:shadow-md hover:bg-slate-300/70 dark:hover:bg-slate-700/90 transition-all duration-300"
+                            title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+                        >
+                            {theme === 'light' ? (
+                                <Sun className="w-5 h-5 text-yellow-500 hover:text-yellow-600" />
+                            ) : (
+                                <Moon className="w-5 h-5 text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300" />
+                            )}
+                        </button>
+                    ) : (
+                        // Expanded Mode - Show slider with both options
+                        <div className="w-full">
+                            <button
+                                onClick={toggleTheme}
+                                className={cn(
+                                    "w-full p-1 flex items-center rounded-full transition-all duration-300",
+                                    theme === 'dark'
+                                        ? "bg-slate-800 dark:bg-slate-900 border border-slate-700"
+                                        : "bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700",
+                                    "shadow-inner hover:shadow-md hover:border-slate-400 dark:hover:border-slate-600"
+                                )}
+                            >
+                                {/* Light Toggle */}
+                                <div
+                                    className={cn(
+                                        "flex-1 flex items-center justify-center gap-1 py-1 rounded-full text-sm font-medium transition-all duration-300",
+                                        theme === 'light'
+                                            ? "bg-white dark:bg-slate-700 text-yellow-500 shadow-md"
+                                            : "text-slate-500 dark:text-slate-400 hover:text-yellow-500 dark:hover:text-yellow-400"
+                                    )}
+                                >
+                                    <Sun className="w-4 h-4" />
+                                    <span>Light</span>
+                                </div>
+
+                                {/* Dark Toggle */}
+                                <div
+                                    className={cn(
+                                        "flex-1 flex items-center justify-center gap-1 py-1 rounded-full text-sm font-medium transition-all duration-300",
+                                        theme === 'dark'
+                                            ? "bg-slate-700 text-blue-500 dark:text-blue-400 shadow-md"
+                                            : "text-slate-500 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400"
+                                    )}
+                                >
+                                    <Moon className="w-4 h-4" />
+                                    <span>Dark</span>
+                                </div>
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Logout Button */}
+                    {isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? (
+                        // Collapsed Logout - Just Icon
+                        <button
+                            onClick={logout}
+                            title="Sign Out"
+                            className="w-10 h-10 mx-auto mt-3 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-red-100 dark:hover:bg-red-900/30 hover:border-red-200 dark:hover:border-red-800/50 transition-all duration-300"
+                        >
+                            <LogOut className="w-5 h-5 text-red-600 dark:text-red-400" />
+                        </button>
+                    ) : (
+                        // Expanded Logout - Full Button
+                        <button
+                            onClick={logout}
+                            className="w-full flex items-center gap-3 px-4 py-3 mt-3 rounded-xl transition-all duration-300 group bg-red-50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-800/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/30 hover:border-red-300/60 dark:hover:border-red-700/50 hover:shadow-lg hover:shadow-red-500/10 dark:hover:shadow-red-500/5"
+                        >
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/40 group-hover:bg-red-200 dark:group-hover:bg-red-900/60 transition-colors duration-300">
+                                <LogOut className="w-4 h-4 text-red-600 dark:text-red-400 group-hover:text-red-700 dark:group-hover:text-red-300" />
+                            </div>
+                            <span className="font-semibold text-red-700 dark:text-red-400 group-hover:text-red-800 dark:group-hover:text-red-300">
+                                Sign Out
+                            </span>
+                        </button>
+                    )}
+
+                    {/* Version - Below logout */}
+                    {(!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) && (
+                        <div className="mt-4 px-3 py-2 text-xs text-center">
+                            <span className="text-slate-500 dark:text-slate-400 font-medium">
+                                v{import.meta.env.VITE_VERSION || '1.0.0'}
+                            </span>
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
+        </>
     );
 };
 
