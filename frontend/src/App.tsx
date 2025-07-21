@@ -19,7 +19,6 @@ import TeamListLeaveHistory from "./pages/TeamLeaveHistory";
 import UserProfile from "./pages/UserProfile";
 import PermissionDenied from "./pages/PermissionDenied";
 import DashboardLayout from "./components/DashboardLayout";
-import TicketingService from "./pages/TicketingService";
 import ProjectManagement from "./pages/ProjectManagement";
 
 const queryClient = new QueryClient();
@@ -38,8 +37,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600">
+          <span className="sr-only">Loading...</span>
+        </div>
+        <p className="text-center mt-4 text-gray-600 dark:text-gray-300">
+          Loading, fetching your profile...
+        </p>
       </div>
     );
   }
@@ -61,14 +65,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
 // Public Route Component (redirects to dashboard if already authenticated)
 const PublicRoute: React.FC<RouteProps> = ({ children }) => {
   const { isAuthenticated } = useAuth();
-
-  // if (loading) {
-  //   return (
-  //     <div className="flex items-center justify-center min-h-screen">
-  //       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-  //     </div>
-  //   );
-  // }
 
   return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
 };
@@ -105,11 +101,6 @@ const App: React.FC = () => (
               <Route path="/leave-history" element={
                 <ProtectedRoute>
                   <LeaveHistory />
-                </ProtectedRoute>
-              } />
-              <Route path="/support" element={
-                <ProtectedRoute>
-                  <TicketingService />
                 </ProtectedRoute>
               } />
               <Route path="/project-management" element={
