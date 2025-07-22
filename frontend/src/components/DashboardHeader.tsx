@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { MonitorOff, MoonIcon, SunDim } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface DashboardHeaderProps {
@@ -43,9 +44,9 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     const getTimeEmoji = () => {
         const hour = currentTime.getHours();
 
-        if (hour >= 5 && hour < 12) return "☀️"; // Morning sun
-        if (hour >= 12 && hour < 20) return "🌙"; // Afternoon moon
-        return "😴"; // Late night
+        if (hour >= 5 && hour < 12) return <SunDim className="text-yellow-500 h-12 w-12 dark:text-yellow-500" />; // Morning sun
+        if (hour >= 12 && hour < 20) return <MoonIcon className="text-yellow-500 h-12 w-12 dark:text-yellow-500" />; // Afternoon moon
+        return <MonitorOff className="text-yellow-500 h-12 w-12 dark:text-yellow-500" />; // Late night
     };
 
     // Calculate responsive padding based on sidebar state
@@ -70,7 +71,10 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 <div className="backdrop-blur-sm max-w-2xl mx-auto transform hover:scale-105 transition-all duration-300">
                     {/* Emoji and Time Section */}
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 mb-3 lg:mb-4">
-                        <div className="text-4xl lg:text-5xl animate-bounce" style={{ animationDuration: '2s' }}>
+                        <div
+                            className="text-5xl lg:text-6xl animate-bounce drop-shadow-sm"
+                            style={{ animationDuration: '2.5s', animationTimingFunction: 'ease-in-out' }}
+                        >
                             {getTimeEmoji()}
                         </div>
                         <div className="hidden sm:block h-8 w-px bg-gradient-to-b from-transparent via-blue-300 dark:via-blue-500 to-transparent"></div>

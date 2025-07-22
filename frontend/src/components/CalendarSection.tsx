@@ -16,6 +16,7 @@ interface LeaveEvent extends Event {
     title: string;
     start: Date;
     end: Date;
+    leaveLength?: 'half_day' | 'full_day';
     resource: {
         name: string;
         approvedBy: string;
@@ -35,7 +36,7 @@ interface LeaveRequest {
     start_date: string;
     end_date: string;
     leave_type: string;
-    leave_length: number;
+    leave_length: 'half_day' | 'full_day';
     duration: number;
     firstName: string;
     managerFirstName: string;
@@ -70,6 +71,7 @@ const CalendarSection = () => {
     const [selectedLeave, setSelectedLeave] = useState<LeaveEvent | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [, setShowMoreEvents] = useState<{ events: LeaveEvent[], date: Date, slot: Date } | null>(null);
     const { authFetch } = useAuth()
     const { theme } = useTheme();
 
@@ -77,16 +79,11 @@ const CalendarSection = () => {
     const startOfMonth = moment(currentDate).startOf('month').format('YYYY-MM-DD');
     const endOfMonth = moment(currentDate).endOf('month').format('YYYY-MM-DD');
 
-
     // Fetch function for React Query
     const fetchLeaveData = async (startDate: string, endDate: string): Promise<ApiResponse> => {
-
         const params = new URLSearchParams();
-
         params.append('start_date', startDate);
         params.append('end_date', endDate);
-
-        // const url = `${baseUrl}?${params.toString()}`;
 
         const response = await authFetch(`/leave/leave-calendar?${params.toString()}`, {
             method: 'GET',
@@ -116,12 +113,12 @@ const CalendarSection = () => {
     } = useQuery({
         queryKey: ['leaveCalendar', startOfMonth, endOfMonth],
         queryFn: () => fetchLeaveData(startOfMonth, endOfMonth),
-        staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-        gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes (formerly cacheTime)
+        staleTime: 5 * 60 * 1000,
+        gcTime: 10 * 60 * 1000,
         retry: 3,
         retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
-        refetchOnWindowFocus: false, // Don't refetch when window regains focus
-        refetchOnMount: 'always', // Always refetch when component mounts
+        refetchOnWindowFocus: false,
+        refetchOnMount: 'always',
     });
 
     // Function to generate random colors for leave events
@@ -142,19 +139,10 @@ const CalendarSection = () => {
             { color: 'text-rose-600', bgColor: 'bg-rose-100' },
             { color: 'text-amber-600', bgColor: 'bg-amber-100' },
             { color: 'text-lime-600', bgColor: 'bg-lime-100' },
-            // { color: 'text-teal-600', bgColor: 'bg-teal-100' },
         ];
 
-        // Use ID to get consistent color for same leave request
         return colors[id % colors.length];
     };
-
-    // Function to convert string to Title Case
-    // const toTitleCase = (str: string) => {
-    //     return str.replace(/\w\S*/g, (txt) => {
-    //         return txt.charAt(0).toUpperCase() + txt.charAt(1).toLowerCase();
-    //     });
-    // };
 
     // Function to get avatar based on first name
     const getAvatar = (firstName: string, lastName: string) => {
@@ -164,25 +152,32 @@ const CalendarSection = () => {
     const toTitleCase = (str: string) =>
         str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
-    // Convert API data to calendar events
+    // Convert API data to calendar events with deduplication
     const convertApiDataToEvents = (apiData: ApiResponse): LeaveEvent[] => {
-        return apiData.data.leaveRequests.map((request) => {
+        // Create a Map to track unique events by ID to prevent duplicates
+        const uniqueEvents = new Map<number, LeaveEvent>();
+
+        apiData.data.leaveRequests.forEach((request) => {
+            // Skip if we've already processed this request ID
+            if (uniqueEvents.has(request.id)) {
+                return;
+            }
+
             const colors = getRandomColor(request.id);
             const avatar = getAvatar(request.firstName.toUpperCase(), request.lastName.toUpperCase());
             const fullName = `${toTitleCase(request.firstName)} ${toTitleCase(request.lastName)}`;
             const approvedBy = `${toTitleCase(request.managerFirstName)} ${toTitleCase(request.managerLastName)}`;
 
-
-            // Handle dates - add one day to end date for multi-day events to make them inclusive
+            // Handle dates
             const startDate = new Date(request.start_date);
             const endDate = new Date(request.end_date);
 
-            return {
+            const event: LeaveEvent = {
                 id: request.id,
                 title: `${request.leave_type} - ${fullName}`,
                 start: startDate,
                 end: endDate,
-                allDay: true,
+                allDay: request.leave_length === 'full_day',
                 resource: {
                     name: fullName,
                     approvedBy,
@@ -196,7 +191,11 @@ const CalendarSection = () => {
                     duration: request.duration,
                 }
             };
+
+            uniqueEvents.set(request.id, event);
         });
+
+        return Array.from(uniqueEvents.values());
     };
 
     // Derived data
@@ -221,14 +220,17 @@ const CalendarSection = () => {
         setIsDialogOpen(true);
     };
 
+    // Handle "show more" popup
+    const handleShowMore = (events: LeaveEvent[], date: Date) => {
+        setShowMoreEvents({ events, date, slot: date });
+    };
+
     const handleNavigate = (newDate: Date) => {
         setCurrentDate(newDate);
     };
 
     const eventStyleGetter = (event: LeaveEvent) => {
         const resource = event.resource;
-
-        // Check if we're in dark mode by looking at the document's class
         const isDarkMode = document.documentElement.classList.contains('dark');
 
         const colorMap: { [key: string]: { bg: string; border: string; text: string; darkText: string } } = {
@@ -242,7 +244,6 @@ const CalendarSection = () => {
             'bg-sky-100': { bg: '#f0f9ff', border: '#38bdf8', text: '#0284c7', darkText: '#1f2937' },
             'bg-purple-100': { bg: '#faf5ff', border: '#a855f7', text: '#7c3aed', darkText: '#1f2937' },
             'bg-indigo-100': { bg: '#eef2ff', border: '#818cf8', text: '#4f46e5', darkText: '#1f2937' }
-            // 'bg-gray-100': { bg: '#f9fafb', border: '#9ca3af', text: '#374151', darkText: '#1f2937' }
         };
 
         const colors = colorMap[resource.bgColor] || { bg: '#f3f4f6', border: '#9ca3af', text: '#374151', darkText: '#1f2937' };
@@ -275,7 +276,6 @@ const CalendarSection = () => {
         const isHoliday = isPublicHoliday(date);
         const isDarkMode = theme === 'dark';
 
-        // Public holiday styling (takes priority over weekend)
         if (isHoliday) {
             return {
                 className: 'public-holiday-cell',
@@ -284,14 +284,12 @@ const CalendarSection = () => {
                     border: isDarkMode ? '2px solid #9a3412' : '2px solid #f59e0b',
                     position: 'relative',
                     cursor: 'help',
-                    // Ensure holiday cells stand out even on weekends
                     opacity: 1,
                     zIndex: 1
                 } as React.CSSProperties
             };
         }
 
-        // Weekend styling (only applied if not a holiday)
         if (isWeekend) {
             return {
                 className: 'weekend-cell',
@@ -389,11 +387,6 @@ const CalendarSection = () => {
                         <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-200">
                             Team Calendar
                         </h2>
-                        {/* <Button className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-3 sm:px-4 py-2 flex items-center gap-2 shadow-sm text-sm">
-                            <Plus className="w-4 h-4" />
-                            <span className="hidden sm:inline">Add Event</span>
-                            <span className="sm:hidden">Add</span>
-                        </Button> */}
                     </div>
 
                     {/* Legend */}
@@ -436,7 +429,7 @@ const CalendarSection = () => {
                         </div>
                     </div>
                 ) : (
-                    <div className="h-[400px] sm:h-[600px] relative">
+                    <div className="h-[500px] sm:h-[800px] relative">
                         {/* Loading overlay */}
                         {(isLoading || isFetching) && (
                             <div className="absolute inset-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
@@ -449,183 +442,14 @@ const CalendarSection = () => {
                             </div>
                         )}
 
-                        <style>
-                            {`
-                                /* Public Holiday Styles */
-                                .public-holiday-cell {
-                                    position: relative;
-                                }
-                                .public-holiday-cell::before {
-                                    content: '';
-                                    position: absolute;
-                                    top: 0;
-                                    left: 0;
-                                    right: 0;
-                                    bottom: 0;
-                                    background: linear-gradient(45deg, transparent 40%, #f59e0b 40%, #f59e0b 60%, transparent 60%);
-                                    opacity: 0.1;
-                                    pointer-events: none;
-                                }
-                                .public-holiday-cell:hover::after {
-                                    content: attr(title);
-                                    position: absolute;
-                                    top: 100%;
-                                    left: 50%;
-                                    transform: translateX(-50%);
-                                    background-color: #374151;
-                                    color: white;
-                                    padding: 4px 8px;
-                                    border-radius: 4px;
-                                    font-size: 12px;
-                                    white-space: nowrap;
-                                    z-index: 1000;
-                                    pointer-events: none;
-                                }
 
-                                /* Dark mode calendar styles */
-                                .dark .rbc-calendar {
-                                    background-color: #1e293b;
-                                    color: #e2e8f0;
-                                }
-                                
-                                .dark .rbc-month-view,
-                                .dark .rbc-time-view {
-                                    background-color: #1e293b;
-                                    border-color: #475569;
-                                }
-                                
-                                .dark .rbc-header {
-                                    background-color: #334155;
-                                    color: #e2e8f0;
-                                    border-color: #475569;
-                                }
-                                
-                                .dark .rbc-month-row {
-                                    border-color: #475569;
-                                }
-                                
-                                .dark .rbc-day-bg {
-                                    background-color: #1e293b;
-                                    border-color: #475569;
-                                }
-                                
-                                .dark .rbc-today {
-                                    background-color: #1e40af !important;
-                                    opacity: 0.3;
-                                }
-                                
-                                .dark .rbc-off-range-bg {
-                                    background-color: #0f172a;
-                                    color: #64748b;
-                                }
-                                
-                                .dark .rbc-off-range {
-                                    color: #64748b;
-                                }
-                                
-                                .dark .rbc-date-cell {
-                                    color: #e2e8f0;
-                                }
-                                
-                                .dark .rbc-date-cell a {
-                                    color: #e2e8f0;
-                                }
-                                
-                                .dark .rbc-off-range .rbc-date-cell a {
-                                    color: #64748b;
-                                }
-                                
-                                /* Fix for "+X more" popup text in dark mode */
-                                .dark .rbc-show-more {
-                                    color: #3b82f6 !important;
-                                    background-color: transparent;
-                                    font-weight: 500;
-                                }
-                                
-                                .dark .rbc-show-more:hover {
-                                    color: #60a5fa !important;
-                                    background-color: #1e40af;
-                                    border-radius: 4px;
-                                }
-                                
-                                /* Fix for popup overlay in dark mode */
-                                .dark .rbc-overlay {
-                                    background-color: #1e293b;
-                                    border: 1px solid #475569;
-                                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-                                }
-                                
-                                .dark .rbc-overlay-header {
-                                    background-color: #334155;
-                                    color: #e2e8f0;
-                                    border-bottom: 1px solid #475569;
-                                }
-                                
-                                /* Fix for current month vs other months distinction in dark mode */
-                                .dark .rbc-month-view .rbc-row {
-                                    border-color: #475569;
-                                }
-                                
-                                .dark .rbc-month-view .rbc-day-bg + .rbc-day-bg {
-                                    border-left-color: #475569;
-                                }
-                                
-                                /* Better contrast for dates in dark mode */
-                                .rbc-date-cell {
-                                    padding: 8px;
-                                }
-                                
-                                .dark .rbc-date-cell a {
-                                    color: #e2e8f0;
-                                    text-decoration: none;
-                                    font-weight: 500;
-                                }
-                                
-                                .dark .rbc-date-cell a:hover {
-                                    background-color: #334155;
-                                    border-radius: 4px;
-                                }
-                                
-                                /* Ensure off-range dates are properly dimmed in dark mode */
-                                .dark .rbc-off-range-bg {
-                                    background-color: #0f172a;
-                                }
-                                
-                                .dark .rbc-off-range {
-                                    color: #475569;
-                                }
-                                
-                                .dark .rbc-off-range .rbc-date-cell a {
-                                    color: #475569;
-                                }
-                                
-                                /* Toolbar styles for dark mode */
-                                .dark .rbc-toolbar {
-                                    color: #e2e8f0;
-                                }
-                                
-                                .dark .rbc-toolbar button {
-                                    background-color: #334155;
-                                    color: #e2e8f0;
-                                    border: 1px solid #475569;
-                                }
-                                
-                                .dark .rbc-toolbar button:hover {
-                                    background-color: #475569;
-                                }
-                                
-                                .dark .rbc-toolbar button.rbc-active {
-                                    background-color: #3b82f6;
-                                    border-color: #3b82f6;
-                                }
-                            `}
-                        </style>
                         <Calendar
                             localizer={localizer}
                             events={leaveEvents}
                             startAccessor="start"
                             endAccessor="end"
                             onSelectEvent={handleSelectEvent}
+                            onShowMore={handleShowMore}
                             onNavigate={handleNavigate}
                             date={currentDate}
                             selectable
@@ -633,7 +457,8 @@ const CalendarSection = () => {
                             dayPropGetter={dayPropGetter}
                             views={['month']}
                             defaultView="month"
-                            popup
+                            popup={true}
+                            popupOffset={10}
                             formats={{
                                 monthHeaderFormat: 'MMMM YYYY',
                                 dayHeaderFormat: 'ddd',
@@ -674,7 +499,7 @@ const CalendarSection = () => {
                                                 {selectedLeave.resource.type}
                                             </span>
                                             <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                {selectedLeave.resource.duration} day{selectedLeave.resource.duration > 1 ? 's' : ''}
+                                                {selectedLeave.resource.duration} day{selectedLeave.resource.duration > 1 ? 's' : ''} - {selectedLeave.allDay ? 'Full Day' : 'Half Day'}
                                             </span>
                                         </div>
                                     </div>
@@ -690,8 +515,6 @@ const CalendarSection = () => {
 
                         {/* Content with enhanced styling */}
                         <div className="p-6 space-y-5 bg-gradient-to-b from-gray-50/30 to-white dark:from-slate-800/30 dark:to-slate-800">
-
-
                             {/* Approved By */}
                             <div className="bg-white dark:bg-slate-700/50 rounded-2xl p-4 border border-gray-100 dark:border-slate-600/30 hover:shadow-md transition-shadow duration-200">
                                 <div className="flex items-center gap-4">
@@ -707,6 +530,20 @@ const CalendarSection = () => {
                                 </div>
                             </div>
 
+                            {/* Start and End Date */}
+                            <div className="bg-white dark:bg-slate-700/50 rounded-2xl p-4 border border-gray-100 dark:border-slate-600/30 hover:shadow-md transition-shadow duration-200">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-green-100 dark:bg-green-500/20 rounded-lg flex items-center justify-center">
+                                        <span className="text-green-600 dark:text-green-300 text-lg">🗓️</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Duration</p>
+                                        <p className="text-sm text-gray-800 dark:text-gray-200 font-semibold">
+                                            {moment(selectedLeave.start).format('MMM DD, YYYY')} - {moment(selectedLeave.end).format('MMM DD, YYYY')}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* Description Card (if exists) */}
                             {selectedLeave.resource.description && (
@@ -730,14 +567,339 @@ const CalendarSection = () => {
                                 <button onClick={() => setIsDialogOpen(false)} className="flex-1 bg-gray-800 hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-white font-medium py-2.5 px-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl">
                                     Close
                                 </button>
-                                {/* <button className="flex-1 bg-white dark:bg-slate-600 hover:bg-gray-50 dark:hover:bg-slate-500 text-gray-700 dark:text-gray-200 font-medium py-2.5 px-4 rounded-xl border border-gray-200 dark:border-slate-500 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]">
-                                    Contact
-                                </button> */}
                             </div>
                         </div>
                     </div>
                 </div>
             )}
+
+            <style>
+                {`
+                /* Increased calendar height and day block sizes - Conservative approach */
+                .rbc-calendar {
+                    min-height: 500px;
+                }
+                
+                @media (min-width: 640px) {
+                    .rbc-calendar {
+                        min-height: 800px;
+                    }
+                }
+                
+                /* Make day cells larger without breaking event positioning */
+                .rbc-month-view {
+                    border-radius: 12px;
+                    overflow: hidden;
+                }
+                
+                /* Increase row heights */
+                .rbc-month-row {
+                    min-height: 120px;
+                }
+                
+                @media (min-width: 640px) {
+                    .rbc-month-row {
+                        min-height: 140px;
+                    }
+                }
+                
+                /* Day background cells */
+                .rbc-day-bg {
+                    min-height: 120px;
+                }
+                
+                @media (min-width: 640px) {
+                    .rbc-day-bg {
+                        min-height: 140px;
+                    }
+                }
+                
+                /* Date cells with better spacing */
+                .rbc-date-cell {
+                    padding: 8px;
+                    font-size: 14px;
+                }
+                
+                @media (min-width: 640px) {
+                    .rbc-date-cell {
+                        padding: 12px;
+                        font-size: 16px;
+                    }
+                }
+                
+                .rbc-date-cell a {
+                    font-weight: 600;
+                    padding: 6px 8px;
+                    border-radius: 6px;
+                    transition: all 0.2s ease;
+                    display: inline-block;
+                    min-width: 28px;
+                    text-align: center;
+                }
+                
+                /* Preserve default event behavior - minimal overrides */
+                .rbc-event {
+                    border-radius: 4px;
+                    font-weight: 500;
+                    transition: all 0.2s ease;
+                }
+                
+                .rbc-event:hover {
+                    opacity: 0.9;
+                    transform: translateY(-1px);
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                }
+                
+                /* Header improvements for larger calendar */
+                .rbc-header {
+                    padding: 12px 8px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    background-color: #f8fafc;
+                    border-bottom: 1px solid #e2e8f0;
+                }
+                
+                .dark .rbc-header {
+                    background-color: #334155;
+                    border-bottom-color: #475569;
+                }
+                
+                /* Today highlighting - responsive to dark mode */
+                .rbc-today {
+                    background-color: rgba(59, 130, 246, 0.1) !important;
+                    border: 2px solid rgba(59, 130, 246, 0.3) !important;
+                    position: relative;
+                }
+                
+                .dark .rbc-today {
+                    background-color: rgba(59, 130, 246, 0.15) !important;
+                    border: 2px solid rgba(59, 130, 246, 0.4) !important;
+                }
+                
+                /* Add subtle glow effect for today in dark mode */
+                .dark .rbc-today::before {
+                    content: '';
+                    position: absolute;
+                    top: -2px;
+                    left: -2px;
+                    right: -2px;
+                    bottom: -2px;
+                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 197, 253, 0.1) 100%);
+                    border-radius: 8px;
+                    z-index: -1;
+                    pointer-events: none;
+                }
+                
+                /* Public Holiday Styles */
+                .public-holiday-cell {
+                    position: relative;
+                }
+                .public-holiday-cell::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: linear-gradient(45deg, transparent 40%, #f59e0b 40%, #f59e0b 60%, transparent 60%);
+                    opacity: 0.1;
+                    pointer-events: none;
+                }
+                .public-holiday-cell:hover::after {
+                    content: attr(title);
+                    position: absolute;
+                    top: 100%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background-color: #374151;
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    white-space: nowrap;
+                    z-index: 1000;
+                    pointer-events: none;
+                }
+
+                /* Custom popup styles to ensure it shows properly */
+                .rbc-overlay {
+                    background-color: white;
+                    border: 1px solid #d1d5db;
+                    border-radius: 8px;
+                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+                    padding: 0;
+                    min-width: 200px;
+                    max-width: 300px;
+                    z-index: 1000;
+                }
+                
+                .dark .rbc-overlay {
+                    background-color: #1e293b;
+                    border: 1px solid #475569;
+                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+                }
+                
+                .rbc-overlay-header {
+                    background-color: #f8fafc;
+                    color: #374151;
+                    border-bottom: 1px solid #e5e7eb;
+                    padding: 8px 12px;
+                    font-weight: 600;
+                    font-size: 14px;
+                    border-radius: 8px 8px 0 0;
+                }
+                
+                .dark .rbc-overlay-header {
+                    background-color: #334155;
+                    color: #e2e8f0;
+                    border-bottom: 1px solid #475569;
+                }
+
+                /* Dark mode calendar styles */
+                .dark .rbc-calendar {
+                    background-color: #1e293b;
+                    color: #e2e8f0;
+                }
+                
+                .dark .rbc-month-view,
+                .dark .rbc-time-view {
+                    background-color: #1e293b;
+                    border-color: #475569;
+                }
+                
+                .dark .rbc-month-row {
+                    border-color: #475569;
+                }
+                
+                .dark .rbc-day-bg {
+                    background-color: #1e293b;
+                    border-color: #475569;
+                }
+                
+                .dark .rbc-off-range-bg {
+                    background-color: #0f172a;
+                    color: #64748b;
+                }
+                
+                .dark .rbc-off-range {
+                    color: #64748b;
+                }
+                
+                .dark .rbc-date-cell {
+                    color: #e2e8f0;
+                }
+                
+                .dark .rbc-date-cell a {
+                    color: #e2e8f0;
+                }
+                
+                .dark .rbc-off-range .rbc-date-cell a {
+                    color: #64748b;
+                }
+                
+                /* Fix for "+X more" popup text in dark mode */
+                .dark .rbc-show-more {
+                    color: #3b82f6 !important;
+                    background-color: transparent;
+                    font-weight: 500;
+                }
+                
+                .dark .rbc-show-more:hover {
+                    color: #60a5fa !important;
+                    background-color: #1e40af;
+                    border-radius: 4px;
+                }
+                
+                .dark .rbc-month-view .rbc-row {
+                    border-color: #475569;
+                }
+                
+                .dark .rbc-month-view .rbc-day-bg + .rbc-day-bg {
+                    border-left-color: #475569;
+                }
+
+                .dark .rbc-header + .rbc-header {
+                    border-left-color: #475569;
+                }
+                
+                .dark .rbc-date-cell a:hover {
+                    background-color: #334155;
+                    border-radius: 4px;
+                }
+                
+                .dark .rbc-off-range-bg {
+                    background-color: #0f172a;
+                }
+                
+                .dark .rbc-off-range {
+                    color: #475569;
+                }
+                
+                .dark .rbc-off-range .rbc-date-cell a {
+                    color: #475569;
+                }
+                
+                .dark .rbc-toolbar {
+                    color: #e2e8f0;
+                }
+                
+                .dark .rbc-toolbar button {
+                    background-color: #334155;
+                    color: #e2e8f0;
+                    border: 1px solid #475569;
+                }
+                
+                .dark .rbc-toolbar button:hover {
+                    background-color: #475569;
+                }
+                
+                .dark .rbc-toolbar button.rbc-active {
+                    background-color: #3b82f6;
+                    border-color: #3b82f6;
+                }
+
+                /* Ensure popup events are clickable */
+                .rbc-event {
+                    cursor: pointer !important;
+                }
+                
+                .rbc-event:hover {
+                    opacity: 0.8;
+                }
+                
+                /* Responsive adjustments for mobile */
+                @media (max-width: 640px) {
+                    .rbc-month-row {
+                        min-height: 100px;
+                    }
+                    
+                    .rbc-day-bg {
+                        min-height: 100px;
+                    }
+                    
+                    .rbc-date-cell {
+                        padding: 6px;
+                        font-size: 12px;
+                    }
+                    
+                    .rbc-date-cell a {
+                        padding: 4px 6px;
+                        min-width: 24px;
+                        font-size: 14px;
+                    }
+                    
+                    .rbc-header {
+                        padding: 8px 4px;
+                        font-size: 11px;
+                    }
+                }
+                
+                /* Animation for smoother transitions */
+                .rbc-calendar * {
+                    transition: all 0.2s ease;
+                }
+            `}
+            </style>
         </div>
     );
 };

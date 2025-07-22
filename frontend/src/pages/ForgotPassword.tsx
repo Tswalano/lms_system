@@ -375,7 +375,7 @@ const ForgotPassword = () => {
                                 </div>
                                 <div className="text-left">
                                     <h3 className="font-semibold">Email Verification</h3>
-                                    <p className="text-sm text-green-100">Secure code sent to your email</p>
+                                    <p className="text-sm text-green-100">Secure code sent to your email, retrieve the code to reset</p>
                                 </div>
                             </div>
 
