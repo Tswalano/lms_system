@@ -1,16 +1,26 @@
 import { useState, useEffect } from "react";
-import { Home, FileText, Clock, LogOut, UserSearch, CheckCircle, Moon, Sun, History, Users, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Home, FileText, Clock, LogOut, UserSearch, ArchiveRestore, CheckCircle, Moon, Sun, History, Users, Menu, X, ChevronsRight, ChevronsLeft, ChartSpline, FileCheck2, ChevronsDown } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { Separator } from "@/components/ui/separator"
 
 interface SidebarProps {
     isMobileMenuOpen: boolean;
     setIsMobileMenuOpen: (open: boolean) => void;
     isCollapsed: boolean;
     setIsCollapsed: (collapsed: boolean) => void;
+}
+
+interface MenuItem {
+    id: string;
+    label: string;
+    icon: React.ElementType;
+    path: string;
+    children?: MenuItem[];
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -22,7 +32,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     const location = useLocation();
     const { theme, toggleTheme } = useTheme();
     const { user, logout } = useAuth();
+    const isLgUp = useMediaQuery('(min-width: 1024px)');
     const [userRole] = useState<'admin' | 'user'>(user?.role === 'admin' ? 'admin' : 'user');
+    const [isCollapsibleMenuOpen, setIsCollapsibleMenuOpen] = useState(false);
 
     // Load collapse state from localStorage on component mount
     useEffect(() => {
@@ -48,9 +60,38 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     const menuItems = userRole === 'admin' ? adminMenuItems : employeeMenuItems;
 
+    // Collapsible menu items
+    const collapsibleMenuItems: MenuItem[] = [
+        userRole === 'admin'
+            ? {
+                id: "adminDocument",
+                label: "Admin Document",
+                icon: ArchiveRestore,
+                path: "/admin-document",
+            }
+            : null,
+        {
+            id: "employeeDocument",
+            label: "Employee Document",
+            icon: FileCheck2,
+            path: "/employee-document",
+        },
+        {
+            id: "performance",
+            label: "Performance Review",
+            icon: ChartSpline,
+            path: "/performance-review",
+        }
+    ].filter(Boolean) as MenuItem[];
+
+
     const isActive = (path: string) => {
         return location.pathname === path;
     };
+
+    const isAnyItemActive = collapsibleMenuItems.some(item => isActive(item.path));
+    const shouldHighlightHeader = !isCollapsibleMenuOpen && isAnyItemActive;
+
 
     const getInitials = (firstName: string | undefined, lastName: string | undefined) => {
         return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
@@ -95,7 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Sidebar */}
             <div className={cn(
-                "fixed left-0 top-0 h-full bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 shadow-lg z-50 transition-all duration-300 ease-in-out",
+                "fixed left-0 top-0 h-full bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 shadow-lg z-50 transition-all duration-300 ease-in-out flex flex-col",
                 // Desktop: Dynamic width based on collapse state
                 `lg:${sidebarWidth}`,
                 // Mobile: Always full width when open
@@ -105,8 +146,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 // Mobile: Hidden by default, shown when menu is open
                 isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             )}>
-                {/* Header */}
-                <div className="p-6 border-b border-gray-100 dark:border-slate-700">
+                {/* Header - Fixed */}
+                <div className="flex-shrink-0 p-6 border-b border-gray-100 dark:border-slate-700">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <Link to="/" className="flex items-center gap-2" onClick={handleMenuItemClick}>
@@ -137,113 +178,182 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 className="hidden lg:flex items-center justify-center w-8 h-8 p-0 rounded-full bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-200 dark:hover:bg-slate-700 hover:shadow-sm transition-all duration-300"
                             >
                                 {isCollapsed ? (
-                                    <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                    <ChevronsRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                                 ) : (
-                                    <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                    <ChevronsLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                                 )}
                             </Button>
                         </div>
                     </div>
                 </div>
 
-                {/* User Profile */}
-                <div className={cn("p-4", isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "" : "")}>
-                    <Link
-                        to="/profile"
-                        onClick={handleMenuItemClick}
-                        className={cn(
-                            "flex items-center gap-3 mb-6 p-3 rounded-xl transition-all duration-200 group cursor-pointer",
-                            isActive('/profile')
-                                ? isCollapsed ? "" : "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 border border-green-500 shadow-lg shadow-cyan-500/25"
-                                : isCollapsed && window.matchMedia('(min-width: 1024px)').matches
-                                    ? "bg-transparent border-transparent hover:bg-transparent"
-                                    : "bg-gradient-to-r from-blue-50 via-cyan-50 to-green-50 dark:from-blue-900/20 dark:via-cyan-900/20 dark:to-green-900/20 border border-cyan-200 dark:border-cyan-800 hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30",
-                            isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "justify-center" : ""
-                        )}
-                        title={isCollapsed ? `${user?.firstName} ${user?.lastName}` : undefined}
-                    >
-                        <div
+                {/* Scrollable Content Area */}
+                <div className="flex-1 overflow-y-auto min-h-0">
+                    {/* User Profile */}
+                    <div className={cn("p-4", isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "" : "")}>
+                        <Link
+                            to="/profile"
+                            onClick={handleMenuItemClick}
                             className={cn(
-                                "w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300",
-                                isCollapsed
-                                    ? "bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 text-white"
-                                    : isActive("/profile")
-                                        ? "bg-white/20 text-white"
-                                        : "bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 text-white"
+                                "flex items-center gap-3 mb-6 p-3 rounded-xl transition-all duration-200 group cursor-pointer",
+                                isActive('/profile')
+                                    ? isCollapsed ? "" : "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 border border-green-500 shadow-lg shadow-cyan-500/25"
+                                    : isCollapsed && window.matchMedia('(min-width: 1024px)').matches
+                                        ? "bg-transparent border-transparent hover:bg-transparent"
+                                        : "bg-gradient-to-r from-blue-50 via-cyan-50 to-green-50 dark:from-blue-900/20 dark:via-cyan-900/20 dark:to-green-900/20 border border-cyan-200 dark:border-cyan-800 hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30",
+                                isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "justify-center" : ""
                             )}
+                            title={isCollapsed ? `${user?.firstName} ${user?.lastName}` : undefined}
                         >
-                            <span className="font-semibold text-sm">
-                                {getInitials(user?.firstName, user?.lastName)}
-                            </span>
-                        </div>
-
-
-                        {(!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) && (
-                            <div className="flex-1 min-w-0">
-                                <p className={cn(
-                                    "font-semibold",
-                                    isActive('/profile')
-                                        ? "text-white"
-                                        : "bg-gradient-to-r from-blue-700 via-cyan-600 to-green-600 dark:from-blue-300 dark:via-cyan-300 dark:to-green-300 bg-clip-text text-transparent group-hover:from-blue-800 group-hover:via-cyan-700 group-hover:to-green-700 dark:group-hover:from-blue-200 dark:group-hover:via-cyan-200 dark:group-hover:to-green-200"
-                                )}>
-                                    {`${user?.firstName} ${user?.lastName}`}
-                                </p>
-                                <p className={cn(
-                                    "text-sm truncate",
-                                    isActive('/profile')
-                                        ? "text-white/80"
-                                        : "text-gray-500 dark:text-gray-400 group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-green-600 dark:group-hover:from-cyan-400 dark:group-hover:to-green-400 group-hover:bg-clip-text group-hover:text-transparent"
-                                )}>
-                                    {user?.jobTitle}
-                                </p>
-                            </div>
-                        )}
-                    </Link>
-
-                    {/* Navigation */}
-                    <nav className="space-y-2">
-                        {menuItems.map((item) => (
-                            <Link
-                                key={item.id}
-                                to={item.path}
-                                onClick={handleMenuItemClick}
-                                title={isCollapsed ? item.label : undefined}
+                            <div
                                 className={cn(
-                                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group",
-                                    isActive(item.path)
-                                        ? "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 text-white shadow-lg shadow-cyan-500/25"
-                                        : "text-gray-600 dark:text-gray-400 hover:bg-gradient-to-r hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30 hover:text-cyan-500 dark:hover:text-cyan-400",
-                                    isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "justify-center px-2" : ""
+                                    "w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300",
+                                    isCollapsed
+                                        ? "bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 text-white"
+                                        : isActive("/profile")
+                                            ? "bg-white/20 text-white"
+                                            : "bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 text-white"
                                 )}
                             >
-                                <item.icon
-                                    className={cn(
-                                        "w-5 h-5 transition-colors",
-                                        isActive(item.path)
+                                <span className="font-semibold text-sm">
+                                    {getInitials(user?.firstName, user?.lastName)}
+                                </span>
+                            </div>
+
+                            {(!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) && (
+                                <div className="flex-1 min-w-0">
+                                    <p className={cn(
+                                        "font-semibold",
+                                        isActive('/profile')
                                             ? "text-white"
-                                            : "text-gray-400 group-hover:text-cyan-500 dark:group-hover:text-cyan-400"
+                                            : "bg-gradient-to-r from-blue-700 via-cyan-600 to-green-600 dark:from-blue-300 dark:via-cyan-300 dark:to-green-300 bg-clip-text text-transparent group-hover:from-blue-800 group-hover:via-cyan-700 group-hover:to-green-700 dark:group-hover:from-blue-200 dark:group-hover:via-cyan-200 dark:group-hover:to-green-200"
+                                    )}>
+                                        {`${user?.firstName} ${user?.lastName}`}
+                                    </p>
+                                    <p className={cn(
+                                        "text-sm truncate",
+                                        isActive('/profile')
+                                            ? "text-white/80"
+                                            : "text-gray-500 dark:text-gray-400 group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-green-600 dark:group-hover:from-cyan-400 dark:group-hover:to-green-400 group-hover:bg-clip-text group-hover:text-transparent"
+                                    )}>
+                                        {user?.jobTitle}
+                                    </p>
+                                </div>
+                            )}
+                        </Link>
+
+                        {/* Navigation */}
+                        <nav className="space-y-2">
+                            {menuItems.map((item) => (
+                                <Link
+                                    key={item.id}
+                                    to={item.path}
+                                    onClick={handleMenuItemClick}
+                                    title={isCollapsed ? item.label : undefined}
+                                    className={cn(
+                                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group",
+                                        isActive(item.path)
+                                            ? "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 text-white shadow-lg shadow-cyan-500/25"
+                                            : "text-gray-600 dark:text-gray-400 hover:bg-gradient-to-r hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30 hover:text-cyan-500 dark:hover:text-cyan-400",
+                                        isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "justify-center px-2" : ""
                                     )}
-                                />
-                                {(!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) && (
-                                    <span className="font-medium transition-all duration-500 ease-in-out overflow-hidden whitespace-nowrap">
-                                        {item.label}
-                                    </span>
+                                >
+                                    <item.icon
+                                        className={cn(
+                                            "w-5 h-5 transition-colors",
+                                            isActive(item.path)
+                                                ? "text-white"
+                                                : "text-gray-400 group-hover:text-cyan-500 dark:group-hover:text-cyan-400"
+                                        )}
+                                    />
+                                    {(!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) && (
+                                        <span className="font-medium transition-all duration-500 ease-in-out overflow-hidden whitespace-nowrap">
+                                            {item.label}
+                                        </span>
+                                    )}
+                                </Link>
+                            ))}
+                        </nav>
+
+                        {process.env.NODE_ENV === 'development' && (
+                            <div>
+                                <Separator className="my-4" />
+                                {/* Collapsible Header */}
+                                <button
+                                    onClick={() => setIsCollapsibleMenuOpen(!isCollapsibleMenuOpen)}
+                                    className={cn(
+                                        "w-full flex items-center gap-3 px-4 py-2 rounded-xl text-left transition-all duration-200 group",
+                                        shouldHighlightHeader ? "text-cyan-500 dark:text-cyan-400 font-semibold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300",
+                                        isCollapsed && isLgUp ? "justify-center px-2" : ""
+                                    )}
+                                    title={isCollapsed ? "Company Menu" : undefined}
+                                >
+                                    {isCollapsed && isLgUp ? (
+                                        <div className="w-5 h-5 flex items-center justify-center">
+                                            <span className="text-xs font-bold">-</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {isCollapsibleMenuOpen ? (
+                                                <ChevronsDown className="w-4 h-4" />
+                                            ) : (
+                                                <ChevronsRight className="w-4 h-4" />
+                                            )}
+                                            <span className="transition-all duration-500 ease-in-out overflow-hidden whitespace-nowrap">
+                                                Company Menu
+                                            </span>
+                                        </>
+                                    )}
+                                </button>
+
+                                {/* Collapsible Items */}
+                                {(isCollapsibleMenuOpen || (isCollapsed && isLgUp)) && (
+                                    <div className="space-y-2">
+                                        {collapsibleMenuItems.map((item) => (
+                                            <Link
+                                                key={item.id}
+                                                to={item.path}
+                                                onClick={handleMenuItemClick}
+                                                title={isCollapsed ? item.label : undefined}
+                                                className={cn(
+                                                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group",
+                                                    isActive(item.path)
+                                                        ? "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 text-white shadow-lg shadow-cyan-500/25"
+                                                        : "text-gray-600 dark:text-gray-400 hover:bg-gradient-to-r hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30 hover:text-cyan-500 dark:hover:text-cyan-400",
+                                                    isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "justify-center px-2" : ""
+                                                )}
+                                            >
+                                                <item.icon
+                                                    className={cn(
+                                                        "w-5 h-5 transition-colors",
+                                                        isActive(item.path)
+                                                            ? "text-white"
+                                                            : "text-gray-400 group-hover:text-cyan-500 dark:group-hover:text-cyan-400"
+                                                    )}
+                                                />
+                                                {(!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) && (
+                                                    <span className="font-medium transition-all duration-500 ease-in-out overflow-hidden whitespace-nowrap">
+                                                        {item.label}
+                                                    </span>
+                                                )}
+                                            </Link>
+                                        ))}
+                                    </div>
                                 )}
-                            </Link>
-                        ))}
-                    </nav>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Footer */}
-                <div className={cn("absolute bottom-4 py-2 transition-all duration-300",
+                {/* Footer - Fixed at bottom */}
+                <div className={cn("flex-shrink-0 py-4 border-t border-gray-100 dark:border-slate-700 transition-all duration-300",
                     isCollapsed && window.matchMedia('(min-width: 1024px)').matches
-                        ? "left-2 right-2"
-                        : "left-4 right-4"
+                        ? "px-2"
+                        : "px-4"
                 )}>
 
-                    {/* Dark Mode Toggle - Responsive Style with Hover Effects */}
+                    {/* Dark Mode Toggle */}
                     {isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? (
-                        // Collapsed Mode - Show only active icon
                         <button
                             onClick={toggleTheme}
                             className="w-10 h-10 mx-auto flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800 shadow-inner border border-slate-300 dark:border-slate-700 hover:shadow-md hover:bg-slate-300/70 dark:hover:bg-slate-700/90 transition-all duration-300"
@@ -256,7 +366,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                             )}
                         </button>
                     ) : (
-                        // Expanded Mode - Show slider with both options
                         <div className="w-full">
                             <button
                                 onClick={toggleTheme}
@@ -268,7 +377,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     "shadow-inner hover:shadow-md hover:border-slate-400 dark:hover:border-slate-600"
                                 )}
                             >
-                                {/* Light Toggle */}
                                 <div
                                     className={cn(
                                         "flex-1 flex items-center justify-center gap-1 py-1 rounded-full text-sm font-medium transition-all duration-300",
@@ -280,8 +388,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     <Sun className="w-4 h-4" />
                                     <span>Light</span>
                                 </div>
-
-                                {/* Dark Toggle */}
                                 <div
                                     className={cn(
                                         "flex-1 flex items-center justify-center gap-1 py-1 rounded-full text-sm font-medium transition-all duration-300",
@@ -299,7 +405,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                     {/* Logout Button */}
                     {isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? (
-                        // Collapsed Logout - Just Icon
                         <button
                             onClick={logout}
                             title="Sign Out"
@@ -308,7 +413,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <LogOut className="w-5 h-5 text-red-600 dark:text-red-400" />
                         </button>
                     ) : (
-                        // Expanded Logout - Full Button
                         <button
                             onClick={logout}
                             className="w-full flex items-center gap-3 px-4 py-3 mt-3 rounded-xl transition-all duration-300 group bg-red-50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-800/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/30 hover:border-red-300/60 dark:hover:border-red-700/50 hover:shadow-lg hover:shadow-red-500/10 dark:hover:shadow-red-500/5"
@@ -322,16 +426,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                         </button>
                     )}
 
-                    {/* Version - Below logout */}
+                    {/* Version */}
                     {(!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) && (
                         <div className="mt-4 px-3 py-2 text-xs text-center">
                             <span className="text-slate-500 dark:text-slate-400 font-medium">
-                                v{import.meta.env.VITE_VERSION || '1.0.0'}
+                                {import.meta.env.VITE_VERSION || '1.0.0'}
                             </span>
                         </div>
                     )}
                 </div>
-            </div>
+            </div >
         </>
     );
 };

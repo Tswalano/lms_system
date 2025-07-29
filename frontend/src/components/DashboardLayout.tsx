@@ -70,7 +70,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 )}
 
                 {/* Main Content */}
-                <main className={`p-4 lg:p-8 min-h-screen ${contentClassName}`}>
+                <main className={`p-4 lg:p-8 ${contentClassName}`}>
                     <div className="px-4 lg:px-16 mx-auto space-y-8">
                         {children}
                     </div>

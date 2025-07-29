@@ -20,6 +20,9 @@ import UserProfile from "./pages/UserProfile";
 import PermissionDenied from "./pages/PermissionDenied";
 import DashboardLayout from "./components/DashboardLayout";
 import ProjectManagement from "./pages/ProjectManagement";
+import PerformanceReview from "./pages/PerformanceRiview";
+import AdminDocumentsPage from "./pages/AdminDocumentsPage";
+import EmployeeDocumentsPage from "./pages/EmployeeDocumentsPage";
 
 const queryClient = new QueryClient();
 
@@ -106,6 +109,21 @@ const App: React.FC = () => (
               <Route path="/project-management" element={
                 <ProtectedRoute>
                   <ProjectManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance-review" element={
+                <ProtectedRoute>
+                  <PerformanceReview />
+                </ProtectedRoute>
+              } />
+              <Route path="/employee-document" element={
+                <ProtectedRoute>
+                  <EmployeeDocumentsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin-document" element={
+                <ProtectedRoute>
+                  <AdminDocumentsPage />
                 </ProtectedRoute>
               } />
               <Route path="/approve-leave" element={
