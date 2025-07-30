@@ -65,12 +65,7 @@ const ManageEmployees = () => {
         }
 
         const response = await authFetch('/users', {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            method: 'GET'
         });
 
         if (!response.ok) {
@@ -107,12 +102,7 @@ const ManageEmployees = () => {
             }
 
             const response = await authFetch('/users/update-user', {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
+                method: 'POST',
                 body: JSON.stringify({
                     id,
                     ...employeeData
@@ -165,11 +155,6 @@ const ManageEmployees = () => {
 
             const response = await authFetch('/users/add-user', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
                 body: JSON.stringify({
                     firstName: employeeData.firstName,
                     lastName: employeeData.lastName,
@@ -221,11 +206,6 @@ const ManageEmployees = () => {
 
             const response = await authFetch('/users/delete-user', {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
                 body: JSON.stringify({ id: employeeId, email: selectedEmployee?.email })
             });
 
