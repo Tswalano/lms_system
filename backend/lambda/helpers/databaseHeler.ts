@@ -11,26 +11,30 @@ interface DatabaseCredentials {
     password: string;
     host: string;
     port: number;
+    dbname: string;
 }
 
 export interface DBSecret {
     host: string;
     username: string;
     password: string;
+    dbname: string;
     port?: number;
 }
 
 // AWS Configuration
 const secretsManager = new SecretsManagerClient({ region: "af-south-1" });
 const s3Client = new S3Client({ region: "af-south-1" });
-const secretName = "lmsProduction";
+const SECRET_NAME = process.env.SECRET_NAME || "lmsProduction"; // TODO - make this dynamic based on environment
 const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME || "lms-sick-notes-bucket";
+const DATABASE_NAME = process.env.DATABASE_NAME || 'lms_db'; // TODO: make this dynamic based on environment
+
 
 // Database Connection & utilities
 class DatabaseService {
     private static async getDatabaseCredentials(): Promise<DatabaseCredentials> {
         try {
-            const input = { SecretId: "lmsProduction" };
+            const input = { SecretId: SECRET_NAME };
             const command = new GetSecretValueCommand(input);
             const response = await secretsManagerClient.send(command);
 
@@ -39,28 +43,28 @@ class DatabaseService {
             }
 
             const secretString = JSON.parse(response.SecretString);
-            const { username, password, host, port } = secretString;
+            const { username, password, host, port, dbname } = secretString;
 
-            if (!username || !password || !host || !port) {
+            if (!username || !password || !host || !port || !dbname) {
                 throw new Error("Missing required database credentials");
             }
 
-            return { username, password, host, port };
+            return { username, password, host, port, dbname };
         } catch (error) {
             console.error("Error retrieving database credentials:", error);
             throw error;
         }
     }
 
-    static async createConnection() {
+    static async createConnection(): Promise<mysql.Connection> {
         try {
-            const { username, password, host, port } = await this.getDatabaseCredentials();
+            const { username, password, host, port, dbname } = await this.getDatabaseCredentials();
             return await mysql.createConnection({
                 host,
                 port,
                 user: username,
                 password,
-                database: "lms_db",
+                database: dbname,
                 ssl: 'Amazon RDS'
             });
         } catch (error) {

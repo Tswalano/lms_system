@@ -50,7 +50,6 @@ const client = new CognitoIdentityProviderClient({});
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID!;
 const USER_POOL_ID = process.env.USER_POOL_ID!;
 
-
 // Response utilities
 class ResponseService {
     static success<T>(message: string, payload: T, statusCode: number = 200): ApiResponse<T> {

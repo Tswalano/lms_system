@@ -52,7 +52,7 @@ const initiateAuth = async ({ username, password }: { username: string; password
                 success: false,
                 statusCode: 401,
                 data: {
-                    message: "User sign in failed - Not Authorized",
+                    message: "Incorrect username or password. Please try again.",
                     code: "NotAuthorizedException",
                     error: true,
                     payload: error
@@ -64,7 +64,7 @@ const initiateAuth = async ({ username, password }: { username: string; password
                 success: false,
                 statusCode: 403,
                 data: {
-                    message: "User sign in failed - User Is Not Confirmed",
+                    message: "User sign-in failed - Account not confirmed.",
                     code: "UserNotConfirmedException",
                     redirect: "/confirm-account",
                     error: true,
@@ -77,7 +77,7 @@ const initiateAuth = async ({ username, password }: { username: string; password
             success: false,
             statusCode: 500,
             data: {
-                message: "User sign in failed",
+                message: "Sign-in failed - Username not found or password incorrect.",
                 code: "UserSignedInError",
                 error: true,
                 payload: error

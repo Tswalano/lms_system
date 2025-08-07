@@ -96,7 +96,12 @@ interface TokenRefreshResponse {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const API_BASE_URL: string = 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
+// export const API_BASE_URL: string = 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
+
+// if development environment
+export const API_BASE_URL: string = process.env.NODE_ENV === 'development'
+    ? 'https://xrdpcrhluc.execute-api.af-south-1.amazonaws.com/dev'
+    : 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
 
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);

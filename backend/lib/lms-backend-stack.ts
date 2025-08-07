@@ -47,7 +47,7 @@ export class LmsBackendStack extends cdk.Stack {
     // ============================================================================
     const ALLOW_PUBLIC_DB_ACCESS = true; // Set to true to allow public internet access to database
     const ALLOWED_IP_RANGES = [
-      '0.0.0.0/0', // Allow all IPs (not recommended for production)
+      '0.0.0.0/0', // TODO: Allow all IPs (not recommended for production)
     ];
 
     // Use configuration from props
@@ -65,87 +65,17 @@ export class LmsBackendStack extends cdk.Stack {
     const resourceSuffix = environment === 'prod' ? '' : `-${environment}`;
 
     // ============================================================================
-    // SUBNET CONFIGURATION
-    // ============================================================================
-    let LAMBDA_SUBNET_TYPE: ec2.SubnetType;
-    let VPC_ENDPOINT_SUBNET_TYPE: ec2.SubnetType;
-
-    if (USE_EXISTING_VPC) {
-      LAMBDA_SUBNET_TYPE = ec2.SubnetType.PUBLIC;
-      VPC_ENDPOINT_SUBNET_TYPE = ec2.SubnetType.PUBLIC;
-    } else {
-      LAMBDA_SUBNET_TYPE = ec2.SubnetType.PUBLIC;
-      VPC_ENDPOINT_SUBNET_TYPE = ec2.SubnetType.PRIVATE_ISOLATED;
-    }
-
-    // ============================================================================
-    // VPC Configuration
+    // VPC Configuration - Only for RDS, Lambda will be outside VPC
     // ============================================================================
     let vpc: ec2.IVpc;
 
     if (USE_EXISTING_VPC && EXISTING_VPC_ID) {
-      // Use existing VPC
       vpc = ec2.Vpc.fromLookup(this, 'ExistingVpc', {
         vpcId: EXISTING_VPC_ID,
       });
     } else {
-      // Create new VPC for dev environment
-      vpc = new ec2.Vpc(this, `LmsVpc${resourceSuffix}`, {
-        maxAzs: 2,
-        natGateways: 0,
-        subnetConfiguration: [
-          {
-            cidrMask: 24,
-            name: 'public',
-            subnetType: ec2.SubnetType.PUBLIC,
-          },
-          {
-            cidrMask: 24,
-            name: 'private',
-            subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
-          },
-          {
-            cidrMask: 24,
-            name: 'database',
-            subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
-          },
-        ],
-      });
-    }
-
-    // Security Group for VPC Endpoints
-    const vpcEndpointSecurityGroup = new ec2.SecurityGroup(this, `VpcEndpointSecurityGroup${resourceSuffix}`, {
-      vpc,
-      description: `Security group for VPC endpoints - ${environment}`,
-      allowAllOutbound: false,
-    });
-
-    vpcEndpointSecurityGroup.addIngressRule(
-      ec2.Peer.ipv4(vpc.vpcCidrBlock),
-      ec2.Port.tcp(443),
-      'Allow HTTPS from VPC'
-    );
-
-    // Security Group for Lambda functions
-    const lambdaSecurityGroup = new ec2.SecurityGroup(this, `LambdaSecurityGroup${resourceSuffix}`, {
-      vpc,
-      description: `Security group for Lambda functions - ${environment}`,
-      allowAllOutbound: true,
-    });
-
-    // VPC Endpoints
-    let secretsManagerVpcEndpoint: ec2.InterfaceVpcEndpoint | undefined;
-
-    if (!USE_EXISTING_VPC || VPC_ENDPOINT_SUBNET_TYPE !== ec2.SubnetType.PUBLIC) {
-      secretsManagerVpcEndpoint = new ec2.InterfaceVpcEndpoint(this, `SecretsManagerVpcEndpoint${resourceSuffix}`, {
-        vpc,
-        service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
-        subnets: {
-          subnetType: VPC_ENDPOINT_SUBNET_TYPE,
-        },
-        securityGroups: [vpcEndpointSecurityGroup],
-        privateDnsEnabled: true,
-        open: true,
+      vpc = ec2.Vpc.fromLookup(this, 'DefaultVpc', {
+        isDefault: true,
       });
     }
 
@@ -160,38 +90,17 @@ export class LmsBackendStack extends cdk.Stack {
       // Use existing RDS instance (for production)
       database = rds.DatabaseInstance.fromDatabaseInstanceAttributes(this, 'ExistingDatabase', {
         instanceIdentifier: EXISTING_RDS_IDENTIFIER,
-        instanceEndpointAddress: 'lms-db-staging-instance.cc7jdytilrfh.af-south-1.rds.amazonaws.com',
+        instanceEndpointAddress: 'lms-db-prod.cc7jdytilrfh.af-south-1.rds.amazonaws.com',
         port: 3306,
         securityGroups: [],
       });
 
-      if (USE_EXISTING_SECRET && EXISTING_SECRET_ARN) {
-        databaseCredentials = secretsmanager.Secret.fromSecretCompleteArn(this, 'ExistingSecret', EXISTING_SECRET_ARN);
-      } else {
-        databaseCredentials = new secretsmanager.Secret(this, `ExistingDatabaseCredentials${resourceSuffix}`, {
-          secretName: `existing-lms-database-credentials${resourceSuffix}`,
-          description: `Credentials for existing LMS database - ${environment}`,
-          secretObjectValue: {
-            username: cdk.SecretValue.unsafePlainText('your-db-username'),
-            password: cdk.SecretValue.unsafePlainText('your-db-password'),
-            host: cdk.SecretValue.unsafePlainText('your-db-endpoint.region.rds.amazonaws.com'),
-            port: cdk.SecretValue.unsafePlainText('3306'),
-            dbname: cdk.SecretValue.unsafePlainText('your-database-name'),
-          },
-        });
-      }
-
+      // For existing RDS, create security group to allow access
       existingDbSecurityGroup = new ec2.SecurityGroup(this, `ExistingDatabaseSecurityGroup${resourceSuffix}`, {
         vpc,
         description: `Security group for accessing existing database - ${environment}`,
         allowAllOutbound: false,
       });
-
-      existingDbSecurityGroup.addIngressRule(
-        lambdaSecurityGroup,
-        ec2.Port.tcp(3306),
-        'Allow Lambda to connect to existing MySQL database'
-      );
 
       existingDbSecurityGroup.addIngressRule(
         ec2.Peer.ipv4(myIpAddress),
@@ -205,7 +114,7 @@ export class LmsBackendStack extends cdk.Stack {
             existingDbSecurityGroup!.addIngressRule(
               ec2.Peer.anyIpv4(),
               ec2.Port.tcp(3306),
-              'Allow public internet access to MySQL database'
+              'Allow public internet access to MySQL database (including Lambda)'
             );
           } else {
             existingDbSecurityGroup!.addIngressRule(
@@ -223,39 +132,75 @@ export class LmsBackendStack extends cdk.Stack {
         );
       }
 
+      // Create/use secret for existing database
+      if (USE_EXISTING_SECRET && EXISTING_SECRET_ARN) {
+        databaseCredentials = secretsmanager.Secret.fromSecretCompleteArn(this, 'ExistingSecret', EXISTING_SECRET_ARN);
+      } else {
+        databaseCredentials = new secretsmanager.Secret(this, `ExistingDatabaseCredentials${resourceSuffix}`, {
+          secretName: `lms-database-credentials${resourceSuffix}`,
+          description: `Credentials for existing LMS database - ${environment}`,
+          secretObjectValue: {
+            username: cdk.SecretValue.unsafePlainText('admin'),
+            password: cdk.SecretValue.unsafePlainText('your-password-here'), // Replace with actual password
+            host: cdk.SecretValue.unsafePlainText('lms-db-prod.cc7jdytilrfh.af-south-1.rds.amazonaws.com'),
+            port: cdk.SecretValue.unsafePlainText('3306'),
+            dbname: cdk.SecretValue.unsafePlainText('lms_db'),
+          },
+        });
+      }
+
     } else {
-      // Create new RDS instance (for development)
+      // Create new RDS instance (for development) - Use existing VPC to avoid subnet conflicts
       const databaseSecurityGroup = new ec2.SecurityGroup(this, `DatabaseSecurityGroup${resourceSuffix}`, {
         vpc,
         description: `Security group for RDS database - ${environment}`,
-        allowAllOutbound: false,
+        allowAllOutbound: true,
       });
 
-      databaseSecurityGroup.addIngressRule(
-        lambdaSecurityGroup,
-        ec2.Port.tcp(3306),
-        'Allow Lambda to connect to MySQL'
-      );
-
+      // Allow direct IP access for development/management
       databaseSecurityGroup.addIngressRule(
         ec2.Peer.ipv4(myIpAddress),
         ec2.Port.tcp(3306),
         'Allow my IP to connect to MySQL'
       );
 
+      // Allow public access since Lambda is outside VPC and RDS is publicly accessible
+      if (ALLOW_PUBLIC_DB_ACCESS) {
+        ALLOWED_IP_RANGES.forEach((ipRange, index) => {
+          if (ipRange === '0.0.0.0/0') {
+            databaseSecurityGroup.addIngressRule(
+              ec2.Peer.anyIpv4(),
+              ec2.Port.tcp(3306),
+              'Allow public internet access to MySQL database'
+            );
+          } else {
+            databaseSecurityGroup.addIngressRule(
+              ec2.Peer.ipv4(ipRange),
+              ec2.Port.tcp(3306),
+              `Allow IP range ${ipRange} to connect to MySQL database`
+            );
+          }
+        });
+
+        databaseSecurityGroup.addIngressRule(
+          ec2.Peer.anyIpv6(),
+          ec2.Port.tcp(3306),
+          'Allow IPv6 access to MySQL'
+        );
+      }
+
       databaseCredentials = new secretsmanager.Secret(this, `DatabaseCredentials${resourceSuffix}`, {
         secretName: config.secretName,
         generateSecretString: {
           secretStringTemplate: JSON.stringify({ username: 'admin' }),
           generateStringKey: 'password',
-          excludeCharacters: '"@/\\',
+          excludeCharacters: '"@/\\,<>*#%&=_-~`',
+          passwordLength: 15,
         },
       });
 
-      const dbSubnetType = USE_EXISTING_VPC ? ec2.SubnetType.PUBLIC : ec2.SubnetType.PRIVATE_ISOLATED;
-
       database = new rds.DatabaseInstance(this, `LmsDatabase${resourceSuffix}`, {
-        instanceIdentifier: `lms-db-${resourceSuffix}`,
+        instanceIdentifier: `lms-database${resourceSuffix}`,
         engine: rds.DatabaseInstanceEngine.mysql({
           version: rds.MysqlEngineVersion.VER_8_0,
         }),
@@ -263,16 +208,16 @@ export class LmsBackendStack extends cdk.Stack {
         credentials: rds.Credentials.fromSecret(databaseCredentials),
         vpc,
         vpcSubnets: {
-          subnetType: dbSubnetType,
+          subnetType: ec2.SubnetType.PUBLIC,
         },
         securityGroups: [databaseSecurityGroup],
-        databaseName: 'lms_db',
+        databaseName: 'lms_database',
         allocatedStorage: 20,
         storageEncrypted: true,
-        backupRetention: cdk.Duration.days(environment === 'prod' ? 7 : 1), // Shorter backup for dev
-        deletionProtection: environment === 'prod', // Only protect production
+        backupRetention: cdk.Duration.days(environment === 'prod' ? 7 : 1),
+        deletionProtection: environment === 'prod',
         removalPolicy: environment === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
-        publiclyAccessible: USE_EXISTING_VPC,
+        publiclyAccessible: true,
       });
     }
 
@@ -291,8 +236,7 @@ export class LmsBackendStack extends cdk.Stack {
         userPoolName: `lms-user-pool${resourceSuffix}`,
         selfSignUpEnabled: true,
         signInAliases: {
-          email: true,
-          username: true,
+          email: true
         },
         autoVerify: {
           email: true,
@@ -360,7 +304,7 @@ export class LmsBackendStack extends cdk.Stack {
     const lambdaRole = new iam.Role(this, `LambdaExecutionRole${resourceSuffix}`, {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
       managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaVPCAccessExecutionRole'),
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
       ],
       inlinePolicies: {
         SecretsManagerAccess: new iam.PolicyDocument({
@@ -371,7 +315,7 @@ export class LmsBackendStack extends cdk.Stack {
                 'secretsmanager:GetSecretValue',
                 'secretsmanager:DescribeSecret',
               ],
-              resources: [databaseCredentials.secretArn, "*"],
+              resources: [databaseCredentials.secretArn],
             }),
           ],
         }),
@@ -409,6 +353,7 @@ export class LmsBackendStack extends cdk.Stack {
       },
     });
 
+    // Lambda function configuration - Outside VPC for cost optimization and simplicity
     const backendLambda = new NodejsFunction(this, `lms-backend-function${resourceSuffix}`, {
       entry: 'lambda/index.ts',
       handler: 'handler',
@@ -429,6 +374,7 @@ export class LmsBackendStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_22_X,
       role: lambdaRole,
       layers: [dependenciesLayer],
+      // No VPC configuration - Lambda runs outside VPC for better performance and lower cost
       environment: {
         COGNITO_CLIENT_ID: USE_EXISTING_COGNITO && EXISTING_USER_POOL_CLIENT_ID ? EXISTING_USER_POOL_CLIENT_ID : userPoolClient.userPoolClientId,
         USER_POOL_ID: USE_EXISTING_COGNITO && EXISTING_USER_POOL_ID ? EXISTING_USER_POOL_ID : userPool.userPoolId,
@@ -437,15 +383,12 @@ export class LmsBackendStack extends cdk.Stack {
         SECRET_VALUE_KEY: 'calendarAPI',
         NODE_ENV: environment === 'prod' ? 'production' : 'development',
         ENVIRONMENT: environment,
+        SECRET_NAME: config.secretName,
       },
       timeout: cdk.Duration.seconds(30),
       memorySize: 1024,
       logRetention: environment === 'prod' ? logs.RetentionDays.ONE_WEEK : logs.RetentionDays.THREE_DAYS,
     });
-
-    if (secretsManagerVpcEndpoint) {
-      backendLambda.node.addDependency(secretsManagerVpcEndpoint);
-    }
 
     // ============================================================================
     // API Gateway Configuration
@@ -532,6 +475,31 @@ export class LmsBackendStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'Environment', {
       value: environment,
       description: 'Deployment environment',
+    });
+
+    new cdk.CfnOutput(this, 'LambdaDeploymentMode', {
+      value: 'Outside VPC (Cost Optimized)',
+      description: 'Lambda deployment mode - outside VPC for better performance and lower cost',
+    });
+
+    new cdk.CfnOutput(this, 'RdsAccessibility', {
+      value: USE_EXISTING_RDS ? 'Existing RDS' : 'Public (New)',
+      description: 'RDS accessibility mode',
+    });
+
+    new cdk.CfnOutput(this, 'Architecture', {
+      value: USE_EXISTING_RDS ? 'Production (Existing Infrastructure)' : 'Development (Public RDS + Lambda outside VPC)',
+      description: 'Infrastructure architecture pattern',
+    });
+
+    new cdk.CfnOutput(this, 'InternetAccess', {
+      value: 'Lambda outside VPC with direct internet access',
+      description: 'How Lambda accesses internet and public RDS',
+    });
+
+    new cdk.CfnOutput(this, 'CostOptimization', {
+      value: 'No VPC costs, faster cold starts, direct AWS service access',
+      description: 'Benefits of Lambda outside VPC',
     });
   }
 }

@@ -26,11 +26,12 @@ const envConfigs = {
     secretName: 'lmsProduction'
   },
   dev: {
-    // Development configuration with new resources
+    // Development configuration - Use existing VPC but create new resources
     USE_EXISTING_RDS: false,          // Create new RDS for dev
     USE_EXISTING_SECRET: false,       // Create new secret for dev
-    USE_EXISTING_VPC: true,          // Create new VPC for dev (or use existing if preferred)
-    USE_EXISTING_COGNITO: false,      // Create new Cognito for dev (or use existing if preferred)
+    USE_EXISTING_VPC: true,           // Use existing VPC to avoid subnet conflicts
+    EXISTING_VPC_ID: 'vpc-0da5531cdf58244fe', // Same VPC as production
+    USE_EXISTING_COGNITO: false,      // Create new Cognito for dev
     stackName: 'LmsBackendStack-Dev',
     lambdaFunctionName: 'LmsBackendFunction-Dev',
     apiName: 'LMS Service Dev',
