@@ -255,6 +255,7 @@ export class LmsBackendStack extends cdk.Stack {
       const dbSubnetType = USE_EXISTING_VPC ? ec2.SubnetType.PUBLIC : ec2.SubnetType.PRIVATE_ISOLATED;
 
       database = new rds.DatabaseInstance(this, `LmsDatabase${resourceSuffix}`, {
+        instanceIdentifier: `lms-db-${resourceSuffix}`,
         engine: rds.DatabaseInstanceEngine.mysql({
           version: rds.MysqlEngineVersion.VER_8_0,
         }),
