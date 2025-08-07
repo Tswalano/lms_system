@@ -12,10 +12,8 @@ import {
     X,
     type LucideIcon
 } from 'lucide-react';
+import DocumentViewer from '@/components/DocumentViewer';
 
-// --- Type Definitions ---
-
-// Interface for a Document Category object
 interface DocumentCategoryType {
     id: string;
     name: string;
@@ -32,12 +30,12 @@ interface DocumentType {
     categoryId: string;
     dateAdded: string;
     dueDate: string;
-    status: 'pending' | 'signed' | 'viewed' | 'overdue'; // Specific string literal types for status
+    status: 'pending' | 'signed' | 'viewed' | 'overdue';
     size: string;
-    priority: 'high' | 'medium' | 'low'; // Specific string literal types for priority
+    priority: 'high' | 'medium' | 'low';
     content: string;
     fileUrl: string;
-    signedDate?: string; // Optional property for signed documents
+    signedDate?: string;
 }
 
 // Interface for Status Configuration
@@ -64,6 +62,7 @@ const EmployeeDocumentsPage: FC = () => {
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [showSignatureDialog, setShowSignatureDialog] = useState<boolean>(false);
     const [showViewModal, setShowViewModal] = useState<boolean>(false);
+    const [showDocumentViewer, setShowDocumentViewer] = useState<boolean>(false);
     const [selectedDocument, setSelectedDocument] = useState<DocumentType | null>(null);
 
     const documentCategories: DocumentCategoryType[] = [
@@ -109,7 +108,7 @@ const EmployeeDocumentsPage: FC = () => {
             size: '245 KB',
             priority: 'high',
             content: 'This policy outlines the procedures for reporting workplace misconduct and ensures protection for whistleblowers. It establishes clear channels for reporting violations, investigation procedures, and protection measures for employees who report in good faith.',
-            fileUrl: '/documents/whistleblowing-policy-v2.1.pdf'
+            fileUrl: 'https://disraptor-website.s3.eu-west-1.amazonaws.com/docs/Disraptor_Whistleblowing_Policy_final.docx'
         },
         {
             id: 2,
@@ -123,7 +122,7 @@ const EmployeeDocumentsPage: FC = () => {
             signedDate: 'Oct 18, 2024',
             priority: 'high',
             content: 'Your official employment contract outlining terms of employment, compensation, benefits, confidentiality clauses, and termination procedures.',
-            fileUrl: '/documents/employment-contract.pdf'
+            fileUrl: 'https://pdfobject.com/pdf/sample.pdf'
         },
         {
             id: 3,
@@ -136,7 +135,7 @@ const EmployeeDocumentsPage: FC = () => {
             size: '428 KB',
             priority: 'high',
             content: 'Company code of conduct and ethical guidelines covering professional behavior, conflict of interest, data privacy, and compliance with applicable laws and regulations.',
-            fileUrl: '/documents/ethics-policy.pdf'
+            fileUrl: 'https://disraptor-website.s3.eu-west-1.amazonaws.com/docs/cli_admin_user_accessKeys.csv'
         },
         {
             id: 4,
@@ -150,7 +149,7 @@ const EmployeeDocumentsPage: FC = () => {
             signedDate: 'Nov 08, 2024',
             priority: 'medium',
             content: 'Comprehensive workplace safety guidelines covering emergency procedures, hazard identification, personal protective equipment requirements, and incident reporting protocols.',
-            fileUrl: '/documents/safety-guidelines.pdf'
+            fileUrl: 'https://disraptor-website.s3.eu-west-1.amazonaws.com/docs/DR_Staff+Training_2025.pptx'
         },
         {
             id: 5,
@@ -163,7 +162,7 @@ const EmployeeDocumentsPage: FC = () => {
             size: '1.2 MB',
             priority: 'medium',
             content: 'Complete guide to your employee benefits including health insurance, retirement plans, vacation policies, and other perks available to you.',
-            fileUrl: '/documents/benefits-handbook.pdf'
+            fileUrl: 'https://www.learningcontainer.com/wp-content/uploads/2019/09/sample-pdf-file.pdf'
         },
         {
             id: 6,
@@ -176,7 +175,7 @@ const EmployeeDocumentsPage: FC = () => {
             size: '320 KB',
             priority: 'high',
             content: 'Essential training on data protection regulations, GDPR compliance, and best practices for handling sensitive information.',
-            fileUrl: '/documents/data-protection-training.pdf'
+            fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
         },
         {
             id: 7,
@@ -190,7 +189,7 @@ const EmployeeDocumentsPage: FC = () => {
             signedDate: 'Nov 12, 2024',
             priority: 'medium',
             content: 'Guidelines for remote work arrangements, equipment policies, communication expectations, and performance standards.',
-            fileUrl: '/documents/remote-work-policy.pdf'
+            fileUrl: '/sample-document.pdf' // This would be served from your public folder
         }
     ]);
 
@@ -230,7 +229,6 @@ const EmployeeDocumentsPage: FC = () => {
                     label: 'Overdue'
                 };
             default:
-                // Fallback for unexpected status, though types should prevent this
                 return {
                     icon: FileText,
                     color: 'text-gray-500',
@@ -240,16 +238,6 @@ const EmployeeDocumentsPage: FC = () => {
                 };
         }
     };
-
-    // Helper function to get priority color class (not directly used in current JSX, but good to keep typed)
-    // const getPriorityColor = (priority: DocumentType['priority']): string => {
-    //     switch (priority) {
-    //         case 'high': return 'border-l-red-500';
-    //         case 'medium': return 'border-l-yellow-500';
-    //         case 'low': return 'border-l-green-500';
-    //         default: return 'border-l-gray-300';
-    //     }
-    // };
 
     // Filter documents based on search term, category, and status
     const filteredDocuments: DocumentType[] = allDocuments.filter(doc => {
@@ -266,10 +254,10 @@ const EmployeeDocumentsPage: FC = () => {
         setSelectedCategory(selectedCategory === categoryId ? null : categoryId);
     };
 
-    // Handle viewing a document (opens view modal)
+    // Handle viewing a document (opens document viewer)
     const handleViewDocument = (doc: DocumentType): void => {
         setSelectedDocument(doc);
-        setShowViewModal(true);
+        setShowDocumentViewer(true);
 
         // Update document status to 'viewed' if it was pending
         if (doc.status === 'pending') {
@@ -288,7 +276,6 @@ const EmployeeDocumentsPage: FC = () => {
         link.click();
         document.body.removeChild(link);
 
-        // In a real app, consider using a non-blocking notification instead of alert
         console.log(`Downloading ${doc.name}...`);
     };
 
@@ -318,7 +305,6 @@ const EmployeeDocumentsPage: FC = () => {
 
             setShowSignatureDialog(false);
             setSelectedDocument(null);
-            // In a real app, consider using a non-blocking notification instead of alert
             console.log(`Document "${selectedDocument?.name}" has been signed successfully!`);
         }
     };
@@ -424,13 +410,12 @@ const EmployeeDocumentsPage: FC = () => {
                             >
                                 <div className="flex items-center gap-3 mb-3">
                                     <div className={`w-10 h-10 ${category.color} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                                        <FileText className="w-5 h-5 text-white" /> {/* Using FileText as default icon */}
+                                        <FileText className="w-5 h-5 text-white" />
                                     </div>
                                     <div className="flex-1">
                                         <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
                                             {category.name}
                                         </h3>
-                                        {/* <p className="text-sm text-gray-500 dark:text-gray-400">{category.description}</p> */}
                                     </div>
                                 </div>
                                 <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -583,11 +568,24 @@ const EmployeeDocumentsPage: FC = () => {
                 </div>
             </div>
 
-            {/* View Document Modal */}
+            {/* Document Viewer - Full Screen */}
+            {showDocumentViewer && selectedDocument && (
+                <DocumentViewer
+                    document={selectedDocument}
+                    onClose={() => {
+                        setShowDocumentViewer(false);
+                        setSelectedDocument(null);
+                    }}
+                    onSign={handleSignDocument}
+                    onDownload={handleDownloadDocument}
+                />
+            )}
+
+            {/* View Document Info Modal */}
             <Modal
                 show={showViewModal}
                 onClose={() => setShowViewModal(false)}
-                title="View Document"
+                title="Document Information"
             >
                 {selectedDocument && (
                     <div className="space-y-4">
@@ -637,6 +635,16 @@ const EmployeeDocumentsPage: FC = () => {
                         </div>
 
                         <div className="flex gap-3 pt-4">
+                            <button
+                                onClick={() => {
+                                    setShowViewModal(false);
+                                    handleViewDocument(selectedDocument);
+                                }}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+                            >
+                                <Eye className="w-4 h-4" />
+                                View Document
+                            </button>
                             <button
                                 onClick={() => handleDownloadDocument(selectedDocument)}
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:opacity-90 transition-opacity"
