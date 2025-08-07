@@ -55,6 +55,12 @@ interface ManagementTemplateVariables {
     duration?: string;
 }
 
+interface EnvironmentEmailConfig {
+    managementEmail: string;
+    managementCcEmails: string[];
+    environment: string;
+}
+
 // Adjusted SESEmailParams to align more closely with SendEmailCommandInput
 interface SESEmailParams {
     Destination: {
@@ -99,8 +105,34 @@ const CHARSET = "UTF-8";
 const SES_REGION = "us-east-1"; // Consider making this configurable via environment variables
 const SENDER_EMAIL = "LMS Notifications <noreply@disraptor-internal.net>"; // Consider making this configurable
 const REPLY_TO_EMAIL = "noreply@disraptor-internal.net"; // Consider making this configurable
-const MANAGEMENT_EMAIL = "preneshni.moodley@disraptor.co.za"; // Primary management email address
-const MANAGEMENT_CC_EMAIL = ["malloron.nair@disraptor.co.za", "hemansu.keeka@disraptor.co.za"]; // CC management email addresses
+
+// Environment-based email configuration
+function getEmailConfiguration(): EnvironmentEmailConfig {
+    const environment = process.env.ENVIRONMENT || process.env.NODE_ENV || 'prod';
+
+    console.log(`Getting email configuration for environment: ${environment}`);
+
+    if (environment === 'dev' || environment === 'development') {
+        return {
+            managementEmail: "glen.mogane@disraptor.com",
+            managementCcEmails: [
+                "hanness@disraptor.com",
+                "xolani@disraptor.com"
+            ],
+            environment: 'dev'
+        };
+    } else {
+        // Production configuration
+        return {
+            managementEmail: "preneshni.moodley@disraptor.co.za",
+            managementCcEmails: [
+                "malloron.nair@disraptor.co.za",
+                "hemansu.keeka@disraptor.co.za"
+            ],
+            environment: 'prod'
+        };
+    }
+}
 
 function createSESClient(): SESClient {
     return new SESClient({
@@ -124,12 +156,16 @@ export async function senderManagement(
     duration?: string
 ): Promise<EmailResult> {
     console.log("=== Management Email Sending Process Started ===");
+
+    const emailConfig = getEmailConfiguration();
+
+    console.log("Environment:", emailConfig.environment);
     console.log("Employee:", employeeName);
     console.log("Employee Email:", employeeEmail);
     console.log("Subject:", subject);
     console.log("Status:", status);
-    console.log("Primary Recipient:", MANAGEMENT_EMAIL);
-    console.log("CC Recipient:", MANAGEMENT_CC_EMAIL);
+    console.log("Primary Recipient:", emailConfig.managementEmail);
+    console.log("CC Recipients:", emailConfig.managementCcEmails);
 
     try {
         // Validate management email parameters
@@ -164,7 +200,8 @@ export async function senderManagement(
             employeeName,
             employeeEmail,
             body,
-            status
+            status,
+            emailConfig
         );
 
         const sesClient = createSESClient();
@@ -177,7 +214,7 @@ export async function senderManagement(
         return {
             success: true,
             messageId: data.MessageId ?? "unknown",
-            recipient: `${MANAGEMENT_EMAIL} (CC: ${MANAGEMENT_CC_EMAIL})`
+            recipient: `${emailConfig.managementEmail} (CC: ${emailConfig.managementCcEmails.join(', ')})`
         };
 
     } catch (err) {
@@ -405,12 +442,13 @@ function buildManagementSESParams(
     employeeName: string,
     employeeEmail: string,
     body: string,
-    status: string
+    status: string,
+    emailConfig: EnvironmentEmailConfig
 ): SESEmailParams {
     return {
         Destination: {
-            ToAddresses: [MANAGEMENT_EMAIL],
-            CcAddresses: MANAGEMENT_CC_EMAIL
+            ToAddresses: [emailConfig.managementEmail],
+            CcAddresses: emailConfig.managementCcEmails
         },
         Message: {
             Body: {
@@ -425,7 +463,7 @@ function buildManagementSESParams(
             },
             Subject: {
                 Charset: CHARSET,
-                Data: `[MANAGEMENT] ${subject}`,
+                Data: `[MANAGEMENT${emailConfig.environment === 'dev' ? ' - DEV' : ''}] ${subject}`,
             },
         },
         Source: SENDER_EMAIL,
@@ -442,6 +480,10 @@ function buildManagementSESParams(
             {
                 Name: "Employee",
                 Value: employeeName.replace(/[^a-zA-Z0-9._@-]/g, '_')
+            },
+            {
+                Name: "Environment",
+                Value: emailConfig.environment
             }
         ]
     };
@@ -458,6 +500,8 @@ function buildSESParams(
     body: string,
     status: string
 ): SESEmailParams {
+    const emailConfig = getEmailConfiguration();
+
     return {
         Destination: {
             ToAddresses: [recipientEmail],
@@ -475,7 +519,7 @@ function buildSESParams(
             },
             Subject: {
                 Charset: CHARSET,
-                Data: subject,
+                Data: emailConfig.environment === 'dev' ? `[DEV] ${subject}` : subject,
             },
         },
         Source: SENDER_EMAIL,
@@ -488,6 +532,10 @@ function buildSESParams(
             {
                 Name: "Status",
                 Value: status
+            },
+            {
+                Name: "Environment",
+                Value: emailConfig.environment
             }
         ]
     };
@@ -538,8 +586,10 @@ export function generateManagementPlainTextVersion(
     body: string,
     status: string
 ): string {
+    const emailConfig = getEmailConfiguration();
+
     return `
-LEAVE MANAGEMENT NOTIFICATION
+LEAVE MANAGEMENT NOTIFICATION${emailConfig.environment === 'dev' ? ' (DEVELOPMENT)' : ''}
 
 Employee: ${employeeName}
 Email: ${employeeEmail}
@@ -554,6 +604,7 @@ Please review this leave request in the Disruptor Leave Management System.
 
 ---
 This is an automated notification from the Disruptor Leave Management System.
+Environment: ${emailConfig.environment.toUpperCase()}
 © ${new Date().getFullYear()} Disruptor. All rights reserved.
 `.trim();
 }
@@ -562,6 +613,8 @@ This is an automated notification from the Disruptor Leave Management System.
  * Generate a plain text version of the email as fallback
  */
 export function generatePlainTextVersion(name: string, body: string, status: string): string {
+    const emailConfig = getEmailConfiguration();
+
     return `
 Hello ${name},
 
@@ -578,6 +631,7 @@ Disruptor LMS Team
 
 ---
 This is an automated message from the Disruptor Leave Management System.
+Environment: ${emailConfig.environment.toUpperCase()}
 © ${new Date().getFullYear()} Disruptor. All rights reserved.
 `.trim();
 }
@@ -646,6 +700,13 @@ export async function testManagementEmailConfiguration(): Promise<boolean> {
         console.error("Management email configuration test failed:", (error as Error).message);
         return false;
     }
+}
+
+/**
+ * Get current email configuration (useful for debugging)
+ */
+export function getCurrentEmailConfiguration(): EnvironmentEmailConfig {
+    return getEmailConfiguration();
 }
 
 /**
@@ -761,5 +822,6 @@ export type {
     ManagementTemplateVariables,
     SESEmailParams,
     SESResponse,
-    LeaveStatus
+    LeaveStatus,
+    EnvironmentEmailConfig
 };
