@@ -10,6 +10,7 @@ import testRoutes from './routes/test';
 
 import * as fs from 'fs';
 import * as path from 'path';
+import userDoc from './routes/userDoc';
 
 export const app = new Hono();
 
@@ -38,6 +39,9 @@ app.use('/leave/*', authMiddleware());
 // Apply routes
 app.route('/users', users);
 app.route('/leave', leave);
+
+// User Document Management
+app.route('/user-docs', userDoc);
 
 // test
 app.route('/test', testRoutes);

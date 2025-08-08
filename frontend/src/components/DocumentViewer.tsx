@@ -148,6 +148,18 @@ const DocumentViewer: FC<DocumentViewerProps> = ({
         }
     };
 
+    const handleIframeScroll = (event: React.UIEvent<HTMLIFrameElement>) => {
+        // Prevent scrolling in the viewer
+        event.currentTarget.scrollTop = 0;
+        event.currentTarget.scrollLeft = 0;
+
+        // Prevent default scrolling behavior
+        event.preventDefault();
+
+        console.log('Scroll event prevented in iframe', event);
+        // console.log('Scroll event prevented in iframe', event);
+    };
+
     // Reset states when document changes
     useEffect(() => {
         setViewerError(false);
@@ -311,6 +323,7 @@ const DocumentViewer: FC<DocumentViewerProps> = ({
                         className="w-full h-full border border-gray-200 dark:border-gray-700 rounded-lg"
                         onLoad={handleIframeLoad}
                         onError={handleIframeError}
+                        onScroll={handleIframeScroll}
                     />
                 </div>
             );

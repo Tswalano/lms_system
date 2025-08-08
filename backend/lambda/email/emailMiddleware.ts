@@ -112,16 +112,7 @@ function getEmailConfiguration(): EnvironmentEmailConfig {
 
     console.log(`Getting email configuration for environment: ${environment}`);
 
-    if (environment === 'dev' || environment === 'development') {
-        return {
-            managementEmail: "glen.mogane@disraptor.com",
-            managementCcEmails: [
-                "hanness@disraptor.com",
-                "xolani@disraptor.com"
-            ],
-            environment: 'dev'
-        };
-    } else {
+    if (environment === 'prod' || environment === 'production') {
         // Production configuration
         return {
             managementEmail: "preneshni.moodley@disraptor.co.za",
@@ -130,6 +121,15 @@ function getEmailConfiguration(): EnvironmentEmailConfig {
                 "hemansu.keeka@disraptor.co.za"
             ],
             environment: 'prod'
+        };
+    } else {
+        return {
+            managementEmail: "glen.mogane@disraptor.com",
+            managementCcEmails: [
+                "hanness@disraptor.com",
+                "xolani@disraptor.com"
+            ],
+            environment: 'dev'
         };
     }
 }

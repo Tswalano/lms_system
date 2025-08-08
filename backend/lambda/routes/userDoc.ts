@@ -12,6 +12,7 @@ import {
 const { randomUUID } = require('crypto');
 import { DatabaseService } from '../helpers/databaseHeler';
 import { AdminCreateUserCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import { RowDataPacket, OkPacket } from 'mysql2';
 
 interface ApiResponse<T> {
     code: string;
@@ -20,7 +21,66 @@ interface ApiResponse<T> {
     payload: T | null;
 }
 
-const app = new Hono();
+// Define interfaces for your database rows
+interface DocumentRow extends RowDataPacket {
+    id: number;
+    name: string;
+    file_url: string;
+    content: string;
+    category_id: number;
+    category_name: string;
+    category_color: string;
+    status: string;
+    due_date: Date;
+    assigned_at: Date;
+    completed_at: Date;
+    version: string;
+    is_mandatory: boolean;
+    expiry_date: Date;
+    current_status: string;
+    has_been_viewed: boolean;
+}
+
+interface DocumentCategoryRow extends RowDataPacket {
+    id: number;
+    name: string;
+    description: string;
+    color: string;
+    document_count: number;
+}
+
+interface UserStatsRow extends RowDataPacket {
+    total_assigned: number;
+    completed: number;
+    pending: number;
+    viewed: number;
+    overdue: number;
+    mandatory_pending: number;
+    completion_percentage: number;
+}
+
+interface ActivityRow extends RowDataPacket {
+    activity_type: string;
+    document_name: string;
+    category_name: string;
+    activity_timestamp: Date;
+    duration: number;
+    signed_at: Date;
+}
+
+interface CompletionRecordRow extends RowDataPacket {
+    document_id: number;
+    document_name: string;
+    category_name: string;
+    version: string;
+    is_mandatory: boolean;
+    completed_at: Date;
+    signed_at: Date;
+    ip_address: string;
+    total_time_spent: number;
+}
+
+const userDoc = new Hono();
 
 class ResponseService {
     static success<T>(message: string, payload: T, statusCode: number = 200): ApiResponse<T> {
@@ -43,7 +103,7 @@ class ResponseService {
 }
 
 // Get user's assigned documents
-app.get('/user/documents/:userId', async (c) => {
+userDoc.get('/user/documents/:userId', async (c) => {
     try {
         const userId = c.req.param('userId');
         const { category_id, status } = c.req.query();
@@ -85,7 +145,7 @@ app.get('/user/documents/:userId', async (c) => {
 
             selectSql += ` ORDER BY uda.due_date ASC, uda.assigned_at DESC`;
 
-            const [rows] = await connection.execute(selectSql, params);
+            const [rows] = await connection.execute<DocumentRow[]>(selectSql, params);
 
             const response = ResponseService.success(
                 "User documents retrieved successfully",
@@ -109,7 +169,7 @@ app.get('/user/documents/:userId', async (c) => {
 });
 
 // Get specific document content for user
-app.get('/user/document-content/:documentId/:userId', async (c) => {
+userDoc.get('/user/document-content/:documentId/:userId', async (c) => {
     try {
         const documentId = c.req.param('documentId');
         const userId = c.req.param('userId');
@@ -118,7 +178,7 @@ app.get('/user/document-content/:documentId/:userId', async (c) => {
 
         try {
             // Check if user is assigned this document or if it's publicly accessible
-            const [accessCheck] = await connection.execute(`
+            const [accessCheck] = await connection.execute<DocumentRow[]>(`
                 SELECT d.*, uda.status, uda.due_date,
                        dtm.version, dtm.is_mandatory
                 FROM documents d
@@ -139,7 +199,7 @@ app.get('/user/document-content/:documentId/:userId', async (c) => {
 
             // Update assignment status to viewed if it's pending
             if (document.status === 'pending') {
-                await connection.execute(`
+                await connection.execute<OkPacket>(`
                     UPDATE user_document_assignments 
                     SET status = 'viewed' 
                     WHERE user_id = ? AND document_id = ?
@@ -153,7 +213,7 @@ app.get('/user/document-content/:documentId/:userId', async (c) => {
                 VALUES (?, ?, ?, NOW())
             `;
 
-            await connection.execute(insertViewSql, [userId, documentId, ipAddress]);
+            await connection.execute<OkPacket>(insertViewSql, [userId, documentId, ipAddress]);
 
             const response = ResponseService.success(
                 "Document content accessed successfully",
@@ -186,7 +246,7 @@ app.get('/user/document-content/:documentId/:userId', async (c) => {
 });
 
 // Get document categories (User view - for filtering)
-app.get('/user/document-categories', async (c) => {
+userDoc.get('/user/document-categories', async (c) => {
     try {
         const connection = await DatabaseService.createConnection();
 
@@ -201,7 +261,7 @@ app.get('/user/document-categories', async (c) => {
                 ORDER BY dc.name ASC
             `;
 
-            const [rows] = await connection.execute(selectSql);
+            const [rows] = await connection.execute<DocumentCategoryRow[]>(selectSql);
 
             const response = ResponseService.success(
                 "Document categories retrieved successfully",
@@ -229,7 +289,7 @@ app.get('/user/document-categories', async (c) => {
 // ============================================================================
 
 // Track document reading progress
-app.post('/user/document-progress', async (c) => {
+userDoc.post('/user/document-progress', async (c) => {
     try {
         const { user_id, document_id, progress_data, time_spent, duration } = await c.req.json();
 
@@ -256,7 +316,7 @@ app.post('/user/document-progress', async (c) => {
                 LIMIT 1
             `;
 
-            await connection.execute(updateViewSql, [
+            await connection.execute<OkPacket>(updateViewSql, [
                 duration || time_spent || 0,
                 JSON.stringify(progress_data),
                 user_id,
@@ -289,7 +349,7 @@ app.post('/user/document-progress', async (c) => {
 // ============================================================================
 
 // Submit document completion/acknowledgement
-app.post('/user/document-completion', async (c) => {
+userDoc.post('/user/document-completion', async (c) => {
     try {
         const {
             user_id,
@@ -309,7 +369,7 @@ app.post('/user/document-completion', async (c) => {
 
         try {
             // Requirement 9: Verify user has viewed the document
-            const [viewCheck] = await connection.execute(`
+            const [viewCheck] = await connection.execute<RowDataPacket[]>(`
                 SELECT id FROM document_views 
                 WHERE user_id = ? AND document_id = ?
             `, [user_id, document_id]);
@@ -337,7 +397,7 @@ app.post('/user/document-completion', async (c) => {
                     signed_at = NOW(), ip_address = VALUES(ip_address), user_agent = VALUES(user_agent)
                 `;
 
-                await connection.execute(signatureSql, [
+                await connection.execute<OkPacket>(signatureSql, [
                     user_id, document_id, ipAddress, userAgent
                 ]);
 
@@ -348,7 +408,7 @@ app.post('/user/document-completion', async (c) => {
                     WHERE user_id = ? AND document_id = ?
                 `;
 
-                await connection.execute(updateAssignmentSql, [user_id, document_id]);
+                await connection.execute<OkPacket>(updateAssignmentSql, [user_id, document_id]);
 
                 await connection.commit();
 
@@ -388,7 +448,7 @@ app.post('/user/document-completion', async (c) => {
 // ============================================================================
 
 // Get user's document statistics and dashboard data
-app.get('/user/document-stats/:userId', async (c) => {
+userDoc.get('/user/document-stats/:userId', async (c) => {
     try {
         const userId = c.req.param('userId');
 
@@ -396,7 +456,7 @@ app.get('/user/document-stats/:userId', async (c) => {
 
         try {
             // Overall user statistics
-            const [userStats] = await connection.execute(`
+            const [userStats] = await connection.execute<UserStatsRow[]>(`
                 SELECT 
                     COUNT(uda.id) as total_assigned,
                     COUNT(CASE WHEN uda.status = 'completed' THEN 1 END) as completed,
@@ -412,7 +472,7 @@ app.get('/user/document-stats/:userId', async (c) => {
             `, [userId]);
 
             // Recent activity
-            const [recentActivity] = await connection.execute(`
+            const [recentActivity] = await connection.execute<DocumentRow[]>(`
                 SELECT 
                     d.name as document_name,
                     dc.name as category_name,
@@ -434,7 +494,7 @@ app.get('/user/document-stats/:userId', async (c) => {
             `, [userId]);
 
             // Category breakdown
-            const [categoryStats] = await connection.execute(`
+            const [categoryStats] = await connection.execute<RowDataPacket[]>(`
                 SELECT 
                     dc.name as category_name,
                     dc.color,
@@ -481,7 +541,7 @@ app.get('/user/document-stats/:userId', async (c) => {
 // ============================================================================
 
 // Get user's document activity history
-app.get('/user/document-activity/:userId', async (c) => {
+userDoc.get('/user/document-activity/:userId', async (c) => {
     try {
         const userId = c.req.param('userId');
         const { days = 30, document_id } = c.req.query();
@@ -529,7 +589,7 @@ app.get('/user/document-activity/:userId', async (c) => {
 
             activitySql += ` ORDER BY activity_timestamp DESC LIMIT 100`;
 
-            const [activityLog] = await connection.execute(activitySql, params);
+            const [activityLog] = await connection.execute<ActivityRow[]>(activitySql, params);
 
             const response = ResponseService.success(
                 "User document activity retrieved successfully",
@@ -553,7 +613,7 @@ app.get('/user/document-activity/:userId', async (c) => {
 });
 
 // Get user's completion certificates/records
-app.get('/user/completion-records/:userId', async (c) => {
+userDoc.get('/user/completion-records/:userId', async (c) => {
     try {
         const userId = c.req.param('userId');
         const { category_id } = c.req.query();
@@ -593,7 +653,7 @@ app.get('/user/completion-records/:userId', async (c) => {
                 ORDER BY uda.completed_at DESC
             `;
 
-            const [completionRecords] = await connection.execute(recordsSql, params);
+            const [completionRecords] = await connection.execute<CompletionRecordRow[]>(recordsSql, params);
 
             const response = ResponseService.success(
                 "User completion records retrieved successfully",
@@ -621,7 +681,7 @@ app.get('/user/completion-records/:userId', async (c) => {
 // ============================================================================
 
 // Search documents for user
-app.get('/user/search-documents/:userId', async (c) => {
+userDoc.get('/user/search-documents/:userId', async (c) => {
     try {
         const userId = c.req.param('userId');
         const { q, category_id, status, is_mandatory } = c.req.query();
@@ -668,7 +728,7 @@ app.get('/user/search-documents/:userId', async (c) => {
 
             if (is_mandatory !== undefined) {
                 searchSql += ` AND dtm.is_mandatory = ?`;
-                params.push(is_mandatory === 'true');
+                params.push(is_mandatory);
             }
 
             searchSql += ` ORDER BY 
@@ -678,7 +738,7 @@ app.get('/user/search-documents/:userId', async (c) => {
             `;
             params.push(searchTerm);
 
-            const [searchResults] = await connection.execute(searchSql, params);
+            const [searchResults] = await connection.execute<DocumentRow[]>(searchSql, params);
 
             const response = ResponseService.success(
                 "Document search completed successfully",
@@ -704,3 +764,5 @@ app.get('/user/search-documents/:userId', async (c) => {
         return c.json(response, 500);
     }
 });
+
+export default userDoc;
