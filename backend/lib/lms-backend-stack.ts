@@ -7,6 +7,9 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
@@ -290,7 +293,41 @@ export class LmsBackendStack extends cdk.Stack {
           ],
         },
       });
-    }
+    }// ============================================================================
+    // Policy Document Repository 
+    // ============================================================================
+    // Create a CloudFront distribution to serve the documents from S3
+    const oac = new cloudfront.S3OriginAccessControl(this, 'LmsPolicyDocumentOAC', {
+      signing: cloudfront.Signing.SIGV4_NO_OVERRIDE
+    });
+
+    // Create a new S3 bucket that will serve as the document repository
+    const policyRepositoryBucket = new s3.Bucket(this, `LmsPolicyDocumentBucket${resourceSuffix}`, {
+      bucketName: `lms-policy-documents-${resourceSuffix}`
+    });
+
+    // CloudFront Distribution
+    const s3Origin = origins.S3BucketOrigin.withOriginAccessControl(policyRepositoryBucket, {
+      originAccessControl: oac
+    });
+    const distribution = new cloudfront.Distribution(this, 'LmsPolicyDocumentDistribution', {
+      defaultBehavior: {
+        origin: s3Origin
+      },
+    });
+
+    // Update bucket policy to allow CloudFront to access the bucket
+    policyRepositoryBucket.addToResourcePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:GetObject'],
+      resources: [`${policyRepositoryBucket.bucketArn}/*`],
+      principals: [new iam.ServicePrincipal('cloudfront.amazonaws.com')],
+      conditions: {
+        StringEquals: {
+          'AWS:SourceArn': `arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`
+        }
+      }
+    }));
 
     // ============================================================================
     // Lambda Configuration
@@ -350,6 +387,17 @@ export class LmsBackendStack extends cdk.Stack {
             }),
           ],
         }),
+        PolicyRepositoryAccess: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: [
+                's3:PutObject'
+              ],
+              resources: [`${policyRepositoryBucket.bucketArn}/*`],
+            })
+          ]
+        })
       },
     });
 
@@ -500,6 +548,11 @@ export class LmsBackendStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'CostOptimization', {
       value: 'No VPC costs, faster cold starts, direct AWS service access',
       description: 'Benefits of Lambda outside VPC',
+    });
+
+    new cdk.CfnOutput(this, 'CloudFrontURL', {
+      value: `https://${distribution.distributionDomainName}`,
+      description: 'CloudFront distribution URL',
     });
   }
 }
