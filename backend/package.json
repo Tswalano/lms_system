@@ -9,9 +9,12 @@
     "cdk": "cdk",
     "clean": "rm -f lambda/*.js lambda/*.js.map lambda/*.d.ts ",
     "build": "tsc && npm run copy-lambda",
+    "dev": "ts-node lambda/dev.ts",
+    "dev:watch": "nodemon lambda/dev.ts",
     "copy-lambda": "cp -r lambda/*.js lambda/*.json dist/lambda/ || true"
   },
   "devDependencies": {
+    "@hono/node-server": "^1.18.1",
     "@types/ejs": "^3.1.5",
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.10",

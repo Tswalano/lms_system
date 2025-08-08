@@ -14,7 +14,7 @@ async function main() {
     ];
 
     // 1. Create Existing Admin Users
-    console.log('👤 Creating existing admin users...')
+    console.log('👤 Creating cognito admin users...')
     // Add the 3 missing admin users
     const adminUsers = await Promise.all([
         prisma.users.upsert({

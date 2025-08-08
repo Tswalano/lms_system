@@ -42,6 +42,15 @@ app.route('/leave', leave);
 // test
 app.route('/test', testRoutes);
 
+app.get('/', (c) => {
+    return c.json({
+        message: 'Welcome to the Leave Management System API',
+        service: 'Leave Management System API',
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+    });
+});
+
 // Basic error handling
 app.onError((err, c) => {
     console.error('Error:', err);
