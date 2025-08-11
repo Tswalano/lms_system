@@ -35,6 +35,7 @@ app.route('/auth', auth);
 // Protected routes - require authentication
 app.use('/users/*', authMiddleware());
 app.use('/leave/*', authMiddleware());
+// app.use('/user-docs/*', authMiddleware());
 
 // Apply routes
 app.route('/users', users);

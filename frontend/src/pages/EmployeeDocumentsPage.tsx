@@ -10,9 +10,47 @@ import {
     FileBadge,
     PenTool,
     X,
+    Loader2,
     type LucideIcon
 } from 'lucide-react';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
 import DocumentViewer from '@/components/DocumentViewer';
+
+// Interface for API Document
+interface ApiDocument {
+    id: number;
+    name: string;
+    file_url: string;
+    file_size: string;
+    priority: string;
+    createdAt: string;
+}
+
+// Interface for API Category
+interface ApiCategory {
+    id: string;
+    name: string;
+    description: string;
+    color: string;
+    documents: ApiDocument[];
+}
+
+// Interface for API Response
+interface ApiResponse {
+    code: string;
+    message: string;
+    error: boolean;
+    payload: ApiCategory[];
+}
 
 interface DocumentCategoryType {
     id: string;
@@ -22,7 +60,7 @@ interface DocumentCategoryType {
     description: string;
 }
 
-// Interface for a Document object
+// Interface for a Document object (transformed from API)
 interface DocumentType {
     id: number;
     name: string;
@@ -56,6 +94,8 @@ interface ModalProps {
 }
 
 const EmployeeDocumentsPage: FC = () => {
+    const { authFetch, user } = useAuth(); // Assuming user object contains userId
+
     // State declarations with explicit types
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -65,133 +105,124 @@ const EmployeeDocumentsPage: FC = () => {
     const [showDocumentViewer, setShowDocumentViewer] = useState<boolean>(false);
     const [selectedDocument, setSelectedDocument] = useState<DocumentType | null>(null);
 
-    const documentCategories: DocumentCategoryType[] = [
-        {
-            id: 'policies',
-            name: 'Company Policies',
-            count: 5,
-            color: 'bg-blue-500',
-            description: 'Official company policies and procedures'
-        },
-        {
-            id: 'contracts',
-            name: 'Employment Documents',
-            count: 3,
-            color: 'bg-green-500',
-            description: 'Employment contracts and agreements'
-        },
-        {
-            id: 'training',
-            name: 'Training Materials',
-            count: 8,
-            color: 'bg-purple-500',
-            description: 'Training guides and educational content'
-        },
-        {
-            id: 'benefits',
-            name: 'Benefits & HR',
-            count: 4,
-            color: 'bg-orange-500',
-            description: 'Benefits information and HR documents'
-        }
-    ];
+    // State for categories and documents (will be populated from API)
+    const [documentCategories, setDocumentCategories] = useState<DocumentCategoryType[]>([]);
+    const [allDocuments, setAllDocuments] = useState<DocumentType[]>([]);
 
-    const [allDocuments, setAllDocuments] = useState<DocumentType[]>([
-        {
-            id: 1,
-            name: 'Whistleblowing Policy v2.1',
-            category: 'Company Policy',
-            categoryId: 'policies',
-            dateAdded: 'Nov 15, 2024',
-            dueDate: 'Nov 30, 2024',
-            status: 'pending',
-            size: '245 KB',
-            priority: 'high',
-            content: 'This policy outlines the procedures for reporting workplace misconduct and ensures protection for whistleblowers. It establishes clear channels for reporting violations, investigation procedures, and protection measures for employees who report in good faith.',
-            fileUrl: 'https://disraptor-website.s3.eu-west-1.amazonaws.com/docs/Disraptor_Whistleblowing_Policy_final.docx'
-        },
-        {
-            id: 2,
-            name: 'Employment Contract',
-            category: 'Contract',
-            categoryId: 'contracts',
-            dateAdded: 'Oct 15, 2024',
-            dueDate: 'Oct 20, 2024',
-            status: 'signed',
-            size: '892 KB',
-            signedDate: 'Oct 18, 2024',
-            priority: 'high',
-            content: 'Your official employment contract outlining terms of employment, compensation, benefits, confidentiality clauses, and termination procedures.',
-            fileUrl: 'https://pdfobject.com/pdf/sample.pdf'
-        },
-        {
-            id: 3,
-            name: 'Ethics and Anti-Corruption Policy',
-            category: 'Company Policy',
-            categoryId: 'policies',
-            dateAdded: 'Nov 10, 2024',
-            dueDate: 'Nov 25, 2024',
-            status: 'viewed',
-            size: '428 KB',
-            priority: 'high',
-            content: 'Company code of conduct and ethical guidelines covering professional behavior, conflict of interest, data privacy, and compliance with applicable laws and regulations.',
-            fileUrl: 'https://disraptor-website.s3.eu-west-1.amazonaws.com/docs/cli_admin_user_accessKeys.csv'
-        },
-        {
-            id: 4,
-            name: 'Safety Guidelines',
-            category: 'Training',
-            categoryId: 'training',
-            dateAdded: 'Nov 05, 2024',
-            dueDate: 'Nov 20, 2024',
-            status: 'signed',
-            size: '156 KB',
-            signedDate: 'Nov 08, 2024',
-            priority: 'medium',
-            content: 'Comprehensive workplace safety guidelines covering emergency procedures, hazard identification, personal protective equipment requirements, and incident reporting protocols.',
-            fileUrl: 'https://disraptor-website.s3.eu-west-1.amazonaws.com/docs/DR_Staff+Training_2025.pptx'
-        },
-        {
-            id: 5,
-            name: 'Benefits Handbook',
-            category: 'HR Document',
-            categoryId: 'benefits',
-            dateAdded: 'Oct 20, 2024',
-            dueDate: 'Nov 05, 2024',
-            status: 'overdue',
-            size: '1.2 MB',
-            priority: 'medium',
-            content: 'Complete guide to your employee benefits including health insurance, retirement plans, vacation policies, and other perks available to you.',
-            fileUrl: 'https://www.learningcontainer.com/wp-content/uploads/2019/09/sample-pdf-file.pdf'
-        },
-        {
-            id: 6,
-            name: 'Data Protection Training',
-            category: 'Training',
-            categoryId: 'training',
-            dateAdded: 'Nov 08, 2024',
-            dueDate: 'Nov 22, 2024',
-            status: 'pending',
-            size: '320 KB',
-            priority: 'high',
-            content: 'Essential training on data protection regulations, GDPR compliance, and best practices for handling sensitive information.',
-            fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-        },
-        {
-            id: 7,
-            name: 'Remote Work Policy',
-            category: 'Company Policy',
-            categoryId: 'policies',
-            dateAdded: 'Oct 30, 2024',
-            dueDate: 'Nov 15, 2024',
-            status: 'signed',
-            size: '180 KB',
-            signedDate: 'Nov 12, 2024',
-            priority: 'medium',
-            content: 'Guidelines for remote work arrangements, equipment policies, communication expectations, and performance standards.',
-            fileUrl: '/sample-document.pdf' // This would be served from your public folder
+    // Helper function to generate random status for documents (since API doesn't provide this)
+    const generateRandomStatus = (priority: string): DocumentType['status'] => {
+        const statuses: DocumentType['status'][] = ['pending', 'signed', 'viewed', 'overdue'];
+        // Higher priority documents are more likely to be pending/overdue
+        if (priority === 'high') {
+            return Math.random() > 0.6 ? 'pending' : Math.random() > 0.5 ? 'overdue' : 'signed';
         }
-    ]);
+        return statuses[Math.floor(Math.random() * statuses.length)];
+    };
+
+    // Helper function to generate due date based on creation date and status
+    const generateDueDate = (createdAt: string, status: DocumentType['status']): string => {
+        const createdDate = new Date(createdAt);
+        const daysToAdd = status === 'overdue' ? -5 : Math.floor(Math.random() * 30) + 7; // Overdue items have past due dates
+        const dueDate = new Date(createdDate);
+        dueDate.setDate(dueDate.getDate() + daysToAdd);
+
+        return dueDate.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
+    // Helper function to transform API data
+    const transformApiData = (apiData: ApiCategory[]) => {
+        const transformedCategories: DocumentCategoryType[] = [];
+        const transformedDocuments: DocumentType[] = [];
+
+        apiData.forEach(category => {
+            // Transform category
+            transformedCategories.push({
+                id: category.id,
+                name: category.name,
+                count: category.documents.length,
+                color: category.color,
+                description: category.description
+            });
+
+            // Transform documents
+            category.documents.forEach(doc => {
+                const status = generateRandomStatus(doc.priority);
+                const dateAdded = new Date(doc.createdAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+
+                transformedDocuments.push({
+                    id: doc.id,
+                    name: doc.name,
+                    category: category.name,
+                    categoryId: category.id,
+                    dateAdded: dateAdded,
+                    dueDate: generateDueDate(doc.createdAt, status),
+                    status: status,
+                    size: doc.file_size,
+                    priority: doc.priority as 'high' | 'medium' | 'low',
+                    content: `This is the ${doc.name} document. Please review and sign if required.`,
+                    fileUrl: doc.file_url,
+                    signedDate: status === 'signed' ? dateAdded : undefined
+                });
+            });
+        });
+
+        return { categories: transformedCategories, documents: transformedDocuments };
+    };
+
+    const fetchUserDocuments = async (): Promise<{ categories: DocumentCategoryType[], documents: DocumentType[] }> => {
+        try {
+            // Use user ID from context, fallback to a default if not available
+            const userId = user?.id || '1'; // Replace with actual user ID logic
+
+            const response = await authFetch(`/user-docs/categories-with-documents/${userId}`, {
+                method: 'GET',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch user documents');
+            }
+
+            const result: ApiResponse = await response.json();
+
+            if (result.error || result.code !== 'SUCCESS') {
+                throw new Error(result.message || 'Failed to fetch user documents');
+            }
+
+            return transformApiData(result.payload);
+        } catch (error) {
+            console.error('Error fetching user documents:', error);
+            throw error;
+        }
+    };
+
+    const {
+        data,
+        isLoading,
+        error,
+        refetch
+    } = useQuery({
+        queryKey: ['userDocuments', user?.id],
+        queryFn: fetchUserDocuments,
+        staleTime: 2 * 60 * 1000, // 2 minutes
+        retry: 2,
+        enabled: !!user?.id, // Only run query if user ID is available
+    });
+
+    // Use the data from the query if available
+    React.useEffect(() => {
+        if (data) {
+            setDocumentCategories(data.categories);
+            setAllDocuments(data.documents);
+        }
+    }, [data]);
 
     // Helper function to get status configuration
     const getStatusConfig = (status: DocumentType['status']): StatusConfig => {
@@ -312,7 +343,7 @@ const EmployeeDocumentsPage: FC = () => {
     // Calculate pending document count
     const pendingCount: number = allDocuments.filter(doc => doc.status === 'pending' || doc.status === 'overdue').length;
 
-    // Modal Component (defined inline for simplicity, could be a separate component)
+    // Modal Component
     const Modal: FC<ModalProps> = ({ show, onClose, title, children }) => {
         if (!show) return null;
 
@@ -335,6 +366,39 @@ const EmployeeDocumentsPage: FC = () => {
             </div>
         );
     };
+
+    // Loading and error states
+    if (isLoading) {
+        return (
+            <div className="font-inter">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12">
+                    <div className="text-center">
+                        <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+                        <p className="text-gray-600 dark:text-gray-400">Loading your documents...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="font-inter">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12">
+                    <div className="text-center">
+                        <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                        <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">Error loading your documents</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            {error instanceof Error ? error.message : 'Something went wrong'}
+                        </p>
+                        <Button onClick={() => refetch()} className="bg-blue-500 hover:bg-blue-600 text-white">
+                            Try Again
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="font-inter">
@@ -369,17 +433,41 @@ const EmployeeDocumentsPage: FC = () => {
                                 className="pl-10 pr-4 py-2 w-64 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             />
                         </div>
-                        <select
+                        <Select
                             value={filterStatus}
-                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterStatus(e.target.value)}
-                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            onValueChange={(value: string) => setFilterStatus(value)}
                         >
-                            <option value="all">All Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="signed">Signed</option>
-                            <option value="viewed">Viewed</option>
-                            <option value="overdue">Overdue</option>
-                        </select>
+                            <SelectTrigger className="w-48 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600">
+                                <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                                <SelectItem
+                                    className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:bg-gray-100 dark:focus:bg-gray-600"
+                                    value="all">
+                                    All Status
+                                </SelectItem>
+                                <SelectItem
+                                    className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:bg-gray-100 dark:focus:bg-gray-600"
+                                    value="pending">
+                                    Pending
+                                </SelectItem>
+                                <SelectItem
+                                    className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:bg-gray-100 dark:focus:bg-gray-600"
+                                    value="signed">
+                                    Signed
+                                </SelectItem>
+                                <SelectItem
+                                    className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:bg-gray-100 dark:focus:bg-gray-600"
+                                    value="viewed">
+                                    Viewed
+                                </SelectItem>
+                                <SelectItem
+                                    className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:bg-gray-100 dark:focus:bg-gray-600"
+                                    value="overdue">
+                                    Overdue
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
             </div>
@@ -547,7 +635,7 @@ const EmployeeDocumentsPage: FC = () => {
                                 <p className="text-gray-500 dark:text-gray-400">
                                     {selectedCategory
                                         ? 'No documents match the selected category and filters.'
-                                        : 'No documents match your search criteria.'
+                                        : 'No documents assigned to you yet.'
                                     }
                                 </p>
                                 {(selectedCategory || searchTerm || filterStatus !== 'all') && (

@@ -11,7 +11,23 @@ async function main() {
         '6f329acb-665f-4841-a1f2-22af84c4c374', // Glen Mogane
         '90f19835-c07c-4f3e-9b66-7f686bdde1ca', // Xolani Zulu 
         'ab5a63df-a985-486d-8d2b-5e814b03b3ce', // Hannes Swanepoel
+        '36e69224-62d0-46d4-87fc-3874670f71e7', // Philemon Maitisa
     ];
+
+    // All user IDs (admins + new users) for document assignments
+    const newUserIds = [
+        'e8b4c2d1-5f7a-4b9c-8e1d-3a6f9c2b5e8d',
+        'f9c5d3e2-6a8b-5c0d-9f2e-4b7a0d3c6f9c',
+        'a0d6e4f3-7b9c-6d1e-0a3f-5c8b1e4d7a0d',
+        'b1e7f5a4-8c0d-7e2f-1b4a-6d9c2f5e8b1e',
+        'c2f8a6b5-9d1e-8f3a-2c5b-7e0d3a6f9c2f',
+        'd3a9b7c6-0e2f-9a4b-3d6c-8f1e4b7a0d3a',
+        'e4b0c8d7-1f3a-0b5c-4e7d-9a2f5c8b1e4b',
+        'f5c1d9e8-2a4b-1c6d-5f8e-0b3a6d9c2f5c',
+    ];
+
+    // Combine all user IDs for complete testing data
+    const allUserIds = [...existingAdmins, ...newUserIds];
 
     // 1. Create Existing Admin Users
     console.log('👤 Creating cognito admin users...')
@@ -35,6 +51,23 @@ async function main() {
             },
         }),
         prisma.users.upsert({
+            where: { id: '36e69224-62d0-46d4-87fc-3874670f71e7' },
+            update: {},
+            create: {
+                id: '36e69224-62d0-46d4-87fc-3874670f71e7',
+                firstName: 'Philemon',
+                lastName: 'Maitisa',
+                email: 'philemon.maitisa@disraptor.co.za',
+                role: 'admin',
+                jobTitle: 'Software Engineer',
+                phoneNumber: '+27123456789',
+                dob: new Date('1985-05-20'),
+                gender: 'Male',
+                createdAt: new Date('2025-01-01'),
+                updatedAt: new Date('2025-01-01'),
+            },
+        }),
+        prisma.users.upsert({
             where: { id: '90f19835-c07c-4f3e-9b66-7f686bdde1ca' },
             update: {},
             create: {
@@ -42,7 +75,7 @@ async function main() {
                 firstName: 'Xolani',
                 lastName: 'Zulu',
                 email: 'xolani.zulu@disraptor.co.za',
-                role: 'admin',
+                role: 'user',
                 jobTitle: 'Lead Developer',
                 phoneNumber: '+27123456790',
                 dob: new Date('1988-08-10'),
@@ -74,16 +107,6 @@ async function main() {
 
     // 1. Create Additional Users (employees)
     console.log('👥 Creating additional users...');
-    const newUserIds = [
-        'e8b4c2d1-5f7a-4b9c-8e1d-3a6f9c2b5e8d',
-        'f9c5d3e2-6a8b-5c0d-9f2e-4b7a0d3c6f9c',
-        'a0d6e4f3-7b9c-6d1e-0a3f-5c8b1e4d7a0d',
-        'b1e7f5a4-8c0d-7e2f-1b4a-6d9c2f5e8b1e',
-        'c2f8a6b5-9d1e-8f3a-2c5b-7e0d3a6f9c2f',
-        'd3a9b7c6-0e2f-9a4b-3d6c-8f1e4b7a0d3a',
-        'e4b0c8d7-1f3a-0b5c-4e7d-9a2f5c8b1e4b',
-        'f5c1d9e8-2a4b-1c6d-5f8e-0b3a6d9c2f5c',
-    ];
 
     const users = await Promise.all([
         // Software Development Team
@@ -460,11 +483,11 @@ async function main() {
 
     console.log(`✅ Created ${trainingMetadata.length} training metadata records`);
 
-    // 5. Create Document Assignments
+    // 5. Create Document Assignments (now including admin users)
     console.log('📋 Creating document assignments...');
     const assignments = [];
 
-    // Assign mandatory documents to all new users
+    // Assign mandatory documents to ALL users (admins + regular users)
     const mandatoryDocIds = [
         createdDocuments[0].id, // Whistleblowing Policy
         createdDocuments[2].id, // Ethics Policy
@@ -472,25 +495,36 @@ async function main() {
         createdDocuments[5].id, // Data Protection Training
     ];
 
-    // Assign mandatory documents to all new users
-    for (const userId of newUserIds) {
+    // Assign mandatory documents to ALL users
+    for (const userId of allUserIds) {
         for (const docId of mandatoryDocIds) {
             const dueDate = new Date();
             dueDate.setDate(dueDate.getDate() + 30); // 30 days from now
 
+            // Admins generally have better compliance rates
+            const isAdmin = existingAdmins.includes(userId);
+            const randomValue = Math.random();
+            let status;
+
+            if (isAdmin) {
+                status = randomValue > 0.8 ? 'pending' : (randomValue > 0.3 ? 'signed' : 'viewed');
+            } else {
+                status = randomValue > 0.7 ? 'pending' : (randomValue > 0.5 ? 'viewed' : 'signed');
+            }
+
             assignments.push({
                 user_id: userId,
                 document_id: docId,
-                status: Math.random() > 0.7 ? 'pending' : (Math.random() > 0.5 ? 'viewed' : 'signed') as any,
+                status: status as any,
                 due_date: dueDate,
                 assigned_at: new Date(),
-                completed_at: Math.random() > 0.6 ? new Date() : null,
+                completed_at: status !== 'pending' ? new Date() : null,
             });
         }
     }
 
-    // Assign employment contracts to all new users
-    for (const userId of newUserIds) {
+    // Assign employment contracts to all users
+    for (const userId of allUserIds) {
         assignments.push({
             user_id: userId,
             document_id: createdDocuments[1].id, // Employment Contract
@@ -501,9 +535,10 @@ async function main() {
         });
     }
 
-    // Assign benefits handbook to all
-    for (const userId of newUserIds) {
-        const status = Math.random() > 0.3 ? 'viewed' : 'overdue';
+    // Assign benefits handbook to all users
+    for (const userId of allUserIds) {
+        const isAdmin = existingAdmins.includes(userId);
+        const status = Math.random() > (isAdmin ? 0.2 : 0.3) ? 'viewed' : 'overdue';
         assignments.push({
             user_id: userId,
             document_id: createdDocuments[4].id, // Benefits Handbook
@@ -515,8 +550,11 @@ async function main() {
     }
 
     // Role-specific assignments
-    // Software Development Standards - assign to developers
-    const devUsers = [newUserIds[0], newUserIds[1], newUserIds[7]]; // Sarah, David, Alex
+    // Software Development Standards - assign to developers (including admin developers)
+    const devUsers = [
+        newUserIds[0], newUserIds[1], newUserIds[7], // Sarah, David, Alex
+        existingAdmins[0], existingAdmins[1], existingAdmins[3] // Glen, Xolani, Philemon (tech admins)
+    ];
     for (const userId of devUsers) {
         assignments.push({
             user_id: userId,
@@ -541,8 +579,11 @@ async function main() {
         });
     }
 
-    // Marketing Guidelines - assign to marketing team
-    const marketingUsers = [newUserIds[2], newUserIds[3]]; // Emma, James
+    // Marketing Guidelines - assign to marketing team + product manager admin
+    const marketingUsers = [
+        newUserIds[2], newUserIds[3], // Emma, James
+        existingAdmins[2] // Hannes (Product Manager)
+    ];
     for (const userId of marketingUsers) {
         assignments.push({
             user_id: userId,
@@ -570,7 +611,7 @@ async function main() {
 
     // Create signatures for completed assignments
     const completedAssignments = createdAssignments.filter(a => a.status === 'signed');
-    for (const assignment of completedAssignments.slice(0, 15)) { // Limit to avoid too many
+    for (const assignment of completedAssignments.slice(0, 25)) { // Increased to accommodate more signatures
         signatures.push({
             user_id: assignment.user_id,
             document_id: assignment.document_id,
@@ -594,9 +635,9 @@ async function main() {
     console.log('👁️ Creating document views...');
     const views = [];
 
-    // Create multiple views for different users and documents
-    for (let i = 0; i < 20; i++) {
-        const randomUserId = newUserIds[Math.floor(Math.random() * newUserIds.length)];
+    // Create multiple views for different users and documents (including admins)
+    for (let i = 0; i < 30; i++) { // Increased to accommodate more users
+        const randomUserId = allUserIds[Math.floor(Math.random() * allUserIds.length)];
         const randomDocId = createdDocuments[Math.floor(Math.random() * createdDocuments.length)].id;
         const viewDate = new Date();
         viewDate.setDate(viewDate.getDate() - Math.floor(Math.random() * 30));
@@ -624,7 +665,7 @@ async function main() {
 
     console.log(`✅ Created ${createdViews.length} document views`);
 
-    // 8. Create Leave Requests (by new employees, approved by existing admins)
+    // 8. Create Leave Requests (by all users, including admins, approved by existing admins)
     console.log('🏖️ Creating leave requests...');
     const leaveRequests = await Promise.all([
         // July leave requests - Approved
@@ -658,6 +699,23 @@ async function main() {
                 approved_at: new Date('2025-07-05'),
                 createdAt: new Date('2025-07-04'),
                 updatedAt: new Date('2025-07-05'),
+            },
+        }),
+        // Admin leave requests - they also need time off!
+        prisma.leave_requests.create({
+            data: {
+                uid: existingAdmins[2], // Hannes Swanepoel
+                leave_type: 'Annual Leave',
+                status: 'approved',
+                duration: 5,
+                start_date: new Date('2025-07-29'),
+                end_date: new Date('2025-08-02'),
+                leave_length: 'full_day',
+                leave_comment: 'Annual family holiday to Cape Town',
+                approved_by: existingAdmins[0], // Glen Mogane
+                approved_at: new Date('2025-07-25'),
+                createdAt: new Date('2025-07-20'),
+                updatedAt: new Date('2025-07-25'),
             },
         }),
         // August leave requests - Mixed statuses
@@ -710,6 +768,23 @@ async function main() {
                 updatedAt: new Date('2025-08-22'),
             },
         }),
+        // Admin requesting leave from another admin
+        prisma.leave_requests.create({
+            data: {
+                uid: existingAdmins[3], // Philemon Maitisa
+                leave_type: 'Study Leave',
+                status: 'approved',
+                duration: 2,
+                start_date: new Date('2025-08-28'),
+                end_date: new Date('2025-08-29'),
+                leave_length: 'full_day',
+                leave_comment: 'Attending AWS certification training',
+                approved_by: existingAdmins[0], // Glen Mogane
+                approved_at: new Date('2025-08-25'),
+                createdAt: new Date('2025-08-22'),
+                updatedAt: new Date('2025-08-25'),
+            },
+        }),
         // September leave requests - Mix of approved and pending
         prisma.leave_requests.create({
             data: {
@@ -757,6 +832,21 @@ async function main() {
                 updatedAt: new Date('2025-09-20'),
             },
         }),
+        // Admin leave request pending approval
+        prisma.leave_requests.create({
+            data: {
+                uid: existingAdmins[1], // Xolani Zulu
+                leave_type: 'Annual Leave',
+                status: 'pending',
+                duration: 3,
+                start_date: new Date('2025-09-25'),
+                end_date: new Date('2025-09-27'),
+                leave_length: 'full_day',
+                leave_comment: 'Heritage Day long weekend',
+                createdAt: new Date('2025-09-22'),
+                updatedAt: new Date('2025-09-22'),
+            },
+        }),
         // Additional September requests
         prisma.leave_requests.create({
             data: {
@@ -786,6 +876,23 @@ async function main() {
                 approved_at: new Date('2025-09-27'),
                 createdAt: new Date('2025-09-25'),
                 updatedAt: new Date('2025-09-27'),
+            },
+        }),
+        // Another admin leave request
+        prisma.leave_requests.create({
+            data: {
+                uid: existingAdmins[0], // Glen Mogane
+                leave_type: 'Personal Leave',
+                status: 'approved',
+                duration: 1,
+                start_date: new Date('2025-10-01'),
+                end_date: new Date('2025-10-01'),
+                leave_length: 'full_day',
+                leave_comment: 'Personal family matter',
+                approved_by: existingAdmins[2], // Hannes Swanepoel
+                approved_at: new Date('2025-09-28'),
+                createdAt: new Date('2025-09-26'),
+                updatedAt: new Date('2025-09-28'),
             },
         }),
     ]);
@@ -818,61 +925,133 @@ async function main() {
 
     console.log(`✅ Created ${createdActionLogs.length} leave action logs`);
 
-    // 10. Create Invitations (sent by existing admins)
-    console.log('📧 Creating invitations...');
-    const invitations = await Promise.all([
-        prisma.invitations.create({
-            data: {
-                firstname: 'Tom',
-                surname: 'Anderson',
-                email: 'tom.anderson@disraptor.co.za',
-                status: 'pending',
-                admin_id: existingAdmins[0], // Glen Mogane
-                createdAt: new Date('2025-08-20'),
-                updatedAt: new Date('2025-08-20'),
-            },
-        }),
-        prisma.invitations.create({
-            data: {
-                firstname: 'Maria',
-                surname: 'Rodriguez',
-                email: 'maria.rodriguez@disraptor.co.za',
-                status: 'accepted',
-                admin_id: existingAdmins[1], // Admin 2
-                createdAt: new Date('2025-07-15'),
-                updatedAt: new Date('2025-07-22'),
-            },
-        }),
-        prisma.invitations.create({
-            data: {
-                firstname: 'Kevin',
-                surname: 'Lee',
-                email: 'kevin.lee@disraptor.co.za',
-                status: 'pending',
-                admin_id: existingAdmins[2], // Admin 3
-                createdAt: new Date('2025-09-18'),
-                updatedAt: new Date('2025-09-18'),
-            },
-        }),
-        prisma.invitations.create({
-            data: {
-                firstname: 'Sophie',
-                surname: 'Taylor',
-                email: 'sophie.taylor@disraptor.co.za',
-                status: 'expired',
-                admin_id: existingAdmins[0], // Glen Mogane
-                createdAt: new Date('2025-06-15'),
-                updatedAt: new Date('2025-07-15'),
-            },
-        }),
-    ]);
+    // 10. Create departments with numeric IDs
+    console.log('🏢 Creating departments...');
 
-    console.log(`✅ Created ${invitations.length} invitations`);
+    // Check if departments already exist and create only if they don't
+    const departmentData = [
+        {
+            name: 'Engineering',
+            description: 'Responsible for software development and technical operations',
+            createdAt: new Date('2025-01-01'),
+            updatedAt: new Date('2025-01-01'),
+        },
+        {
+            name: 'Marketing',
+            description: 'Handles marketing strategies and brand management',
+            createdAt: new Date('2025-01-01'),
+            updatedAt: new Date('2025-01-01'),
+        },
+        {
+            name: 'Sales',
+            description: 'Responsible for sales strategies and customer relationships',
+            createdAt: new Date('2025-01-01'),
+            updatedAt: new Date('2025-01-01'),
+        },
+        {
+            name: 'Operations',
+            description: 'Oversees daily operations and administrative tasks',
+            createdAt: new Date('2025-01-01'),
+            updatedAt: new Date('2025-01-01'),
+        },
+    ];
+
+    const departments = [];
+    for (const dept of departmentData) {
+        // Check if department exists
+        const existing = await prisma.departments.findFirst({
+            where: { name: dept.name }
+        });
+
+        if (existing) {
+            departments.push(existing);
+        } else {
+            const created = await prisma.departments.create({
+                data: dept
+            });
+            departments.push(created);
+        }
+    }
+    console.log(`✅ Created ${departments.length} departments`);
+
+    // 11. Document-departments assignments
+    console.log('📂 Assigning documents to departments...');
+
+    // Check and create document-department assignments to avoid duplicates
+    const docDeptData = [
+        { document_id: createdDocuments[7].id, department_id: departments[0].id }, // Software Development Standards -> Engineering
+        { document_id: createdDocuments[9].id, department_id: departments[1].id }, // Marketing Guidelines -> Marketing
+        { document_id: createdDocuments[8].id, department_id: departments[2].id }, // Sales Process Manual -> Sales
+        { document_id: createdDocuments[4].id, department_id: departments[3].id }, // Benefits Handbook -> Operations
+        { document_id: createdDocuments[0].id, department_id: departments[3].id }, // Whistleblowing Policy -> Operations
+        { document_id: createdDocuments[2].id, department_id: departments[3].id }, // Ethics Policy -> Operations
+    ];
+
+    const documentDepartments = [];
+    for (const docDept of docDeptData) {
+        // Check if assignment already exists
+        const existing = await prisma.document_departments.findFirst({
+            where: {
+                document_id: docDept.document_id,
+                department_id: docDept.department_id
+            }
+        });
+
+        if (!existing) {
+            const created = await prisma.document_departments.create({
+                data: docDept
+            });
+            documentDepartments.push(created);
+        } else {
+            documentDepartments.push(existing);
+        }
+    }
+    console.log(`✅ Created ${documentDepartments.length} document department assignments`);
+
+    // 12. User department assignments
+    console.log('👥 Assigning users to departments...');
+
+    // Check and create user-department assignments to avoid duplicates
+    const userDeptData = [
+        { user_id: newUserIds[0], department_id: departments[0].id }, // Sarah Williams -> Engineering
+        { user_id: newUserIds[1], department_id: departments[0].id }, // David Johnson -> Engineering
+        { user_id: existingAdmins[3], department_id: departments[0].id }, // Philemon Maitisa -> Engineering
+        { user_id: newUserIds[2], department_id: departments[1].id }, // Emma Davis -> Marketing
+        { user_id: existingAdmins[2], department_id: departments[0].id }, // Hannes Swanepoel -> Engineering
+        { user_id: existingAdmins[0], department_id: departments[0].id }, // Glen Mogane -> Engineering
+        { user_id: newUserIds[4], department_id: departments[2].id }, // Lisa Miller -> Sales
+        { user_id: newUserIds[5], department_id: departments[2].id }, // Robert Wilson -> Sales
+        { user_id: newUserIds[6], department_id: departments[3].id }, // Jennifer Garcia -> Operations
+        { user_id: newUserIds[7], department_id: departments[0].id }, // Alex Thompson -> Engineering
+    ];
+
+    const userDepartments = [];
+    for (const userDept of userDeptData) {
+        // Check if assignment already exists
+        const existing = await prisma.user_departments.findFirst({
+            where: {
+                user_id: userDept.user_id,
+                department_id: userDept.department_id
+            }
+        });
+
+        if (!existing) {
+            const created = await prisma.user_departments.create({
+                data: userDept
+            });
+            userDepartments.push(created);
+        } else {
+            userDepartments.push(existing);
+        }
+    }
+    console.log(`✅ Created ${userDepartments.length} user department assignments`);
 
     console.log('🎉 Seed completed successfully!');
     console.log(`
 📊 Summary:
+- Admin Users: ${adminUsers.length}
 - Additional Users: ${users.length}
+- Total Users with Data: ${allUserIds.length}
 - Document Categories: ${categories.length}  
 - Documents: ${createdDocuments.length}
 - Training Metadata: ${trainingMetadata.length}
@@ -881,14 +1060,24 @@ async function main() {
 - Document Views: ${createdViews.length}
 - Leave Requests: ${leaveRequests.length}
 - Leave Action Logs: ${createdActionLogs.length}
-- Invitations: ${invitations.length}
+- Departments: ${departments.length}
+- Document Department Assignments: ${documentDepartments.length}
+- User Department Assignments: ${userDepartments.length}
 
 🔗 Data is linked to existing admins:
-- Glen Mogane (${existingAdmins[0]}) - Created policies, approved leaves, sent invitations
-- Admin 2 (${existingAdmins[1]}) - Created contracts & benefits, approved leaves, sent invitations
-- Admin 3 (${existingAdmins[2]}) - Created training materials, approved leaves, sent invitations
+- Glen Mogane (${existingAdmins[0]}) - Created policies, approved leaves
+- Xolani Zulu (${existingAdmins[1]}) - Created contracts & benefits, approved leaves
+- Hannes Swanepoel (${existingAdmins[2]}) - Created training materials, approved leaves
+- Philemon Maitisa (${existingAdmins[3]}) - Software Engineer admin
 
-👥 New Users Created:
+👥 All Users Now Have Testing Data:
+Admins:
+- Glen Mogane - System Administrator
+- Xolani Zulu - Lead Developer
+- Hannes Swanepoel - Product Manager  
+- Philemon Maitisa - Software Engineer
+
+Regular Users:
 - Sarah Williams - Senior Frontend Developer
 - David Johnson - Backend Developer  
 - Emma Davis - Marketing Manager
@@ -898,18 +1087,24 @@ async function main() {
 - Jennifer Garcia - Operations Coordinator
 - Alex Thompson - Junior Developer
 
-📅 2025 Leave Requests Summary:
-July: 2 requests (both approved)
-August: 3 requests (2 approved, 1 rejected) 
-September: 5 requests (4 approved, 1 pending)
+📅 2025 Leave Requests Summary (Including Admins):
+July: 3 requests (all approved)
+August: 4 requests (3 approved, 1 rejected) 
+September: 6 requests (4 approved, 2 pending)
 
-📋 Realistic Data Relationships:
-- All new users have employment contracts signed in June 2025
-- Mandatory training assigned with August 2025 deadlines
-- Role-specific documents assigned to relevant teams
-- Leave requests spanning July-September with proper approval workflows
-- Document views and signatures tracking user engagement from summer 2025
-- Invitation history showing admin activity throughout 2025
+📋 Document Assignment Coverage:
+- Mandatory documents assigned to ALL users (admins + regular users)
+- Role-specific documents assigned based on job functions
+- Admin users have realistic compliance rates and document interactions
+- Employment contracts signed by everyone
+- Benefits handbook with mixed completion status across all users
+
+📈 Realistic Testing Scenarios:
+- Admin users can test document management from both creator and assignee perspectives
+- Leave requests include admin-to-admin approval workflows
+- Document views and signatures distributed across all user types
+- Mixed completion statuses provide realistic testing conditions
+- Role-based document assignments include relevant admins (e.g., tech admins get dev standards)
   `);
 }
 

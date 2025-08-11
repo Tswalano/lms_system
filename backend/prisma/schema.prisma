@@ -23,34 +23,17 @@ model users {
   updatedAt   DateTime  @db.DateTime(0)
 
   // Existing relationships
-  leave_action_log    leave_action_log[]
-  leave_requests      leave_requests[]
-  invitations_created invitations[]      @relation("AdminInvitations")
+  leave_action_log leave_action_log[]
+  leave_requests   leave_requests[]
 
   // Document management relationships
   document_assignments user_document_assignments[]
   document_signatures  document_signatures[]
   created_documents    documents[]                 @relation("DocumentCreator")
   document_views       document_views[]
+  user_departments     user_departments[]
 
   @@map("users")
-}
-
-model invitations {
-  id        Int                @id @default(autoincrement())
-  firstname String?            @db.VarChar(255)
-  surname   String?            @db.VarChar(255)
-  email     String?            @db.VarChar(255)
-  status    invitation_status? @default(pending)
-  admin_id  String?            @db.VarChar(225)
-  createdAt DateTime           @db.DateTime(0)
-  updatedAt DateTime           @db.DateTime(0)
-
-  // Proper relationship to admin user
-  admin users? @relation("AdminInvitations", fields: [admin_id], references: [id])
-
-  @@index([admin_id])
-  @@map("invitations")
 }
 
 // Leave Management (improved relationships)
@@ -127,12 +110,13 @@ model documents {
   updatedAt   DateTime          @default(now()) @db.Timestamp(0)
 
   // Relationships
-  category          document_categories         @relation(fields: [category_id], references: [id])
-  creator           users?                      @relation("DocumentCreator", fields: [created_by], references: [id])
-  user_assignments  user_document_assignments[]
-  signatures        document_signatures[]
-  views             document_views[]
-  training_metadata document_training_metadata?
+  category             document_categories         @relation(fields: [category_id], references: [id])
+  creator              users?                      @relation("DocumentCreator", fields: [created_by], references: [id])
+  user_assignments     user_document_assignments[]
+  signatures           document_signatures[]
+  views                document_views[]
+  training_metadata    document_training_metadata?
+  document_departments document_departments[]
 
   @@index([category_id])
   @@index([created_by])
@@ -216,6 +200,53 @@ model document_views {
   @@index([document_id])
   @@index([viewed_at])
   @@map("document_views")
+}
+
+// Departments table
+model departments {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @db.Timestamp(0)
+  updatedAt   DateTime @default(now()) @db.Timestamp(0)
+
+  // Relationships
+  users     user_departments[]
+  documents document_departments[]
+
+  @@map("departments")
+}
+
+// Pivot table for many-to-many: users <-> departments
+model user_departments {
+  id            BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id       String @db.VarChar(225)
+  department_id Int
+
+  // Relationships
+  user       users       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  department departments @relation(fields: [department_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, department_id])
+  @@index([user_id])
+  @@index([department_id])
+  @@map("user_departments")
+}
+
+// Pivot table for many-to-many: documents <-> departments
+model document_departments {
+  id            BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  document_id   Int
+  department_id Int
+
+  // Relationships
+  document   documents   @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  department departments @relation(fields: [department_id], references: [id], onDelete: Cascade)
+
+  @@unique([document_id, department_id])
+  @@index([document_id])
+  @@index([department_id])
+  @@map("document_departments")
 }
 
 // Existing Enums

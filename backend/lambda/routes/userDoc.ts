@@ -103,7 +103,7 @@ class ResponseService {
 }
 
 // Get user's assigned documents
-userDoc.get('/user/documents/:userId', async (c) => {
+userDoc.get('/documents/:userId', async (c) => {
     try {
         const userId = c.req.param('userId');
         const { category_id, status } = c.req.query();
@@ -169,7 +169,7 @@ userDoc.get('/user/documents/:userId', async (c) => {
 });
 
 // Get specific document content for user
-userDoc.get('/user/document-content/:documentId/:userId', async (c) => {
+userDoc.get('/document-content/:documentId/:userId', async (c) => {
     try {
         const documentId = c.req.param('documentId');
         const userId = c.req.param('userId');
@@ -246,7 +246,7 @@ userDoc.get('/user/document-content/:documentId/:userId', async (c) => {
 });
 
 // Get document categories (User view - for filtering)
-userDoc.get('/user/document-categories', async (c) => {
+userDoc.get('/document-categories', async (c) => {
     try {
         const connection = await DatabaseService.createConnection();
 
@@ -289,7 +289,7 @@ userDoc.get('/user/document-categories', async (c) => {
 // ============================================================================
 
 // Track document reading progress
-userDoc.post('/user/document-progress', async (c) => {
+userDoc.post('/document-progress', async (c) => {
     try {
         const { user_id, document_id, progress_data, time_spent, duration } = await c.req.json();
 
@@ -349,7 +349,7 @@ userDoc.post('/user/document-progress', async (c) => {
 // ============================================================================
 
 // Submit document completion/acknowledgement
-userDoc.post('/user/document-completion', async (c) => {
+userDoc.post('/document-completion', async (c) => {
     try {
         const {
             user_id,
@@ -448,7 +448,7 @@ userDoc.post('/user/document-completion', async (c) => {
 // ============================================================================
 
 // Get user's document statistics and dashboard data
-userDoc.get('/user/document-stats/:userId', async (c) => {
+userDoc.get('/document-stats/:userId', async (c) => {
     try {
         const userId = c.req.param('userId');
 
@@ -541,7 +541,7 @@ userDoc.get('/user/document-stats/:userId', async (c) => {
 // ============================================================================
 
 // Get user's document activity history
-userDoc.get('/user/document-activity/:userId', async (c) => {
+userDoc.get('/document-activity/:userId', async (c) => {
     try {
         const userId = c.req.param('userId');
         const { days = 30, document_id } = c.req.query();
@@ -613,7 +613,7 @@ userDoc.get('/user/document-activity/:userId', async (c) => {
 });
 
 // Get user's completion certificates/records
-userDoc.get('/user/completion-records/:userId', async (c) => {
+userDoc.get('/completion-records/:userId', async (c) => {
     try {
         const userId = c.req.param('userId');
         const { category_id } = c.req.query();
@@ -681,7 +681,7 @@ userDoc.get('/user/completion-records/:userId', async (c) => {
 // ============================================================================
 
 // Search documents for user
-userDoc.get('/user/search-documents/:userId', async (c) => {
+userDoc.get('/search-documents/:userId', async (c) => {
     try {
         const userId = c.req.param('userId');
         const { q, category_id, status, is_mandatory } = c.req.query();
@@ -764,5 +764,181 @@ userDoc.get('/user/search-documents/:userId', async (c) => {
         return c.json(response, 500);
     }
 });
+
+// GET All documents in each category (with relevant fields)
+userDoc.get('/categories-with-documents', async (c) => {
+
+    const userId = c.req.param('userId');
+
+    try {
+        const connection = await DatabaseService.createConnection();
+
+        try {
+            const selectSql = `
+                SELECT 
+                dc.id AS category_id,
+                dc.name AS category_name,
+                dc.description AS category_description,
+                dc.color AS category_color,
+                d.id AS document_id,
+                d.name AS document_name,
+                d.file_url,
+                d.file_size,
+                d.priority,
+                d.createdAt AS document_created_at
+                FROM document_categories dc
+                INNER JOIN documents d ON dc.id = d.category_id
+                ORDER BY dc.name ASC, d.name ASC
+            `;
+
+            const [rows] = await connection.execute<any[]>(selectSql);
+
+            // Group documents under their categories
+            const grouped = rows.reduce((acc, row) => {
+                const {
+                    category_id,
+                    category_name,
+                    category_description,
+                    category_color,
+                    document_id,
+                    document_name,
+                    file_url,
+                    file_size,
+                    priority,
+                    document_created_at
+                } = row;
+
+                if (!acc[category_id]) {
+                    acc[category_id] = {
+                        id: category_id,
+                        name: category_name,
+                        description: category_description,
+                        color: category_color,
+                        documents: []
+                    };
+                }
+
+                acc[category_id].documents.push({
+                    id: document_id,
+                    name: document_name,
+                    file_url,
+                    file_size,
+                    priority,
+                    createdAt: document_created_at
+                });
+
+                return acc;
+            }, {} as Record<string, any>);
+
+            const response = ResponseService.success(
+                "Document categories with documents retrieved successfully",
+                Object.values(grouped)
+            );
+
+            return c.json(response, 200);
+        } finally {
+            await connection.end();
+        }
+
+    } catch (error) {
+        console.error('Get document categories with documents error:', error);
+        const response = ResponseService.error(
+            "INTERNAL_SERVER_ERROR",
+            "Internal server error",
+            error
+        );
+        return c.json(response, 500);
+    }
+});
+
+// GET All documents assigned to a user in each category (with relevant fields)
+userDoc.get('/categories-with-documents/:userId', async (c) => {
+    const userId = c.req.param('userId');
+
+    try {
+        const connection = await DatabaseService.createConnection();
+
+        try {
+            const selectSql = `
+                SELECT 
+                dc.id AS category_id,
+                dc.name AS category_name,
+                dc.description AS category_description,
+                dc.color AS category_color,
+                d.id AS document_id,
+                d.name AS document_name,
+                d.file_url,
+                d.file_size,
+                d.priority,
+                d.createdAt AS document_created_at
+                FROM document_categories dc
+                INNER JOIN documents d 
+                ON dc.id = d.category_id
+                INNER JOIN user_document_assignments uda
+                ON uda.document_id = d.id
+                WHERE uda.user_id = ?
+                ORDER BY dc.name ASC, d.name ASC
+            `;
+
+            const [rows] = await connection.execute<any[]>(selectSql, [userId]);
+
+            // Group documents under their categories
+            const grouped = rows.reduce((acc, row) => {
+                const {
+                    category_id,
+                    category_name,
+                    category_description,
+                    category_color,
+                    document_id,
+                    document_name,
+                    file_url,
+                    file_size,
+                    priority,
+                    document_created_at
+                } = row;
+
+                if (!acc[category_id]) {
+                    acc[category_id] = {
+                        id: category_id,
+                        name: category_name,
+                        description: category_description,
+                        color: category_color,
+                        documents: []
+                    };
+                }
+
+                acc[category_id].documents.push({
+                    id: document_id,
+                    name: document_name,
+                    file_url,
+                    file_size,
+                    priority,
+                    createdAt: document_created_at
+                });
+
+                return acc;
+            }, {} as Record<string, any>);
+
+            const response = ResponseService.success(
+                "User-specific document categories retrieved successfully",
+                Object.values(grouped)
+            );
+
+            return c.json(response, 200);
+        } finally {
+            await connection.end();
+        }
+
+    } catch (error) {
+        console.error('Get user-specific document categories error:', error);
+        const response = ResponseService.error(
+            "INTERNAL_SERVER_ERROR",
+            "Internal server error",
+            error
+        );
+        return c.json(response, 500);
+    }
+});
+
 
 export default userDoc;
