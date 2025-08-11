@@ -303,7 +303,7 @@ export class LmsBackendStack extends cdk.Stack {
 
     // Create a new S3 bucket that will serve as the document repository
     const policyRepositoryBucket = new s3.Bucket(this, `LmsPolicyDocumentBucket${resourceSuffix}`, {
-      bucketName: `lms-policy-documents-${resourceSuffix}`
+      bucketName: `lms-policy-documents${resourceSuffix}`
     });
 
     // CloudFront Distribution
