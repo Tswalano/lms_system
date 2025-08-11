@@ -12,14 +12,12 @@ const envConfigs = {
   prod: {
     // Your existing production configuration
     USE_EXISTING_RDS: true,
-    EXISTING_RDS_IDENTIFIER: 'lms-db-staging-cluster',
+    EXISTING_RDS_IDENTIFIER: 'lms-db-prod-cluster',
     USE_EXISTING_SECRET: true,
-    EXISTING_SECRET_ARN: 'arn:aws:secretsmanager:af-south-1:143671530412:secret:lmsStaging1-b5f1BX',
+    EXISTING_SECRET_ARN: 'arn:aws:secretsmanager:af-south-1:143671530412:secret:lmsProduction-5Lj4rA',
     USE_EXISTING_VPC: true,
     EXISTING_VPC_ID: 'vpc-0da5531cdf58244fe',
-    USE_EXISTING_COGNITO: true,
-    EXISTING_USER_POOL_ID: 'af-south-1_LKNPAJXNY',
-    EXISTING_USER_POOL_CLIENT_ID: '4np61q0imo823k3k3l6f60a3av',
+    USE_EXISTING_COGNITO: false,
     stackName: 'LmsBackendStack',
     lambdaFunctionName: 'LmsBackendFunction',
     apiName: 'LMS Service',
