@@ -1,6 +1,13 @@
+import * as dotenv from 'dotenv';
+dotenv.config({
+    path:[
+        "./lambda/.env"
+    ]
+});
+
 import { serve } from '@hono/node-server';
 import { watch } from 'node:fs';
-import { app } from './index';
+import { app, handler } from './index';
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 

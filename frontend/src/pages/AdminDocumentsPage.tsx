@@ -217,7 +217,7 @@ const AdminDocumentsPage: FC = () => {
 
     const fetchDocumentCategories = async (): Promise<{ folders: FolderType[], documents: DocumentType[] }> => {
         try {
-            const response = await authFetch('/user-docs/categories-with-documents', {
+            const response = await authFetch('/admin-docs/categories-with-documents', {
                 method: 'GET',
             });
 

@@ -4,6 +4,7 @@ import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { auth } from './routes/auth';
 import { users } from './routes/user';
+import adminDocs from './routes/adminDoc';
 import { leave } from './routes/leave';
 import { authMiddleware } from './middleware/auth';
 import testRoutes from './routes/test';
@@ -41,8 +42,9 @@ app.use('/leave/*', authMiddleware());
 app.route('/users', users);
 app.route('/leave', leave);
 
-// User Document Management
+// Document Management
 app.route('/user-docs', userDoc);
+app.route('/admin-docs', adminDocs);
 
 // test
 app.route('/test', testRoutes);
