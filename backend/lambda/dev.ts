@@ -1,9 +1,5 @@
 import * as dotenv from 'dotenv';
-dotenv.config({
-    path:[
-        "./lambda/.env"
-    ]
-});
+dotenv.config();
 
 import { serve } from '@hono/node-server';
 import { watch } from 'node:fs';
