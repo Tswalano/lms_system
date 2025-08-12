@@ -28,6 +28,7 @@ interface EnvironmentConfig {
   lambdaFunctionName: string;
   apiName: string;
   secretName: string;
+  calendarApiSecretArn: string;
 }
 
 // Extend stack props to include environment config
@@ -352,7 +353,10 @@ export class LmsBackendStack extends cdk.Stack {
                 'secretsmanager:GetSecretValue',
                 'secretsmanager:DescribeSecret',
               ],
-              resources: [databaseCredentials.secretArn],
+              resources: [
+                databaseCredentials.secretArn,
+                config.calendarApiSecretArn
+              ],
             }),
           ],
         }),
