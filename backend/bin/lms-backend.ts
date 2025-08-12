@@ -21,7 +21,8 @@ const envConfigs = {
     stackName: 'LmsBackendStack',
     lambdaFunctionName: 'LmsBackendFunction',
     apiName: 'LMS Service',
-    secretName: 'lmsProduction'
+    secretName: 'lmsProduction',
+    calendarApiSecretArn: "arn:aws:secretsmanager:af-south-1:143671530412:secret:calendar_api-kOSTra"
   },
   dev: {
     // Development configuration - Use existing VPC but create new resources
@@ -33,7 +34,8 @@ const envConfigs = {
     stackName: 'LmsBackendStack-Dev',
     lambdaFunctionName: 'LmsBackendFunction-Dev',
     apiName: 'LMS Service Dev',
-    secretName: 'lmsDevelopment'
+    secretName: 'lmsDevelopment',
+    calendarApiSecretArn: "arn:aws:secretsmanager:af-south-1:143671530412:secret:calendar_api-kOSTra"
   }
 };
 
