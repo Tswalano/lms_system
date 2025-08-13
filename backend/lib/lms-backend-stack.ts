@@ -396,7 +396,8 @@ export class LmsBackendStack extends cdk.Stack {
             new iam.PolicyStatement({
               effect: iam.Effect.ALLOW,
               actions: [
-                's3:PutObject'
+                's3:PutObject',
+                's3:DeleteObject'
               ],
               resources: [`${policyRepositoryBucket.bucketArn}/*`],
             })
@@ -436,6 +437,8 @@ export class LmsBackendStack extends cdk.Stack {
         NODE_ENV: environment === 'prod' ? 'production' : 'development',
         ENVIRONMENT: environment,
         SECRET_NAME: config.secretName,
+        POLICY_DOCUMENTS_DISTRIBUTION_URL: policyRepositoryBucket.bucketName,
+        POLICY_DOCUMENTS_BUCKET_NAME: `https://${distribution.distributionDomainName}`
       },
       timeout: cdk.Duration.seconds(30),
       memorySize: 1024,
@@ -554,9 +557,14 @@ export class LmsBackendStack extends cdk.Stack {
       description: 'Benefits of Lambda outside VPC',
     });
 
-    new cdk.CfnOutput(this, 'CloudFrontURL', {
+    new cdk.CfnOutput(this, 'PolicyDocumentDistributionURL', {
       value: `https://${distribution.distributionDomainName}`,
       description: 'CloudFront distribution URL',
+    });
+
+    new cdk.CfnOutput(this, 'PolicyDocumentsBucketName', {
+      value: policyRepositoryBucket.bucketName,
+      description: 'S3 bucket name for policy documents',
     });
   }
 }

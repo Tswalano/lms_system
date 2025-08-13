@@ -1,4 +1,8 @@
 import { Hono } from "hono";
+import { 
+    S3Client, S3ClientConfig, 
+    PutObjectCommand, PutObjectCommandInput,
+    DeleteObjectCommand, DeleteObjectCommandInput } from "@aws-sdk/client-s3";
 import { DatabaseService } from '../helpers/databaseHeler';
 import { ResponseService } from '../models/apiResponse';
 import { DocumentCategoryRow } from "../models/documentCategory";
@@ -35,7 +39,48 @@ adminDocs.get('/categories', async (c) => {
     }
 });
 
-adminDocs.get('/categories-with-documents', async (c) => {
+adminDocs.put("/categories", async (c) => {
+
+    const {
+        name,
+        color
+    } = await c.req.json();
+    let connection;
+
+    try {
+        connection = await DatabaseService.createConnection();
+        
+        const insertStatement = `
+            insert into document_categories (name, color, createdAt, updatedAt)
+            values (?, ?, NOW(), NOW());
+        `;
+
+        await connection.execute<any[]>(insertStatement, [
+            name,
+            color
+        ]);
+
+        const fetchNewDocumentStatement = `
+            select * 
+            from document_categories
+            where id = last_insert_id();
+        `;
+
+        const newDocumentRecords = await connection.execute<any[]>(fetchNewDocumentStatement);
+
+        const response = ResponseService.success(
+            "Document categories with documents retrieved successfully",
+            Object.values(newDocumentRecords[0])
+        );
+
+        return c.json(response, 200);
+    } finally {
+        if (!!connection) await connection.end();
+    }
+    
+});
+
+adminDocs.get('/by-category', async (c) => {
 
     let connection;
 
@@ -60,7 +105,7 @@ adminDocs.get('/categories-with-documents', async (c) => {
         `;
 
         const [rows] = await connection.execute<any[]>(selectSql);
-
+        
         // Group documents under their categories
         const grouped = rows.reduce((acc, row) => {
             const {
@@ -110,22 +155,21 @@ adminDocs.get('/categories-with-documents', async (c) => {
 
 });
 
-adminDocs.put("/new-category", async (c) => {
+adminDocs.put('/', async (c) => {
+    console.log("create new document");
 
-});
+    if (!process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL ||
+        !process.env.POLICY_DOCUMENTS_BUCKET_NAME
+    ) {
+        const configErrorResponse = ResponseService.error(
+            "LambdaConfigurationError",
+            "Missing environment variables; unable to process upload request"
+        );
 
-adminDocs.put('/new-document', async (c) => {
-    console.log("create new document")
-    // TODO: Determine file content type 
-    const contentType = "application/pdf"; // Placeholder content type
-
-    // TODO: Upload the document to S3 and obtain document URL 
-    const s3FileUrl = "https://example.com/document.pdf"; // Placeholder URL
-
-    // TODO: Determine file size 
-    const fileSize = 123456; // Placeholder file size in bytes 
-
-    // TODO: Add new record to the database 
+        return c.json(configErrorResponse, 500);
+    }
+    
+    const requestBody = await c.req.json();
     const {
         id,
         name,
@@ -137,8 +181,50 @@ adminDocs.put('/new-document', async (c) => {
         folder,
         size,
         content,
-        fileUrl
-    } = await c.req.json();
+        fileUrl,
+        mimeType
+    } = requestBody;
+    let finalUrl;
+    let isUploadedToS3 = false;
+    console.log("NEW DOCUMENT", requestBody);
+    const s3ClientConfig: S3ClientConfig = {};
+    const s3Client: S3Client = new S3Client(s3ClientConfig);
+
+    if (!!fileUrl) {
+        // This document will point to an existing file
+        // available publicly on the internet and, will
+        // not be uploaded to S3
+        finalUrl = fileUrl;
+    }
+    else {
+        // This document will be uploaded to S3
+
+        try {
+            // TODO: Upload the document to S3 and obtain document URL 
+            const putObjectCommandInput: PutObjectCommandInput = {
+                Bucket: process.env.POLICY_DOCUMENTS_BUCKET_NAME,
+                Key: `${folder}/${name}`,
+                Body: Buffer.from(content, 'base64'), // Assuming content is base64 encoded
+                ContentType: mimeType,
+            }
+            const putObjectCommand: PutObjectCommand = new PutObjectCommand(putObjectCommandInput);
+            /*const putObjectResrponse: PutObjectCommandOutput = */ await s3Client.send(putObjectCommand);
+            
+            finalUrl = `${process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL}/${folder}/${name}`;
+            isUploadedToS3 = true;
+        } catch (s3UploadError: any) {
+            console.error("NEW DOCUMENT ERROR: UPLOAD TO S3:", s3UploadError);
+
+            const s3UploadErrorResponse = ResponseService.error(
+                "NewDocumentUploadToS3Error",
+                s3UploadError.message || "Failed to upload document to S3. Please check logs for details."
+            );
+
+            return c.json(s3UploadErrorResponse, 500);
+        }
+    }
+
+    // TODO: Add new record to the database 
     let connection;
 
     try {
@@ -152,8 +238,8 @@ adminDocs.put('/new-document', async (c) => {
         await connection.execute<any[]>(insertStatement, [
             name,
             folder,
-            s3FileUrl,
-            fileSize,
+            finalUrl,
+            size,
             content,
             uploadedBy
         ]);
@@ -172,6 +258,39 @@ adminDocs.put('/new-document', async (c) => {
         );
 
         return c.json(response, 200);
+    } catch (databaseError: any) {
+        console.error("NEW DOCUMENT ERROR: DATABASE:", databaseError);
+
+        let responseMessage = "";
+        
+        if (isUploadedToS3) {
+            // If the document was uploaded to S3 but failed to save in the database,
+            // we should delete it from S3 to avoid orphaned files
+
+            responseMessage = "Document uploaded to S3. Insert into database failed.";
+            
+            try {
+                const deleteObjectCommandInput: DeleteObjectCommandInput = {
+                    Bucket: process.env.POLICY_DOCUMENTS_BUCKET_NAME,
+                    Key: `${folder}/${name}`,
+                };
+                const deleteObjectCommand: DeleteObjectCommand = new DeleteObjectCommand(deleteObjectCommandInput);
+                await s3Client.send(deleteObjectCommand);
+
+                responseMessage += " Orphaned document removed from S3.";
+            } catch (deleteDocumentError: any) {
+                console.error("NEW DOCUMENT ERROR: DELETE FROM S3:", deleteDocumentError);
+
+                responseMessage += ` Failed to delete document from S3: ${deleteDocumentError.message || "Unknown error"}`;
+            }
+        }
+        
+        const databaseErrorResponse = ResponseService.error(
+            "NewDocumentSaveToDatabaseError",
+            responseMessage + " Please check logs for more details."
+        );
+
+        return c.json(databaseErrorResponse, 500);
     } finally {
         if (!!connection) await connection.end();
     }

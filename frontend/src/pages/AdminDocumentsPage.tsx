@@ -57,7 +57,7 @@ interface ApiResponse {
 
 // Interface for a Folder object (transformed from API)
 interface FolderType {
-    id: string;
+    id?: string | "";
     name: string;
     fileCount: number;
     size: string;
@@ -80,6 +80,7 @@ interface DocumentType {
     content: string;
     fileUrl: string;
     priority?: string;
+    mimeType?: string | "";
 }
 
 // Interface for the new document state
@@ -114,7 +115,7 @@ interface ModalProps {
 }
 
 const AdminDocumentsPage: FC = () => {
-    const { authFetch } = useAuth()
+    const { authFetch, user } = useAuth()
     const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
     const [showAddDocumentModal, setShowAddDocumentModal] = useState<boolean>(false);
     const [showAddFolderModal, setShowAddFolderModal] = useState<boolean>(false);
@@ -217,7 +218,7 @@ const AdminDocumentsPage: FC = () => {
 
     const fetchDocumentCategories = async (): Promise<{ folders: FolderType[], documents: DocumentType[] }> => {
         try {
-            const response = await authFetch('/admin-docs/categories-with-documents', {
+            const response = await authFetch('/admin-docs/by-category', {
                 method: 'GET',
             });
 
@@ -312,7 +313,7 @@ const AdminDocumentsPage: FC = () => {
         const document: DocumentType = {
             id: Date.now(),
             name: newDocument.name,
-            uploadedBy: 'Current User',
+            uploadedBy: `${user?.firstName} ${user?.lastName}`.trim(),
             avatar: 'CU',
             date: new Date().toLocaleDateString('en-US', {
                 year: 'numeric',
@@ -324,7 +325,8 @@ const AdminDocumentsPage: FC = () => {
             folder: newDocument.folder,
             size: newDocument.file ? `${Math.round(newDocument.file.size / 1024)} KB` : '0 KB',
             content: 'Document content will be processed and displayed here once uploaded.',
-            fileUrl: newDocument.file ? URL.createObjectURL(newDocument.file) : '#'
+            fileUrl: newDocument.file ? URL.createObjectURL(newDocument.file) : '#',
+            mimeType: newDocument.file ? newDocument.file.type : ''
         };
 
         setAllDocuments([document, ...allDocuments]);
@@ -341,24 +343,41 @@ const AdminDocumentsPage: FC = () => {
     };
 
     // Handle adding a new folder
-    const handleAddFolder = (): void => {
+    const handleAddFolder = async (): Promise<void> => {
         if (!newFolder.name) {
             console.warn("Folder name is required.");
             return;
         }
 
+        // TODO: Indicate loading while HTTP requestion in transit
+        
         const folder: FolderType = {
-            id: newFolder.name.toLowerCase().replace(/\s+/g, '-'),
             name: newFolder.name,
             fileCount: 0,
             size: '0 MB',
             color: newFolder.color,
             icon: Folder
         };
+        let response;
+        
+        // TODO: Submit new folder request to backend API 
+        try {
+            response = await authFetch('/admin-docs/categories', {
+                method: 'PUT',
+                body: JSON.stringify(folder)
+            });
+        } catch (putFolderError) {
+            console.error("Could not PUT folder", putFolderError);
+        }
 
-        setFolders([...folders, folder]);
-        setNewFolder({ name: '', color: 'bg-blue-500' });
-        setShowAddFolderModal(false);
+        if (response?.ok) { // Replace with actual API call result
+            setFolders([...folders, folder]);
+            setNewFolder({ name: '', color: 'bg-blue-500' });
+            setShowAddFolderModal(false);
+        }
+        else {
+            // Handle error case
+        }
     };
 
     // Handle viewing a document
@@ -546,10 +565,10 @@ const AdminDocumentsPage: FC = () => {
                             )}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {folders.map((folder) => (
+                            {folders.map((folder: FolderType) => (
                                 <div
                                     key={folder.id}
-                                    onClick={() => handleFolderClick(folder.id)}
+                                    onClick={() => handleFolderClick(folder?.id || "")}
                                     className={`bg-white dark:bg-gray-800 rounded-xl border-2 p-4 hover:shadow-lg transition-all duration-200 cursor-pointer group ${selectedFolder === folder.id
                                         ? 'border-cyan-500 dark:border-cyan-400 bg-cyan-50 dark:bg-cyan-900/20'
                                         : 'border-gray-200 dark:border-gray-700'
