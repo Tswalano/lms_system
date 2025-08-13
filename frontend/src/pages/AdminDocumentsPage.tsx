@@ -933,12 +933,12 @@ const AdminDocumentsPage: FC = () => {
                             </div>
                         </div>
 
-                        <div>
+                        {/* <div>
                             <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Content Preview:</h4>
                             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-sm text-gray-600 dark:text-gray-300 max-h-32 overflow-y-auto">
                                 {selectedDocument.content}
                             </div>
-                        </div>
+                        </div> */}
 
                         <div className="flex gap-3 pt-4">
                             <button

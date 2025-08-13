@@ -10,6 +10,8 @@ import {
     RespondToAuthChallengeCommand,
     ChangePasswordCommand
 } from '@aws-sdk/client-cognito-identity-provider';
+// import * as dotenv from 'dotenv';
+// dotenv.config();
 
 import { changePasswordSchema, forgotPasswordSchema, loginSchema, refreshTokenSchema, resetPasswordSchema } from '../schemas/validationSchemas';
 import z from 'zod';

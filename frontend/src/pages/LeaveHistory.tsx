@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Clock, Download, Eye, RefreshCw, AlertCircle, X, CheckCircle, XCircle, AlertTriangle, Loader2, Edit, Calendar as CalendarIcon } from "lucide-react";
+import { Clock, Download, Eye, RefreshCw, AlertCircle, X, CheckCircle, XCircle, AlertTriangle, Loader2, Edit, Calendar as CalendarIcon, Ban } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -45,10 +45,12 @@ interface ApiResponse {
 
 const LeaveHistory = () => {
     const { authFetch } = useAuth()
-    const [filter, setFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
+    const [filter, setFilter] = useState<'all' | 'approved' | 'pending' | 'rejected' | 'cancelled'>('all');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [selectedLeave, setSelectedLeave] = useState<LeaveRecord | null>(null);
+    const [cancelReason, setCancelReason] = useState('');
     const [editFormData, setEditFormData] = useState<LeaveApplicationData>({
         leaveType: '',
         startDate: '',
@@ -66,11 +68,6 @@ const LeaveHistory = () => {
 
         const response = await authFetch('/leave/leave-history', {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
         });
 
         if (!response.ok) {
@@ -146,6 +143,31 @@ const LeaveHistory = () => {
         return result;
     };
 
+    // API function to cancel leave application
+    const cancelLeaveApplication = async (leaveId: number, reason: string): Promise<ApiResponse> => {
+        const payload = {
+            cancellation_reason: reason
+        };
+
+        const response = await authFetch(`/leave/${leaveId}/cancel`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+
+        const result: ApiResponse = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to cancel leave application');
+        }
+
+        return result;
+    };
+
     // React Query mutation for updating leave application
     const {
         mutate: updateApplication,
@@ -181,6 +203,34 @@ const LeaveHistory = () => {
         }
     });
 
+    // React Query mutation for cancelling leave application
+    const {
+        mutate: cancelApplication,
+        isPending: isCancelling
+    } = useMutation({
+        mutationFn: ({ leaveId, reason }: { leaveId: number; reason: string }) =>
+            cancelLeaveApplication(leaveId, reason),
+        onSuccess: (data) => {
+            toast.success("Leave Application Cancelled", {
+                description: data.message || "Your leave request has been cancelled successfully.",
+            });
+
+            // Close cancel modal
+            setIsCancelModalOpen(false);
+            setSelectedLeave(null);
+            setCancelReason('');
+
+            // Invalidate and refetch leave history
+            queryClient.invalidateQueries({ queryKey: ['leaveHistory'] });
+        },
+        onError: (error) => {
+            console.error("Cancellation Error:", error);
+            toast.error("Cancellation Failed", {
+                description: error instanceof Error ? error.message : "Failed to cancel leave application. Please try again.",
+            });
+        }
+    });
+
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['leaveHistory'] });
     };
@@ -200,6 +250,12 @@ const LeaveHistory = () => {
             leaveLength: leave.leave_length === 'half_day' ? 'half_day' : 'full_day'
         });
         setIsEditModalOpen(true);
+    };
+
+    const handleCancelLeave = (leave: LeaveRecord) => {
+        setSelectedLeave(leave);
+        setCancelReason('');
+        setIsCancelModalOpen(true);
     };
 
     const handleUpdateSubmit = (e: React.FormEvent) => {
@@ -239,9 +295,30 @@ const LeaveHistory = () => {
         updateApplication({ leaveId: selectedLeave.id, data: editFormData });
     };
 
+    const handleCancelSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!selectedLeave) return;
+
+        if (!cancelReason.trim()) {
+            toast.error("Cancellation Reason Required", {
+                description: "Please provide a reason for cancelling this leave request.",
+            });
+            return;
+        }
+
+        // Submit the cancellation
+        cancelApplication({ leaveId: selectedLeave.id, reason: cancelReason });
+    };
+
     const canEditLeave = (leave: LeaveRecord): boolean => {
         // Only allow editing of pending leaves
         return leave.status.toLowerCase() === 'pending';
+    };
+
+    const canCancelLeave = (leave: LeaveRecord): boolean => {
+        // Allow cancelling pending and approved leaves
+        return ['pending'].includes(leave.status.toLowerCase());
     };
 
     const getStatusColor = (status: string) => {
@@ -252,6 +329,8 @@ const LeaveHistory = () => {
             case 'pending':
                 return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-yellow-200 dark:hover:bg-yellow-800';
             case 'rejected':
+                return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-red-200 dark:hover:bg-red-800';
+            case 'cancelled':
                 return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-red-200 dark:hover:bg-red-800';
             default:
                 return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600';
@@ -264,6 +343,7 @@ const LeaveHistory = () => {
             case 'approved': return <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />;
             case 'pending': return <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />;
             case 'rejected': return <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />;
+            case 'cancelled': return <Ban className="w-5 h-5 text-red-600 dark:text-red-400" />;
             default: return <Clock className="w-5 h-5 text-gray-600 dark:text-gray-400" />;
         }
     };
@@ -316,6 +396,11 @@ const LeaveHistory = () => {
                     icon: <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />,
                     bgGradient: "from-red-100 to-red-200 dark:from-red-800 dark:to-red-900",
                 };
+            case 'cancelled':
+                return {
+                    icon: <Ban className="w-5 h-5 text-red-600 dark:text-red-400" />,
+                    bgGradient: "from-red-100 to-red-200 dark:from-red-800 dark:to-red-900",
+                };
             default:
                 return {
                     icon: <Clock className="w-5 h-5 text-gray-600 dark:text-gray-400" />,
@@ -359,7 +444,8 @@ const LeaveHistory = () => {
                         { key: 'all', label: 'All' },
                         { key: 'approved', label: 'Approved' },
                         { key: 'pending', label: 'Pending' },
-                        { key: 'rejected', label: 'Rejected' }
+                        { key: 'rejected', label: 'Rejected' },
+                        { key: 'cancelled', label: 'Cancelled' }
                     ].map(({ key, label }) => (
                         <Button
                             key={key}
@@ -424,7 +510,7 @@ const LeaveHistory = () => {
                                 <TableHead className="text-gray-700 dark:text-gray-300">Days</TableHead>
                                 <TableHead className="text-gray-700 dark:text-gray-300">Status</TableHead>
                                 <TableHead className="text-gray-700 dark:text-gray-300">Applied Date</TableHead>
-                                <TableHead className="text-gray-700 dark:text-gray-300">Actions</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-300 text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -454,7 +540,7 @@ const LeaveHistory = () => {
                                         {formatDate(record.createdAt)}
                                     </TableCell>
                                     <TableCell>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex justify-end items-center gap-2">
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -472,6 +558,17 @@ const LeaveHistory = () => {
                                                     title="Edit Leave Application"
                                                 >
                                                     <Edit className="w-4 h-4" />
+                                                </Button>
+                                            )}
+                                            {canCancelLeave(record) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/50 dark:text-red-400 dark:hover:text-red-300"
+                                                    onClick={() => handleCancelLeave(record)}
+                                                    title="Cancel Leave Application"
+                                                >
+                                                    <Ban className="w-4 h-4" />
                                                 </Button>
                                             )}
                                         </div>
@@ -568,12 +665,22 @@ const LeaveHistory = () => {
                                 </div>
                             )}
 
+                            {/* Display feedback (cancellation or manager) if it exists */}
                             {selectedLeave.feedback && (
                                 <div>
-                                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Manager Feedback</label>
-                                    <div className="mt-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                                        <p className="text-gray-700 dark:text-gray-300">{selectedLeave.feedback}</p>
-                                    </div>
+                                    {selectedLeave.status.toLowerCase() === 'cancelled' ? (
+                                        // Display for a canceled leave
+                                        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                            <h3 className="text-sm font-semibold text-red-800 dark:text-red-300">Cancellation Reason</h3>
+                                            <p className="mt-2 text-red-700 dark:text-red-300">{selectedLeave.feedback}</p>
+                                        </div>
+                                    ) : (
+                                        // Display for manager feedback (for approved or rejected leaves)
+                                        <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                                            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Manager Feedback</h3>
+                                            <p className="mt-2 text-gray-700 dark:text-gray-300">{selectedLeave.feedback}</p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -811,6 +918,107 @@ const LeaveHistory = () => {
                                         disabled={isUpdating}
                                     >
                                         Cancel
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancel Leave Modal */}
+            {isCancelModalOpen && selectedLeave && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full border border-gray-200/50 dark:border-slate-600/50">
+                        {/* Header */}
+                        <div className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 border-b border-gray-200/50 dark:border-slate-600/50">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center">
+                                        <Ban className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                                            Cancel Leave Request
+                                        </h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            Application #{selectedLeave.id}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setIsCancelModalOpen(false)}
+                                    className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-all duration-200"
+                                    disabled={isCancelling}
+                                >
+                                    <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6">
+                            <div className="mb-6">
+                                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                                    <div className="flex items-start gap-3">
+                                        <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                            <h4 className="font-medium text-yellow-800 dark:text-yellow-200">
+                                                Are you sure you want to cancel this leave request?
+                                            </h4>
+                                            <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                                                {selectedLeave.leave_type} from {formatDate(selectedLeave.start_date)} to {formatDate(selectedLeave.end_date)}
+                                            </p>
+                                            <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-2">
+                                                This action cannot be undone. You'll need to submit a new request if you change your mind.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <form onSubmit={handleCancelSubmit} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="cancelReason" className="text-gray-700 dark:text-gray-300">
+                                        Reason for Cancellation *
+                                    </Label>
+                                    <Textarea
+                                        id="cancelReason"
+                                        placeholder="Please explain why you're cancelling this leave request..."
+                                        value={cancelReason}
+                                        onChange={(e) => setCancelReason(e.target.value)}
+                                        className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600 min-h-[100px]"
+                                        disabled={isCancelling}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="flex gap-3 pt-4">
+                                    <Button
+                                        type="submit"
+                                        className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2 px-6"
+                                        disabled={isCancelling || !cancelReason.trim()}
+                                    >
+                                        {isCancelling ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Cancelling...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Ban className="w-4 h-4" />
+                                                Cancel Request
+                                            </>
+                                        )}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        onClick={() => setIsCancelModalOpen(false)}
+                                        variant="outline"
+                                        className="flex-1 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200"
+                                        disabled={isCancelling}
+                                    >
+                                        Keep Request
                                     </Button>
                                 </div>
                             </form>

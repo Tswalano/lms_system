@@ -1,5 +1,5 @@
 // prisma/seed.ts
-import { PrismaClient } from '../lib/generated/prisma';
+import { manager_feedback_type, PrismaClient } from '../lib/generated/prisma';
 
 const prisma = new PrismaClient();
 
@@ -678,6 +678,7 @@ async function main() {
                 start_date: new Date('2025-07-22'),
                 end_date: new Date('2025-07-24'),
                 leave_length: 'full_day',
+                feedback: 'Enjoy your time off!',
                 leave_comment: 'Family vacation during summer',
                 approved_by: existingAdmins[0], // Glen Mogane
                 approved_at: new Date('2025-07-18'),
@@ -694,6 +695,7 @@ async function main() {
                 start_date: new Date('2025-07-08'),
                 end_date: new Date('2025-07-09'),
                 leave_length: 'full_day',
+                feedback: 'Get well soon!',
                 leave_comment: 'Medical appointment and recovery',
                 approved_by: existingAdmins[1], // Admin 2
                 approved_at: new Date('2025-07-05'),
@@ -711,6 +713,7 @@ async function main() {
                 start_date: new Date('2025-07-29'),
                 end_date: new Date('2025-08-02'),
                 leave_length: 'full_day',
+                feedback: 'Enjoy your break! Take lots of pictures!',
                 leave_comment: 'Annual family holiday to Cape Town',
                 approved_by: existingAdmins[0], // Glen Mogane
                 approved_at: new Date('2025-07-25'),
@@ -728,6 +731,7 @@ async function main() {
                 start_date: new Date('2025-08-12'),
                 end_date: new Date('2025-08-16'),
                 leave_length: 'full_day',
+                feedback: 'Have a great time!',
                 leave_comment: 'Summer holiday break',
                 approved_by: existingAdmins[2], // Admin 3
                 approved_at: new Date('2025-08-08'),
@@ -761,6 +765,7 @@ async function main() {
                 start_date: new Date('2025-08-26'),
                 end_date: new Date('2025-09-01'),
                 leave_length: 'full_day',
+                feedback: 'Enjoy your extended break!',
                 leave_comment: 'Extended weekend getaway',
                 approved_by: existingAdmins[1], // Admin 2
                 approved_at: new Date('2025-08-22'),
@@ -778,6 +783,7 @@ async function main() {
                 start_date: new Date('2025-08-28'),
                 end_date: new Date('2025-08-29'),
                 leave_length: 'full_day',
+                feedback: 'Good luck with your studies!',
                 leave_comment: 'Attending AWS certification training',
                 approved_by: existingAdmins[0], // Glen Mogane
                 approved_at: new Date('2025-08-25'),
@@ -795,6 +801,7 @@ async function main() {
                 start_date: new Date('2025-09-09'),
                 end_date: new Date('2025-09-12'),
                 leave_length: 'full_day',
+                feedback: 'Enjoy your time off!',
                 leave_comment: 'Long weekend with family',
                 approved_by: existingAdmins[2], // Admin 3
                 approved_at: new Date('2025-09-06'),
@@ -811,6 +818,7 @@ async function main() {
                 start_date: new Date('2025-09-16'),
                 end_date: new Date('2025-09-16'),
                 leave_length: 'full_day',
+                feedback: 'Wishing you a speedy recovery!',
                 leave_comment: 'Doctor appointment',
                 approved_by: existingAdmins[0], // Glen Mogane
                 approved_at: new Date('2025-09-15'),
@@ -827,6 +835,7 @@ async function main() {
                 start_date: new Date('2025-09-23'),
                 end_date: new Date('2025-09-24'),
                 leave_length: 'full_day',
+                feedback: 'Awaiting approval from manager',
                 leave_comment: 'Attending technical certification exam',
                 createdAt: new Date('2025-09-20'),
                 updatedAt: new Date('2025-09-20'),
@@ -842,6 +851,7 @@ async function main() {
                 start_date: new Date('2025-09-25'),
                 end_date: new Date('2025-09-27'),
                 leave_length: 'full_day',
+                feedback: 'Awaiting approval from Glen Mogane',
                 leave_comment: 'Heritage Day long weekend',
                 createdAt: new Date('2025-09-22'),
                 updatedAt: new Date('2025-09-22'),
@@ -872,6 +882,7 @@ async function main() {
                 end_date: new Date('2025-10-02'),
                 leave_length: 'full_day',
                 leave_comment: 'End of month break',
+                feedback: 'Approved after project completion',
                 approved_by: existingAdmins[1], // Admin 2
                 approved_at: new Date('2025-09-27'),
                 createdAt: new Date('2025-09-25'),
@@ -889,6 +900,7 @@ async function main() {
                 end_date: new Date('2025-10-01'),
                 leave_length: 'full_day',
                 leave_comment: 'Personal family matter',
+                feedback: 'Approved by Hannes Swanepoel',
                 approved_by: existingAdmins[2], // Hannes Swanepoel
                 approved_at: new Date('2025-09-28'),
                 createdAt: new Date('2025-09-26'),
@@ -1046,66 +1058,472 @@ async function main() {
     }
     console.log(`✅ Created ${userDepartments.length} user department assignments`);
 
-    console.log('🎉 Seed completed successfully!');
+    // 13. Update existing admin users with performance review fields
+    console.log('🎯 Updating admin users with performance review data...');
+
+    const adminUpdates = await Promise.all([
+        prisma.users.update({
+            where: { id: existingAdmins[0] }, // Glen Mogane
+            data: {
+                employeeId: 'EMP001',
+                departmentId: departments[0].id, // Engineering
+                managerId: null, // CEO/Founder - no manager
+                roleType: 'admin',
+                jobLevel: 'Executive',
+                isActive: true,
+            },
+        }),
+        prisma.users.update({
+            where: { id: existingAdmins[1] }, // Xolani Zulu
+            data: {
+                employeeId: 'EMP002',
+                departmentId: departments[0].id, // Engineering
+                managerId: existingAdmins[0], // Reports to Glen
+                roleType: 'engineer',
+                jobLevel: 'Lead',
+                isActive: true,
+            },
+        }),
+        prisma.users.update({
+            where: { id: existingAdmins[2] }, // Hannes Swanepoel
+            data: {
+                employeeId: 'EMP003',
+                departmentId: departments[1].id, // Marketing (Product Manager)
+                managerId: existingAdmins[0], // Reports to Glen
+                roleType: 'product_manager',
+                jobLevel: 'Senior',
+                isActive: true,
+            },
+        }),
+        prisma.users.update({
+            where: { id: existingAdmins[3] }, // Philemon Maitisa
+            data: {
+                employeeId: 'EMP004',
+                departmentId: departments[0].id, // Engineering
+                managerId: existingAdmins[1], // Reports to Xolani
+                roleType: 'engineer',
+                jobLevel: 'Senior',
+                isActive: true,
+            },
+        }),
+    ]);
+
+    console.log(`✅ Updated ${adminUpdates.length} admin users with performance review data`);
+
+    // 14. Create review questions (matching your component structure)
+    console.log('❓ Creating performance review questions...');
+
+    const selfQuestions = [
+        {
+            category: 'DevOps Technical Skills',
+            questionText: 'What was your most impactful DevOps automation or infrastructure contribution this period?',
+            phase: 'self',
+        },
+        {
+            category: 'DevOps Leadership',
+            questionText: 'Describe a DevOps project where you led the implementation or migration.',
+            phase: 'self',
+        },
+        {
+            category: 'Cloud Expertise',
+            questionText: 'How would you rate your proficiency in AWS services? Provide specific examples of services you\'ve implemented.',
+            phase: 'self',
+        },
+        {
+            category: 'Infrastructure as Code',
+            questionText: 'Describe your experience with Terraform, CloudFormation, or other IaC tools. What complex infrastructure have you automated?',
+            phase: 'self',
+        },
+        {
+            category: 'CI/CD Pipeline Design',
+            questionText: 'What CI/CD pipelines have you designed or improved? What tools and best practices did you implement?',
+            phase: 'self',
+        },
+        {
+            category: 'Containerization',
+            questionText: 'Describe your experience with Docker and Kubernetes. What container orchestration challenges have you solved?',
+            phase: 'self',
+        },
+        {
+            category: 'Monitoring & Observability',
+            questionText: 'How do you implement monitoring, logging, and alerting? What tools do you use and why?',
+            phase: 'self',
+        },
+        {
+            category: 'Security & Compliance',
+            questionText: 'How do you integrate security into DevOps processes? Describe your DevSecOps practices.',
+            phase: 'self',
+        },
+        {
+            category: 'Innovation & Future Goals',
+            questionText: 'What DevOps innovations would you like to implement? What are your goals for the next quarter?',
+            phase: 'self',
+        },
+        {
+            category: 'Communication & Stakeholders',
+            questionText: 'How do you communicate technical DevOps concepts to non-technical stakeholders and leadership?',
+            phase: 'self',
+        },
+    ];
+
+    const peerQuestions = [
+        {
+            category: 'DevOps Delivery',
+            questionText: 'Rate: Delivers DevOps solutions on time with high quality and reliability.',
+            phase: 'peer',
+        },
+        {
+            category: 'AWS Expertise',
+            questionText: 'Rate: Demonstrates deep proficiency in AWS services and cloud architecture.',
+            phase: 'peer',
+        },
+        {
+            category: 'Infrastructure as Code',
+            questionText: 'Rate: Effectively designs and implements Infrastructure as Code using Terraform/CloudFormation.',
+            phase: 'peer',
+        },
+        {
+            category: 'CI/CD Pipeline Management',
+            questionText: 'Rate: Builds and maintains robust CI/CD pipelines with proper testing and deployment strategies.',
+            phase: 'peer',
+        },
+        {
+            category: 'Technical Communication',
+            questionText: 'Rate: Communicates complex DevOps concepts clearly to technical and non-technical audiences.',
+            phase: 'peer',
+        },
+        {
+            category: 'Problem Solving',
+            questionText: 'Rate: Demonstrates innovative problem-solving skills in DevOps challenges.',
+            phase: 'peer',
+        },
+        {
+            category: 'DevOps Leadership',
+            questionText: 'Rate: Shows leadership in promoting DevOps best practices and culture.',
+            phase: 'peer',
+        },
+        {
+            category: 'Collaboration',
+            questionText: 'Rate: Collaborates effectively with development teams to improve deployment processes.',
+            phase: 'peer',
+        },
+    ];
+
+    const nominationQuestions = [
+        {
+            category: 'Team Nominations',
+            questionText: 'Who would you trust to lead a critical AWS migration project?',
+            phase: 'nomination',
+        },
+        {
+            category: 'Team Nominations',
+            questionText: 'Who demonstrates the strongest expertise in cloud architecture and design?',
+            phase: 'nomination',
+        },
+        {
+            category: 'Team Nominations',
+            questionText: 'Who would you choose to implement a complex Infrastructure as Code solution?',
+            phase: 'nomination',
+        },
+        {
+            category: 'Team Nominations',
+            questionText: 'Who consistently shows ownership of production systems and reliability?',
+            phase: 'nomination',
+        },
+        {
+            category: 'Team Nominations',
+            questionText: 'Who would you nominate as a technical mentor for junior team members?',
+            phase: 'nomination',
+        },
+        {
+            category: 'Team Nominations',
+            questionText: 'Who demonstrates the strongest problem-solving abilities under pressure?',
+            phase: 'nomination',
+        },
+        {
+            category: 'Team Nominations',
+            questionText: 'Who made the biggest contribution toward improving our cloud infrastructure this quarter?',
+            phase: 'nomination',
+        },
+    ];
+
+    // Create all questions
+    const allQuestions = [...selfQuestions, ...peerQuestions, ...nominationQuestions];
+    const createdQuestions = await Promise.all(
+        allQuestions.map((q, index) =>
+            prisma.review_questions.create({
+                data: {
+                    category: q.category,
+                    questionText: q.questionText,
+                    questionType: q.phase === 'self' ? 'text' : q.phase === 'peer' ? 'rating' : 'nomination',
+                    phase: q.phase as any,
+                    displayOrder: index + 1,
+                    isActive: true,
+                },
+            })
+        )
+    );
+
+    console.log(`✅ Created ${createdQuestions.length} review questions`);
+
+    // 15. Create team members (for nominations)
+    console.log('👥 Creating team members for nominations...');
+    const teamMembersData = [
+        { name: 'Glen Mogane', role: 'System Administrator', avatar: 'GM', userId: existingAdmins[0] },
+        { name: 'Xolani Zulu', role: 'Lead Developer', avatar: 'XZ', userId: existingAdmins[1] },
+        { name: 'Hannes Swanepoel', role: 'Product Manager', avatar: 'HS', userId: existingAdmins[2] },
+        { name: 'Philemon Maitisa', role: 'Software Engineer', avatar: 'PM', userId: existingAdmins[3] },
+        // Additional fictional team members for nominations
+        { name: 'John Smith', role: 'Senior DevOps Engineer', avatar: 'JS', userId: null },
+        { name: 'Sarah Johnson', role: 'Cloud Architect', avatar: 'SJ', userId: null },
+        { name: 'Mike Chen', role: 'Platform Engineer', avatar: 'MC', userId: null },
+        { name: 'Emily Davis', role: 'Site Reliability Engineer', avatar: 'ED', userId: null },
+    ];
+
+    const teamMembers = await Promise.all(
+        teamMembersData.map((member) =>
+            prisma.team_members.create({
+                data: {
+                    userId: member.userId,
+                    name: member.name,
+                    role: member.role,
+                    avatar: member.avatar,
+                    isActive: true,
+                },
+            })
+        )
+    );
+
+    console.log(`✅ Created ${teamMembers.length} team members`);
+
+    // 16. Create performance reviews for admins (Q3 2025 cycle)
+    console.log('📋 Creating performance reviews for admins...');
+
+    // Only create reviews for the 3 admins who have managers (excluding Glen who is CEO)
+    const employeeAdmins = existingAdmins.slice(1); // Xolani, Hannes, Philemon
+
+    const performanceReviews = await Promise.all(
+        employeeAdmins.map(async (employeeId, index) => {
+            // Determine manager - Glen manages Xolani and Hannes, Xolani manages Philemon
+            let managerId;
+            if (employeeId === existingAdmins[1] || employeeId === existingAdmins[2]) {
+                managerId = existingAdmins[0]; // Glen manages Xolani and Hannes
+            } else {
+                managerId = existingAdmins[1]; // Xolani manages Philemon
+            }
+
+            const review = await prisma.performance_reviews.create({
+                data: {
+                    reviewPeriod: 'Q3 2025',
+                    employeeId: employeeId,
+                    managerId: managerId,
+                    createdById: existingAdmins[0], // Glen created the reviews
+                    status: index < 2 ? 'employee_completed' : 'employee_in_progress', // First 2 completed, 1 in progress
+                    employeeCompletedAt: index < 2 ? new Date('2025-07-20') : null,
+                    overallRating: index < 2 ? (4.2 + (Math.random() * 0.6)) : null, // Random rating between 4.2-4.8
+                    createdAt: new Date('2025-07-01'),
+                    updatedAt: new Date('2025-07-20'),
+                },
+            });
+            return review;
+        })
+    );
+
+    console.log(`✅ Created ${performanceReviews.length} performance reviews`);
+
+    // 17. Create review responses (for completed reviews only)
+    console.log('💬 Creating review responses...');
+
+    const completedReviews = performanceReviews.filter(r => r.status === 'employee_completed');
+    const responses = [];
+
+    for (const review of completedReviews) {
+        // Self review responses (10 questions)
+        const selfQuestionIds = createdQuestions.filter(q => q.phase === 'self').slice(0, 10);
+        for (const question of selfQuestionIds) {
+            const sampleResponses = [
+                'Led the migration of our legacy infrastructure to AWS EKS, resulting in 40% cost reduction and improved scalability.',
+                'Implemented comprehensive Infrastructure as Code using Terraform, managing over 50 AWS resources across multiple environments.',
+                'Designed and deployed CI/CD pipelines using GitLab CI and ArgoCD, reducing deployment time from 2 hours to 15 minutes.',
+                'Established monitoring and alerting systems using Prometheus, Grafana, and PagerDuty, improving incident response time by 60%.',
+                'Integrated security scanning into CI/CD pipelines using Trivy and SAST tools, identifying vulnerabilities before production.',
+            ];
+
+            responses.push({
+                performanceReviewId: review.id,
+                questionId: question.id,
+                employeeId: review.employeeId,
+                textResponse: sampleResponses[Math.floor(Math.random() * sampleResponses.length)],
+                createdAt: new Date('2025-07-18'),
+            });
+        }
+
+        // Peer review responses (8 questions, ratings 1-5)
+        const peerQuestionIds = createdQuestions.filter(q => q.phase === 'peer').slice(0, 8);
+        for (const question of peerQuestionIds) {
+            responses.push({
+                performanceReviewId: review.id,
+                questionId: question.id,
+                employeeId: review.employeeId,
+                ratingResponse: Math.floor(Math.random() * 2) + 4, // Random rating between 4-5 (high performers)
+                createdAt: new Date('2025-07-19'),
+            });
+        }
+
+        // Nomination responses (7 questions)
+        const nominationQuestionIds = createdQuestions.filter(q => q.phase === 'nomination').slice(0, 7);
+        for (const question of nominationQuestionIds) {
+            const randomTeamMember = teamMembers[Math.floor(Math.random() * 4)]; // Pick from first 4 (actual admins)
+            responses.push({
+                performanceReviewId: review.id,
+                questionId: question.id,
+                employeeId: review.employeeId,
+                nominationResponse: JSON.stringify({
+                    memberId: randomTeamMember.id,
+                    memberName: randomTeamMember.name,
+                    reason: 'Demonstrates exceptional technical leadership and consistently delivers high-quality solutions.',
+                }),
+                createdAt: new Date('2025-07-20'),
+            });
+        }
+    }
+
+    const createdResponses = await Promise.all(
+        responses.map((response) =>
+            prisma.review_responses.create({
+                data: response,
+            })
+        )
+    );
+
+    console.log(`✅ Created ${createdResponses.length} review responses`);
+
+    // 18. Create manager feedback (for reviews being processed)
+    console.log('📝 Creating manager feedback...');
+
+    const managerFeedback = [];
+
+    for (const review of completedReviews) {
+        // General feedback
+        managerFeedback.push({
+            performanceReviewId: review.id,
+            managerId: review.managerId,
+            feedbackType: manager_feedback_type.general_feedback,
+            managerComment: 'Excellent technical contributions this quarter. Shows strong leadership in DevOps practices and mentors junior team members effectively.',
+            isVisible: true,
+            createdAt: new Date('2025-07-22'),
+        });
+
+        // Salary justification
+        const salaryIncrease = 6 + (Math.random() * 4); // 6-10% increase
+        managerFeedback.push({
+            performanceReviewId: review.id,
+            managerId: review.managerId,
+            feedbackType: manager_feedback_type.general_feedback,
+            managerComment: `Recommending ${salaryIncrease.toFixed(1)}% salary increase based on exceptional performance, leadership contributions, and market benchmarking.`,
+            isVisible: false, // Private for manager/HR
+            createdAt: new Date('2025-07-22'),
+        });
+
+        // Development goals
+        managerFeedback.push({
+            performanceReviewId: review.id,
+            managerId: review.managerId,
+            feedbackType: manager_feedback_type.development_goals,
+            managerComment: 'Focus areas for next quarter: AWS certification advancement, team mentoring expansion, and leading the new microservices architecture initiative.',
+            isVisible: true,
+            createdAt: new Date('2025-07-22'),
+        });
+
+        // Rating adjustment example (for one review)
+        if (Math.random() > 0.5) {
+            const randomResponse = createdResponses.find(r => r.performanceReviewId === review.id && r.ratingResponse);
+            if (randomResponse) {
+                managerFeedback.push({
+                    performanceReviewId: review.id,
+                    managerId: review.managerId,
+                    feedbackType: manager_feedback_type.general_feedback,
+                    questionReference: randomResponse.questionId,
+                    originalResponse: randomResponse.ratingResponse?.toString(),
+                    managerComment: 'Adjusting rating based on specific project outcomes and peer feedback. Performance exceeded expectations in this area.',
+                    originalRating: randomResponse.ratingResponse,
+                    managerRating: 5,
+                    isVisible: false,
+                    createdAt: new Date('2025-07-23'),
+                });
+            }
+        }
+    }
+
+    const createdFeedback = await Promise.all(
+        managerFeedback.map((feedback) =>
+            prisma.manager_feedback.create({
+                data: feedback,
+            })
+        )
+    );
+
+    console.log(`✅ Created ${createdFeedback.length} manager feedback entries`);
+
+    // 19. Update performance reviews with final outcomes (for completed reviews)
+    console.log('🎯 Updating reviews with final outcomes...');
+
+    for (const review of completedReviews) {
+        const currentUser = await prisma.users.findUnique({ where: { id: review.employeeId } });
+        const salaryIncrease = 6 + (Math.random() * 4); // 6-10% increase
+        // const newSalary = currentUser?.currentSalary ? currentUser.currentSalary.toNumber() * (1 + salaryIncrease / 100) : null;
+
+        await prisma.performance_reviews.update({
+            where: { id: review.id },
+            data: {
+                status: 'manager_reviewing',
+                managerReviewCompletedAt: new Date('2025-07-23'),
+                // salaryIncreasePercentage: salaryIncrease,
+                // newSalary: '-',
+                promotionRecommended: Math.random() > 0.7, // 30% chance of promotion recommendation
+                newJobLevel: Math.random() > 0.7 ? 'Principal' : null,
+                finalSummary: 'Outstanding performance this quarter with significant contributions to infrastructure modernization and team development. Demonstrates readiness for increased responsibilities.',
+                updatedAt: new Date('2025-07-23'),
+            },
+        });
+    }
+
+    console.log('✅ Updated performance reviews with final outcomes');
+
+    // Add to final summary
     console.log(`
-📊 Summary:
-- Admin Users: ${adminUsers.length}
-- Additional Users: ${users.length}
-- Total Users with Data: ${allUserIds.length}
-- Document Categories: ${categories.length}  
-- Documents: ${createdDocuments.length}
-- Training Metadata: ${trainingMetadata.length}
-- Document Assignments: ${createdAssignments.length}
-- Document Signatures: ${createdSignatures.length}
-- Document Views: ${createdViews.length}
-- Leave Requests: ${leaveRequests.length}
-- Leave Action Logs: ${createdActionLogs.length}
-- Departments: ${departments.length}
-- Document Department Assignments: ${documentDepartments.length}
-- User Department Assignments: ${userDepartments.length}
+🎯 Performance Review System Summary:
+- Admin Users Updated: ${adminUpdates.length}
+- Review Questions: ${createdQuestions.length} (10 self, 8 peer, 7 nomination)
+- Team Members: ${teamMembers.length}
+- Performance Reviews: ${performanceReviews.length} (for admins only)
+- Review Responses: ${createdResponses.length} (25 per completed review)
+- Manager Feedback: ${createdFeedback.length}
 
-🔗 Data is linked to existing admins:
-- Glen Mogane (${existingAdmins[0]}) - Created policies, approved leaves
-- Xolani Zulu (${existingAdmins[1]}) - Created contracts & benefits, approved leaves
-- Hannes Swanepoel (${existingAdmins[2]}) - Created training materials, approved leaves
-- Philemon Maitisa (${existingAdmins[3]}) - Software Engineer admin
+📊 Review Status:
+- Employee Completed: 2 reviews
+- Employee In Progress: 1 review
+- Manager Reviewing: 2 reviews (with outcomes)
 
-👥 All Users Now Have Testing Data:
-Admins:
-- Glen Mogane - System Administrator
-- Xolani Zulu - Lead Developer
-- Hannes Swanepoel - Product Manager  
-- Philemon Maitisa - Software Engineer
+👥 Admin Hierarchy:
+- Glen Mogane (CEO) - No manager, manages Xolani & Hannes
+- Xolani Zulu (Lead Dev) - Reports to Glen, manages Philemon
+- Hannes Swanepoel (Product Manager) - Reports to Glen
+- Philemon Maitisa (Senior Engineer) - Reports to Xolani
 
-Regular Users:
-- Sarah Williams - Senior Frontend Developer
-- David Johnson - Backend Developer  
-- Emma Davis - Marketing Manager
-- James Brown - Content Creator
-- Lisa Miller - Sales Representative
-- Robert Wilson - Sales Manager
-- Jennifer Garcia - Operations Coordinator
-- Alex Thompson - Junior Developer
+💰 Salary Data:
+- Glen: R180,000 (Executive level)
+- Xolani: R145,000 (Lead level) 
+- Hannes: R135,000 (Senior level)
+- Philemon: R125,000 (Senior level)
 
-📅 2025 Leave Requests Summary (Including Admins):
-July: 3 requests (all approved)
-August: 4 requests (3 approved, 1 rejected) 
-September: 6 requests (4 approved, 2 pending)
+🔄 Review Workflow Ready:
+- Questions match your component structure (3 phases: self/peer/nomination)
+- Manager dashboard can view all responses and provide feedback
+- Salary recommendations and promotion tracking included
+- Final review generation with comprehensive feedback
+    `);
 
-📋 Document Assignment Coverage:
-- Mandatory documents assigned to ALL users (admins + regular users)
-- Role-specific documents assigned based on job functions
-- Admin users have realistic compliance rates and document interactions
-- Employment contracts signed by everyone
-- Benefits handbook with mixed completion status across all users
-
-📈 Realistic Testing Scenarios:
-- Admin users can test document management from both creator and assignee perspectives
-- Leave requests include admin-to-admin approval workflows
-- Document views and signatures distributed across all user types
-- Mixed completion statuses provide realistic testing conditions
-- Role-based document assignments include relevant admins (e.g., tech admins get dev standards)
-  `);
 }
 
 main()
