@@ -673,7 +673,7 @@ const ManageEmployees = () => {
                                 <TableHead className="text-gray-700 dark:text-gray-300">Role</TableHead>
                                 {/* <TableHead className="text-gray-700 dark:text-gray-300">Join Date</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Status</TableHead> */}
-                                <TableHead className="text-xs font-semibold tracking-wide text-gray-700 dark:text-gray-300 uppercase gap-2">
+                                <TableHead className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     Actions
                                 </TableHead>
 
@@ -712,7 +712,7 @@ const ManageEmployees = () => {
                                                         active
                                                     </span>
                                                 </TableCell> */}
-                                    <TableCell className="flex items-cente gap-2">
+                                    <TableCell className="px-6 py-4 whitespace-nowrap text-right">
                                         <div className="inline-flex items-center gap-2">
                                             <Button
                                                 variant="ghost"
