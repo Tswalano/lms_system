@@ -1,4 +1,3 @@
-// lambda/routes/test.ts
 import { Hono } from 'hono';
 import { Context } from 'hono';
 import { sendEmailNotification, EmailNotificationDetails } from '../email/notificationHandler'; // Import the utility function

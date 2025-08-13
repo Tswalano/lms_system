@@ -252,11 +252,11 @@ userDoc.get('/document-categories', async (c) => {
 
         try {
             const selectSql = `
-                SELECT dc.id, dc.name, dc.description, dc.color,
+                SELECT dc.id, dc.name, dc.color,
                        COUNT(d.id) as document_count
                 FROM document_categories dc
                 LEFT JOIN documents d ON dc.id = d.category_id
-                GROUP BY dc.id, dc.name, dc.description, dc.color
+                GROUP BY dc.id, dc.name, dc.color
                 HAVING document_count > 0
                 ORDER BY dc.name ASC
             `;
@@ -778,7 +778,6 @@ userDoc.get('/categories-with-documents', async (c) => {
                 SELECT 
                 dc.id AS category_id,
                 dc.name AS category_name,
-                dc.description AS category_description,
                 dc.color AS category_color,
                 d.id AS document_id,
                 d.name AS document_name,
@@ -863,7 +862,6 @@ userDoc.get('/categories-with-documents/:userId', async (c) => {
                 SELECT 
                 dc.id AS category_id,
                 dc.name AS category_name,
-                dc.description AS category_description,
                 dc.color AS category_color,
                 d.id AS document_id,
                 d.name AS document_name,

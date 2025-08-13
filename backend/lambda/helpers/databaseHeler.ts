@@ -25,7 +25,7 @@ export interface DBSecret {
 // AWS Configuration
 const secretsManager = new SecretsManagerClient({ region: "af-south-1" });
 const s3Client = new S3Client({ region: "af-south-1" });
-const SECRET_NAME = process.env.SECRET_NAME || 'lmsDevelopment'; // TODO - make this dynamic based on environment
+const SECRET_NAME = process.env.SECRET_NAME // TODO - make this dynamic based on environment
 const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME || "lms-sick-notes-bucket";
 const DATABASE_NAME = process.env.DATABASE_NAME || 'lms_db'; // TODO: make this dynamic based on environment
 
@@ -44,9 +44,6 @@ class DatabaseService {
 
             const secretString = JSON.parse(response.SecretString);
             const { username, password, host, port, dbname } = secretString;
-
-            console.log("Database credentials retrieved successfully", SECRET_NAME);
-            console.log(`Host: ${host}, Port: ${port}, DB Name: ${dbname}`);
 
             if (!username || !password || !host || !port || !dbname) {
                 throw new Error("Missing required database credentials");
