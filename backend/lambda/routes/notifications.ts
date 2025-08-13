@@ -254,15 +254,33 @@ notificationRoutes.get('/counts', async (c: Context): Promise<Response> => {
             AND createdAt >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
         `;
 
+        // Add archived count query
+        const archivedQuery = `
+            SELECT COUNT(*) as archivedCount
+            FROM notifications 
+            WHERE recipientId = ? AND isArchived = true
+        `;
+
+        // Add total notifications count query (for completeness)
+        const totalQuery = `
+            SELECT COUNT(*) as totalCount
+            FROM notifications 
+            WHERE recipientId = ?
+        `;
+
         const [countsRows] = await connection.query<mysql.RowDataPacket[]>(countsQuery, [userId]);
         const [categoryRows] = await connection.query<mysql.RowDataPacket[]>(categoryQuery, [userId]);
         const [recentRows] = await connection.query<mysql.RowDataPacket[]>(recentQuery, [userId]);
+        const [archivedRows] = await connection.query<mysql.RowDataPacket[]>(archivedQuery, [userId]);
+        const [totalRows] = await connection.query<mysql.RowDataPacket[]>(totalQuery, [userId]);
 
         const counts = countsRows[0];
         const totalUnread = counts.totalUnread || 0;
         const urgentUnread = counts.urgentUnread || 0;
         const highPriorityUnread = counts.highPriorityUnread || 0;
         const recentCount = recentRows[0].recentCount || 0;
+        const archivedCount = archivedRows[0].archivedCount || 0;
+        const totalCount = totalRows[0].totalCount || 0;
 
         // Format category breakdown
         const categories = (categoryRows as CategoryBreakdown[]).reduce((acc: Record<string, number>, item) => {
@@ -278,11 +296,14 @@ notificationRoutes.get('/counts', async (c: Context): Promise<Response> => {
                 urgentUnread,
                 highPriorityUnread,
                 recentCount,
+                archivedCount,        // Added archived count
+                totalCount,          // Added total count
                 categoryBreakdown: categories,
                 summary: {
                     hasUrgent: urgentUnread > 0,
                     hasHighPriority: highPriorityUnread > 0,
-                    hasUnread: totalUnread > 0
+                    hasUnread: totalUnread > 0,
+                    hasArchived: archivedCount > 0  // Added archived summary
                 }
             }
         }, 200);

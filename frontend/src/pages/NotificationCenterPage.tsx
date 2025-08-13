@@ -103,7 +103,7 @@ const NotificationCenterPage: React.FC = () => {
         total: countsData?.recentCount || 0,
         unread: countsData?.totalUnread || 0,
         urgent: parseInt(countsData?.urgentUnread?.toString() || '0'),
-        archived: 0
+        archived: parseInt(countsData?.archivedCount?.toString() || '0')
     };
 
     // Filter and search logic
