@@ -28,6 +28,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import type { User } from "../contexts/AuthContext";
 
 // Interface for API Document
 interface ApiDocument {
@@ -82,6 +83,7 @@ interface DocumentType {
     fileUrl: string;
     priority?: string;
     mimeType?: string | "";
+    fileBase64?: string | null; // Base64 representation of the file
 }
 
 // Interface for the new document state
@@ -306,17 +308,29 @@ const AdminDocumentsPage: FC = () => {
         setSelectedFolder(selectedFolder === folderId ? null : folderId);
     };
 
+    const getDocumentBase64 = async (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            
+            reader.onloadend = () => {
+                resolve(reader.result as string);
+            };
+
+            reader.readAsDataURL(file);
+        });
+    };
+    
     // Handle adding a new document
-    const handleAddDocument = (): void => {
+    const handleAddDocument = async (): Promise<void> => {
         if (!newDocument.name || !newDocument.folder) {
             console.warn("Document name and folder are required.");
             return;
         }
-
+        const fileBasse64 = await getDocumentBase64(newDocument.file as File);
         const document: DocumentType = {
             id: Date.now(),
             name: newDocument.name,
-            uploadedBy: `${user?.firstName} ${user?.lastName}`.trim(),
+            uploadedBy: (user as User).id,
             avatar: 'CU',
             date: new Date().toLocaleDateString('en-US', {
                 year: 'numeric',
@@ -328,21 +342,41 @@ const AdminDocumentsPage: FC = () => {
             folder: newDocument.folder,
             size: newDocument.file ? `${Math.round(newDocument.file.size / 1024)} KB` : '0 KB',
             content: 'Document content will be processed and displayed here once uploaded.',
-            fileUrl: newDocument.file ? URL.createObjectURL(newDocument.file) : '#',
-            mimeType: newDocument.file ? newDocument.file.type : ''
+            // fileUrl: newDocument.file ? URL.createObjectURL(newDocument.file) : '#',
+            fileUrl: "",
+            mimeType: newDocument.file ? newDocument.file.type : '',
+            fileBase64: fileBasse64.split(",")[1]
         };
 
-        setAllDocuments([document, ...allDocuments]);
+        const documentUploadResponse = await authFetch('/admin-docs', {
+            method: 'POST',
+            body: JSON.stringify(document),
+        });
+        
+        if (documentUploadResponse.ok) {
+            const responsePayload = await documentUploadResponse.json();
+            document.id = responsePayload.payload[0].id;
+            
+            setAllDocuments([document, ...allDocuments]);
+    
+            // Update folder file count
+            setFolders(folders.map(folder =>
+                folder.id === newDocument.folder
+                    ? { ...folder, fileCount: folder.fileCount + 1 }
+                    : folder
+            ));
+    
+            setNewDocument({ name: '', folder: '', file: null, status: 'draft', expiryFrequency: '' });
+            setShowAddDocumentModal(false);
+        }
+        else {
+            const errorResponse = await documentUploadResponse?.json();
 
-        // Update folder file count
-        setFolders(folders.map(folder =>
-            folder.id === newDocument.folder
-                ? { ...folder, fileCount: folder.fileCount + 1 }
-                : folder
-        ));
-
-        setNewDocument({ name: '', folder: '', file: null, status: 'draft', expiryFrequency: '' });
-        setShowAddDocumentModal(false);
+            switch (documentUploadResponse?.status) {
+                default:
+                    toast.error(errorResponse.message || 'Failed to create folder. Please try again later.');
+            }
+        }
     };
 
     // Handle adding a new folder
@@ -807,7 +841,7 @@ const AdminDocumentsPage: FC = () => {
                                         {folders.map((folder) => (
                                             <SelectItem
                                                 className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
-                                                key={folder.id} value={folder.id}>
+                                                key={folder.id} value={folder.id as string}>
                                                 {folder.name}
                                             </SelectItem>
                                         ))}

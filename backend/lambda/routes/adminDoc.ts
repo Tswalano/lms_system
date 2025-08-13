@@ -208,7 +208,7 @@ adminDocs.get('/by-category', async (c) => {
 
 });
 
-adminDocs.put('/', async (c) => {
+adminDocs.post('/', async (c) => {
     console.log("create new document");
 
     if (!process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL ||
@@ -235,13 +235,13 @@ adminDocs.put('/', async (c) => {
         size,
         content,
         fileUrl,
-        mimeType
+        mimeType,
+        fileBase64
     } = requestBody;
     let finalUrl;
     let isUploadedToS3 = false;
     console.log("NEW DOCUMENT", requestBody);
-    const s3ClientConfig: S3ClientConfig = {};
-    const s3Client: S3Client = new S3Client(s3ClientConfig);
+    let s3Client: S3Client | null = null;
 
     if (!!fileUrl) {
         // This document will point to an existing file
@@ -253,11 +253,14 @@ adminDocs.put('/', async (c) => {
         // This document will be uploaded to S3
 
         try {
+            const s3ClientConfig: S3ClientConfig = {};
+            s3Client = new S3Client(s3ClientConfig); 
+
             // TODO: Upload the document to S3 and obtain document URL 
             const putObjectCommandInput: PutObjectCommandInput = {
                 Bucket: process.env.POLICY_DOCUMENTS_BUCKET_NAME,
                 Key: `${folder}/${name}`,
-                Body: Buffer.from(content, 'base64'), // Assuming content is base64 encoded
+                Body: Buffer.from(fileBase64, 'base64'), // Assuming content is base64 encoded
                 ContentType: mimeType,
             }
             const putObjectCommand: PutObjectCommand = new PutObjectCommand(putObjectCommandInput);
@@ -307,7 +310,7 @@ adminDocs.put('/', async (c) => {
 
         const response = ResponseService.success(
             "Document categories with documents retrieved successfully",
-            Object.values(newDocumentRecords[0])
+            newDocumentRecords[0][0]
         );
 
         return c.json(response, 200);
@@ -316,7 +319,7 @@ adminDocs.put('/', async (c) => {
 
         let responseMessage = "";
         
-        if (isUploadedToS3) {
+        if (isUploadedToS3 && !!s3Client) {
             // If the document was uploaded to S3 but failed to save in the database,
             // we should delete it from S3 to avoid orphaned files
 

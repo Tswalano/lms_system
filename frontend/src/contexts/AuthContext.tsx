@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
 // Types and Interfaces
-interface User {
+export interface User {
     id: string;
     firstName: string;
     lastName: string;
