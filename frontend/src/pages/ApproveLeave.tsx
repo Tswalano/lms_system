@@ -508,8 +508,8 @@ const ApproveLeave = () => {
                                             <TableHead className="text-gray-700 dark:text-gray-300">Employee</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Leave Type</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Start Date</TableHead>
-                                            <TableHead className="text-gray-700 dark:text-gray-300">End Date</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Status</TableHead>
+                                            {/* <TableHead className="text-gray-700 dark:text-gray-300">Days</TableHead> */}
                                             <TableHead className="text-gray-700 dark:text-gray-300">Feedback</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300 text-right">Actions</TableHead>
                                         </TableRow>
@@ -529,13 +529,17 @@ const ApproveLeave = () => {
                                                 <TableCell className="text-gray-600 dark:text-gray-400">
                                                     {formatDate(request.start_date)} - {formatDate(request.end_date)}
                                                 </TableCell>
-                                                <TableCell className="text-gray-600 dark:text-gray-400">
-                                                    {request.feedback}
-                                                </TableCell>
                                                 <TableCell>
                                                     <Badge className={getStatusColor(request.status)}>
                                                         {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                                                     </Badge>
+                                                </TableCell>
+                                                {/* <TableCell className="text-gray-600 dark:text-gray-400">
+                                                    {request.duration} day{request.duration > 1 ? 's' : ''}{' '}
+                                                    {request.leave_length === 'half_day' ? '(Half Day)' : ''}
+                                                </TableCell> */}
+                                                <TableCell className="text-gray-600 dark:text-gray-400">
+                                                    {request.feedback || 'No feedback provided'}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex justify-end gap-2">
