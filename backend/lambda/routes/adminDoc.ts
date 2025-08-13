@@ -3,6 +3,7 @@ import {
     S3Client, S3ClientConfig, 
     PutObjectCommand, PutObjectCommandInput,
     DeleteObjectCommand, DeleteObjectCommandInput } from "@aws-sdk/client-s3";
+import { v7 as uuid7 } from "uuid";
 import { DatabaseService } from '../helpers/databaseHeler';
 import { ResponseService } from '../models/apiResponse';
 import { DocumentCategoryRow } from "../models/documentCategory";
@@ -33,6 +34,15 @@ adminDocs.get('/categories', async (c) => {
         );
 
         return c.json(response, 200);
+    } catch (databaseError: any) {
+        console.error("FETCH DOCUMENT CATEGORIES ERROR: DATABASE:", databaseError);
+
+        const fetchErrorResponse = ResponseService.error(
+            "FetchDocumentCategoriesDatabaseError",
+            databaseError.message || "Failed to fetch document categories from database. Please check logs for details."
+        );
+
+        return c.json(fetchErrorResponse, 200);
 
     } finally {
         if (!!connection) await connection.end();
@@ -45,17 +55,50 @@ adminDocs.put("/categories", async (c) => {
         name,
         color
     } = await c.req.json();
+    const MAX_FOLDER_NAME_LENGTH = 50;
     let connection;
 
+    if (name.length > MAX_FOLDER_NAME_LENGTH) {
+        console.error("NEW DOCUMENT CATEGORY ERROR: NAME TOO LONG:", name);
+        
+        const nameLengthErrorResponse = ResponseService.error(
+            "DocumentCategoryNameTooLongError",
+            `The category name exceeds the maximum length of ${MAX_FOLDER_NAME_LENGTH} characters.`
+        );
+
+        return c.json(nameLengthErrorResponse, 413);
+    }
+    
     try {
         connection = await DatabaseService.createConnection();
         
+        // Ensure the folder name is unique
+        const checkCategoryExists = `
+            select count(1) as count 
+            from document_categories 
+            where name = ?;
+        `;
+        const checkFolderNameResult = await connection.query<any[]>(checkCategoryExists, [name]);
+
+        if (checkFolderNameResult[0][0].count > 0) {
+            console.error("NEW DOCUMENT CATEGORY ERROR: DUPLICATE:", name);
+
+            const databaseErrorResponse = ResponseService.error(
+                "DuplicateDocumentCategoryError",
+                `The category name "${name}" already exists. Please choose a different name.`
+            );
+
+            return c.json(databaseErrorResponse, 409);   
+        }
+
+        const categoryId = uuid7(); // Generate a unique ID for the category
         const insertStatement = `
-            insert into document_categories (name, color, createdAt, updatedAt)
-            values (?, ?, NOW(), NOW());
+            insert into document_categories (id, name, color, createdAt, updatedAt)
+            values (?, ?, ?, NOW(), NOW());
         `;
 
         await connection.execute<any[]>(insertStatement, [
+            categoryId,
             name,
             color
         ]);
@@ -63,17 +106,27 @@ adminDocs.put("/categories", async (c) => {
         const fetchNewDocumentStatement = `
             select * 
             from document_categories
-            where id = last_insert_id();
+            where name = ?;
         `;
 
-        const newDocumentRecords = await connection.execute<any[]>(fetchNewDocumentStatement);
+        const newDocumentCategoryResponse = await connection.query<any[]>(fetchNewDocumentStatement, [name]);
+        const newDocumentCategory = newDocumentCategoryResponse[0][0];
 
         const response = ResponseService.success(
             "Document categories with documents retrieved successfully",
-            Object.values(newDocumentRecords[0])
+            newDocumentCategory
         );
 
         return c.json(response, 200);
+    } catch (databaseError: any) {
+        console.error("NEW DOCUMENT CATEGORY ERROR: DATABASE:", databaseError);
+
+        const databaseErrorResponse = ResponseService.error(
+            "NewDocumentCategorySaveToDatabaseError",
+            databaseError.message || "Failed to save document category to database. Please check logs for details."
+        );
+
+        return c.json(databaseErrorResponse, 200);
     } finally {
         if (!!connection) await connection.end();
     }
@@ -88,20 +141,20 @@ adminDocs.get('/by-category', async (c) => {
         connection = await DatabaseService.createConnection();
         
         const selectSql = `
-            SELECT 
-            dc.id AS category_id,
-            dc.name AS category_name,
-            dc.description AS category_description,
-            dc.color AS category_color,
-            d.id AS document_id,
-            d.name AS document_name,
-            d.file_url,
-            d.file_size,
-            d.priority,
-            d.createdAt AS document_created_at
-            FROM document_categories dc
-            INNER JOIN documents d ON dc.id = d.category_id
-            ORDER BY dc.name ASC, d.name ASC
+            select 
+                dc.id as category_id,
+                dc.name as category_name,
+                dc.description as category_description,
+                dc.color as category_color,
+                d.id as document_id,
+                d.name as document_name,
+                d.file_url,
+                d.file_size,
+                d.priority,
+                d.createdat as document_created_at
+            from document_categories dc
+            left outer join documents d on dc.id = d.category_id
+            order by dc.name asc, d.name asc
         `;
 
         const [rows] = await connection.execute<any[]>(selectSql);

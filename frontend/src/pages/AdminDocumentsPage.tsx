@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 // Interface for API Document
 interface ApiDocument {
@@ -150,7 +151,7 @@ const AdminDocumentsPage: FC = () => {
     // Helper function to calculate file size from multiple documents
     const calculateTotalSize = (documents: ApiDocument[]): string => {
         const totalBytes = documents.reduce((total, doc) => {
-            const sizeStr = doc.file_size.toLowerCase();
+            const sizeStr = doc?.file_size ? doc.file_size.toLowerCase() : "0 KB";
             let bytes = 0;
 
             if (sizeStr.includes('kb')) {
@@ -190,8 +191,10 @@ const AdminDocumentsPage: FC = () => {
                 description: category.description
             });
 
+            const actualCategoryDocuments = category.documents.filter(dc => !!dc.id);
+            
             // Transform documents
-            category.documents.forEach(doc => {
+            actualCategoryDocuments.forEach(doc => {
                 transformedDocuments.push({
                     id: doc.id,
                     name: doc.name,
@@ -368,15 +371,37 @@ const AdminDocumentsPage: FC = () => {
             });
         } catch (putFolderError) {
             console.error("Could not PUT folder", putFolderError);
+
+            toast.error('Error', {
+                description: error instanceof Error ? error.message : 'Failed to load profile data',
+            });
         }
 
         if (response?.ok) { // Replace with actual API call result
+            const responsePayload = await response.json();
+            const newCategory = responsePayload.payload;
+            folder.id = newCategory[0];
+
             setFolders([...folders, folder]);
             setNewFolder({ name: '', color: 'bg-blue-500' });
             setShowAddFolderModal(false);
         }
         else {
             // Handle error case
+            const errorResponse = await response?.json();
+
+            switch (response?.status) {
+                case 409:
+                    toast.error(errorResponse.message);
+                    break;
+
+                case 413:
+                    toast.error(errorResponse.message);
+                    break;
+
+                default:
+                    toast.error('Failed to create folder. Please try again later.');
+            }
         }
     };
 
