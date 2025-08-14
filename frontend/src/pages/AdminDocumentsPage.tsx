@@ -38,6 +38,8 @@ interface ApiDocument {
     file_size: string;
     priority: string;
     createdAt: string;
+    uploadedById: string;
+    uploadedByDisplay: string;
 }
 
 // Interface for API Category
@@ -72,7 +74,8 @@ interface FolderType {
 interface DocumentType {
     id: number;
     name: string;
-    uploadedBy: string;
+    uploadedByDisplay: string;
+    uploadedById: string;
     avatar: string;
     date: string;
     status: 'active' | 'draft' | 'archived';
@@ -200,7 +203,8 @@ const AdminDocumentsPage: FC = () => {
                 transformedDocuments.push({
                     id: doc.id,
                     name: doc.name,
-                    uploadedBy: 'System User', // Default since API doesn't provide this
+                    uploadedByDisplay: doc.uploadedByDisplay, 
+                    uploadedById: doc.uploadedById,
                     avatar: 'SU',
                     date: new Date(doc.createdAt).toLocaleDateString('en-US', {
                         year: 'numeric',
@@ -330,7 +334,8 @@ const AdminDocumentsPage: FC = () => {
         const document: DocumentType = {
             id: Date.now(),
             name: newDocument.name,
-            uploadedBy: (user as User).id,
+            uploadedByDisplay: `${(user as User).firstName} ${(user as User).lastName}`,
+            uploadedById: (user as User).id,
             avatar: 'CU',
             date: new Date().toLocaleDateString('en-US', {
                 year: 'numeric',
@@ -705,7 +710,7 @@ const AdminDocumentsPage: FC = () => {
                                                     <div className="w-8 h-8 bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 rounded-full flex items-center justify-center">
                                                         <span className="text-xs font-semibold text-white">{doc.avatar}</span>
                                                     </div>
-                                                    <span className="text-sm text-gray-900 dark:text-white">{doc.uploadedBy}</span>
+                                                    <span className="text-sm text-gray-900 dark:text-white">{doc.uploadedByDisplay}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
@@ -983,7 +988,7 @@ const AdminDocumentsPage: FC = () => {
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedDocument.name}</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    Uploaded by {selectedDocument.uploadedBy} on {selectedDocument.date}
+                                    Uploaded by {selectedDocument.uploadedByDisplay} on {selectedDocument.date}
                                 </p>
                             </div>
                         </div>

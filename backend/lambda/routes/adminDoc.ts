@@ -154,9 +154,12 @@ adminDocs.get('/by-category', async (c) => {
                 d.file_url,
                 d.file_size,
                 d.priority,
-                d.createdat as document_created_at
+                d.createdat as document_created_at,
+                d.created_by as uploadedById,
+                concat(u.firstName, ' ', u.lastName) as uploadedByDisplay
             from document_categories dc
             left outer join documents d on dc.id = d.category_id
+            left outer join users as u on u.id = d.created_by
             order by dc.name asc, d.name asc
         `;
 
@@ -174,7 +177,9 @@ adminDocs.get('/by-category', async (c) => {
                 file_url,
                 file_size,
                 priority,
-                document_created_at
+                document_created_at,
+                uploadedById,
+                uploadedByDisplay
             } = row;
 
             if (!acc[category_id]) {
@@ -193,7 +198,9 @@ adminDocs.get('/by-category', async (c) => {
                 file_url,
                 file_size,
                 priority,
-                createdAt: document_created_at
+                createdAt: document_created_at,
+                uploadedById,
+                uploadedByDisplay
             });
 
             return acc;
@@ -229,7 +236,7 @@ adminDocs.post('/', async (c) => {
     const {
         id,
         name,
-        uploadedBy,
+        uploadedById,
         avatar,
         date,
         status,
@@ -299,7 +306,7 @@ adminDocs.post('/', async (c) => {
             finalUrl,
             size,
             content,
-            uploadedBy
+            uploadedById
         ]);
 
         const fetchNewDocumentStatement = `
