@@ -437,8 +437,8 @@ export class LmsBackendStack extends cdk.Stack {
         NODE_ENV: environment === 'prod' ? 'production' : 'development',
         ENVIRONMENT: environment,
         SECRET_NAME: config.secretName,
-        POLICY_DOCUMENTS_DISTRIBUTION_URL: policyRepositoryBucket.bucketName,
-        POLICY_DOCUMENTS_BUCKET_NAME: `https://${distribution.distributionDomainName}`
+        POLICY_DOCUMENTS_DISTRIBUTION_URL: `https://${distribution.distributionDomainName}`,
+        POLICY_DOCUMENTS_BUCKET_NAME: policyRepositoryBucket.bucketName
       },
       timeout: cdk.Duration.seconds(30),
       memorySize: 1024,
