@@ -414,7 +414,7 @@ const AdminDocumentsPage: FC = () => {
         if (response?.ok) { // Replace with actual API call result
             const responsePayload = await response.json();
             const newCategory = responsePayload.payload;
-            folder.id = newCategory[0];
+            folder.id = newCategory.id;
 
             setFolders([...folders, folder]);
             setNewFolder({ name: '', color: 'bg-blue-500' });
