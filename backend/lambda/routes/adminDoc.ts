@@ -12,7 +12,8 @@ const adminDocs = new Hono();
 
 adminDocs.get('/categories', async (c) => {
     // Return all document categories 
-    // TODO: Implement filtering 
+    console.log("GET /admin-docs/categories");
+    
     let connection;
 
     try {
@@ -50,6 +51,7 @@ adminDocs.get('/categories', async (c) => {
 });
 
 adminDocs.put("/categories", async (c) => {
+    console.log("PUT /admin-docs/categories");
 
     const {
         name,
@@ -134,6 +136,7 @@ adminDocs.put("/categories", async (c) => {
 });
 
 adminDocs.get('/by-category', async (c) => {
+    console.log("GET /admin-docs/by-category");
 
     let connection;
 
@@ -209,7 +212,7 @@ adminDocs.get('/by-category', async (c) => {
 });
 
 adminDocs.post('/', async (c) => {
-    console.log("create new document");
+    console.log("PUT /admin-docs");
 
     if (!process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL ||
         !process.env.POLICY_DOCUMENTS_BUCKET_NAME
@@ -240,7 +243,6 @@ adminDocs.post('/', async (c) => {
     } = requestBody;
     let finalUrl;
     let isUploadedToS3 = false;
-    console.log("NEW DOCUMENT", requestBody);
     let s3Client: S3Client | null = null;
 
     if (!!fileUrl) {
@@ -319,7 +321,7 @@ adminDocs.post('/', async (c) => {
 
         let responseMessage = "";
         
-        if (isUploadedToS3 && !!s3Client) {
+        if (isUploadedToS3 && s3Client) {
             // If the document was uploaded to S3 but failed to save in the database,
             // we should delete it from S3 to avoid orphaned files
 
