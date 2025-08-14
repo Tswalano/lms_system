@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Employee {
     id: string;
@@ -15,6 +18,8 @@ interface Employee {
     lastName: string;
     email: string;
     jobTitle: string;
+    departmentId: number | null;
+    department: string | null;
     isAdmin: boolean;
     role: string;
 }
@@ -25,13 +30,31 @@ interface AddEmployeeData {
     lastName: string;
     jobTitle: string;
     isAdmin: boolean;
+    departmentId: string;
+}
+
+interface Department {
+    id: number;
+    name: string;
+    description: string;
 }
 
 interface ApiResponse<T> {
     code: string;
     error: boolean;
     message: string;
+    payload: {
+        users: T;
+        departments?: Department[];
+    };
+}
+
+interface UpdateApiResponse<T> {
+    code: string;
+    error: boolean;
+    message: string;
     payload: T;
+
 }
 
 const ManageEmployees = () => {
@@ -41,10 +64,12 @@ const ManageEmployees = () => {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+    const [departments, setDepartments] = useState<Department[]>([]);
     const [newEmployee, setNewEmployee] = useState<AddEmployeeData>({
         firstName: "",
         lastName: "",
         jobTitle: "",
+        departmentId: "",
         isAdmin: false
     });
     const [editEmployee, setEditEmployee] = useState<AddEmployeeData>({
@@ -52,6 +77,7 @@ const ManageEmployees = () => {
         firstName: "",
         lastName: "",
         jobTitle: "",
+        departmentId: "",
         isAdmin: false
     });
 
@@ -78,7 +104,12 @@ const ManageEmployees = () => {
             throw new Error(result.message || 'Failed to fetch employees');
         }
 
-        return result.payload;
+        // Set departments if they exist in the response
+        if (result.payload.departments) {
+            setDepartments(result.payload.departments);
+        }
+
+        return result.payload.users;
     };
 
     const {
@@ -94,6 +125,14 @@ const ManageEmployees = () => {
         retry: 2,
     });
 
+    // Helper function to get department name by ID
+    const getDepartmentName = (departmentId: number | null, fallbackName: string | null) => {
+        if (fallbackName) return fallbackName;
+        if (!departmentId) return 'No Department';
+        const department = departments.find(dept => dept.id === departmentId);
+        return department?.name || 'Unknown Department';
+    };
+
     // Update employee mutation
     const updateEmployeeMutation = useMutation({
         mutationFn: async ({ id, employeeData }: { id: string; employeeData: AddEmployeeData }): Promise<Employee> => {
@@ -105,7 +144,8 @@ const ManageEmployees = () => {
                 method: 'POST',
                 body: JSON.stringify({
                     id,
-                    ...employeeData
+                    ...employeeData,
+                    departmentId: employeeData.departmentId ? Number(employeeData.departmentId) : null
                 })
             });
 
@@ -114,7 +154,7 @@ const ManageEmployees = () => {
                 throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
             }
 
-            const result: ApiResponse<Employee> = await response.json();
+            const result: UpdateApiResponse<Employee> = await response.json();
 
             if (result.error) {
                 throw new Error(result.message || 'Failed to update employee');
@@ -131,6 +171,7 @@ const ManageEmployees = () => {
                 firstName: "",
                 lastName: "",
                 jobTitle: "",
+                departmentId: "",
                 isAdmin: false
             });
             setIsEditDialogOpen(false);
@@ -159,7 +200,9 @@ const ManageEmployees = () => {
                     firstName: employeeData.firstName,
                     lastName: employeeData.lastName,
                     jobTitle: employeeData.jobTitle,
-                    isAdmin: employeeData.isAdmin
+                    isAdmin: employeeData.isAdmin,
+                    // Convert departmentId to number if it's a string, handle "none" case
+                    departmentId: employeeData.departmentId && employeeData.departmentId !== "" ? Number(employeeData.departmentId) : null
                 })
             });
 
@@ -174,13 +217,14 @@ const ManageEmployees = () => {
                 throw new Error(result.message || 'Failed to add employee');
             }
 
-            return result.payload;
+            return result.payload.users;
         },
         onSuccess: (newEmployee) => {
             queryClient.invalidateQueries({ queryKey: ['employees'] });
             setNewEmployee({
                 firstName: "",
                 lastName: "",
+                departmentId: "",
                 jobTitle: "",
                 isAdmin: false
             });
@@ -202,6 +246,18 @@ const ManageEmployees = () => {
         mutationFn: async (employeeId: string): Promise<void> => {
             if (!token) {
                 throw new Error('Unauthorized');
+            }
+
+            // check if department id is not null or undefined
+            if (!selectedEmployee) {
+                throw new Error('No employee selected for deletion');
+            }
+
+            // check if department id is not null or undefined
+            if (!selectedEmployee.departmentId) {
+                toast("Error", {
+                    description: "Selected employee does not have a department.",
+                });
             }
 
             const response = await authFetch('/users/delete-user', {
@@ -267,6 +323,7 @@ const ManageEmployees = () => {
             firstName: employee.firstName,
             lastName: employee.lastName,
             jobTitle: employee.jobTitle,
+            departmentId: (employee.departmentId || employee.departmentId)?.toString() || "",
             isAdmin: employee.role === 'admin' ? true : false
         });
         setIsEditDialogOpen(true);
@@ -289,10 +346,12 @@ const ManageEmployees = () => {
     const filteredEmployees = employees.filter(employee => {
         const fullName = `${employee.firstName} ${employee.lastName}`.toLowerCase();
         const searchLower = searchTerm.toLowerCase();
+        const departmentName = getDepartmentName(employee.departmentId || employee.departmentId, employee.department).toLowerCase();
 
         return fullName.includes(searchLower) ||
             employee.email.toLowerCase().includes(searchLower) ||
-            employee.jobTitle.toLowerCase().includes(searchLower);
+            employee.jobTitle.toLowerCase().includes(searchLower) ||
+            departmentName.includes(searchLower);
     });
 
     if (!token) {
@@ -314,7 +373,6 @@ const ManageEmployees = () => {
         }
         return uuid;
     }
-
 
     return (
         <>
@@ -361,22 +419,23 @@ const ManageEmployees = () => {
                                                 </div>
                                                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Add New Employee</h3>
                                             </div>
-                                            <button
+                                            <Button
+                                                variant="ghost"
                                                 onClick={() => setIsAddDialogOpen(false)}
                                                 className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-all duration-200"
                                             >
                                                 <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
 
                                     {/* Form Content */}
                                     <div className="p-6 space-y-4">
                                         <div className="space-y-2">
-                                            <label htmlFor="firstName" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            <Label htmlFor="firstName" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
                                                 First Name *
-                                            </label>
-                                            <input
+                                            </Label>
+                                            <Input
                                                 id="firstName"
                                                 type="text"
                                                 placeholder="Enter first name"
@@ -387,10 +446,10 @@ const ManageEmployees = () => {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label htmlFor="lastName" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            <Label htmlFor="lastName" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
                                                 Last Name *
-                                            </label>
-                                            <input
+                                            </Label>
+                                            <Input
                                                 id="lastName"
                                                 type="text"
                                                 placeholder="Enter last name"
@@ -401,10 +460,10 @@ const ManageEmployees = () => {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label htmlFor="jobTitle" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            <Label htmlFor="jobTitle" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
                                                 Occupation *
-                                            </label>
-                                            <input
+                                            </Label>
+                                            <Input
                                                 id="jobTitle"
                                                 type="text"
                                                 placeholder="Enter occupation/job title"
@@ -414,17 +473,56 @@ const ManageEmployees = () => {
                                             />
                                         </div>
 
+                                        <div className="space-y-2">
+                                            <Label htmlFor="addDepartment" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                                Department
+                                            </Label>
+                                            <Select
+                                                value={newEmployee.departmentId || "none"}
+                                                onValueChange={(value: string) => setNewEmployee({ ...newEmployee, departmentId: value === "none" ? "" : value })}
+                                            >
+                                                <SelectTrigger id='addDepartment' className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600">
+                                                    <SelectValue placeholder="Select Department" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                                    <SelectItem
+                                                        className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                                        value="none">
+                                                        No Department
+                                                    </SelectItem>
+                                                    {departments.map((department) => (
+                                                        <SelectItem
+                                                            className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                                            key={department.id}
+                                                            value={department.id.toString()}>
+                                                            {department.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
                                         <div className="flex items-center space-x-2 pt-2">
-                                            <input
-                                                id="isAdmin"
-                                                type="checkbox"
-                                                checked={newEmployee.isAdmin}
-                                                onChange={(e) => setNewEmployee({ ...newEmployee, isAdmin: e.target.checked })}
-                                                className="h-5 w-5 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 dark:bg-slate-700"
-                                            />
-                                            <label htmlFor="isAdmin" className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                                Administrator privileges
-                                            </label>
+                                            <Label htmlFor="isAdmin" className="hover:bg-accent/50 flex items-start gap-3 rounded-lg border p-3 has-[[aria-checked=true]]:border-blue-600 has-[[aria-checked=true]]:bg-blue-50 dark:has-[[aria-checked=true]]:border-blue-900 dark:has-[[aria-checked=true]]:bg-blue-950">
+                                                <Checkbox
+                                                    id="isAdmin"
+                                                    checked={newEmployee.isAdmin}
+                                                    // onChange={(e) => setNewEmployee({ ...newEmployee, isAdmin: e.target.checked })}
+                                                    onCheckedChange={(checked) => setNewEmployee({ ...newEmployee, isAdmin: checked ? true : false })}
+                                                    className="h-5 w-5 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 dark:bg-slate-700"
+                                                />
+                                                <div className="flex-1 space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                                            Administrator Privileges
+                                                        </p>
+                                                    </div>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                                                        Grant this user admin access to manage employees, departments, and system settings.
+                                                    </p>
+                                                </div>
+                                            </Label>
                                         </div>
                                     </div>
 
@@ -475,22 +573,23 @@ const ManageEmployees = () => {
                                                     </span>
                                                 </h3>
                                             </div>
-                                            <button
+                                            <Button
+                                                variant='ghost'
                                                 onClick={() => setIsEditDialogOpen(false)}
                                                 className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-all duration-200"
                                             >
                                                 <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
 
                                     {/* Form Content */}
                                     <div className="p-6 space-y-4">
                                         <div className="space-y-2">
-                                            <label htmlFor="editFirstName" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            <Label htmlFor="editFirstName" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
                                                 First Name *
-                                            </label>
-                                            <input
+                                            </Label>
+                                            <Input
                                                 id="editFirstName"
                                                 type="text"
                                                 placeholder="Enter first name"
@@ -501,10 +600,10 @@ const ManageEmployees = () => {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label htmlFor="editLastName" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            <Label htmlFor="editLastName" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
                                                 Last Name *
-                                            </label>
-                                            <input
+                                            </Label>
+                                            <Input
                                                 id="editLastName"
                                                 type="text"
                                                 placeholder="Enter last name"
@@ -515,10 +614,10 @@ const ManageEmployees = () => {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label htmlFor="editJobTitle" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            <Label htmlFor="editJobTitle" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
                                                 Occupation *
-                                            </label>
-                                            <input
+                                            </Label>
+                                            <Input
                                                 id="editJobTitle"
                                                 type="text"
                                                 placeholder="Enter job title"
@@ -528,17 +627,56 @@ const ManageEmployees = () => {
                                             />
                                         </div>
 
+                                        <div className="space-y-2">
+                                            <Label htmlFor="editDepartment" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                                Department
+                                            </Label>
+                                            <Select
+                                                value={editEmployee.departmentId || "none"}
+                                                onValueChange={(value: string) => setEditEmployee({ ...editEmployee, departmentId: value === "none" ? "" : value })}
+                                            >
+                                                <SelectTrigger id='editDepartment' className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600">
+                                                    <SelectValue placeholder="Select Department" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                                    <SelectItem
+                                                        className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                                        value="none">
+                                                        No Department
+                                                    </SelectItem>
+                                                    {departments.map((department) => (
+                                                        <SelectItem
+                                                            className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                                            key={department.id}
+                                                            value={department.id.toString()}>
+                                                            {department.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
                                         <div className="flex items-center space-x-2 pt-2">
-                                            <input
-                                                id="editIsAdmin"
-                                                type="checkbox"
-                                                checked={editEmployee.isAdmin}
-                                                onChange={(e) => setEditEmployee({ ...editEmployee, isAdmin: e.target.checked })}
-                                                className="h-5 w-5 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 dark:bg-slate-700"
-                                            />
-                                            <label htmlFor="editIsAdmin" className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                                Administrator privileges
-                                            </label>
+                                            <Label htmlFor="isAdmin" className="hover:bg-accent/50 flex items-start gap-3 rounded-lg border p-3 has-[[aria-checked=true]]:border-blue-600 has-[[aria-checked=true]]:bg-blue-50 dark:has-[[aria-checked=true]]:border-blue-900 dark:has-[[aria-checked=true]]:bg-blue-950">
+                                                <Checkbox
+                                                    id="isAdmin"
+                                                    checked={newEmployee.isAdmin}
+                                                    // onChange={(e) => setNewEmployee({ ...newEmployee, isAdmin: e.target.checked })}
+                                                    onCheckedChange={(checked) => setNewEmployee({ ...newEmployee, isAdmin: checked ? true : false })}
+                                                    className="h-5 w-5 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 dark:bg-slate-700"
+                                                />
+                                                <div className="flex-1 space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                                            Administrator Privileges
+                                                        </p>
+                                                    </div>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                                                        Grant this user admin access to manage employees, departments, and system settings.
+                                                    </p>
+                                                </div>
+                                            </Label>
                                         </div>
                                     </div>
 
@@ -622,7 +760,7 @@ const ManageEmployees = () => {
                 <div className="relative mb-6">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
-                        placeholder="Search employees by name, email, or occupation..."
+                        placeholder="Search employees by name, email, occupation, or department..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-10 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700"
@@ -670,13 +808,11 @@ const ManageEmployees = () => {
                             <TableRow className="border-gray-100 dark:border-slate-700">
                                 <TableHead className="text-gray-700 dark:text-gray-300">Employee</TableHead>
                                 <TableHead className="text-gray-700 dark:text-gray-300">Occupation</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-300">Department</TableHead>
                                 <TableHead className="text-gray-700 dark:text-gray-300">Role</TableHead>
-                                {/* <TableHead className="text-gray-700 dark:text-gray-300">Join Date</TableHead>
-                                            <TableHead className="text-gray-700 dark:text-gray-300">Status</TableHead> */}
-                                <TableHead className="text-xs font-semibold tracking-wide text-gray-700 dark:text-gray-300 uppercase gap-2">
+                                <TableHead className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     Actions
                                 </TableHead>
-
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -692,10 +828,20 @@ const ManageEmployees = () => {
                                     </TableCell>
                                     <TableCell className="text-gray-600 dark:text-gray-400">{employee.jobTitle}</TableCell>
                                     <TableCell>
+                                        <Badge variant="outline" className="bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                                            {getDepartmentName(employee.departmentId || employee.departmentId, employee.department)}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
                                         {employee.role === 'admin' ? (
                                             <Badge className="bg-green-100 text-green-600 dark:bg-green-700 dark:text-green-200 flex items-center gap-1 w-fit">
                                                 <Shield className="w-3 h-3" />
                                                 Admin
+                                            </Badge>
+                                        ) : employee.role === 'manager' ? (
+                                            <Badge className="bg-blue-100 text-blue-600 dark:bg-blue-700 dark:text-blue-200 flex items-center gap-1 w-fit">
+                                                <User className="w-3 h-3" />
+                                                Manager
                                             </Badge>
                                         ) : (
                                             <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200 flex items-center gap-1 w-fit">
@@ -704,15 +850,7 @@ const ManageEmployees = () => {
                                             </Badge>
                                         )}
                                     </TableCell>
-                                    {/* <TableCell className="text-gray-600 dark:text-gray-400">
-                                                    {new Date(employee.joinDate).toLocaleDateString()}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(employee.status)}`}>
-                                                        active
-                                                    </span>
-                                                </TableCell> */}
-                                    <TableCell className="flex items-cente gap-2">
+                                    <TableCell className="px-6 py-4 whitespace-nowrap text-right">
                                         <div className="inline-flex items-center gap-2">
                                             <Button
                                                 variant="ghost"
@@ -734,7 +872,6 @@ const ManageEmployees = () => {
                                             </Button>
                                         </div>
                                     </TableCell>
-
                                 </TableRow>
                             ))}
                         </TableBody>

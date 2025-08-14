@@ -27,6 +27,8 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import type { User } from "../contexts/AuthContext";
 
 // Interface for API Document
 interface ApiDocument {
@@ -36,6 +38,8 @@ interface ApiDocument {
     file_size: string;
     priority: string;
     createdAt: string;
+    uploadedById: string;
+    uploadedByDisplay: string;
 }
 
 // Interface for API Category
@@ -57,7 +61,7 @@ interface ApiResponse {
 
 // Interface for a Folder object (transformed from API)
 interface FolderType {
-    id: string;
+    id?: string | "";
     name: string;
     fileCount: number;
     size: string;
@@ -70,7 +74,8 @@ interface FolderType {
 interface DocumentType {
     id: number;
     name: string;
-    uploadedBy: string;
+    uploadedByDisplay: string;
+    uploadedById: string;
     avatar: string;
     date: string;
     status: 'active' | 'draft' | 'archived';
@@ -80,6 +85,8 @@ interface DocumentType {
     content: string;
     fileUrl: string;
     priority?: string;
+    mimeType?: string | "";
+    fileBase64?: string | null; // Base64 representation of the file
 }
 
 // Interface for the new document state
@@ -94,6 +101,7 @@ interface NewDocumentState {
 // Interface for the new folder state
 interface NewFolderState {
     name: string;
+    departmentId?: string; // Optional for now, can be used later
     color: string;
 }
 
@@ -114,7 +122,7 @@ interface ModalProps {
 }
 
 const AdminDocumentsPage: FC = () => {
-    const { authFetch } = useAuth()
+    const { authFetch, user } = useAuth()
     const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
     const [showAddDocumentModal, setShowAddDocumentModal] = useState<boolean>(false);
     const [showAddFolderModal, setShowAddFolderModal] = useState<boolean>(false);
@@ -146,10 +154,19 @@ const AdminDocumentsPage: FC = () => {
         className: 'text-gray-400 dark:text-gray-500'
     }]
 
+    // Departments mock data
+    const departments = [
+        { id: 'hr', name: 'Human Resources' },
+        { id: 'it', name: 'IT Department' },
+        { id: 'finance', name: 'Finance' },
+        { id: 'marketing', name: 'Marketing' },
+        { id: 'sales', name: 'Sales' }
+    ];
+
     // Helper function to calculate file size from multiple documents
     const calculateTotalSize = (documents: ApiDocument[]): string => {
         const totalBytes = documents.reduce((total, doc) => {
-            const sizeStr = doc.file_size.toLowerCase();
+            const sizeStr = doc?.file_size ? doc.file_size.toLowerCase() : "0 KB";
             let bytes = 0;
 
             if (sizeStr.includes('kb')) {
@@ -189,12 +206,15 @@ const AdminDocumentsPage: FC = () => {
                 description: category.description
             });
 
+            const actualCategoryDocuments = category.documents.filter(dc => !!dc.id);
+            
             // Transform documents
-            category.documents.forEach(doc => {
+            actualCategoryDocuments.forEach(doc => {
                 transformedDocuments.push({
                     id: doc.id,
                     name: doc.name,
-                    uploadedBy: 'System User', // Default since API doesn't provide this
+                    uploadedByDisplay: doc.uploadedByDisplay, 
+                    uploadedById: doc.uploadedById,
                     avatar: 'SU',
                     date: new Date(doc.createdAt).toLocaleDateString('en-US', {
                         year: 'numeric',
@@ -217,7 +237,7 @@ const AdminDocumentsPage: FC = () => {
 
     const fetchDocumentCategories = async (): Promise<{ folders: FolderType[], documents: DocumentType[] }> => {
         try {
-            const response = await authFetch('/user-docs/categories-with-documents', {
+            const response = await authFetch('/admin-docs/by-category', {
                 method: 'GET',
             });
 
@@ -302,17 +322,30 @@ const AdminDocumentsPage: FC = () => {
         setSelectedFolder(selectedFolder === folderId ? null : folderId);
     };
 
+    const getDocumentBase64 = async (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            
+            reader.onloadend = () => {
+                resolve(reader.result as string);
+            };
+
+            reader.readAsDataURL(file);
+        });
+    };
+    
     // Handle adding a new document
-    const handleAddDocument = (): void => {
+    const handleAddDocument = async (): Promise<void> => {
         if (!newDocument.name || !newDocument.folder) {
             console.warn("Document name and folder are required.");
             return;
         }
-
+        const fileBasse64 = await getDocumentBase64(newDocument.file as File);
         const document: DocumentType = {
             id: Date.now(),
             name: newDocument.name,
-            uploadedBy: 'Current User',
+            uploadedByDisplay: `${(user as User).firstName} ${(user as User).lastName}`,
+            uploadedById: (user as User).id,
             avatar: 'CU',
             date: new Date().toLocaleDateString('en-US', {
                 year: 'numeric',
@@ -324,41 +357,101 @@ const AdminDocumentsPage: FC = () => {
             folder: newDocument.folder,
             size: newDocument.file ? `${Math.round(newDocument.file.size / 1024)} KB` : '0 KB',
             content: 'Document content will be processed and displayed here once uploaded.',
-            fileUrl: newDocument.file ? URL.createObjectURL(newDocument.file) : '#'
+            // fileUrl: newDocument.file ? URL.createObjectURL(newDocument.file) : '#',
+            fileUrl: "",
+            mimeType: newDocument.file ? newDocument.file.type : '',
+            fileBase64: fileBasse64.split(",")[1]
         };
 
-        setAllDocuments([document, ...allDocuments]);
+        const documentUploadResponse = await authFetch('/admin-docs', {
+            method: 'POST',
+            body: JSON.stringify(document),
+        });
+        
+        if (documentUploadResponse.ok) {
+            const responsePayload = await documentUploadResponse.json();
+            document.id = responsePayload.payload.id;
+            
+            setAllDocuments([document, ...allDocuments]);
+    
+            // Update folder file count
+            setFolders(folders.map(folder =>
+                folder.id === newDocument.folder
+                    ? { ...folder, fileCount: folder.fileCount + 1 }
+                    : folder
+            ));
+    
+            setNewDocument({ name: '', folder: '', file: null, status: 'draft', expiryFrequency: '' });
+            setShowAddDocumentModal(false);
+        }
+        else {
+            const errorResponse = await documentUploadResponse?.json();
 
-        // Update folder file count
-        setFolders(folders.map(folder =>
-            folder.id === newDocument.folder
-                ? { ...folder, fileCount: folder.fileCount + 1 }
-                : folder
-        ));
-
-        setNewDocument({ name: '', folder: '', file: null, status: 'draft', expiryFrequency: '' });
-        setShowAddDocumentModal(false);
+            switch (documentUploadResponse?.status) {
+                default:
+                    toast.error(errorResponse.message || 'Failed to create folder. Please try again later.');
+            }
+        }
     };
 
     // Handle adding a new folder
-    const handleAddFolder = (): void => {
+    const handleAddFolder = async (): Promise<void> => {
         if (!newFolder.name) {
             console.warn("Folder name is required.");
             return;
         }
 
+        // TODO: Indicate loading while HTTP requestion in transit
+        
         const folder: FolderType = {
-            id: newFolder.name.toLowerCase().replace(/\s+/g, '-'),
             name: newFolder.name,
             fileCount: 0,
             size: '0 MB',
             color: newFolder.color,
             icon: Folder
         };
+        let response;
+        
+        // TODO: Submit new folder request to backend API 
+        try {
+            response = await authFetch('/admin-docs/categories', {
+                method: 'PUT',
+                body: JSON.stringify(folder)
+            });
+        } catch (putFolderError) {
+            console.error("Could not PUT folder", putFolderError);
 
-        setFolders([...folders, folder]);
-        setNewFolder({ name: '', color: 'bg-blue-500' });
-        setShowAddFolderModal(false);
+            toast.error('Error', {
+                description: error instanceof Error ? error.message : 'Failed to load profile data',
+            });
+        }
+
+        if (response?.ok) { // Replace with actual API call result
+            const responsePayload = await response.json();
+            const newCategory = responsePayload.payload;
+            folder.id = newCategory.id;
+
+            setFolders([...folders, folder]);
+            setNewFolder({ name: '', color: 'bg-blue-500' });
+            setShowAddFolderModal(false);
+        }
+        else {
+            // Handle error case
+            const errorResponse = await response?.json();
+
+            switch (response?.status) {
+                case 409:
+                    toast.error(errorResponse.message);
+                    break;
+
+                case 413:
+                    toast.error(errorResponse.message);
+                    break;
+
+                default:
+                    toast.error('Failed to create folder. Please try again later.');
+            }
+        }
     };
 
     // Handle viewing a document
@@ -546,10 +639,10 @@ const AdminDocumentsPage: FC = () => {
                             )}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {folders.map((folder) => (
+                            {folders.map((folder: FolderType) => (
                                 <div
                                     key={folder.id}
-                                    onClick={() => handleFolderClick(folder.id)}
+                                    onClick={() => handleFolderClick(folder?.id || "")}
                                     className={`bg-white dark:bg-gray-800 rounded-xl border-2 p-4 hover:shadow-lg transition-all duration-200 cursor-pointer group ${selectedFolder === folder.id
                                         ? 'border-cyan-500 dark:border-cyan-400 bg-cyan-50 dark:bg-cyan-900/20'
                                         : 'border-gray-200 dark:border-gray-700'
@@ -627,7 +720,7 @@ const AdminDocumentsPage: FC = () => {
                                                     <div className="w-8 h-8 bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 rounded-full flex items-center justify-center">
                                                         <span className="text-xs font-semibold text-white">{doc.avatar}</span>
                                                     </div>
-                                                    <span className="text-sm text-gray-900 dark:text-white">{doc.uploadedBy}</span>
+                                                    <span className="text-sm text-gray-900 dark:text-white">{doc.uploadedByDisplay}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
@@ -763,7 +856,7 @@ const AdminDocumentsPage: FC = () => {
                                         {folders.map((folder) => (
                                             <SelectItem
                                                 className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
-                                                key={folder.id} value={folder.id}>
+                                                key={folder.id} value={folder.id as string}>
                                                 {folder.name}
                                             </SelectItem>
                                         ))}
@@ -843,10 +936,10 @@ const AdminDocumentsPage: FC = () => {
             >
                 <div className="space-y-4">
                     <div>
-                        <label htmlFor="new-folder-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <Label htmlFor="new-folder-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Folder Name
-                        </label>
-                        <input
+                        </Label>
+                        <Input
                             id="new-folder-name"
                             type="text"
                             value={newFolder.name}
@@ -857,9 +950,38 @@ const AdminDocumentsPage: FC = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <Label htmlFor="addDepartment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Department
+                        </Label>
+                        <Select
+                            value={newFolder.departmentId || "none"}
+                            onValueChange={(value: string) => setNewFolder({ ...newFolder, departmentId: value === "none" ? "" : value })}
+                        >
+                            <SelectTrigger id='addDepartment' className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600">
+                                <SelectValue placeholder="Select Department" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                <SelectItem
+                                    className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                    value="none">
+                                    No Department
+                                </SelectItem>
+                                {departments.map((department) => (
+                                    <SelectItem
+                                        className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                        key={department.id}
+                                        value={department.id.toString()}>
+                                        {department.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div>
+                        <Label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Folder Color
-                        </label>
+                        </Label>
                         <div className="flex gap-2">
                             {['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-red-500', 'bg-indigo-500'].map(color => (
                                 <button
@@ -905,7 +1027,7 @@ const AdminDocumentsPage: FC = () => {
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedDocument.name}</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    Uploaded by {selectedDocument.uploadedBy} on {selectedDocument.date}
+                                    Uploaded by {selectedDocument.uploadedByDisplay} on {selectedDocument.date}
                                 </p>
                             </div>
                         </div>
@@ -933,12 +1055,12 @@ const AdminDocumentsPage: FC = () => {
                             </div>
                         </div>
 
-                        <div>
+                        {/* <div>
                             <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Content Preview:</h4>
                             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-sm text-gray-600 dark:text-gray-300 max-h-32 overflow-y-auto">
                                 {selectedDocument.content}
                             </div>
-                        </div>
+                        </div> */}
 
                         <div className="flex gap-3 pt-4">
                             <button

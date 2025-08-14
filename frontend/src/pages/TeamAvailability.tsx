@@ -460,7 +460,7 @@ const TeamAvailability = () => {
                                 {/* <TableHead className="text-gray-700 dark:text-gray-300">Job Title</TableHead> */}
                                 <TableHead className="text-gray-700 dark:text-gray-300">Status</TableHead>
                                 <TableHead className="text-gray-700 dark:text-gray-300">Leave Details</TableHead>
-                                <TableHead className="text-gray-700 dark:text-gray-300">Actions</TableHead>
+                                <TableHead className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -513,7 +513,7 @@ const TeamAvailability = () => {
                                                 <span className="text-gray-400">—</span>
                                             )}
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="px-6 py-4 whitespace-nowrap text-right">
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
