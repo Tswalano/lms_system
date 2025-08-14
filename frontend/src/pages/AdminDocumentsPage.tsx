@@ -355,7 +355,7 @@ const AdminDocumentsPage: FC = () => {
         
         if (documentUploadResponse.ok) {
             const responsePayload = await documentUploadResponse.json();
-            document.id = responsePayload.payload[0].id;
+            document.id = responsePayload.payload.id;
             
             setAllDocuments([document, ...allDocuments]);
     
