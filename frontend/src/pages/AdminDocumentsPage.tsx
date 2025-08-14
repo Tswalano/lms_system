@@ -101,6 +101,7 @@ interface NewDocumentState {
 // Interface for the new folder state
 interface NewFolderState {
     name: string;
+    departmentId?: string; // Optional for now, can be used later
     color: string;
 }
 
@@ -152,6 +153,15 @@ const AdminDocumentsPage: FC = () => {
         name: 'Never',
         className: 'text-gray-400 dark:text-gray-500'
     }]
+
+    // Departments mock data
+    const departments = [
+        { id: 'hr', name: 'Human Resources' },
+        { id: 'it', name: 'IT Department' },
+        { id: 'finance', name: 'Finance' },
+        { id: 'marketing', name: 'Marketing' },
+        { id: 'sales', name: 'Sales' }
+    ];
 
     // Helper function to calculate file size from multiple documents
     const calculateTotalSize = (documents: ApiDocument[]): string => {
@@ -926,10 +936,10 @@ const AdminDocumentsPage: FC = () => {
             >
                 <div className="space-y-4">
                     <div>
-                        <label htmlFor="new-folder-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <Label htmlFor="new-folder-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Folder Name
-                        </label>
-                        <input
+                        </Label>
+                        <Input
                             id="new-folder-name"
                             type="text"
                             value={newFolder.name}
@@ -940,9 +950,38 @@ const AdminDocumentsPage: FC = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <Label htmlFor="addDepartment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Department
+                        </Label>
+                        <Select
+                            value={newFolder.departmentId || "none"}
+                            onValueChange={(value: string) => setNewFolder({ ...newFolder, departmentId: value === "none" ? "" : value })}
+                        >
+                            <SelectTrigger id='addDepartment' className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600">
+                                <SelectValue placeholder="Select Department" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                <SelectItem
+                                    className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                    value="none">
+                                    No Department
+                                </SelectItem>
+                                {departments.map((department) => (
+                                    <SelectItem
+                                        className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                        key={department.id}
+                                        value={department.id.toString()}>
+                                        {department.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div>
+                        <Label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Folder Color
-                        </label>
+                        </Label>
                         <div className="flex gap-2">
                             {['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-red-500', 'bg-indigo-500'].map(color => (
                                 <button
