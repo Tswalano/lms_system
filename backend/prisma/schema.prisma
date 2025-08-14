@@ -8,503 +8,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User Management (Updated with minimal performance review fields)
-model users {
-  id           String          @id @db.VarChar(225)
-  firstName    String?         @db.VarChar(255)
-  lastName     String?         @db.VarChar(255)
-  email        String?         @unique @db.VarChar(255)
-  role         String?         @db.VarChar(255)
-  jobTitle     String?         @db.VarChar(255)
-  dob          DateTime?       @db.Date
-  gender       String?         @db.VarChar(255)
-  phoneNumber  String?         @db.VarChar(255)
-  // Performance review related fields
-  employeeId   String?         @unique @db.VarChar(50)
-  departmentId Int?
-  managerId    String?         @db.VarChar(225)
-  roleType     user_role_type?
-  jobLevel     String?         @db.VarChar(50)
-  isActive     Boolean         @default(true)
-  createdAt    DateTime        @db.DateTime(0)
-  updatedAt    DateTime        @db.DateTime(0)
-
-  // Existing relationships
-  leave_action_log leave_action_log[]
-  leave_requests   leave_requests[]
-
-  // Document management relationships
-  document_assignments user_document_assignments[]
-  document_signatures  document_signatures[]
-  created_documents    documents[]                 @relation("DocumentCreator")
-  document_views       document_views[]
-  user_departments     user_departments[]
-
-  // Performance review relationships (minimal)
-  manager           users?                @relation("UserManager", fields: [managerId], references: [id])
-  directReports     users[]               @relation("UserManager")
-  department        departments?          @relation(fields: [departmentId], references: [id])
-  reviewsAsEmployee performance_reviews[] @relation("EmployeeReviews")
-  reviewsAsManager  performance_reviews[] @relation("ManagerReviews")
-  responses         review_responses[]
-  managerFeedback   manager_feedback[]
-  createdReviews    performance_reviews[] @relation("ReviewCreator")
-
-  // Notification relationships
-  notifications        notifications[]              @relation("NotificationRecipient")
-  createdNotifications notifications[]              @relation("NotificationCreator")
-  notificationSettings user_notification_settings[]
-
-  @@index([managerId])
-  @@index([departmentId])
-  @@map("users")
-}
-
-// Leave Management (unchanged)
-model leave_requests {
-  id            BigInt                      @id @unique(map: "id") @default(autoincrement()) @db.UnsignedBigInt
-  uid           String                      @db.VarChar(255)
-  leave_type    String                      @db.VarChar(255)
-  status        leave_status                @default(pending)
-  duration      Int
-  start_date    DateTime                    @db.Date
-  end_date      DateTime                    @db.Date
-  feedback      String?                     @db.Text
-  document      String?                     @db.Text
-  leave_length  leave_requests_leave_length
-  leave_comment String?                     @db.Text
-  system_notes  String?                     @db.Text
-  approved_by   String?                     @db.Char(36)
-  approved_at   DateTime?                   @db.Timestamp(0)
-  createdAt     DateTime?                   @default(now()) @db.Timestamp(0)
-  updatedAt     DateTime?                   @default(now()) @db.Timestamp(0)
-
-  leave_action_log leave_action_log[]
-  approver         users?             @relation(fields: [approved_by], references: [id], onUpdate: NoAction, map: "fk_approved_by_user")
-
-  @@index([approved_by], map: "fk_approved_by_user")
-  @@index([uid])
-  @@map("leave_requests")
-}
-
-model leave_action_log {
-  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
-  leave_id        BigInt    @db.UnsignedBigInt
-  manager_id      String?   @db.Char(36)
-  action          String    @db.VarChar(255)
-  previous_status String?   @db.VarChar(50)
-  new_status      String?   @db.VarChar(50)
-  timestamp       DateTime? @default(now()) @db.Timestamp(0)
-
-  leave_request leave_requests @relation(fields: [leave_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "leave_action_log_ibfk_1")
-  manager       users?         @relation(fields: [manager_id], references: [id], onUpdate: NoAction, map: "leave_action_log_ibfk_2")
-
-  @@index([leave_id], map: "leave_id")
-  @@index([manager_id], map: "manager_id")
-  @@map("leave_action_log")
-}
-
-// Document Management System (unchanged)
-model document_categories {
-  id          String   @id @default(cuid()) @db.VarChar(50)
-  name        String   @db.VarChar(255)
-  description String?  @db.Text
-  color       String?  @db.VarChar(50)
-  createdAt   DateTime @default(now()) @db.Timestamp(0)
-  updatedAt   DateTime @default(now()) @db.Timestamp(0)
-
-  documents documents[]
-
-  @@map("document_categories")
-}
-
-model documents {
-  id          Int               @id @default(autoincrement())
-  name        String            @db.VarChar(500)
-  category_id String            @db.VarChar(50)
-  file_url    String            @db.Text
-  file_size   String?           @db.VarChar(50)
-  content     String?           @db.Text
-  priority    document_priority @default(medium)
-  created_by  String?           @db.VarChar(225)
-  createdAt   DateTime          @default(now()) @db.Timestamp(0)
-  updatedAt   DateTime          @default(now()) @db.Timestamp(0)
-
-  category             document_categories         @relation(fields: [category_id], references: [id])
-  creator              users?                      @relation("DocumentCreator", fields: [created_by], references: [id])
-  user_assignments     user_document_assignments[]
-  signatures           document_signatures[]
-  views                document_views[]
-  training_metadata    document_training_metadata?
-  document_departments document_departments[]
-
-  @@index([category_id])
-  @@index([created_by])
-  @@index([priority])
-  @@map("documents")
-}
-
-model document_training_metadata {
-  document_id           Int       @id
-  version               String?   @db.VarChar(50)
-  renewal_frequency     Int?
-  expiry_date           DateTime? @db.DateTime(0)
-  is_mandatory          Boolean   @default(false)
-  auto_assign_new_users Boolean   @default(false)
-  createdAt             DateTime  @default(now()) @db.Timestamp(0)
-  updatedAt             DateTime  @default(now()) @db.Timestamp(0)
-
-  document documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
-
-  @@index([expiry_date])
-  @@index([is_mandatory])
-  @@index([auto_assign_new_users])
-  @@map("document_training_metadata")
-}
-
-model user_document_assignments {
-  id           BigInt                     @id @default(autoincrement()) @db.UnsignedBigInt
-  user_id      String                     @db.VarChar(225)
-  document_id  Int
-  status       document_assignment_status @default(pending)
-  due_date     DateTime?                  @db.DateTime(0)
-  assigned_at  DateTime                   @default(now()) @db.Timestamp(0)
-  completed_at DateTime?                  @db.Timestamp(0)
-
-  user     users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  document documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
-
-  @@unique([user_id, document_id])
-  @@index([user_id])
-  @@index([document_id])
-  @@index([status])
-  @@index([due_date])
-  @@map("user_document_assignments")
-}
-
-model document_signatures {
-  id          BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
-  user_id     String   @db.VarChar(225)
-  document_id Int
-  signed_at   DateTime @default(now()) @db.Timestamp(0)
-  ip_address  String?  @db.VarChar(45)
-  user_agent  String?  @db.Text
-
-  user     users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  document documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
-
-  @@unique([user_id, document_id])
-  @@index([user_id])
-  @@index([document_id])
-  @@map("document_signatures")
-}
-
-model document_views {
-  id            BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
-  user_id       String   @db.VarChar(225)
-  document_id   Int
-  viewed_at     DateTime @default(now()) @db.Timestamp(0)
-  ip_address    String?  @db.VarChar(45)
-  duration      Int?
-  progress_data String?  @db.Text
-
-  user     users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  document documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
-
-  @@index([user_id])
-  @@index([document_id])
-  @@index([viewed_at])
-  @@map("document_views")
-}
-
-// Departments table
-model departments {
-  id          Int      @id @default(autoincrement())
-  name        String   @db.VarChar(255)
-  description String?  @db.Text
-  createdAt   DateTime @default(now()) @db.Timestamp(0)
-  updatedAt   DateTime @default(now()) @db.Timestamp(0)
-
-  users     user_departments[]
-  documents document_departments[]
-  employees users[]
-
-  @@map("departments")
-}
-
-model user_departments {
-  id            BigInt @id @default(autoincrement()) @db.UnsignedBigInt
-  user_id       String @db.VarChar(225)
-  department_id Int
-
-  user       users       @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  department departments @relation(fields: [department_id], references: [id], onDelete: Cascade)
-
-  @@unique([user_id, department_id])
-  @@index([user_id])
-  @@index([department_id])
-  @@map("user_departments")
-}
-
-model document_departments {
-  id            BigInt @id @default(autoincrement()) @db.UnsignedBigInt
-  document_id   Int
-  department_id Int
-
-  document   documents   @relation(fields: [document_id], references: [id], onDelete: Cascade)
-  department departments @relation(fields: [department_id], references: [id], onDelete: Cascade)
-
-  @@unique([document_id, department_id])
-  @@index([document_id])
-  @@index([department_id])
-  @@map("document_departments")
-}
-
-// ================================================
-// NOTIFICATION CENTER TABLES
-// ================================================
-
-// Main notifications table
-model notifications {
-  id           String                @id @default(cuid()) @db.VarChar(50)
-  recipientId  String                @db.VarChar(225)
-  createdById  String?               @db.VarChar(225) // Who triggered the notification (can be null for system notifications)
-  type         notification_type
-  category     notification_category
-  title        String                @db.VarChar(255)
-  message      String                @db.Text
-  // Rich content support
-  actionUrl    String?               @db.VarChar(500) // URL to navigate to when clicked
-  actionText   String?               @db.VarChar(100) // Text for action button
-  imageUrl     String?               @db.VarChar(500) // Optional image/avatar URL
-  // Reference to related entities
-  relatedId    String?               @db.VarChar(50) // ID of related entity (leave request, document, review, etc.)
-  relatedType  String?               @db.VarChar(50) // Type of related entity
-  // Notification state
-  isRead       Boolean               @default(false)
-  isArchived   Boolean               @default(false)
-  readAt       DateTime?             @db.Timestamp(0)
-  // Priority and scheduling
-  priority     notification_priority @default(normal)
-  scheduledFor DateTime?             @db.Timestamp(0) // For delayed/scheduled notifications
-  expiresAt    DateTime?             @db.Timestamp(0) // When notification should be auto-removed
-  // Metadata
-  metadata     String?               @db.Text // JSON string for additional data
-  createdAt    DateTime              @default(now()) @db.Timestamp(0)
-  updatedAt    DateTime              @default(now()) @db.Timestamp(0)
-
-  // Relationships
-  recipient users  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  createdBy users? @relation("NotificationCreator", fields: [createdById], references: [id])
-
-  @@index([recipientId])
-  @@index([recipientId, isRead])
-  @@index([recipientId, isArchived])
-  @@index([type])
-  @@index([category])
-  @@index([priority])
-  @@index([scheduledFor])
-  @@index([expiresAt])
-  @@index([relatedId, relatedType])
-  @@index([createdAt])
-  @@map("notifications")
-}
-
-// User notification preferences/settings
-model user_notification_settings {
-  id                      String           @id @default(cuid()) @db.VarChar(50)
-  userId                  String           @db.VarChar(225)
-  // Email preferences
-  emailEnabled            Boolean          @default(true)
-  emailLeaveRequests      Boolean          @default(true)
-  emailDocuments          Boolean          @default(true)
-  emailPerformanceReviews Boolean          @default(true)
-  emailSystemUpdates      Boolean          @default(true)
-  emailMarketing          Boolean          @default(false)
-  // In-app preferences
-  inAppEnabled            Boolean          @default(true)
-  inAppLeaveRequests      Boolean          @default(true)
-  inAppDocuments          Boolean          @default(true)
-  inAppPerformanceReviews Boolean          @default(true)
-  inAppSystemUpdates      Boolean          @default(true)
-  // Push notification preferences (for future mobile app)
-  pushEnabled             Boolean          @default(false)
-  pushLeaveRequests       Boolean          @default(false)
-  pushDocuments           Boolean          @default(false)
-  pushPerformanceReviews  Boolean          @default(false)
-  pushSystemUpdates       Boolean          @default(false)
-  // General settings
-  digestFrequency         digest_frequency @default(daily)
-  quietHoursStart         String?          @db.VarChar(5) // "18:00" format
-  quietHoursEnd           String?          @db.VarChar(5) // "08:00" format
-  timezone                String?          @db.VarChar(50)
-  createdAt               DateTime         @default(now()) @db.Timestamp(0)
-  updatedAt               DateTime         @default(now()) @db.Timestamp(0)
-
-  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId])
-  @@index([userId])
-  @@map("user_notification_settings")
-}
-
-// Notification templates for consistent messaging
-model notification_templates {
-  id          String                @id @default(cuid()) @db.VarChar(50)
-  code        String                @unique @db.VarChar(100) // e.g., "LEAVE_REQUEST_SUBMITTED"
-  type        notification_type
-  category    notification_category
-  title       String                @db.VarChar(255) // Can include placeholders like {{employeeName}}
-  message     String                @db.Text // Can include placeholders
-  actionText  String?               @db.VarChar(100)
-  isActive    Boolean               @default(true)
-  description String?               @db.Text // Admin description of when this template is used
-  variables   String?               @db.Text // JSON array of available placeholder variables
-  createdAt   DateTime              @default(now()) @db.Timestamp(0)
-  updatedAt   DateTime              @default(now()) @db.Timestamp(0)
-
-  @@index([type])
-  @@index([category])
-  @@index([isActive])
-  @@map("notification_templates")
-}
-
-// ================================================
-// MINIMIZED PERFORMANCE REVIEW TABLES
-// ================================================
-
-// Main performance review record
-model performance_reviews {
-  id                       String                    @id @default(cuid()) @db.VarChar(50)
-  reviewPeriod             String                    @db.VarChar(100) // "Q1 2025", "Annual 2025"
-  employeeId               String                    @db.VarChar(225)
-  managerId                String                    @db.VarChar(225)
-  createdById              String?                   @db.VarChar(225) // Admin or system who initiated
-  status                   performance_review_status @default(not_started)
-  // Employee completion
-  employeeCompletedAt      DateTime?                 @db.Timestamp(0)
-  // Manager review and discussion
-  managerReviewCompletedAt DateTime?                 @db.Timestamp(0)
-  discussionCompletedAt    DateTime?                 @db.Timestamp(0)
-  // Final outcomes
-  overallRating            Decimal?                  @db.Decimal(3, 2) // 1.00 to 5.00
-  promotionRecommended     Boolean                   @default(false)
-  newJobLevel              String?                   @db.VarChar(50)
-  // Final summary
-  finalSummary             String?                   @db.Text
-  employeeAcknowledged     Boolean                   @default(false)
-  createdAt                DateTime                  @default(now()) @db.Timestamp(0)
-  updatedAt                DateTime                  @default(now()) @db.Timestamp(0)
-
-  // Relationships
-  employee     users              @relation("EmployeeReviews", fields: [employeeId], references: [id])
-  manager      users              @relation("ManagerReviews", fields: [managerId], references: [id])
-  creator      users?             @relation("ReviewCreator", fields: [createdById], references: [id])
-  responses    review_responses[]
-  managerNotes manager_feedback[]
-
-  @@unique([employeeId, reviewPeriod]) // One review per employee per period
-  @@index([employeeId])
-  @@index([managerId])
-  @@index([status])
-  @@map("performance_reviews")
-}
-
-// Question bank - simplified to match your component structure
-model review_questions {
-  id           String        @id @default(cuid()) @db.VarChar(50)
-  category     String        @db.VarChar(100) // "DevOps Technical Skills", "Leadership", etc.
-  questionText String        @db.Text
-  questionType question_type // 'self', 'peer', 'nomination'
-  // Simplified to just phase type since only manager reviews
-  phase        review_phase // 'self', 'peer', 'nomination' 
-  displayOrder Int           @default(0)
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now()) @db.Timestamp(0)
-
-  responses review_responses[]
-
-  @@index([phase])
-  @@index([isActive])
-  @@map("review_questions")
-}
-
-// Employee responses to questions
-model review_responses {
-  id                  String   @id @default(cuid()) @db.VarChar(50)
-  performanceReviewId String   @db.VarChar(50)
-  questionId          String   @db.VarChar(50)
-  employeeId          String   @db.VarChar(225)
-  // Response data based on question type
-  textResponse        String?  @db.Text // For self-review questions
-  ratingResponse      Int? // For peer review questions (1-5)
-  nominationResponse  String?  @db.Text // For nomination questions (JSON: {memberId, memberName, reason})
-  createdAt           DateTime @default(now()) @db.Timestamp(0)
-  updatedAt           DateTime @default(now()) @db.Timestamp(0)
-
-  performanceReview performance_reviews @relation(fields: [performanceReviewId], references: [id], onDelete: Cascade)
-  question          review_questions    @relation(fields: [questionId], references: [id])
-  employee          users               @relation(fields: [employeeId], references: [id])
-
-  @@unique([performanceReviewId, questionId]) // One response per question per review
-  @@index([performanceReviewId])
-  @@index([questionId])
-  @@index([employeeId])
-  @@map("review_responses")
-}
-
-// Manager feedback and final review notes
-model manager_feedback {
-  id                  String                @id @default(cuid()) @db.VarChar(50)
-  performanceReviewId String                @db.VarChar(50)
-  managerId           String                @db.VarChar(225)
-  feedbackType        manager_feedback_type
-  // Content
-  originalResponse    String?               @db.Text // Employee's original response
-  managerComment      String?               @db.Text // Manager's comment/feedback
-  modifiedResponse    String?               @db.Text // Manager's edited version
-  // Specific to ratings
-  originalRating      Int? // Employee's original rating
-  managerRating       Int? // Manager's adjusted rating
-  // Metadata
-  questionReference   String?               @db.VarChar(50) // Which question this relates to
-  isVisible           Boolean               @default(true) // Show to employee or keep private
-  createdAt           DateTime              @default(now()) @db.Timestamp(0)
-
-  performanceReview performance_reviews @relation(fields: [performanceReviewId], references: [id], onDelete: Cascade)
-  manager           users               @relation(fields: [managerId], references: [id])
-
-  @@index([performanceReviewId])
-  @@index([managerId])
-  @@index([feedbackType])
-  @@map("manager_feedback")
-}
-
-// Simplified team members for nominations (can be populated from users table)
-model team_members {
-  id       String  @id @default(cuid()) @db.VarChar(50)
-  userId   String? @db.VarChar(225) // Link to actual user if they exist in system
-  name     String  @db.VarChar(255)
-  role     String  @db.VarChar(255)
-  avatar   String  @db.VarChar(10) // Initials for display
-  isActive Boolean @default(true)
-
-  @@index([isActive])
-  @@map("team_members")
-}
-
-// ================================================
-// ENUMS
-// ================================================
-
-// Existing Enums
-enum invitation_status {
-  pending
-  accepted
-  expired
-  cancelled
-}
-
+// =========================
+// ENUMS (moved to top)
+// =========================
 enum leave_status {
   pending
   approved
@@ -532,7 +38,6 @@ enum document_assignment_status {
   completed
 }
 
-// Performance Review Enums (Minimized)
 enum user_role_type {
   engineer
   product_manager
@@ -552,9 +57,9 @@ enum performance_review_status {
 }
 
 enum question_type {
-  text // For self-review questions
-  rating // For peer review questions (1-5 scale)
-  nomination // For nomination questions
+  text
+  rating
+  nomination
 }
 
 enum review_phase {
@@ -564,14 +69,13 @@ enum review_phase {
 }
 
 enum manager_feedback_type {
-  question_comment // Comment on specific question response
-  rating_adjustment // Adjustment to rating with explanation  
-  general_feedback // General feedback not tied to specific question
-  final_summary // Overall review summary
-  development_goals // Future development areas
+  question_comment
+  rating_adjustment
+  general_feedback
+  final_summary
+  development_goals
 }
 
-// Notification Enums
 enum notification_type {
   info
   success
@@ -602,4 +106,385 @@ enum digest_frequency {
   daily
   weekly
   monthly
+}
+
+// =========================
+// USERS TABLE (UUID ID)
+// =========================
+model users {
+  id           String          @id @default(uuid()) @db.VarChar(36)
+  firstName    String?         @db.VarChar(255)
+  lastName     String?         @db.VarChar(255)
+  email        String?         @unique @db.VarChar(255)
+  role         String?         @db.VarChar(255)
+  jobTitle     String?         @db.VarChar(255)
+  dob          DateTime?       @db.Date
+  gender       String?         @db.VarChar(255)
+  phoneNumber  String?         @db.VarChar(255)
+  employeeId   String?         @unique @db.VarChar(50)
+  departmentId Int?
+  managerId    String?         @db.VarChar(36)
+  roleType     user_role_type?
+  jobLevel     String?         @db.VarChar(50)
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now()) @db.DateTime(0)
+  updatedAt    DateTime        @default(now()) @db.DateTime(0)
+
+  // Relationships
+  leave_action_log     leave_action_log[]
+  leave_requests       leave_requests[]
+  document_assignments user_document_assignments[]
+  document_signatures  document_signatures[]
+  created_documents    documents[]                 @relation("DocumentCreator")
+  document_views       document_views[]
+  user_departments     user_departments[]
+  manager              users?                      @relation("UserManager", fields: [managerId], references: [id])
+  directReports        users[]                     @relation("UserManager")
+  department           departments?                @relation(fields: [departmentId], references: [id])
+  reviewsAsEmployee    performance_reviews[]       @relation("EmployeeReviews")
+  reviewsAsManager     performance_reviews[]       @relation("ManagerReviews")
+  responses            review_responses[]
+  managerFeedback      manager_feedback[]
+  createdReviews       performance_reviews[]       @relation("ReviewCreator")
+  notifications        notifications[]             @relation("NotificationRecipient")
+  createdNotifications notifications[]             @relation("NotificationCreator")
+
+  @@index([managerId])
+  @@index([departmentId])
+  @@map("users")
+}
+
+// =========================
+// LEAVE MANAGEMENT
+// =========================
+model leave_requests {
+  id            BigInt                      @id @default(autoincrement())
+  uid           String                      @db.VarChar(255)
+  leave_type    String                      @db.VarChar(255)
+  status        leave_status                @default(pending)
+  duration      Int
+  start_date    DateTime                    @db.Date
+  end_date      DateTime                    @db.Date
+  feedback      String?                     @db.Text
+  document      String?                     @db.Text
+  leave_length  leave_requests_leave_length
+  leave_comment String?                     @db.Text
+  system_notes  String?                     @db.Text
+  approved_by   String?                     @db.VarChar(36)
+  approved_at   DateTime?                   @db.Timestamp(0)
+  createdAt     DateTime?                   @default(now()) @db.Timestamp(0)
+  updatedAt     DateTime?                   @default(now()) @db.Timestamp(0)
+
+  leave_action_log leave_action_log[]
+  approver         users?             @relation(fields: [approved_by], references: [id], onUpdate: NoAction, map: "fk_approved_by_user")
+
+  @@index([approved_by], map: "fk_approved_by_user")
+  @@index([uid])
+  @@map("leave_requests")
+}
+
+model leave_action_log {
+  id              BigInt    @id @default(autoincrement())
+  leave_id        BigInt
+  manager_id      String?   @db.VarChar(36)
+  action          String    @db.VarChar(255)
+  previous_status String?   @db.VarChar(50)
+  new_status      String?   @db.VarChar(50)
+  timestamp       DateTime? @default(now()) @db.Timestamp(0)
+
+  leave_request leave_requests @relation(fields: [leave_id], references: [id], onDelete: Cascade)
+  manager       users?         @relation(fields: [manager_id], references: [id])
+
+  @@index([leave_id])
+  @@index([manager_id])
+  @@map("leave_action_log")
+}
+
+// =========================
+// DOCUMENT MANAGEMENT
+// =========================
+model document_categories {
+  id           BigInt   @id @default(autoincrement())
+  name         String   @db.VarChar(255)
+  departmentId Int
+  description  String?  @db.Text
+  color        String?  @db.VarChar(50)
+  createdAt    DateTime @default(now()) @db.Timestamp(0)
+  updatedAt    DateTime @default(now()) @db.Timestamp(0)
+
+  documents  documents[]
+  department departments? @relation(fields: [departmentId], references: [id])
+
+  @@index([departmentId])
+  @@map("document_categories")
+}
+
+model documents {
+  id          BigInt            @id @default(autoincrement())
+  name        String            @db.VarChar(500)
+  category_id BigInt
+  file_url    String            @db.Text
+  file_size   String?           @db.VarChar(50)
+  content     String?           @db.Text
+  priority    document_priority @default(medium)
+  created_by  String?           @db.VarChar(36)
+  createdAt   DateTime          @default(now()) @db.Timestamp(0)
+  updatedAt   DateTime          @default(now()) @db.Timestamp(0)
+
+  category          document_categories         @relation(fields: [category_id], references: [id])
+  creator           users?                      @relation("DocumentCreator", fields: [created_by], references: [id])
+  user_assignments  user_document_assignments[]
+  signatures        document_signatures[]
+  views             document_views[]
+  training_metadata document_training_metadata?
+
+  @@index([category_id])
+  @@index([created_by])
+  @@index([priority])
+  @@map("documents")
+}
+
+model document_training_metadata {
+  document_id           BigInt    @id
+  version               String?   @db.VarChar(50)
+  renewal_frequency     Int?
+  expiry_date           DateTime? @db.DateTime(0)
+  is_mandatory          Boolean   @default(false)
+  auto_assign_new_users Boolean   @default(false)
+  createdAt             DateTime  @default(now()) @db.Timestamp(0)
+  updatedAt             DateTime  @default(now()) @db.Timestamp(0)
+
+  document documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@index([expiry_date])
+  @@index([is_mandatory])
+  @@index([auto_assign_new_users])
+  @@map("document_training_metadata")
+}
+
+model user_document_assignments {
+  id           BigInt                     @id @default(autoincrement())
+  user_id      String                     @db.VarChar(36)
+  document_id  BigInt
+  status       document_assignment_status @default(pending)
+  due_date     DateTime?                  @db.DateTime(0)
+  assigned_at  DateTime                   @default(now()) @db.Timestamp(0)
+  completed_at DateTime?                  @db.Timestamp(0)
+
+  user     users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  document documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, document_id])
+  @@index([user_id])
+  @@index([document_id])
+  @@index([status])
+  @@index([due_date])
+  @@map("user_document_assignments")
+}
+
+model document_signatures {
+  id          BigInt   @id @default(autoincrement())
+  user_id     String   @db.VarChar(36)
+  document_id BigInt
+  signed_at   DateTime @default(now()) @db.Timestamp(0)
+  ip_address  String?  @db.VarChar(45)
+  user_agent  String?  @db.Text
+
+  user     users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  document documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, document_id])
+  @@index([user_id])
+  @@index([document_id])
+  @@map("document_signatures")
+}
+
+model document_views {
+  id            BigInt   @id @default(autoincrement())
+  user_id       String   @db.VarChar(36)
+  document_id   BigInt
+  viewed_at     DateTime @default(now()) @db.Timestamp(0)
+  ip_address    String?  @db.VarChar(45)
+  duration      Int?
+  progress_data String?  @db.Text
+
+  user     users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  document documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([document_id])
+  @@index([viewed_at])
+  @@map("document_views")
+}
+
+// =========================
+// DEPARTMENTS
+// =========================
+model departments {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @db.Timestamp(0)
+  updatedAt   DateTime @default(now()) @db.Timestamp(0)
+
+  users               user_departments[]
+  employees           users[]
+  document_categories document_categories[]
+
+  @@map("departments")
+}
+
+model user_departments {
+  id            BigInt @id @default(autoincrement())
+  user_id       String @db.VarChar(36)
+  department_id Int
+
+  user       users       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  department departments @relation(fields: [department_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, department_id])
+  @@index([user_id])
+  @@index([department_id])
+  @@map("user_departments")
+}
+
+// =========================
+// NOTIFICATIONS
+// =========================
+model notifications {
+  id           Int                   @id @default(autoincrement())
+  recipientId  String                @db.VarChar(36)
+  createdById  String?               @db.VarChar(36)
+  type         notification_type
+  category     notification_category
+  title        String                @db.VarChar(255)
+  message      String                @db.Text
+  actionUrl    String?               @db.VarChar(500)
+  actionText   String?               @db.VarChar(100)
+  imageUrl     String?               @db.VarChar(500)
+  relatedId    String?               @db.VarChar(36)
+  relatedType  String?               @db.VarChar(50)
+  isRead       Boolean               @default(false)
+  isArchived   Boolean               @default(false)
+  readAt       DateTime?             @db.Timestamp(0)
+  priority     notification_priority @default(normal)
+  scheduledFor DateTime?             @db.Timestamp(0)
+  expiresAt    DateTime?             @db.Timestamp(0)
+  metadata     String?               @db.Text
+  createdAt    DateTime              @default(now()) @db.Timestamp(0)
+  updatedAt    DateTime              @default(now()) @db.Timestamp(0)
+
+  recipient users  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  createdBy users? @relation("NotificationCreator", fields: [createdById], references: [id])
+
+  @@index([recipientId])
+  @@index([recipientId, isRead])
+  @@index([recipientId, isArchived])
+  @@index([type])
+  @@index([category])
+  @@index([priority])
+  @@index([scheduledFor])
+  @@index([expiresAt])
+  @@index([relatedId, relatedType])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// =========================
+// PERFORMANCE REVIEWS
+// =========================
+model performance_reviews {
+  id                       String                    @id @default(uuid()) @db.VarChar(36)
+  reviewPeriod             String                    @db.VarChar(100)
+  employeeId               String                    @db.VarChar(36)
+  managerId                String                    @db.VarChar(36)
+  createdById              String?                   @db.VarChar(36)
+  status                   performance_review_status @default(not_started)
+  employeeCompletedAt      DateTime?
+  managerReviewCompletedAt DateTime?
+  discussionCompletedAt    DateTime?
+  overallRating            Decimal?                  @db.Decimal(3, 2)
+  promotionRecommended     Boolean                   @default(false)
+  newJobLevel              String?                   @db.VarChar(50)
+  finalSummary             String?                   @db.Text
+  employeeAcknowledged     Boolean                   @default(false)
+  createdAt                DateTime                  @default(now()) @db.Timestamp(0)
+  updatedAt                DateTime                  @default(now()) @db.Timestamp(0)
+
+  employee     users              @relation("EmployeeReviews", fields: [employeeId], references: [id])
+  manager      users              @relation("ManagerReviews", fields: [managerId], references: [id])
+  creator      users?             @relation("ReviewCreator", fields: [createdById], references: [id])
+  responses    review_responses[]
+  managerNotes manager_feedback[]
+
+  @@unique([employeeId, reviewPeriod])
+  @@index([employeeId])
+  @@index([managerId])
+  @@index([status])
+  @@map("performance_reviews")
+}
+
+// =========================
+// REVIEW QUESTIONS & RESPONSES
+// =========================
+model review_questions {
+  id           String        @id @default(uuid()) @db.VarChar(36)
+  category     String        @db.VarChar(100)
+  questionText String        @db.Text
+  questionType question_type
+  phase        review_phase
+  displayOrder Int           @default(0)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now()) @db.Timestamp(0)
+
+  responses review_responses[]
+
+  @@index([phase])
+  @@index([isActive])
+  @@map("review_questions")
+}
+
+model review_responses {
+  id                  String   @id @default(uuid()) @db.VarChar(36)
+  performanceReviewId String   @db.VarChar(36)
+  questionId          String   @db.VarChar(36)
+  employeeId          String   @db.VarChar(36)
+  textResponse        String?  @db.Text
+  ratingResponse      Int?
+  nominationResponse  String?  @db.Text
+  createdAt           DateTime @default(now()) @db.Timestamp(0)
+  updatedAt           DateTime @default(now()) @db.Timestamp(0)
+
+  performanceReview performance_reviews @relation(fields: [performanceReviewId], references: [id], onDelete: Cascade)
+  question          review_questions    @relation(fields: [questionId], references: [id])
+  employee          users               @relation(fields: [employeeId], references: [id])
+
+  @@unique([performanceReviewId, questionId])
+  @@index([performanceReviewId])
+  @@index([questionId])
+  @@index([employeeId])
+  @@map("review_responses")
+}
+
+model manager_feedback {
+  id                  String                @id @default(uuid()) @db.VarChar(36)
+  performanceReviewId String                @db.VarChar(36)
+  managerId           String                @db.VarChar(36)
+  feedbackType        manager_feedback_type
+  originalResponse    String?               @db.Text
+  managerComment      String?               @db.Text
+  modifiedResponse    String?               @db.Text
+  originalRating      Int?
+  managerRating       Int?
+  questionReference   String?               @db.VarChar(36)
+  isVisible           Boolean               @default(true)
+  createdAt           DateTime              @default(now()) @db.Timestamp(0)
+
+  performanceReview performance_reviews @relation(fields: [performanceReviewId], references: [id], onDelete: Cascade)
+  manager           users               @relation(fields: [managerId], references: [id])
+
+  @@index([performanceReviewId])
+  @@index([managerId])
+  @@index([feedbackType])
+  @@map("manager_feedback")
 }
