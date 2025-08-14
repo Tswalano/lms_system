@@ -263,7 +263,6 @@ async function main() {
             create: {
                 id: 'policies',
                 name: 'Company Policies',
-                description: 'Official company policies and procedures',
                 color: 'bg-blue-500',
                 createdAt: new Date('2025-01-15'),
                 updatedAt: new Date('2025-01-15'),
@@ -275,7 +274,6 @@ async function main() {
             create: {
                 id: 'contracts',
                 name: 'Employment Documents',
-                description: 'Employment contracts and agreements',
                 color: 'bg-green-500',
                 createdAt: new Date('2025-01-15'),
                 updatedAt: new Date('2025-01-15'),
@@ -287,7 +285,6 @@ async function main() {
             create: {
                 id: 'training',
                 name: 'Training Materials',
-                description: 'Training guides and educational content',
                 color: 'bg-purple-500',
                 createdAt: new Date('2025-01-15'),
                 updatedAt: new Date('2025-01-15'),
@@ -299,7 +296,6 @@ async function main() {
             create: {
                 id: 'benefits',
                 name: 'Benefits & HR',
-                description: 'Benefits information and HR documents',
                 color: 'bg-orange-500',
                 createdAt: new Date('2025-01-15'),
                 updatedAt: new Date('2025-01-15'),

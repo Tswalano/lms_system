@@ -151,8 +151,25 @@ class UserService {
         const connection = await DatabaseService.createConnection();
 
         try {
-            const sql = `SELECT * FROM users`;
+            const sql = `SELECT 
+                        u.*,
+                        d.name AS department
+                    FROM users u
+                    LEFT JOIN user_departments ud ON ud.user_id = u.id
+                    LEFT JOIN departments d ON d.id = ud.department_id;`;
             const [rows] = await connection.execute(sql);
+            return rows;
+        } finally {
+            await connection.end();
+        }
+    }
+
+    static async getAllDepartments() {
+        const connection = await DatabaseService.createConnection();
+
+        try {
+            const sql = `SELECT * FROM departments`;
+            const [rows] = await connection.execute(sql); // rows is of type QueryResult
             return rows;
         } finally {
             await connection.end();
@@ -260,10 +277,11 @@ app.get('/me/full', async (c) => {
 app.get('/', async (c) => {
     try {
         const users = await UserService.getAllUsers();
+        const departments = await UserService.getAllDepartments();
 
         const response = ResponseService.success(
             "Users retrieved successfully",
-            users
+            { users, departments }
         );
         return c.json(response, 200);
 
@@ -727,7 +745,7 @@ app.post('/me/update', async (c) => {
         try {
             const updateSql = `
                 UPDATE users
-                SET firstName = ?, lastName = ?, jobTitle = ?, phoneNumber = ?, dob = ?, gender = ?
+                SET firstName = ?, lastName = ?, jobTitle = ?, phoneNumber = ?, dob = ?, gender = ?, updatedAt = NOW()
                 WHERE id = ? AND email = ?
             `;
 
@@ -767,13 +785,19 @@ app.post('/me/update', async (c) => {
 // This endpoint is for admin to update any user attributes
 app.post('/update-user', async (c) => {
     try {
-        const { id, firstName, lastName, jobTitle, phoneNumber, dob, gender } = await c.req.json();
+        const { id, firstName, lastName, jobTitle, departmentId } = await c.req.json();
 
         // Validate required fields
         if (!id || !firstName || !lastName || !jobTitle) {
             const response = ResponseService.error(
                 "INVALID_INPUT",
                 "id, jobTitle, firstName, lastName are required"
+            );
+            return c.json(response, 400);
+        } else if (!departmentId) {
+            const response = ResponseService.error(
+                "INVALID_INPUT",
+                "User must be assigned to a department, but department is not provided"
             );
             return c.json(response, 400);
         }
@@ -783,7 +807,7 @@ app.post('/update-user', async (c) => {
         try {
             const updateSql = `
                 UPDATE users
-                SET firstName = ?, lastName = ?, jobTitle = ?, phoneNumber = ?, dob = ?, gender = ?
+                SET firstName = ?, lastName = ?, jobTitle = ?, departmentId = ?, updatedAt = NOW()
                 WHERE id = ?
             `;
 
@@ -791,9 +815,7 @@ app.post('/update-user', async (c) => {
                 firstName,
                 lastName,
                 jobTitle,
-                phoneNumber,
-                dob,
-                gender,
+                departmentId,
                 id
             ]);
 
@@ -801,6 +823,7 @@ app.post('/update-user', async (c) => {
                 "User updated successfully",
                 { firstName, lastName, jobTitle }
             );
+
             return c.json(response, 200);
 
         } finally {
@@ -809,6 +832,33 @@ app.post('/update-user', async (c) => {
 
     } catch (error) {
         console.error('Update user error:', error);
+        const response = ResponseService.error(
+            "INTERNAL_SERVER_ERROR",
+            "Internal server error",
+            error
+        );
+        return c.json(response, 500);
+    }
+});
+
+// POST: Seed departments data
+app.post('/seed-departments', async (c) => {
+    try {
+        const connection = await DatabaseService.createConnection();
+
+        try {
+            const sql = `INSERT INTO departments (name) VALUES ('IT'), ('HR'), ('Admin'), ('Finance')`;
+            await connection.execute(sql);
+            const response = ResponseService.success(
+                "Departments seeded successfully",
+                []
+            );
+            return c.json(response, 200);
+        } finally {
+            await connection.end();
+        }
+    } catch (error) {
+        console.error('Seed departments error:', error);
         const response = ResponseService.error(
             "INTERNAL_SERVER_ERROR",
             "Internal server error",
