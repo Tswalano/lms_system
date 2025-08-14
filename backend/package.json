@@ -11,7 +11,7 @@
     "build": "tsc && npm run copy-lambda",
     "dev": "ts-node lambda/dev.ts",
     "dev:watch": "nodemon lambda/dev.ts",
-    "copy-lambda": "cp -r lambda/*.js lambda/*.json dist/lambda/ || true"
+    "copy-lambda": "find lambda/ -type f \\( -name \"*.js\" -o -name \"*.json\" \\) -exec cp --parents {} dist/ \\;"
   },
   "devDependencies": {
     "@hono/node-server": "^1.18.1",

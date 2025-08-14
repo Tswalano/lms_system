@@ -15,3 +15,5 @@ serve({
 });
 
 console.log(`Server is running on http://localhost:${port}`);
+// cp -r **/lambda/*.js dist/lambda/ || true
+// find lambda/ -type f \( -name "*.js" -o -name "*.json" \) -exec cp --parents {} dist/ \;
