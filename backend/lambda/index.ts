@@ -4,6 +4,7 @@ import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { auth } from './routes/auth';
 import { users } from './routes/user';
+import adminDocs from './routes/adminDoc';
 import { leave } from './routes/leave';
 import { authMiddleware } from './middleware/auth';
 import testRoutes from './routes/dummy';
@@ -19,9 +20,7 @@ app.use(
     cors({
         origin: [
             'http://localhost:5173',
-            'https://lms.disraptor-internal.net',
-            'https://d2ao36j4lo1t1d.cloudfront.net',
-            'http://disraptor-website.s3-website-eu-west-1.amazonaws.com/'
+            'https://lms.disraptor-internal.net'
         ],
         allowMethods: ['*'],
         allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Cookie'],
@@ -37,14 +36,17 @@ app.use('/users/*', authMiddleware());
 app.use('/leave/*', authMiddleware());
 app.use('/performance/*', authMiddleware());
 app.use('/notifications/*', authMiddleware());
+app.use('/user-docs/*', authMiddleware());
+app.use('/admin-docs/*', authMiddleware());
 // app.use('/user-docs/*', authMiddleware());
 
 // Apply routes
 app.route('/users', users);
 app.route('/leave', leave);
 
-// User Document Management
+// Document Management
 app.route('/user-docs', userDoc);
+app.route('/admin-docs', adminDocs);
 
 // notifications routes
 app.route('/notifications', notificationRoutes)
