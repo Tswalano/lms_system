@@ -117,7 +117,7 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, employeeName, leaveTy
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             placeholder={`Add a comment for the ${action === 'approve' ? 'approval' : 'rejection'}...`}
-                            className="min-h-[100px] resize-none"
+                            className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600 min-h-[120px] resize-none"
                             disabled={isSubmitting}
                         />
                     </div>
@@ -129,7 +129,7 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, employeeName, leaveTy
                         <Button
                             variant="outline"
                             onClick={handleClear}
-                            className="flex-1"
+                            className="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200"
                             disabled={isSubmitting}
                         >
                             Clear
@@ -295,6 +295,7 @@ const ApproveLeave = () => {
             case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800';
             case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-800';
             case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800';
+            case 'cancelled': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800';
             default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800';
         }
     };
@@ -425,7 +426,7 @@ const ApproveLeave = () => {
                                             <TableHead className="text-gray-700 dark:text-gray-300">Duration</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Days</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Reason</TableHead>
-                                            <TableHead className="text-gray-700 dark:text-gray-300">Actions</TableHead>
+                                            <TableHead className="text-gray-700 dark:text-gray-300 text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -453,7 +454,7 @@ const ApproveLeave = () => {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex gap-2">
+                                                    <div className="flex justify-end gap-2">
                                                         <Button
                                                             size="sm"
                                                             onClick={() => openApprovalModal(request, 'approve')}
@@ -506,9 +507,11 @@ const ApproveLeave = () => {
                                         <TableRow className="border-gray-100 dark:border-slate-700">
                                             <TableHead className="text-gray-700 dark:text-gray-300">Employee</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Leave Type</TableHead>
-                                            <TableHead className="text-gray-700 dark:text-gray-300">Duration</TableHead>
+                                            <TableHead className="text-gray-700 dark:text-gray-300">Start Date</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Status</TableHead>
-                                            <TableHead className="text-gray-700 dark:text-gray-300">Actions</TableHead>
+                                            {/* <TableHead className="text-gray-700 dark:text-gray-300">Days</TableHead> */}
+                                            <TableHead className="text-gray-700 dark:text-gray-300">Feedback</TableHead>
+                                            <TableHead className="text-gray-700 dark:text-gray-300 text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -531,15 +534,24 @@ const ApproveLeave = () => {
                                                         {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                                                     </Badge>
                                                 </TableCell>
+                                                {/* <TableCell className="text-gray-600 dark:text-gray-400">
+                                                    {request.duration} day{request.duration > 1 ? 's' : ''}{' '}
+                                                    {request.leave_length === 'half_day' ? '(Half Day)' : ''}
+                                                </TableCell> */}
+                                                <TableCell className="text-gray-600 dark:text-gray-400">
+                                                    {request.feedback || 'No feedback provided'}
+                                                </TableCell>
                                                 <TableCell>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-                                                        onClick={() => openDetailsModal(request)}
-                                                    >
-                                                        <Eye className="w-4 h-4" /> View
-                                                    </Button>
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                                                            onClick={() => openDetailsModal(request)}
+                                                        >
+                                                            <Eye className="w-4 h-4" /> View
+                                                        </Button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -699,7 +711,9 @@ const ApproveLeave = () => {
                                 <Button
                                     onClick={() => setIsDetailsModalOpen(false)}
                                     variant={selectedLeaveDetails.status === 'pending' ? 'outline' : 'default'}
-                                    className={selectedLeaveDetails.status === 'pending' ? '' : 'w-full bg-gray-800 hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-white'}
+                                    className={selectedLeaveDetails.status === 'pending' ? 'flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700' : 'w-full bg-gray-800 hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-white'}
+                                // className={selectedLeaveDetails.status === 'pending' ? '' : 'flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200'}
+
                                 >
                                     Close
                                 </Button>
@@ -707,8 +721,9 @@ const ApproveLeave = () => {
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 

@@ -1285,4 +1285,81 @@ app.get('/leave-types', async (c: Context): Promise<Response> => {
     }
 });
 
+/**
+ * @api {patch} /:id/cancel Cancel a Leave Request
+ * @apiName CancelLeaveRequest
+ * @apiGroup Leave
+ *
+ * @apiParam {String} id The unique ID of the leave request.
+ *
+ * @apiSuccess {Boolean} success Indicates if the operation was successful.
+ * @apiSuccess {String}  message A descriptive message.
+ *
+ * @apiError (400) BadRequest The request could not be cancelled (e.g., status is not 'Pending').
+ * @apiError (404) NotFound   The leave request was not found or doesn't belong to the user.
+ * @apiError (500) InternalServerError A server-side error occurred.
+ */
+app.patch('/:id/cancel', async (c: Context): Promise<Response> => {
+    let connection: mysql.Connection | null = null;
+    try {
+        const uid = getUserId(c);
+        const leaveRequestId = c.req.param('id');
+
+        const cancellation_reason = c.req.query('cancellation_reason') || 'No reason provided';
+
+        if (!leaveRequestId) {
+            return c.json<ApiResponse>({
+                success: false,
+                message: 'Leave request ID is required'
+            }, 400);
+        }
+
+        connection = await DatabaseService.createConnection();
+
+        // Atomically update the status to 'Canceled' only if it's currently 'Pending'
+        // and belongs to the authenticated user.
+        const [result] = await connection.query<mysql.OkPacket>(`
+            UPDATE leave_requests
+            SET feedback = ?, status = 'cancelled', updatedAt = NOW()
+            WHERE id = ? AND uid = ? AND status = 'pending'
+        `, [cancellation_reason, leaveRequestId, uid]);
+
+        // If no rows were updated, the request either doesn't exist,
+        // doesn't belong to the user, or is not in a 'Pending' state.
+        if (result.affectedRows === 0) {
+            // To provide a more specific error, we check why it failed.
+            const [existingRequest] = await connection.query<mysql.RowDataPacket[]>(
+                'SELECT status FROM leave_requests WHERE id = ? AND uid = ?',
+                [leaveRequestId, uid]
+            );
+
+            if (existingRequest.length === 0) {
+                return c.json<ApiResponse>({
+                    success: false,
+                    message: 'Leave request not found or you do not have permission to modify it.'
+                }, 404);
+            }
+
+            return c.json<ApiResponse>({
+                success: false,
+                message: `This leave request cannot be cancelled as its status is '${existingRequest[0].status}'.`
+            }, 400); // 400 Bad Request is appropriate as the client's request is invalid.
+        }
+
+        return c.json<ApiResponse>({
+            success: true,
+            message: 'Leave request cancelled successfully'
+        }, 200);
+
+    } catch (error) {
+        console.error('Cancel leave request error:', error);
+        return c.json<ApiResponse>({
+            success: false,
+            message: 'Failed to cancel leave request due to a server error'
+        }, 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
 export { app as leave };

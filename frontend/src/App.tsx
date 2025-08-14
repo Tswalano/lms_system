@@ -20,9 +20,17 @@ import UserProfile from "./pages/UserProfile";
 import PermissionDenied from "./pages/PermissionDenied";
 import DashboardLayout from "./components/DashboardLayout";
 import ProjectManagement from "./pages/ProjectManagement";
-import PerformanceReview from "./pages/PerformanceRiview";
 import AdminDocumentsPage from "./pages/AdminDocumentsPage";
 import EmployeeDocumentsPage from "./pages/EmployeeDocumentsPage";
+// Import Performance Review Components
+import DashboardPage from "./pages/performance-review/pages/DashboardPage";
+import RequestReviewPage from "./pages/performance-review/pages/RequestReviewPage";
+import SelfReviewPage from "./pages/performance-review/pages/SelfReviewPage";
+import ReviewRequestsPage from "./pages/performance-review/pages/ReviewRequestsPage";
+import PendingReviewsPage from "./pages/performance-review/pages/PendingReviewsPage";
+import ConductReviewPage from "./pages/performance-review/pages/ConductReviewPage";
+import AdminApp from "./pages/performance-review/pages/AdminApp";
+import NotificationCenterPage from "./pages/NotificationCenterPage";
 
 const queryClient = new QueryClient();
 
@@ -55,7 +63,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
     return <Navigate to="/login" replace />;
   }
 
-  // Role-based access control
   if (allowedRoles && (!user?.role || !allowedRoles.includes(user.role as 'admin' | 'user'))) {
     return <Navigate to="/permission-denied" replace />;
   }
@@ -65,7 +72,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   )
 };
 
-// Public Route Component (redirects to dashboard if already authenticated)
+// Public Route Component
 const PublicRoute: React.FC<RouteProps> = ({ children }) => {
   const { isAuthenticated } = useAuth();
 
@@ -111,11 +118,52 @@ const App: React.FC = () => (
                   <ProjectManagement />
                 </ProtectedRoute>
               } />
-              <Route path="/performance-review" element={
+
+              {/* Performance Review Routes */}
+              <Route path="/performance" element={
                 <ProtectedRoute>
-                  <PerformanceReview />
+                  <DashboardPage />
                 </ProtectedRoute>
               } />
+              <Route path="/performance/request-review" element={
+                <ProtectedRoute>
+                  <RequestReviewPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance/self-review" element={
+                <ProtectedRoute>
+                  <SelfReviewPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance/review-requests" element={
+                <ProtectedRoute>
+                  <ReviewRequestsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance/pending-reviews" element={
+                <ProtectedRoute>
+                  <PendingReviewsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance/conduct-review/:requestId" element={
+                <ProtectedRoute>
+                  <ConductReviewPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance/admin" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminApp />
+                </ProtectedRoute>
+              } />
+              {/* End of Performance Review Routes */}
+
+              {/* Notification Center */}
+              <Route path="/notifications" element={
+                <ProtectedRoute>
+                  <NotificationCenterPage />
+                </ProtectedRoute>
+              } />
+
               <Route path="/employee-document" element={
                 <ProtectedRoute>
                   <EmployeeDocumentsPage />
@@ -131,13 +179,11 @@ const App: React.FC = () => (
                   <ApproveLeave />
                 </ProtectedRoute>
               } />
-
               <Route path="/manage-employees" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <ManageEmployees />
                 </ProtectedRoute>
               } />
-
               <Route path="/team-leave-history" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <TeamListLeaveHistory />
@@ -155,7 +201,6 @@ const App: React.FC = () => (
                   <ForgotPassword />
                 </PublicRoute>
               } />
-
               <Route path="/change-password" element={
                 <PublicRoute>
                   <ChangePassword />
