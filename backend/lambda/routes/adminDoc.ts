@@ -1,9 +1,10 @@
 import { Hono } from "hono";
-import { 
-    S3Client, S3ClientConfig, 
+import {
+    S3Client, S3ClientConfig,
     PutObjectCommand, PutObjectCommandInput,
-    DeleteObjectCommand, DeleteObjectCommandInput } from "@aws-sdk/client-s3";
-import { v7 as uuid7 } from "uuid";
+    DeleteObjectCommand, DeleteObjectCommandInput
+} from "@aws-sdk/client-s3";
+// import { v7 as uuid7 } from "uuid/v7";
 import { DatabaseService } from '../helpers/databaseHeler';
 import { ResponseService } from '../models/apiResponse';
 import { DocumentCategoryRow } from "../models/documentCategory";
@@ -13,12 +14,12 @@ const adminDocs = new Hono();
 adminDocs.get('/categories', async (c) => {
     // Return all document categories 
     console.log("GET /admin-docs/categories");
-    
+
     let connection;
 
     try {
         connection = await DatabaseService.createConnection();
-        
+
         const selectSql = `
             SELECT dc.id, dc.name, dc.description, dc.color, COUNT(d.id) as document_count
             FROM document_categories dc
@@ -55,14 +56,14 @@ adminDocs.put("/categories", async (c) => {
 
     const {
         name,
-        color
+        color, departmentId
     } = await c.req.json();
     const MAX_FOLDER_NAME_LENGTH = 50;
     let connection;
 
     if (name.length > MAX_FOLDER_NAME_LENGTH) {
         console.error("NEW DOCUMENT CATEGORY ERROR: NAME TOO LONG:", name);
-        
+
         const nameLengthErrorResponse = ResponseService.error(
             "DocumentCategoryNameTooLongError",
             `The category name exceeds the maximum length of ${MAX_FOLDER_NAME_LENGTH} characters.`
@@ -70,10 +71,10 @@ adminDocs.put("/categories", async (c) => {
 
         return c.json(nameLengthErrorResponse, 413);
     }
-    
+
     try {
         connection = await DatabaseService.createConnection();
-        
+
         // Ensure the folder name is unique
         const checkCategoryExists = `
             select count(1) as count 
@@ -90,19 +91,19 @@ adminDocs.put("/categories", async (c) => {
                 `The category name "${name}" already exists. Please choose a different name.`
             );
 
-            return c.json(databaseErrorResponse, 409);   
+            return c.json(databaseErrorResponse, 409);
         }
 
-        const categoryId = uuid7(); // Generate a unique ID for the category
+        // const categoryId = uuid7(); // Generate a unique ID for the category
         const insertStatement = `
-            insert into document_categories (id, name, color, createdAt, updatedAt)
-            values (?, ?, ?, NOW(), NOW());
+            insert into document_categories (name, color, departmentId, createdAt, updatedAt)
+            values ( ?, ?, ?, NOW(), NOW());
         `;
 
         await connection.execute<any[]>(insertStatement, [
-            categoryId,
             name,
-            color
+            color,
+            departmentId
         ]);
 
         const fetchNewDocumentStatement = `
@@ -132,7 +133,7 @@ adminDocs.put("/categories", async (c) => {
     } finally {
         if (!!connection) await connection.end();
     }
-    
+
 });
 
 adminDocs.get('/by-category', async (c) => {
@@ -142,7 +143,7 @@ adminDocs.get('/by-category', async (c) => {
 
     try {
         connection = await DatabaseService.createConnection();
-        
+
         const selectSql = `
             select 
                 dc.id as category_id,
@@ -164,7 +165,7 @@ adminDocs.get('/by-category', async (c) => {
         `;
 
         const [rows] = await connection.execute<any[]>(selectSql);
-        
+
         // Group documents under their categories
         const grouped = rows.reduce((acc, row) => {
             const {
@@ -231,16 +232,12 @@ adminDocs.post('/', async (c) => {
 
         return c.json(configErrorResponse, 500);
     }
-    
+
     const requestBody = await c.req.json();
     const {
-        id,
         name,
         uploadedById,
-        avatar,
-        date,
-        status,
-        signatureRate,
+        departmentId,
         folder,
         size,
         content,
@@ -257,13 +254,12 @@ adminDocs.post('/', async (c) => {
         // available publicly on the internet and, will
         // not be uploaded to S3
         finalUrl = fileUrl;
-    }
-    else {
+    } else {
         // This document will be uploaded to S3
 
         try {
             const s3ClientConfig: S3ClientConfig = {};
-            s3Client = new S3Client(s3ClientConfig); 
+            s3Client = new S3Client(s3ClientConfig);
 
             // TODO: Upload the document to S3 and obtain document URL 
             const putObjectCommandInput: PutObjectCommandInput = {
@@ -274,7 +270,7 @@ adminDocs.post('/', async (c) => {
             }
             const putObjectCommand: PutObjectCommand = new PutObjectCommand(putObjectCommandInput);
             /*const putObjectResrponse: PutObjectCommandOutput = */ await s3Client.send(putObjectCommand);
-            
+
             finalUrl = `${process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL}/${folder}/${name}`;
             isUploadedToS3 = true;
         } catch (s3UploadError: any) {
@@ -294,7 +290,7 @@ adminDocs.post('/', async (c) => {
 
     try {
         connection = await DatabaseService.createConnection();
-        
+
         const insertStatement = `
             insert into documents (name, category_id, file_url, file_size, content, created_by, createdAt, updatedAt)
             values (?, ?, ?, ?, ?, ?, NOW(), NOW());
@@ -327,13 +323,13 @@ adminDocs.post('/', async (c) => {
         console.error("NEW DOCUMENT ERROR: DATABASE:", databaseError);
 
         let responseMessage = "";
-        
+
         if (isUploadedToS3 && s3Client) {
             // If the document was uploaded to S3 but failed to save in the database,
             // we should delete it from S3 to avoid orphaned files
 
             responseMessage = "Document uploaded to S3. Insert into database failed.";
-            
+
             try {
                 const deleteObjectCommandInput: DeleteObjectCommandInput = {
                     Bucket: process.env.POLICY_DOCUMENTS_BUCKET_NAME,
@@ -349,7 +345,7 @@ adminDocs.post('/', async (c) => {
                 responseMessage += ` Failed to delete document from S3: ${deleteDocumentError.message || "Unknown error"}`;
             }
         }
-        
+
         const databaseErrorResponse = ResponseService.error(
             "NewDocumentSaveToDatabaseError",
             responseMessage + " Please check logs for more details."
