@@ -841,6 +841,33 @@ app.post('/update-user', async (c) => {
     }
 });
 
+// GET All departments - This endpoint retrieves all departments
+app.get('/departments', async (c) => {
+    try {
+        const connection = await DatabaseService.createConnection();
+
+        try {
+            const sql = `SELECT * FROM departments`;
+            const [rows] = await connection.execute(sql);
+            const response = ResponseService.success(
+                "Departments retrieved successfully",
+                rows
+            );
+            return c.json(response, 200);
+        } finally {
+            await connection.end();
+        }
+    } catch (error) {
+        console.error('Get departments error:', error);
+        const response = ResponseService.error(
+            "INTERNAL_SERVER_ERROR",
+            "Internal server error",
+            error
+        );
+        return c.json(response, 500);
+    }
+});
+
 // POST: Seed departments data
 app.post('/seed-departments', async (c) => {
     try {

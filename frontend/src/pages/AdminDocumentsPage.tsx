@@ -1,4 +1,4 @@
-import React, { useState, type FC } from 'react';
+import React, { useState, useEffect, type FC } from 'react';
 import {
     Plus,
     Folder,
@@ -14,6 +14,7 @@ import {
     UploadCloud,
     Loader2,
     AlertCircle,
+    UserPlus,
 } from 'lucide-react';
 import {
     Select,
@@ -24,9 +25,9 @@ import {
 } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useAuth } from '@/contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { User } from "../contexts/AuthContext";
 
@@ -44,6 +45,7 @@ interface ApiDocument {
 
 // Interface for API Category
 interface ApiCategory {
+    departmentId: null;
     id: string;
     name: string;
     description: string;
@@ -51,23 +53,40 @@ interface ApiCategory {
     documents: ApiDocument[];
 }
 
-// Interface for API Response
-interface ApiResponse {
+// Interface for Department
+interface Department {
+    id: number;
+    name: string;
+    description?: string;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+// Interface for API Responses
+interface DocumentCategoriesResponse {
     code: string;
     message: string;
     error: boolean;
     payload: ApiCategory[];
 }
 
+interface DepartmentsResponse {
+    code: string;
+    message: string;
+    error: boolean;
+    payload: Department[];
+}
+
 // Interface for a Folder object (transformed from API)
 interface FolderType {
-    id?: string | "";
+    id?: string;
     name: string;
     fileCount: number;
     size: string;
     color: string;
     icon: React.ElementType;
     description?: string;
+    departmentId: number | null;
 }
 
 // Interface for a Document object (transformed from API)
@@ -85,8 +104,8 @@ interface DocumentType {
     content: string;
     fileUrl: string;
     priority?: string;
-    mimeType?: string | "";
-    fileBase64?: string | null; // Base64 representation of the file
+    mimeType?: string;
+    fileBase64?: string | null;
 }
 
 // Interface for the new document state
@@ -101,7 +120,7 @@ interface NewDocumentState {
 // Interface for the new folder state
 interface NewFolderState {
     name: string;
-    departmentId?: string; // Optional for now, can be used later
+    departmentId: number | null;
     color: string;
 }
 
@@ -122,48 +141,228 @@ interface ModalProps {
 }
 
 const AdminDocumentsPage: FC = () => {
-    const { authFetch, user } = useAuth()
+    const { authFetch, user } = useAuth();
+    const queryClient = useQueryClient();
+
+    // Component state
     const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
     const [showAddDocumentModal, setShowAddDocumentModal] = useState<boolean>(false);
     const [showAddFolderModal, setShowAddFolderModal] = useState<boolean>(false);
     const [showViewModal, setShowViewModal] = useState<boolean>(false);
     const [showEditModal, setShowEditModal] = useState<boolean>(false);
     const [selectedDocument, setSelectedDocument] = useState<DocumentType | null>(null);
-    const [isDragging, setIsDragging] = useState(false)
+    const [isDragging, setIsDragging] = useState(false);
 
-    // State for folders and documents (will be populated from API)
+    // Local state for folders and documents
     const [folders, setFolders] = useState<FolderType[]>([]);
     const [allDocuments, setAllDocuments] = useState<DocumentType[]>([]);
 
-    const renewalFrequencies = [{
-        id: 1,
-        name: 'Weekly',
-    }, {
-        id: 2,
-        name: 'Monthly',
-    }, {
-        id: 3,
-        name: 'Quarterly',
-    }, {
-        id: 4,
-        name: 'Bi-Annually',
-    },
-    {
-        id: 6,
-        name: 'Never',
-        className: 'text-gray-400 dark:text-gray-500'
-    }]
+    // Form states
+    const [newDocument, setNewDocument] = useState<NewDocumentState>({
+        name: '',
+        folder: '',
+        expiryFrequency: '',
+        file: null,
+        status: 'draft'
+    });
 
-    // Departments mock data
-    const departments = [
-        { id: 'hr', name: 'Human Resources' },
-        { id: 'it', name: 'IT Department' },
-        { id: 'finance', name: 'Finance' },
-        { id: 'marketing', name: 'Marketing' },
-        { id: 'sales', name: 'Sales' }
+    const [newFolder, setNewFolder] = useState<NewFolderState>({
+        name: '',
+        departmentId: 1,
+        color: 'bg-blue-500'
+    });
+
+    const [editDocument, setEditDocument] = useState<EditDocumentState>({
+        id: null,
+        name: '',
+        folder: '',
+        status: 'draft'
+    });
+
+    // Constants
+    const renewalFrequencies = [
+        { id: 1, name: 'Weekly' },
+        { id: 2, name: 'Monthly' },
+        { id: 3, name: 'Quarterly' },
+        { id: 4, name: 'Bi-Annually' },
+        { id: 6, name: 'Never', className: 'text-gray-400 dark:text-gray-500' }
     ];
 
-    // Helper function to calculate file size from multiple documents
+    const folderColors = [
+        'bg-blue-500',
+        'bg-green-500',
+        'bg-purple-500',
+        'bg-orange-500',
+        'bg-red-500',
+        'bg-indigo-500'
+    ];
+
+    // API Functions
+    const fetchDepartments = async (): Promise<Department[]> => {
+        try {
+            const response = await authFetch('/users/departments', {
+                method: 'GET',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch departments');
+            }
+
+            const result: DepartmentsResponse = await response.json();
+
+            if (result.error || result.code !== 'SUCCESS') {
+                throw new Error(result.message || 'Failed to fetch departments');
+            }
+
+            return result.payload;
+        } catch (error) {
+            console.error('Error fetching departments:', error);
+            throw error;
+        }
+    };
+
+    const fetchDocumentCategories = async (): Promise<{ folders: FolderType[], documents: DocumentType[] }> => {
+        try {
+            const response = await authFetch('/admin-docs/by-category', {
+                method: 'GET',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch document categories');
+            }
+
+            const result: DocumentCategoriesResponse = await response.json();
+
+            if (result.error || result.code !== 'SUCCESS') {
+                throw new Error(result.message || 'Failed to fetch document categories');
+            }
+
+            return transformApiData(result.payload);
+        } catch (error) {
+            console.error('Error fetching document categories:', error);
+            throw error;
+        }
+    };
+
+    // React Query hooks
+    const {
+        data: departments = [],
+        isLoading: departmentsLoading,
+        error: departmentsError
+    } = useQuery({
+        queryKey: ['departments'],
+        queryFn: fetchDepartments,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        retry: 2,
+    });
+
+    const {
+        data: documentsData,
+        isLoading: documentsLoading,
+        error: documentsError,
+        refetch: refetchDocuments
+    } = useQuery({
+        queryKey: ['documentsCategories'],
+        queryFn: fetchDocumentCategories,
+        staleTime: 2 * 60 * 1000, // 2 minutes
+        retry: 2,
+    });
+
+    // Update local state when data changes
+    useEffect(() => {
+        if (documentsData) {
+            setFolders(documentsData.folders);
+            setAllDocuments(documentsData.documents);
+        }
+    }, [documentsData]);
+
+    // Mutations
+    const createFolderMutation = useMutation({
+        mutationFn: async (folderData: NewFolderState) => {
+            const response = await authFetch('/admin-docs/categories', {
+                method: 'PUT',
+                body: JSON.stringify({
+                    name: folderData.name,
+                    fileCount: 0,
+                    size: '0 MB',
+                    color: folderData.color,
+                    departmentId: folderData.departmentId || null
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (responsePayload) => {
+            const newCategory = responsePayload.payload;
+            const folder: FolderType = {
+                id: newCategory.id,
+                name: newFolder.name,
+                fileCount: 0,
+                size: '0 MB',
+                color: newFolder.color,
+                icon: Folder,
+                departmentId: newFolder.departmentId || null
+            };
+
+            setFolders(prev => [...prev, folder]);
+            setNewFolder({ name: '', departmentId: null, color: 'bg-blue-500' });
+            setShowAddFolderModal(false);
+
+            toast.success("Folder created successfully!", {
+                description: `Folder "${folder.name}" has been created.`,
+            });
+        },
+        onError: (error: Error) => {
+            toast.error("Error creating folder", {
+                description: error.message || "Failed to create folder. Please try again.",
+            });
+        }
+    });
+
+    const createDocumentMutation = useMutation({
+        mutationFn: async (documentData: DocumentType) => {
+            const response = await authFetch('/admin-docs', {
+                method: 'POST',
+                body: JSON.stringify(documentData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (responsePayload, documentData) => {
+            const document = { ...documentData, id: responsePayload.payload.id };
+
+            setAllDocuments(prev => [document, ...prev]);
+            setFolders(prev => prev.map(folder =>
+                folder.id === newDocument.folder
+                    ? { ...folder, fileCount: folder.fileCount + 1 }
+                    : folder
+            ));
+
+            setNewDocument({ name: '', folder: '', file: null, status: 'draft', expiryFrequency: '' });
+            setShowAddDocumentModal(false);
+
+            toast.success("Document added successfully!", {
+                description: `Document "${document.name}" has been added.`,
+            });
+        },
+        onError: (error: Error) => {
+            toast.error("Error adding document", {
+                description: error.message || "Failed to add document. Please try again.",
+            });
+        }
+    });
+
+    // Helper functions
     const calculateTotalSize = (documents: ApiDocument[]): string => {
         const totalBytes = documents.reduce((total, doc) => {
             const sizeStr = doc?.file_size ? doc.file_size.toLowerCase() : "0 KB";
@@ -189,13 +388,11 @@ const AdminDocumentsPage: FC = () => {
         }
     };
 
-    // Helper function to transform API data
     const transformApiData = (apiData: ApiCategory[]) => {
         const transformedFolders: FolderType[] = [];
         const transformedDocuments: DocumentType[] = [];
 
         apiData.forEach(category => {
-            // Transform category to folder
             transformedFolders.push({
                 id: category.id,
                 name: category.name,
@@ -203,17 +400,17 @@ const AdminDocumentsPage: FC = () => {
                 size: calculateTotalSize(category.documents),
                 color: category.color,
                 icon: Folder,
-                description: category.description
+                description: category.description,
+                departmentId: category.departmentId || null
             });
 
             const actualCategoryDocuments = category.documents.filter(dc => !!dc.id);
-            
-            // Transform documents
+
             actualCategoryDocuments.forEach(doc => {
                 transformedDocuments.push({
                     id: doc.id,
                     name: doc.name,
-                    uploadedByDisplay: doc.uploadedByDisplay, 
+                    uploadedByDisplay: doc.uploadedByDisplay,
                     uploadedById: doc.uploadedById,
                     avatar: 'SU',
                     date: new Date(doc.createdAt).toLocaleDateString('en-US', {
@@ -221,8 +418,8 @@ const AdminDocumentsPage: FC = () => {
                         month: 'short',
                         day: 'numeric'
                     }),
-                    status: 'active', // Default since API doesn't provide this
-                    signatureRate: Math.floor(Math.random() * 100), // Random since API doesn't provide this
+                    status: 'active',
+                    signatureRate: Math.floor(Math.random() * 100),
                     folder: category.id,
                     size: doc.file_size,
                     content: `This is the ${doc.name} document. Content will be loaded when the document is accessed.`,
@@ -235,74 +432,6 @@ const AdminDocumentsPage: FC = () => {
         return { folders: transformedFolders, documents: transformedDocuments };
     };
 
-    const fetchDocumentCategories = async (): Promise<{ folders: FolderType[], documents: DocumentType[] }> => {
-        try {
-            const response = await authFetch('/admin-docs/by-category', {
-                method: 'GET',
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch document categories');
-            }
-
-            const result: ApiResponse = await response.json();
-
-            if (result.error || result.code !== 'SUCCESS') {
-                throw new Error(result.message || 'Failed to fetch document categories');
-            }
-
-            return transformApiData(result.payload);
-        } catch (error) {
-            console.error('Error fetching document categories:', error);
-            throw error;
-        }
-    };
-
-    const {
-        data,
-        isLoading,
-        error,
-        refetch
-    } = useQuery({
-        queryKey: ['documentsCategories'],
-        queryFn: fetchDocumentCategories,
-        staleTime: 2 * 60 * 1000, // 2 minutes
-        retry: 2,
-        // onSuccess: (data) => {
-        //     setFolders(data.folders);
-        //     setAllDocuments(data.documents);
-        // }
-    });
-
-    // Use the data from the query if available
-    React.useEffect(() => {
-        if (data) {
-            setFolders(data.folders);
-            setAllDocuments(data.documents);
-        }
-    }, [data]);
-
-    const [newDocument, setNewDocument] = useState<NewDocumentState>({
-        name: '',
-        folder: '',
-        expiryFrequency: '',
-        file: null,
-        status: 'draft'
-    });
-
-    const [newFolder, setNewFolder] = useState<NewFolderState>({
-        name: '',
-        color: 'bg-blue-500'
-    });
-
-    const [editDocument, setEditDocument] = useState<EditDocumentState>({
-        id: null,
-        name: '',
-        folder: '',
-        status: 'draft'
-    });
-
-    // Helper function to get status color class
     const getStatusColor = (status: 'active' | 'draft' | 'archived'): string => {
         switch (status) {
             case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
@@ -312,155 +441,75 @@ const AdminDocumentsPage: FC = () => {
         }
     };
 
-    // Filter documents based on selected folder
-    const filteredDocuments: DocumentType[] = selectedFolder
-        ? allDocuments.filter(doc => doc.folder === selectedFolder)
-        : allDocuments;
+    const getDocumentBase64 = async (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+        });
+    };
 
-    // Handle folder click to filter documents
+    // Event handlers
     const handleFolderClick = (folderId: string): void => {
         setSelectedFolder(selectedFolder === folderId ? null : folderId);
     };
 
-    const getDocumentBase64 = async (file: File): Promise<string> => {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            
-            reader.onloadend = () => {
-                resolve(reader.result as string);
+    const handleAddFolder = (): void => {
+        if (!newFolder.name.trim()) {
+            toast.error("Validation Error", {
+                description: "Folder name is required.",
+            });
+            return;
+        }
+        createFolderMutation.mutate(newFolder);
+    };
+
+    const handleAddDocument = async (): Promise<void> => {
+        if (!newDocument.name.trim() || !newDocument.folder) {
+            toast.error("Validation Error", {
+                description: "Document name and folder are required.",
+            });
+            return;
+        }
+
+        try {
+            const fileBasse64 = newDocument.file ? await getDocumentBase64(newDocument.file) : '';
+
+            const document: DocumentType = {
+                id: Date.now(), // Temporary ID, will be replaced by API response
+                name: newDocument.name,
+                uploadedByDisplay: `${(user as User).firstName} ${(user as User).lastName}`,
+                uploadedById: (user as User).id,
+                avatar: 'CU',
+                date: new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                }),
+                status: newDocument.status,
+                signatureRate: 0,
+                folder: newDocument.folder,
+                size: newDocument.file ? `${Math.round(newDocument.file.size / 1024)} KB` : '0 KB',
+                content: 'Document content will be processed and displayed here once uploaded.',
+                fileUrl: "",
+                mimeType: newDocument.file ? newDocument.file.type : '',
+                fileBase64: fileBasse64 ? fileBasse64.split(",")[1] : null
             };
 
-            reader.readAsDataURL(file);
-        });
-    };
-    
-    // Handle adding a new document
-    const handleAddDocument = async (): Promise<void> => {
-        if (!newDocument.name || !newDocument.folder) {
-            console.warn("Document name and folder are required.");
-            return;
-        }
-        const fileBasse64 = await getDocumentBase64(newDocument.file as File);
-        const document: DocumentType = {
-            id: Date.now(),
-            name: newDocument.name,
-            uploadedByDisplay: `${(user as User).firstName} ${(user as User).lastName}`,
-            uploadedById: (user as User).id,
-            avatar: 'CU',
-            date: new Date().toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-            }),
-            status: newDocument.status,
-            signatureRate: 0,
-            folder: newDocument.folder,
-            size: newDocument.file ? `${Math.round(newDocument.file.size / 1024)} KB` : '0 KB',
-            content: 'Document content will be processed and displayed here once uploaded.',
-            // fileUrl: newDocument.file ? URL.createObjectURL(newDocument.file) : '#',
-            fileUrl: "",
-            mimeType: newDocument.file ? newDocument.file.type : '',
-            fileBase64: fileBasse64.split(",")[1]
-        };
-
-        const documentUploadResponse = await authFetch('/admin-docs', {
-            method: 'POST',
-            body: JSON.stringify(document),
-        });
-        
-        if (documentUploadResponse.ok) {
-            const responsePayload = await documentUploadResponse.json();
-            document.id = responsePayload.payload.id;
-            
-            setAllDocuments([document, ...allDocuments]);
-    
-            // Update folder file count
-            setFolders(folders.map(folder =>
-                folder.id === newDocument.folder
-                    ? { ...folder, fileCount: folder.fileCount + 1 }
-                    : folder
-            ));
-    
-            setNewDocument({ name: '', folder: '', file: null, status: 'draft', expiryFrequency: '' });
-            setShowAddDocumentModal(false);
-        }
-        else {
-            const errorResponse = await documentUploadResponse?.json();
-
-            switch (documentUploadResponse?.status) {
-                default:
-                    toast.error(errorResponse.message || 'Failed to create folder. Please try again later.');
-            }
-        }
-    };
-
-    // Handle adding a new folder
-    const handleAddFolder = async (): Promise<void> => {
-        if (!newFolder.name) {
-            console.warn("Folder name is required.");
-            return;
-        }
-
-        // TODO: Indicate loading while HTTP requestion in transit
-        
-        const folder: FolderType = {
-            name: newFolder.name,
-            fileCount: 0,
-            size: '0 MB',
-            color: newFolder.color,
-            icon: Folder
-        };
-        let response;
-        
-        // TODO: Submit new folder request to backend API 
-        try {
-            response = await authFetch('/admin-docs/categories', {
-                method: 'PUT',
-                body: JSON.stringify(folder)
-            });
-        } catch (putFolderError) {
-            console.error("Could not PUT folder", putFolderError);
-
-            toast.error('Error', {
-                description: error instanceof Error ? error.message : 'Failed to load profile data',
+            createDocumentMutation.mutate(document);
+        } catch (error) {
+            console.error('Error processing file:', error);
+            toast.error("Error processing file", {
+                description: "Failed to process the selected file. Please try again.",
             });
         }
-
-        if (response?.ok) { // Replace with actual API call result
-            const responsePayload = await response.json();
-            const newCategory = responsePayload.payload;
-            folder.id = newCategory.id;
-
-            setFolders([...folders, folder]);
-            setNewFolder({ name: '', color: 'bg-blue-500' });
-            setShowAddFolderModal(false);
-        }
-        else {
-            // Handle error case
-            const errorResponse = await response?.json();
-
-            switch (response?.status) {
-                case 409:
-                    toast.error(errorResponse.message);
-                    break;
-
-                case 413:
-                    toast.error(errorResponse.message);
-                    break;
-
-                default:
-                    toast.error('Failed to create folder. Please try again later.');
-            }
-        }
     };
 
-    // Handle viewing a document
     const handleViewDocument = (doc: DocumentType): void => {
         setSelectedDocument(doc);
         setShowViewModal(true);
     };
 
-    // Handle downloading a document
     const handleDownloadDocument = (doc: DocumentType): void => {
         const link = document.createElement('a');
         link.href = doc.fileUrl;
@@ -468,11 +517,8 @@ const AdminDocumentsPage: FC = () => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-
-        console.log(`Downloading ${doc.name}...`);
     };
 
-    // Handle editing a document
     const handleEditDocument = (doc: DocumentType): void => {
         setEditDocument({
             id: doc.id,
@@ -483,10 +529,11 @@ const AdminDocumentsPage: FC = () => {
         setShowEditModal(true);
     };
 
-    // Handle updating an existing document
     const handleUpdateDocument = (): void => {
-        if (!editDocument.name || !editDocument.folder || editDocument.id === null) {
-            console.warn("Document name, folder, and ID are required for update.");
+        if (!editDocument.name.trim() || !editDocument.folder || editDocument.id === null) {
+            toast.error("Validation Error", {
+                description: "Document name, folder, and ID are required for update.",
+            });
             return;
         }
 
@@ -494,14 +541,14 @@ const AdminDocumentsPage: FC = () => {
         const oldFolderId = oldDocument?.folder;
         const newFolderId = editDocument.folder;
 
-        setAllDocuments(allDocuments.map(doc =>
+        setAllDocuments(prev => prev.map(doc =>
             doc.id === editDocument.id
                 ? { ...doc, name: editDocument.name, folder: editDocument.folder, status: editDocument.status }
                 : doc
         ));
 
         if (oldFolderId !== newFolderId) {
-            setFolders(folders.map(folder => {
+            setFolders(prev => prev.map(folder => {
                 if (folder.id === oldFolderId) {
                     return { ...folder, fileCount: Math.max(0, folder.fileCount - 1) };
                 }
@@ -514,49 +561,82 @@ const AdminDocumentsPage: FC = () => {
 
         setShowEditModal(false);
         setEditDocument({ id: null, name: '', folder: '', status: 'draft' });
+
+        toast.success("Document updated successfully!", {
+            description: `Document "${editDocument.name}" has been updated.`,
+        });
     };
 
-    // Handle deleting a document
     const handleDeleteDocument = (docId: number): void => {
         if (confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
             const documentToDelete = allDocuments.find(doc => doc.id === docId);
 
-            setAllDocuments(allDocuments.filter(doc => doc.id !== docId));
+            setAllDocuments(prev => prev.filter(doc => doc.id !== docId));
 
             if (documentToDelete) {
-                setFolders(folders.map(folder =>
+                setFolders(prev => prev.map(folder =>
                     folder.id === documentToDelete.folder
                         ? { ...folder, fileCount: Math.max(0, folder.fileCount - 1) }
                         : folder
                 ));
             }
+
+            toast.success("Document deleted", {
+                description: "Document has been removed successfully.",
+            });
         }
     };
 
     const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault()
-        setIsDragging(false)
+        e.preventDefault();
+        setIsDragging(false);
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            setNewDocument({ ...newDocument, file: e.dataTransfer.files[0] })
-            e.dataTransfer.clearData()
+            setNewDocument({ ...newDocument, file: e.dataTransfer.files[0] });
+            e.dataTransfer.clearData();
         }
-    }
+    };
 
-    // Modal Component
-    const Modal: FC<ModalProps> = ({ show, onClose, title, children }) => {
+    const handleFolderDepartmentChange = React.useCallback((value: string) => {
+        setNewFolder(prev => ({ ...prev, departmentId: value === "none" ? null : parseInt(value) }));
+    }, []);
+
+    const handleFolderColorChange = React.useCallback((color: string) => {
+        setNewFolder(prev => ({ ...prev, color }));
+    }, []);
+
+    const handleCloseAddFolderModal = React.useCallback(() => {
+        setShowAddFolderModal(false);
+    }, []);
+
+    const handleFolderNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setNewFolder({ ...newFolder, name: e.target.value });
+    };
+
+    // Computed values
+    const filteredDocuments: DocumentType[] = selectedFolder
+        ? allDocuments.filter(doc => doc.folder === selectedFolder)
+        : allDocuments;
+
+    const isLoading = documentsLoading || departmentsLoading;
+    const hasError = documentsError || departmentsError;
+
+    // Memoized Modal Component to prevent re-renders
+    const Modal = React.memo<ModalProps>(({ show, onClose, title, children }) => {
         if (!show) return null;
 
         return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-                    <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-                        <button
-                            onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-600/50">
+                    <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{title}</h3>
+                            <button
+                                onClick={onClose}
+                                className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-colors"
+                            >
+                                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                            </button>
+                        </div>
                     </div>
                     <div className="p-6">
                         {children}
@@ -564,7 +644,7 @@ const AdminDocumentsPage: FC = () => {
                 </div>
             </div>
         );
-    };
+    });
 
     return (
         <div className="font-inter">
@@ -604,179 +684,209 @@ const AdminDocumentsPage: FC = () => {
             </div>
 
             <div>
-                {/* Folders Section */}
+                {/* Loading and Error States */}
                 {isLoading ? (
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12">
                         <div className="text-center">
                             <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
-                            <p className="text-gray-600 dark:text-gray-400">Loading documents categories...</p>
+                            <p className="text-gray-600 dark:text-gray-400">Loading documents and departments...</p>
                         </div>
                     </div>
-                ) : error ? (
+                ) : hasError ? (
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12">
                         <div className="text-center">
                             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                            <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">Error loading document categories</p>
+                            <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">Error loading data</p>
                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                {error instanceof Error ? error.message : 'Something went wrong'}
+                                {(documentsError || departmentsError) instanceof Error
+                                    ? (documentsError || departmentsError)?.message
+                                    : 'Something went wrong'}
                             </p>
-                            <Button onClick={() => refetch()} className="bg-blue-500 hover:bg-blue-600 text-white">
+                            <Button
+                                onClick={() => {
+                                    refetchDocuments();
+                                    queryClient.invalidateQueries({ queryKey: ['departments'] });
+                                }}
+                                className="bg-blue-500 hover:bg-blue-600 text-white"
+                            >
                                 Try Again
                             </Button>
                         </div>
                     </div>
                 ) : (
-                    <div className="mb-8">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Folders</h2>
-                            {selectedFolder && (
-                                <button
-                                    onClick={() => setSelectedFolder(null)}
-                                    className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline"
-                                >
-                                    Show All Documents
-                                </button>
-                            )}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {folders.map((folder: FolderType) => (
-                                <div
-                                    key={folder.id}
-                                    onClick={() => handleFolderClick(folder?.id || "")}
-                                    className={`bg-white dark:bg-gray-800 rounded-xl border-2 p-4 hover:shadow-lg transition-all duration-200 cursor-pointer group ${selectedFolder === folder.id
-                                        ? 'border-cyan-500 dark:border-cyan-400 bg-cyan-50 dark:bg-cyan-900/20'
-                                        : 'border-gray-200 dark:border-gray-700'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className={`w-10 h-10 ${folder.color} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                                            <folder.icon className="w-5 h-5 text-white" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
-                                                {folder.name}
-                                            </h3>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                                        <span>{folder.fileCount} Files</span>
-                                        <span>{folder.size}</span>
-                                    </div>
+                    <>
+                        {/* Folders Section */}
+                        {folders.length > 0 ? (
+                            <div className="mb-8">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Folders</h2>
+                                    {selectedFolder && (
+                                        <button
+                                            onClick={() => setSelectedFolder(null)}
+                                            className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline"
+                                        >
+                                            Show All Documents
+                                        </button>
+                                    )}
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* All Files Table */}
-                {allDocuments.length > 0 && (
-                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                {selectedFolder
-                                    ? `${folders.find(f => f.id === selectedFolder)?.name || 'Selected Folder'} Files`
-                                    : 'All Files'
-                                }
-                            </h2>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-gray-50 dark:bg-gray-900/50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Name
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Upload By
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Status
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Signatures
-                                        </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Actions
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                    {filteredDocuments.map((doc) => (
-                                        <tr key={doc.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 rounded-lg flex items-center justify-center">
-                                                        <FileText className="w-4 h-4 text-white" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-sm font-medium text-gray-900 dark:text-white">{doc.name}</div>
-                                                        <div className="text-sm text-gray-500 dark:text-gray-400">{doc.date} • {doc.size}</div>
-                                                    </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    {folders.map((folder: FolderType) => (
+                                        <div
+                                            key={folder.id}
+                                            onClick={() => handleFolderClick(folder?.id || "")}
+                                            className={`bg-white dark:bg-gray-800 rounded-xl border-2 p-4 hover:shadow-lg transition-all duration-200 cursor-pointer group ${selectedFolder === folder.id
+                                                ? 'border-cyan-500 dark:border-cyan-400 bg-cyan-50 dark:bg-cyan-900/20'
+                                                : 'border-gray-200 dark:border-gray-700'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className={`w-10 h-10 ${folder.color} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                                                    <folder.icon className="w-5 h-5 text-white" />
                                                 </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 rounded-full flex items-center justify-center">
-                                                        <span className="text-xs font-semibold text-white">{doc.avatar}</span>
-                                                    </div>
-                                                    <span className="text-sm text-gray-900 dark:text-white">{doc.uploadedByDisplay}</span>
+                                                <div className="flex-1">
+                                                    <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
+                                                        {folder.name}
+                                                    </h3>
                                                 </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(doc.status)}`}>
-                                                    {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                                        <div
-                                                            className="bg-cyan-500 h-full rounded-full"
-                                                            style={{ width: `${doc.signatureRate}%` }}
-                                                        ></div>
-                                                    </div>
-                                                    <span className="text-sm text-gray-900 dark:text-white">{doc.signatureRate}%</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button
-                                                        onClick={() => handleViewDocument(doc)}
-                                                        className="text-gray-500 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
-                                                        title="View Document"
-                                                    >
-                                                        <Eye className="w-5 h-5" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleEditDocument(doc)}
-                                                        className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                                        title="Edit Document"
-                                                    >
-                                                        <Edit3 className="w-5 h-5" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDownloadDocument(doc)}
-                                                        className="text-gray-500 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                                                        title="Download Document"
-                                                    >
-                                                        <Download className="w-5 h-5" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteDocument(doc.id)}
-                                                        className="text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                                                        title="Delete Document"
-                                                    >
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                            </div>
+                                            <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                                                <span>{folder.fileCount} Files</span>
+                                                <span>{folder.size}</span>
+                                            </div>
+                                        </div>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                </div>
+                            </div>) : (
+                            // No folders available with a button t create a new folder
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 text-center">
+                                <div className="mb-4">
+                                    <FolderPlus className="w-12 h-12 text-gray-500 dark:text-gray-400 mx-auto mb-4" />
+                                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">No Folders Available</h2>
+                                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                                        Create a new folder to organize your documents.
+                                    </p>
+                                    <Button
+                                        onClick={() => setShowAddFolderModal(true)}
+                                        className="bg-blue-500 hover:bg-blue-600 text-white"
+                                    >
+                                        <FolderPlus className="w-4 h-4 mr-2" />
+                                        New Folder
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Documents Table */}
+                        {allDocuments.length > 0 && (
+                            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                        {selectedFolder
+                                            ? `${folders.find(f => f.id === selectedFolder)?.name || 'Selected Folder'} Files`
+                                            : 'All Files'
+                                        }
+                                    </h2>
+                                </div>
+
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead className="bg-gray-50 dark:bg-gray-900/50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                    Name
+                                                </th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                    Upload By
+                                                </th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                    Status
+                                                </th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                    Signatures
+                                                </th>
+                                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                    Actions
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                            {filteredDocuments.map((doc) => (
+                                                <tr key={doc.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 rounded-lg flex items-center justify-center">
+                                                                <FileText className="w-4 h-4 text-white" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-sm font-medium text-gray-900 dark:text-white">{doc.name}</div>
+                                                                <div className="text-sm text-gray-500 dark:text-gray-400">{doc.date} • {doc.size}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 rounded-full flex items-center justify-center">
+                                                                <span className="text-xs font-semibold text-white">{doc.avatar}</span>
+                                                            </div>
+                                                            <span className="text-sm text-gray-900 dark:text-white">{doc.uploadedByDisplay}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(doc.status)}`}>
+                                                            {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                                                <div
+                                                                    className="bg-cyan-500 h-full rounded-full"
+                                                                    style={{ width: `${doc.signatureRate}%` }}
+                                                                ></div>
+                                                            </div>
+                                                            <span className="text-sm text-gray-900 dark:text-white">{doc.signatureRate}%</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <button
+                                                                onClick={() => handleViewDocument(doc)}
+                                                                className="text-gray-500 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+                                                                title="View Document"
+                                                            >
+                                                                <Eye className="w-5 h-5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleEditDocument(doc)}
+                                                                className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                                                title="Edit Document"
+                                                            >
+                                                                <Edit3 className="w-5 h-5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDownloadDocument(doc)}
+                                                                className="text-gray-500 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                                                                title="Download Document"
+                                                            >
+                                                                <Download className="w-5 h-5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteDocument(doc.id)}
+                                                                className="text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                                                                title="Delete Document"
+                                                            >
+                                                                <Trash2 className="w-5 h-5" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
@@ -806,7 +916,7 @@ const AdminDocumentsPage: FC = () => {
                         <div className="p-6 space-y-6">
                             <div>
                                 <Label htmlFor="new-doc-name" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                                    Document Name
+                                    Document Name *
                                 </Label>
                                 <Input
                                     id="new-doc-name"
@@ -826,14 +936,16 @@ const AdminDocumentsPage: FC = () => {
                                     value={newDocument.expiryFrequency}
                                     onValueChange={(value: string) => setNewDocument({ ...newDocument, expiryFrequency: value })}
                                 >
-                                    <SelectTrigger id='renewal-frequency' className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
-                                        <SelectValue placeholder="Expiry Frequency" />
+                                    <SelectTrigger id='renewal-frequency' className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600">
+                                        <SelectValue placeholder="Select renewal frequency" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                    <SelectContent className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
                                         {renewalFrequencies.map((renewal) => (
                                             <SelectItem
                                                 className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
-                                                key={renewal.id} value={renewal.name}>
+                                                key={renewal.id}
+                                                value={renewal.name}
+                                            >
                                                 {renewal.name}
                                             </SelectItem>
                                         ))}
@@ -843,20 +955,22 @@ const AdminDocumentsPage: FC = () => {
 
                             <div>
                                 <Label htmlFor="new-doc-folder" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                                    Folder
+                                    Folder *
                                 </Label>
                                 <Select
                                     value={newDocument.folder}
                                     onValueChange={(value: string) => setNewDocument({ ...newDocument, folder: value })}
                                 >
-                                    <SelectTrigger id='new-doc-folder' className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                    <SelectTrigger id='new-doc-folder' className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600">
                                         <SelectValue placeholder="Select a folder" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                    <SelectContent className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
                                         {folders.map((folder) => (
                                             <SelectItem
                                                 className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
-                                                key={folder.id} value={folder.id as string}>
+                                                key={folder.id}
+                                                value={folder.id as string}
+                                            >
                                                 {folder.name}
                                             </SelectItem>
                                         ))}
@@ -869,19 +983,22 @@ const AdminDocumentsPage: FC = () => {
                                     htmlFor="new-doc-file"
                                     className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2"
                                 >
-                                    Upload File (Optional)
+                                    Upload File
                                 </Label>
 
                                 <div
                                     onDragOver={(e) => {
-                                        e.preventDefault()
-                                        setIsDragging(true)
+                                        e.preventDefault();
+                                        setIsDragging(true);
                                     }}
                                     onDragLeave={() => setIsDragging(false)}
                                     onDrop={handleDrop}
-                                    className={`flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl transition
-                                    ${isDragging ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20" : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"}
-                                    hover:border-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 cursor-pointer`}
+                                    className={`flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl transition-all duration-200 cursor-pointer
+                                    ${isDragging
+                                            ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20"
+                                            : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                        }
+                                    hover:border-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-900/20`}
                                     onClick={() => document.getElementById("new-doc-file")?.click()}
                                 >
                                     <UploadCloud className="w-10 h-10 text-gray-400 mb-3" />
@@ -900,6 +1017,7 @@ const AdminDocumentsPage: FC = () => {
                                             })
                                         }
                                         className="hidden"
+                                        accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
                                     />
                                 </div>
                             </div>
@@ -916,11 +1034,20 @@ const AdminDocumentsPage: FC = () => {
                                 </button>
                                 <button
                                     onClick={handleAddDocument}
-                                    disabled={!newDocument.name || !newDocument.folder}
-                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-lg font-medium"
+                                    disabled={!newDocument.name || !newDocument.folder || createDocumentMutation.isPending}
+                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-lg font-medium flex items-center justify-center"
                                 >
-                                    <Save className="w-5 h-5 inline-block mr-2" />
-                                    Add Document
+                                    {createDocumentMutation.isPending ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                            Adding...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="w-5 h-5 mr-2" />
+                                            Add Document
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </div>
@@ -929,88 +1056,125 @@ const AdminDocumentsPage: FC = () => {
             )}
 
             {/* Add Folder Modal */}
-            <Modal
-                show={showAddFolderModal}
-                onClose={() => setShowAddFolderModal(false)}
-                title="Add New Folder"
-            >
-                <div className="space-y-4">
-                    <div>
-                        <Label htmlFor="new-folder-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Folder Name
-                        </Label>
-                        <Input
-                            id="new-folder-name"
-                            type="text"
-                            value={newFolder.name}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewFolder({ ...newFolder, name: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            placeholder="Enter folder name"
-                        />
-                    </div>
+            {showAddFolderModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-600/50">
 
-                    <div>
-                        <Label htmlFor="addDepartment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Department
-                        </Label>
-                        <Select
-                            value={newFolder.departmentId || "none"}
-                            onValueChange={(value: string) => setNewFolder({ ...newFolder, departmentId: value === "none" ? "" : value })}
-                        >
-                            <SelectTrigger id='addDepartment' className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600">
-                                <SelectValue placeholder="Select Department" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
-                                <SelectItem
-                                    className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
-                                    value="none">
-                                    No Department
-                                </SelectItem>
-                                {departments.map((department) => (
-                                    <SelectItem
-                                        className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
-                                        key={department.id}
-                                        value={department.id.toString()}>
-                                        {department.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div>
-                        <Label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Folder Color
-                        </Label>
-                        <div className="flex gap-2">
-                            {['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-red-500', 'bg-indigo-500'].map(color => (
-                                <button
-                                    key={color}
-                                    onClick={() => setNewFolder({ ...newFolder, color: color })}
-                                    className={`w-10 h-10 rounded-lg ${color} ${newFolder.color === color ? 'ring-2 ring-offset-2 ring-cyan-500 dark:ring-offset-gray-800' : ''} hover:scale-110 transition-transform`}
-                                    title={color.replace('bg-', '')}
-                                ></button>
-                            ))}
+                        {/* Header */}
+                        <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                                        <UserPlus className="w-6 h-6 text-white" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Add New Folder</h3>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    onClick={handleCloseAddFolderModal}
+                                    className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-all duration-200"
+                                >
+                                    <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                                </Button>
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="flex gap-3 pt-4">
-                        <button
-                            onClick={() => setShowAddFolderModal(false)}
-                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleAddFolder}
-                            disabled={!newFolder.name}
-                            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Add Folder
-                        </button>
+                        {/* Form Content */}
+                        <div className="p-6 space-y-4">
+
+                            <div className="space-y-2">
+                                <Label htmlFor="new-folder-name" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                    Folder Name *
+                                </Label>
+                                <Input
+                                    id="new-folder-name"
+                                    type="text"
+                                    placeholder="Enter folder name"
+                                    value={newFolder.name}
+                                    onChange={handleFolderNameChange}
+                                    className="w-full px-3 py-2 text-gray-800 dark:text-gray-200 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="addDepartment" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                    Department
+                                </Label>
+                                <Select
+                                    value={newFolder.departmentId?.toString() || 'none'}
+                                    onValueChange={handleFolderDepartmentChange}
+                                >
+                                    <SelectTrigger id="addDepartment" className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600">
+                                        <SelectValue placeholder="Select Department" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                        <SelectItem
+                                            className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                            value="none"
+                                        >
+                                            No Department
+                                        </SelectItem>
+                                        {departments.map((department) => (
+                                            <SelectItem
+                                                className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                                key={department.id}
+                                                value={department.id.toString()}
+                                            >
+                                                {department.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                    Folder Color
+                                </Label>
+                                <div className="flex gap-2 flex-wrap">
+                                    {folderColors.map((color) => (
+                                        <button
+                                            key={color}
+                                            onClick={() => handleFolderColorChange(color)}
+                                            className={`w-10 h-10 rounded-lg ${color} ${newFolder.color === color ? 'ring-2 ring-offset-2 ring-cyan-500 dark:ring-offset-gray-800' : ''} hover:scale-110 transition-transform`}
+                                            title={color.replace('bg-', '').replace('-', ' ')}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 bg-gray-50 dark:bg-slate-700/30 border-t border-gray-100 dark:border-slate-600/30">
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleCloseAddFolderModal}
+                                    className="flex-1 px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-800 dark:text-gray-200 font-medium rounded-lg"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleAddFolder}
+                                    disabled={!newFolder.name.trim() || createFolderMutation.isPending}
+                                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                >
+                                    {createFolderMutation.isPending ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Creating...
+                                        </>
+                                    ) : (
+                                        'Add Folder'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
-            </Modal>
+            )}
+
 
             {/* View Document Modal */}
             <Modal
@@ -1055,13 +1219,6 @@ const AdminDocumentsPage: FC = () => {
                             </div>
                         </div>
 
-                        {/* <div>
-                            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Content Preview:</h4>
-                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-sm text-gray-600 dark:text-gray-300 max-h-32 overflow-y-auto">
-                                {selectedDocument.content}
-                            </div>
-                        </div> */}
-
                         <div className="flex gap-3 pt-4">
                             <button
                                 onClick={() => handleDownloadDocument(selectedDocument)}
@@ -1086,77 +1243,133 @@ const AdminDocumentsPage: FC = () => {
             </Modal>
 
             {/* Edit Document Modal */}
-            <Modal
-                show={showEditModal}
-                onClose={() => setShowEditModal(false)}
-                title="Edit Document"
-            >
-                <div className="space-y-4">
-                    <div>
-                        <label htmlFor="edit-doc-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Document Name
-                        </label>
-                        <input
-                            id="edit-doc-name"
-                            type="text"
-                            value={editDocument.name}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditDocument({ ...editDocument, name: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            placeholder="Enter document name"
-                        />
-                    </div>
+            {showEditModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-600/50">
 
-                    <div>
-                        <label htmlFor="edit-doc-folder" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Folder
-                        </label>
-                        <select
-                            id="edit-doc-folder"
-                            value={editDocument.folder}
-                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditDocument({ ...editDocument, folder: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="">Select a folder</option>
-                            {folders.map(folder => (
-                                <option key={folder.id} value={folder.id}>{folder.name}</option>
-                            ))}
-                        </select>
-                    </div>
+                        {/* Header */}
+                        <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+                                        <Save className="w-6 h-6 text-white" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Edit Document</h3>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setShowEditModal(false)}
+                                    className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-all duration-200"
+                                >
+                                    <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                                </Button>
+                            </div>
+                        </div>
 
-                    <div>
-                        <label htmlFor="edit-doc-status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Status
-                        </label>
-                        <select
-                            id="edit-doc-status"
-                            value={editDocument.status}
-                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditDocument({ ...editDocument, status: e.target.value as 'active' | 'draft' | 'archived' })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="draft">Draft</option>
-                            <option value="active">Active</option>
-                            <option value="archived">Archived</option>
-                        </select>
-                    </div>
+                        {/* Form Content */}
+                        <div className="p-6 space-y-4">
 
-                    <div className="flex gap-3 pt-4">
-                        <button
-                            onClick={() => setShowEditModal(false)}
-                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleUpdateDocument}
-                            disabled={!editDocument.name || !editDocument.folder}
-                            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Save className="w-4 h-4 inline-block mr-2" />
-                            Update Document
-                        </button>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-doc-name" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                    Document Name *
+                                </Label>
+                                <Input
+                                    id="edit-doc-name"
+                                    type="text"
+                                    placeholder="Enter document name"
+                                    value={editDocument.name}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                        setEditDocument({ ...editDocument, name: e.target.value })
+                                    }
+                                    className="w-full px-3 py-2 text-gray-800 dark:text-gray-200 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-doc-folder" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                    Folder *
+                                </Label>
+                                <Select
+                                    value={editDocument.folder}
+                                    onValueChange={(value: string) => setEditDocument({ ...editDocument, folder: value })}
+                                >
+                                    <SelectTrigger id="edit-doc-folder" className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600">
+                                        <SelectValue placeholder="Select a folder" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                        {folders.map((folder) => (
+                                            <SelectItem
+                                                className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                                key={folder.id}
+                                                value={folder.id as string}
+                                            >
+                                                {folder.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-doc-status" className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                                    Status
+                                </Label>
+                                <Select
+                                    value={editDocument.status}
+                                    onValueChange={(value: 'active' | 'draft' | 'archived') => setEditDocument({ ...editDocument, status: value })}
+                                >
+                                    <SelectTrigger id="edit-doc-status" className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600">
+                                        <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                        <SelectItem
+                                            className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                            value="draft"
+                                        >
+                                            Draft
+                                        </SelectItem>
+                                        <SelectItem
+                                            className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                            value="active"
+                                        >
+                                            Active
+                                        </SelectItem>
+                                        <SelectItem
+                                            className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
+                                            value="archived"
+                                        >
+                                            Archived
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 bg-gray-50 dark:bg-slate-700/30 border-t border-gray-100 dark:border-slate-600/30">
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowEditModal(false)}
+                                    className="flex-1 px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-800 dark:text-gray-200 font-medium rounded-lg"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleUpdateDocument}
+                                    disabled={!editDocument.name.trim() || !editDocument.folder}
+                                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                >
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Update Document
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
-            </Modal>
+            )}
+
         </div>
     );
 };
