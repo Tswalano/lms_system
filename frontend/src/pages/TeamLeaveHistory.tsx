@@ -37,7 +37,10 @@ interface LeaveHistoryItem {
 interface UserApiResponse {
     success: boolean;
     message: string;
-    payload: User[] | [];
+    payload: {
+        users: User[];
+        department: { id: string; name: string; }[];
+    }
 }
 
 interface ApiResponse {
@@ -131,7 +134,7 @@ const TeamListLeaveHistory = () => {
         }
 
         const result: UserApiResponse = await response.json();
-        return result.payload || [];
+        return result.payload.users || [];
     };
 
     const fetchUserLeaveHistory = async (userId: string): Promise<LeaveHistoryItem[]> => {

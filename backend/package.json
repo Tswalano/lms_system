@@ -18,7 +18,7 @@
     "@types/ejs": "^3.1.5",
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^22.16.2",
+    "@types/node": "^22.17.1",
     "aws-cdk": "2.1019.0",
     "dotenv": "^17.2.1",
     "esbuild": "^0.25.5",
