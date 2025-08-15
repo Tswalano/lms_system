@@ -5,6 +5,7 @@ import {
     DeleteObjectCommand, DeleteObjectCommandInput } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
 import mysql from 'mysql2/promise';
+import { extension } from "mime-types";
 import { DatabaseService } from '../helpers/databaseHeler';
 import { ResponseService } from '../models/apiResponse';
 import { DocumentCategoryRow } from "../models/documentCategory";
@@ -263,16 +264,17 @@ adminDocs.post('/', async (c) => {
             const s3ClientConfig: S3ClientConfig = {};
             s3Client = new S3Client(s3ClientConfig);
 
+            const objectNameExtension = extension(mimeType);
             const putObjectCommandInput: PutObjectCommandInput = {
                 Bucket: process.env.POLICY_DOCUMENTS_BUCKET_NAME,
-                Key: `${folder}/${name}`,
+                Key: `${folder}/${name}.${objectNameExtension}`,
                 Body: Buffer.from(fileBase64, 'base64'), 
                 ContentType: mimeType,
             }
             const putObjectCommand: PutObjectCommand = new PutObjectCommand(putObjectCommandInput);
             /*const putObjectResrponse: PutObjectCommandOutput = */ await s3Client.send(putObjectCommand);
 
-            finalUrl = `${process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL}/${folder}/${name}`;
+            finalUrl = `${process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL}/${folder}/${name}.${objectNameExtension}`;
             isUploadedToS3 = true;
         } catch (s3UploadError: any) {
             console.error("NEW DOCUMENT ERROR: UPLOAD TO S3:", s3UploadError);
