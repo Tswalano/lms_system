@@ -20,7 +20,8 @@ app.use(
     cors({
         origin: [
             'http://localhost:5173',
-            'https://d2m4zkv512jna9.cloudfront.net', // Dev/Staging API URL (Clodfront)
+            'https://d2m4zkv512jna9.cloudfront.net', // Dev/Staging FE URL (Clodfront)
+            'd1eqa63aq0eyfn.cloudfront.net', // Production FE URL (Cloudfront)
             'https://lms.disraptor-internal.net'
         ],
         allowMethods: ['*'],
