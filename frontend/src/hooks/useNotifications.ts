@@ -1,4 +1,4 @@
-import { useAuth } from '@/contexts/AuthContext';
+import { API_BASE_URL, useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // Types based on your API response
@@ -126,10 +126,6 @@ class NotificationAPI_Client {
         });
     }
 }
-
-const API_BASE_URL: string = process.env.NODE_ENV === 'development'
-    ? 'http://localhost:3000'
-    : 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
 
 // Custom hooks
 export const useNotifications = (filters: NotificationFilters = {}) => {
