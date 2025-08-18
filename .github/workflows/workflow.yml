@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
   workflow_dispatch:
     inputs:
       environment:
@@ -113,31 +114,38 @@ jobs:
       - name: Set version environment variable
         id: set-version
         run: |
+          BRANCH=${GITHUB_REF##*/}
           ENV="${{ github.event.inputs.environment || 'prod' }}"
           VERSION=""
 
-          if [ "${{ github.event_name }}" = "release" ]; then
+          if [ "$BRANCH" = "dev" ]; then
+            BASE_VERSION=$(node -p "require('../package.json').version")
+            SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+            VERSION="${BASE_VERSION}-dev.${SHORT_SHA}"
+            ENV="dev"
+          elif [ "${{ github.event_name }}" = "release" ]; then
             VERSION="${{ github.event.release.tag_name }}"
+            ENV="prod"
           elif [ "${{ needs.semantic-release.outputs.new-release-published }}" = "true" ]; then
             VERSION="${{ needs.semantic-release.outputs.new-release-version }}"
+            ENV="prod"
           else
+            # fallback
             LATEST_RELEASE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
               "https://api.github.com/repos/${{ github.repository }}/releases/latest" | \
               grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]*).*/\1/' || echo "")
             if [ ! -z "$LATEST_RELEASE" ]; then
               VERSION="$LATEST_RELEASE"
+              ENV="prod"
             else
               VERSION=$(node -p "require('../package.json').version")
+              ENV="prod"
             fi
           fi
 
-          if [ "$ENV" = "dev" ]; then
-            SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
-            VERSION="${VERSION}-dev.${SHORT_SHA}"
-          fi
-          
           echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
           echo "=== FRONTEND VERSION: $VERSION ==="
 
       - name: Build with version
@@ -154,7 +162,7 @@ jobs:
       - name: Upload to S3 and invalidate CloudFront
         run: |
           BUCKET=${{ secrets.AWS_S3_BUCKET }}
-          ENV=${{ github.event.inputs.environment || 'prod' }}
+          ENV=${{ steps.set-version.outputs.environment }}
           VERSION=${{ steps.set-version.outputs.version }}
 
           if [ "$ENV" = "prod" ]; then
@@ -172,87 +180,3 @@ jobs:
           aws cloudfront create-invalidation \
             --distribution-id "$CF_ID" \
             --paths "/*"
-
-  backend:
-    needs: [frontend-deploy, detect-changes]
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.backend == 'true' || github.event_name == 'release'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18.x'
-
-      - run: npm ci
-      - run: npm run build
-
-      - uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: CDK Bootstrap
-        run: npx cdk bootstrap
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
-          CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-
-      - name: Determine environment for deploy
-        id: envvar
-        run: |
-          ENV=""
-          if [ "${{ github.event_name }}" = "release" ]; then
-            ENV="prod"
-          else
-            ENV="${{ github.event.inputs.environment }}"
-            if [ -z "$ENV" ]; then ENV="prod"; fi
-          fi
-          echo "env=$ENV" >> $GITHUB_OUTPUT
-
-      - name: CDK Deploy
-        run: |
-          ENV=${{ steps.envvar.outputs.env }}
-          echo "Deploying backend for $ENV"
-          npx cdk deploy --require-approval never --context environment=$ENV
-        env:
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
-          CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-
-  backend-destroy:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18.x'
-
-      - uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: CDK Destroy
-        run: |
-          ENV="${{ github.event.inputs.environment }}"
-          echo "Destroying backend for $ENV"
-          npx cdk destroy --force --context environment=$ENV
-        env:
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
