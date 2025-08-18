@@ -11,13 +11,14 @@
     "build": "tsc && npm run copy-lambda",
     "dev": "ts-node lambda/dev.ts",
     "dev:watch": "nodemon lambda/dev.ts",
-    "copy-lambda": "cp -r lambda/*.js lambda/*.json dist/lambda/ || true"
+    "copy-lambda": "find lambda/ -type f \\( -name \"*.js\" -o -name \"*.json\" \\) -exec cp --parents {} dist/ \\;"
   },
   "devDependencies": {
     "@hono/node-server": "^1.18.1",
     "@types/ejs": "^3.1.5",
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/mime-types": "^3.0.1",
     "@types/node": "^22.17.1",
     "aws-cdk": "2.1019.0",
     "dotenv": "^17.2.1",
@@ -43,6 +44,7 @@
     "dotenv": "17.2.1",
     "hono": "^4.8.3",
     "jsonwebtoken": "^9.0.2",
+    "mime-types": "^3.0.1",
     "mysql2": "^3.14.1",
     "ts-node": "^10.9.2",
     "uuid": "^11.1.0",

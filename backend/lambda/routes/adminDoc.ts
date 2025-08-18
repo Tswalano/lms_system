@@ -2,9 +2,10 @@ import { Hono } from "hono";
 import {
     S3Client, S3ClientConfig,
     PutObjectCommand, PutObjectCommandInput,
-    DeleteObjectCommand, DeleteObjectCommandInput
-} from "@aws-sdk/client-s3";
-// import { v7 as uuid7 } from "uuid/v7";
+    DeleteObjectCommand, DeleteObjectCommandInput } from "@aws-sdk/client-s3";
+import dayjs from "dayjs";
+import mysql from 'mysql2/promise';
+import { extension } from "mime-types";
 import { DatabaseService } from '../helpers/databaseHeler';
 import { ResponseService } from '../models/apiResponse';
 import { DocumentCategoryRow } from "../models/documentCategory";
@@ -222,6 +223,8 @@ adminDocs.get('/by-category', async (c) => {
 adminDocs.post('/', async (c) => {
     console.log("PUT /admin-docs");
 
+    // TODO: Perform S3 upload and database changes inside a MySQL transaction
+
     if (!process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL ||
         !process.env.POLICY_DOCUMENTS_BUCKET_NAME
     ) {
@@ -261,17 +264,17 @@ adminDocs.post('/', async (c) => {
             const s3ClientConfig: S3ClientConfig = {};
             s3Client = new S3Client(s3ClientConfig);
 
-            // TODO: Upload the document to S3 and obtain document URL 
+            const objectNameExtension = extension(mimeType);
             const putObjectCommandInput: PutObjectCommandInput = {
                 Bucket: process.env.POLICY_DOCUMENTS_BUCKET_NAME,
-                Key: `${folder}/${name}`,
-                Body: Buffer.from(fileBase64, 'base64'), // Assuming content is base64 encoded
+                Key: `${folder}/${name}.${objectNameExtension}`,
+                Body: Buffer.from(fileBase64, 'base64'), 
                 ContentType: mimeType,
             }
             const putObjectCommand: PutObjectCommand = new PutObjectCommand(putObjectCommandInput);
             /*const putObjectResrponse: PutObjectCommandOutput = */ await s3Client.send(putObjectCommand);
 
-            finalUrl = `${process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL}/${folder}/${name}`;
+            finalUrl = `${process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL}/${folder}/${name}.${objectNameExtension}`;
             isUploadedToS3 = true;
         } catch (s3UploadError: any) {
             console.error("NEW DOCUMENT ERROR: UPLOAD TO S3:", s3UploadError);
@@ -285,7 +288,6 @@ adminDocs.post('/', async (c) => {
         }
     }
 
-    // TODO: Add new record to the database 
     let connection;
 
     try {
@@ -356,6 +358,159 @@ adminDocs.post('/', async (c) => {
         if (!!connection) await connection.end();
     }
 
+});
+
+adminDocs.post('/assignments', async (c) => {
+    console.log("POST /assignments");
+    
+    const requestBody = await c.req.json();
+    const {
+        userId,
+        documentId,
+        dueDate
+    } = requestBody;
+
+    let connection: mysql.Connection | null = null;
+
+    if (!dueDate || !userId || !documentId) {
+        console.error("ASSIGN DOCUMENT ERROR: INCOMPLETE PAYLOAD");
+
+        const assignDocumentIncompleteErrorResponse = ResponseService.error(
+            "AssignDocumentIncompletePayloadError",
+            `Failed to assign document. Provided payload is incomplete.`
+        );
+
+        return c.json(assignDocumentIncompleteErrorResponse, 400);
+    }
+
+    if (!dayjs(dueDate).isValid()) {
+        console.error("ASSIGN DOCUMENT ERROR: INVALID DUE DATE:", dueDate);
+
+        const assignDocumentInvalidDueDateErrorResponse = ResponseService.error(
+            "AssignDocumentInvalidDueDateError",
+            `Failed to assign document. Provided due date is invalid: ${dueDate}.`
+        );
+
+        return c.json(assignDocumentInvalidDueDateErrorResponse, 400);
+    }
+
+    // TODO: Ensure that due date is in the future 
+    const now = dayjs();
+    const then = dayjs(dueDate);
+
+    if (then.isBefore(now)) {
+        console.error("ASSIGN DOCUMENT ERROR: PAST DUE DATE:", dueDate);
+
+        const assignDocumentPastDueDateErrorResponse = ResponseService.error(
+            "AssignDocumentPastDueDateError",
+            `Failed to assign document. Provided due date is in the past: ${dueDate}.`
+        );
+
+        return c.json(assignDocumentPastDueDateErrorResponse, 400);
+    }
+
+    try {
+        connection = await DatabaseService.createConnection();
+
+        // TODO: Verify that the user exists 
+        const checkUserSql = `
+            select count(1) as count
+            from users 
+            where id = ?
+        `;
+        const matchingUsers: any = await connection.query(checkUserSql, [userId]);
+
+        if (matchingUsers[0][0].count != 1) {
+            console.error("ASSIGN DOCUMENT ERROR: USER NOT FOUND:", userId);
+
+            const assignDocumentUserNotFoundErrorResponse = ResponseService.error(
+                "AssignDocumentUserNotFoundError",
+                `Failed to assign document. User not found: ${userId}.`
+            );
+
+            return c.json(assignDocumentUserNotFoundErrorResponse, 404);
+        }
+
+        // TODO: Verify that the document exists
+        const checkDocSql = `
+            select count(1) as count 
+            from documents 
+            where id = ?
+        `;
+        const matchingDocuments: any = await connection.query(checkDocSql, [documentId]);
+
+        if (matchingDocuments[0][0].count != 1) {
+            console.error("ASSIGN DOCUMENT ERROR: DOCUMENT NOT FOUND:", documentId);
+
+            const assignDocumentDocumentNotFoundErrorResponse = ResponseService.error(
+                "AssignDocumentDocumentNotFoundError",
+                `Failed to assign document. Document not found: ${documentId}`
+            );
+
+            return c.json(assignDocumentDocumentNotFoundErrorResponse, 404);
+        }
+
+        // TODO: Verify that the document hasn't already been allocated to the user 
+        const checkUserDocAssignmentSql = `
+            select count(1) as count 
+            from user_document_assignments 
+            where user_id = ?
+            and document_id = ?
+        `;
+        const matchingUserDocAssignments: any = await connection.query(checkUserDocAssignmentSql, [userId, documentId]);
+
+        if (matchingUserDocAssignments[0][0].count != 0) {
+            console.error("ASSIGN DOCUMENT ERROR: DOCUMENT ALREADY ASSIGNED:", userId, documentId);
+
+            const assignDocumentAlreadyAssignedErrorResponse = ResponseService.error(
+                "AssignDocumentAlreadyAssignedError",
+                `Failed to assign document. Document [${documentId}] already assigned to user [${userId}]`
+            );
+
+            return c.json(assignDocumentAlreadyAssignedErrorResponse, 409);
+        }
+
+        // TODO: Create new assignment in the database 
+        const insertSql = `
+            insert into user_document_assignments (user_id, document_id, status, due_date, assigned_at) 
+            values (?, ?, 'pending', ?, now()); 
+        `;
+
+        await connection.execute<DocumentCategoryRow[]>(insertSql, [
+            userId,
+            documentId,
+            dueDate
+        ]);
+
+        const fetchNewDocumentAssignmentSql = `
+            select * 
+            from user_document_assignments
+            where id = last_insert_id();
+        `;
+
+        const newDocumentAssignmentRecords = await connection.execute<any[]>(fetchNewDocumentAssignmentSql);
+
+        const response = ResponseService.success(
+            "Document assignment created successfully successfully",
+            newDocumentAssignmentRecords[0][0]
+        );
+
+        // TODO: Send notification 
+
+        return c.json(response, 200);
+    } catch (assignDocumentDatabaseError: any) {
+        console.error("ASSIGN DOCUMENT ERROR: DATABASE:", assignDocumentDatabaseError);
+
+        const assignDocumentErrorResponse = ResponseService.error(
+            "AssignDocumentDatabaseError",
+            assignDocumentDatabaseError.message || "Failed to assign document. Please check logs for details."
+        );
+
+        return c.json(assignDocumentErrorResponse, 200);
+
+    } finally {
+        if (connection) await connection.end();
+    }
 });
 
 export default adminDocs;
