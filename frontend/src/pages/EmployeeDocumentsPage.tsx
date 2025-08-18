@@ -770,7 +770,7 @@ const EmployeeDocumentsPage: FC = () => {
                 />
             )}
 
-            {/* View Document Info Modal */}
+            {/* View Document Info Modal   */}
             <Modal
                 show={showViewModal}
                 onClose={() => setShowViewModal(false)}

@@ -425,7 +425,6 @@ userDoc.post('/document-completion', async (c) => {
         const connection = await DatabaseService.createConnection();
 
         try {
-            // Requirement 9: Verify user has viewed the document
             const [viewCheck] = await connection.execute<RowDataPacket[]>(`
                 SELECT id FROM document_views 
                 WHERE user_id = ? AND document_id = ?
