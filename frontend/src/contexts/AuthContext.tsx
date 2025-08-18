@@ -103,7 +103,7 @@ export const API_BASE_URL: string =
     process.env.NODE_ENV === 'development'
         ? 'http://localhost:3000'
         : process.env.NODE_ENV === 'dev'
-            ? 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/dev'
+            ? 'https://xrdpcrhluc.execute-api.af-south-1.amazonaws.com/dev'
             : 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
 
 
