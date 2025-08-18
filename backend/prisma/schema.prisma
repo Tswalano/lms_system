@@ -287,8 +287,6 @@ model document_signatures {
   user_id     String   @db.VarChar(36)
   document_id BigInt
   signed_at   DateTime @default(now()) @db.Timestamp(0)
-  ip_address  String?  @db.VarChar(45)
-  user_agent  String?  @db.Text
 
   user     users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   document documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
@@ -352,7 +350,7 @@ model user_departments {
 // NOTIFICATIONS
 // =========================
 model notifications {
-  id           Int                   @id @default(autoincrement())
+  id           BigInt                @id @default(autoincrement())
   recipientId  String                @db.VarChar(36)
   createdById  String?               @db.VarChar(36)
   type         notification_type

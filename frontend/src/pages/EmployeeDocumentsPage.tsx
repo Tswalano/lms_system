@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, type FC } from 'react';
 import {
     FileText,
@@ -21,28 +22,11 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from '@/contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import DocumentViewer from '@/components/DocumentViewer';
-
-// Interface for API Document
-interface ApiDocument {
-    id: number;
-    name: string;
-    file_url: string;
-    file_size: string;
-    priority: string;
-    createdAt: string;
-}
-
-// Interface for API Category
-interface ApiCategory {
-    id: string;
-    name: string;
-    description: string;
-    color: string;
-    documents: ApiDocument[];
-}
+import { toast } from 'sonner';
+import { formatDate } from '@/lib/helper';
 
 // Interface for API Response
 interface ApiResponse {
@@ -50,6 +34,22 @@ interface ApiResponse {
     message: string;
     error: boolean;
     payload: ApiCategory[];
+}
+
+// Interface for Document Completion Response
+interface DocumentCompletionResponse {
+    code: string;
+    message: string;
+    error: boolean;
+    payload?: any;
+}
+
+// Interface for Document View Response
+interface DocumentViewResponse {
+    code: string;
+    message: string;
+    error: boolean;
+    payload?: any;
 }
 
 interface DocumentCategoryType {
@@ -66,14 +66,22 @@ interface DocumentType {
     name: string;
     category: string;
     categoryId: string;
-    dateAdded: string;
-    dueDate: string;
-    status: 'pending' | 'signed' | 'viewed' | 'overdue';
+    createdAt: string;
+    dueDate?: string;
+    status: 'pending' | 'signed' | 'viewed' | 'overdue' | 'completed',
     size: string;
     priority: 'high' | 'medium' | 'low';
-    content: string;
     fileUrl: string;
     signedDate?: string;
+}
+
+// Interface for API Category
+interface ApiCategory {
+    id: string;
+    name: string;
+    description: string;
+    color: string;
+    documents: DocumentType[];
 }
 
 // Interface for Status Configuration
@@ -94,7 +102,8 @@ interface ModalProps {
 }
 
 const EmployeeDocumentsPage: FC = () => {
-    const { authFetch, user } = useAuth(); // Assuming user object contains userId
+    const { authFetch, user } = useAuth();
+    const queryClient = useQueryClient();
 
     // State declarations with explicit types
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -108,30 +117,6 @@ const EmployeeDocumentsPage: FC = () => {
     // State for categories and documents (will be populated from API)
     const [documentCategories, setDocumentCategories] = useState<DocumentCategoryType[]>([]);
     const [allDocuments, setAllDocuments] = useState<DocumentType[]>([]);
-
-    // Helper function to generate random status for documents (since API doesn't provide this)
-    const generateRandomStatus = (priority: string): DocumentType['status'] => {
-        const statuses: DocumentType['status'][] = ['pending', 'signed', 'viewed', 'overdue'];
-        // Higher priority documents are more likely to be pending/overdue
-        if (priority === 'high') {
-            return Math.random() > 0.6 ? 'pending' : Math.random() > 0.5 ? 'overdue' : 'signed';
-        }
-        return statuses[Math.floor(Math.random() * statuses.length)];
-    };
-
-    // Helper function to generate due date based on creation date and status
-    const generateDueDate = (createdAt: string, status: DocumentType['status']): string => {
-        const createdDate = new Date(createdAt);
-        const daysToAdd = status === 'overdue' ? -5 : Math.floor(Math.random() * 30) + 7; // Overdue items have past due dates
-        const dueDate = new Date(createdDate);
-        dueDate.setDate(dueDate.getDate() + daysToAdd);
-
-        return dueDate.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
-    };
 
     // Helper function to transform API data
     const transformApiData = (apiData: ApiCategory[]) => {
@@ -150,26 +135,17 @@ const EmployeeDocumentsPage: FC = () => {
 
             // Transform documents
             category.documents.forEach(doc => {
-                const status = generateRandomStatus(doc.priority);
-                const dateAdded = new Date(doc.createdAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                });
-
                 transformedDocuments.push({
                     id: doc.id,
                     name: doc.name,
                     category: category.name,
                     categoryId: category.id,
-                    dateAdded: dateAdded,
-                    dueDate: generateDueDate(doc.createdAt, status),
-                    status: status,
-                    size: doc.file_size,
+                    status: doc.status as 'pending' | 'signed' | 'viewed' | 'overdue' | 'completed',
+                    size: doc.size,
                     priority: doc.priority as 'high' | 'medium' | 'low',
-                    content: `This is the ${doc.name} document. Please review and sign if required.`,
-                    fileUrl: doc.file_url,
-                    signedDate: status === 'signed' ? dateAdded : undefined
+                    fileUrl: doc.fileUrl,
+                    signedDate: doc.signedDate,
+                    createdAt: doc.createdAt,
                 });
             });
         });
@@ -179,10 +155,9 @@ const EmployeeDocumentsPage: FC = () => {
 
     const fetchUserDocuments = async (): Promise<{ categories: DocumentCategoryType[], documents: DocumentType[] }> => {
         try {
-            // Use user ID from context, fallback to a default if not available
-            const userId = user?.id || '1'; // Replace with actual user ID logic
+            const userId = user?.id || '1';
 
-            const response = await authFetch(`/user-docs/categories-with-documents/${userId}`, {
+            const response = await authFetch(`/user-docs/by-category/${userId}`, {
                 method: 'GET',
             });
 
@@ -203,6 +178,123 @@ const EmployeeDocumentsPage: FC = () => {
         }
     };
 
+    // Document completion mutation
+    const documentCompletionMutation = useMutation({
+        mutationFn: async ({ userId, documentId }: { userId: string; documentId: number }) => {
+            const response = await authFetch('/user-docs/document-completion', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: userId,
+                    document_id: documentId,
+                    acknowledgement_checked: true
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Failed to complete document signature');
+            }
+
+            const result: DocumentCompletionResponse = await response.json();
+
+            if (result.error || result.code !== 'SUCCESS') {
+                throw new Error(result.message || 'Failed to complete document signature');
+            }
+
+            return result;
+        },
+        onSuccess: (data, variables) => {
+            // Update local state to reflect the signed document
+            setAllDocuments(prev => prev.map(doc =>
+                doc.id === variables.documentId
+                    ? {
+                        ...doc,
+                        status: 'signed' as const,
+                        signedDate: new Date().toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                        })
+                    }
+                    : doc
+            ));
+
+            // Close the signature dialog
+            setShowSignatureDialog(false);
+            setSelectedDocument(null);
+
+            // Invalidate and refetch the documents to ensure consistency
+            queryClient.invalidateQueries({ queryKey: ['userDocuments', user?.id] });
+
+            console.log(`Document "${selectedDocument?.name}" has been signed successfully!`);
+
+            toast.success('Document signed', {
+                description: `Successfully signed document "${selectedDocument?.name}".`,
+            })
+        },
+        onError: (error) => {
+            console.error('Error signing document:', error);
+            toast.error("Error signing document", {
+                description: error instanceof Error ? error.message : "Failed to sign document. Please try again.",
+            })
+        },
+    });
+
+    // Document view mutation
+    const documentViewMutation = useMutation({
+        mutationFn: async ({ userId, documentId }: { userId: string; documentId: number }) => {
+            const response = await authFetch('/user-docs/document-progress', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: userId,
+                    document_id: documentId,
+                    // TODO: look into capturing this data as its part of the requirements
+                    progress_data: { "page": Math.floor(Math.random() * 100), "scrollPosition": Math.floor(Math.random() * 100) },
+                    time_spent: Math.floor(Math.random() * 100),
+                    duration: Math.floor(Math.random() * 100)
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Failed to mark document as viewed');
+            }
+
+            const result: DocumentViewResponse = await response.json();
+
+            if (result.error || result.code !== 'SUCCESS') {
+                throw new Error(result.message || 'Failed to mark document as viewed');
+            }
+
+            return result;
+        },
+        onSuccess: (data, variables) => {
+            // Update local state to reflect the viewed document
+            setAllDocuments(prev => prev.map(doc =>
+                doc.id === variables.documentId && doc.status === 'pending'
+                    ? { ...doc, status: 'viewed' as const }
+                    : doc
+            ));
+
+            // Invalidate and refetch the documents to ensure consistency
+            queryClient.invalidateQueries({ queryKey: ['userDocuments', user?.id] });
+
+            console.log(`Document marked as viewed successfully!`);
+        },
+        onError: (error) => {
+            console.error('Error marking document as viewed:', error);
+            toast.error("Error marking document as viewed", {
+                description: error instanceof Error ? error.message : "Failed to mark document as viewed. Please try again.",
+            })
+        },
+    });
+
     const {
         data,
         isLoading,
@@ -213,7 +305,7 @@ const EmployeeDocumentsPage: FC = () => {
         queryFn: fetchUserDocuments,
         staleTime: 2 * 60 * 1000, // 2 minutes
         retry: 2,
-        enabled: !!user?.id, // Only run query if user ID is available
+        enabled: !!user?.id,
     });
 
     // Use the data from the query if available
@@ -228,6 +320,14 @@ const EmployeeDocumentsPage: FC = () => {
     const getStatusConfig = (status: DocumentType['status']): StatusConfig => {
         switch (status) {
             case 'signed':
+                return {
+                    icon: CheckCircle,
+                    color: 'text-green-500',
+                    bgColor: 'bg-green-100 dark:bg-green-900/30',
+                    textColor: 'text-green-800 dark:text-green-400',
+                    label: 'Signed'
+                };
+            case 'completed':
                 return {
                     icon: CheckCircle,
                     color: 'text-green-500',
@@ -285,16 +385,17 @@ const EmployeeDocumentsPage: FC = () => {
         setSelectedCategory(selectedCategory === categoryId ? null : categoryId);
     };
 
-    // Handle viewing a document (opens document viewer)
+    // Handle viewing a document (opens document viewer and marks as viewed)
     const handleViewDocument = (doc: DocumentType): void => {
         setSelectedDocument(doc);
         setShowDocumentViewer(true);
 
-        // Update document status to 'viewed' if it was pending
-        if (doc.status === 'pending') {
-            setAllDocuments(prev => prev.map(d =>
-                d.id === doc.id ? { ...d, status: 'viewed' } : d
-            ));
+        // Mark document as viewed via API if it was pending and user is available
+        if (doc.status === 'pending' && user?.id) {
+            documentViewMutation.mutate({
+                userId: user.id,
+                documentId: doc.id,
+            });
         }
     };
 
@@ -316,27 +417,13 @@ const EmployeeDocumentsPage: FC = () => {
         setShowSignatureDialog(true);
     };
 
-    // Handle confirming signature
+    // Handle confirming signature with API call
     const handleConfirmSignature = (): void => {
-        if (selectedDocument) {
-            // Update document status to signed
-            setAllDocuments(prev => prev.map(doc =>
-                doc.id === selectedDocument.id
-                    ? {
-                        ...doc,
-                        status: 'signed',
-                        signedDate: new Date().toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                        })
-                    }
-                    : doc
-            ));
-
-            setShowSignatureDialog(false);
-            setSelectedDocument(null);
-            console.log(`Document "${selectedDocument?.name}" has been signed successfully!`);
+        if (selectedDocument && user?.id) {
+            documentCompletionMutation.mutate({
+                userId: user.id,
+                documentId: selectedDocument.id,
+            });
         }
     };
 
@@ -355,6 +442,7 @@ const EmployeeDocumentsPage: FC = () => {
                         <button
                             onClick={onClose}
                             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                            disabled={documentCompletionMutation.isPending}
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -539,10 +627,13 @@ const EmployeeDocumentsPage: FC = () => {
                                         Category
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        Cycle
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                         Status
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Due Date
+                                        Signed At
                                     </th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                         Actions
@@ -571,6 +662,11 @@ const EmployeeDocumentsPage: FC = () => {
                                                 <span className="text-sm text-gray-900 dark:text-white">{doc.category}</span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="text-sm text-gray-900 dark:text-white">
+                                                    Monthly
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-2">
                                                     <StatusIcon className={`w-4 h-4 ${statusConfig.color}`} />
                                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
@@ -582,13 +678,13 @@ const EmployeeDocumentsPage: FC = () => {
                                                 <div className="text-sm text-gray-900 dark:text-white">
                                                     {doc.signedDate ? (
                                                         <span className="text-green-600 dark:text-green-400">
-                                                            Signed {doc.signedDate}
+                                                            Signed {formatDate(doc.signedDate)}
                                                         </span>
                                                     ) : (
                                                         <span className={`${doc.status === 'overdue' ? 'text-red-600 dark:text-red-400 font-medium' :
                                                             'text-gray-900 dark:text-white'
                                                             }`}>
-                                                            {doc.dueDate}
+                                                            -
                                                         </span>
                                                     )}
                                                 </div>
@@ -597,10 +693,15 @@ const EmployeeDocumentsPage: FC = () => {
                                                 <div className="flex items-center justify-end gap-2">
                                                     <button
                                                         onClick={() => handleViewDocument(doc)}
-                                                        className="p-2 text-gray-400 hover:text-cyan-500 transition-colors"
+                                                        disabled={documentViewMutation.isPending && selectedDocument?.id === doc.id}
+                                                        className="p-2 text-gray-400 hover:text-cyan-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                         title="View Document"
                                                     >
-                                                        <Eye className="w-4 h-4" />
+                                                        {documentViewMutation.isPending && selectedDocument?.id === doc.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Eye className="w-4 h-4" />
+                                                        )}
                                                     </button>
                                                     <button
                                                         onClick={() => handleDownloadDocument(doc)}
@@ -684,7 +785,7 @@ const EmployeeDocumentsPage: FC = () => {
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedDocument.name}</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    Added on {selectedDocument.dateAdded} • Due: {selectedDocument.dueDate}
+                                    Added on {selectedDocument.createdAt} • Due: {selectedDocument.dueDate}
                                 </p>
                             </div>
                         </div>
@@ -712,13 +813,6 @@ const EmployeeDocumentsPage: FC = () => {
                                     }`}>
                                     {selectedDocument.priority} priority
                                 </span>
-                            </div>
-                        </div>
-
-                        <div>
-                            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Document Summary:</h4>
-                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-sm text-gray-600 dark:text-gray-300 max-h-32 overflow-y-auto">
-                                {selectedDocument.content}
                             </div>
                         </div>
 
@@ -772,18 +866,37 @@ const EmployeeDocumentsPage: FC = () => {
                         <p className="text-gray-600 dark:text-gray-400">
                             By clicking "Confirm Signature", you electronically sign this document. This action is legally binding.
                         </p>
+
+                        {/* Show error if mutation failed */}
+                        {documentCompletionMutation.isError && (
+                            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg p-3">
+                                <p className="text-sm text-red-800 dark:text-red-400">
+                                    {documentCompletionMutation.error?.message || 'Failed to sign document. Please try again.'}
+                                </p>
+                            </div>
+                        )}
+
                         <div className="flex gap-3 pt-4">
                             <button
                                 onClick={() => setShowSignatureDialog(false)}
-                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                disabled={documentCompletionMutation.isPending}
+                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleConfirmSignature}
-                                className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+                                disabled={documentCompletionMutation.isPending}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Confirm Signature
+                                {documentCompletionMutation.isPending ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Signing...
+                                    </>
+                                ) : (
+                                    'Confirm Signature'
+                                )}
                             </button>
                         </div>
                     </div>
