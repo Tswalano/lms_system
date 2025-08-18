@@ -350,27 +350,24 @@ model user_departments {
 // NOTIFICATIONS
 // =========================
 model notifications {
-  id           BigInt                @id @default(autoincrement())
-  recipientId  String                @db.VarChar(36)
-  createdById  String?               @db.VarChar(36)
-  type         notification_type
-  category     notification_category
-  title        String                @db.VarChar(255)
-  message      String                @db.Text
-  actionUrl    String?               @db.VarChar(500)
-  actionText   String?               @db.VarChar(100)
-  imageUrl     String?               @db.VarChar(500)
-  relatedId    String?               @db.VarChar(36)
-  relatedType  String?               @db.VarChar(50)
-  isRead       Boolean               @default(false)
-  isArchived   Boolean               @default(false)
-  readAt       DateTime?             @db.Timestamp(0)
-  priority     notification_priority @default(normal)
-  scheduledFor DateTime?             @db.Timestamp(0)
-  expiresAt    DateTime?             @db.Timestamp(0)
-  metadata     String?               @db.Text
-  createdAt    DateTime              @default(now()) @db.Timestamp(0)
-  updatedAt    DateTime              @default(now()) @db.Timestamp(0)
+  id          BigInt                @id @default(autoincrement())
+  recipientId String                @db.VarChar(36)
+  createdById String?               @db.VarChar(36)
+  type        notification_type
+  category    notification_category
+  title       String                @db.VarChar(255)
+  message     String                @db.Text
+  actionUrl   String?               @db.VarChar(500)
+  actionText  String?               @db.VarChar(100)
+  imageUrl    String?               @db.VarChar(500)
+  relatedId   String?               @db.VarChar(36)
+  relatedType String?               @db.VarChar(50)
+  isRead      Boolean               @default(false)
+  isArchived  Boolean               @default(false)
+  readAt      DateTime?             @db.Timestamp(0)
+  priority    notification_priority @default(normal)
+  createdAt   DateTime              @default(now()) @db.Timestamp(0)
+  updatedAt   DateTime              @default(now()) @db.Timestamp(0)
 
   recipient users  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
   createdBy users? @relation("NotificationCreator", fields: [createdById], references: [id])
@@ -381,8 +378,6 @@ model notifications {
   @@index([type])
   @@index([category])
   @@index([priority])
-  @@index([scheduledFor])
-  @@index([expiresAt])
   @@index([relatedId, relatedType])
   @@index([createdAt])
   @@map("notifications")
