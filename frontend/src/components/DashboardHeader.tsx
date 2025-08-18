@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAuth } from "@/contexts/AuthContext";
-import { MonitorOff, Moon, SunDim, Bell, X, Check, Clock, Archive, Trash2, MoreHorizontal } from "lucide-react";
+import { MonitorOff, Moon, SunDim, Bell, X, Check, Clock, Archive, Trash2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNotifications, useNotificationCounts, useNotificationMutations } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
@@ -187,7 +187,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
     const handleNavigation = () => {
         setShowNotifications(false);
-         navigate('/notifications');
+        navigate('/notifications');
     };
 
     return (
@@ -218,192 +218,157 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     </button>
 
                     {/* Notification Dropdown */}
-                    {
-                        showNotifications && (
-                            <div className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden" >
-                                {/* Header */}
-                                < div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between" >
-                                    <div>
-                                        <h3 className="font-semibold text-gray-900 dark:text-white" >
-                                            Notifications
-                                        </h3>
-                                        {
-                                            countsData?.data && (
-                                                <p className="text-xs text-gray-500 dark:text-gray-400" >
-                                                    {unreadCount} unread
-                                                    {urgentCount > 0 && `, ${urgentCount} urgent`}
-                                                </p>
-                                            )
-                                        }
-                                    </div>
-                                    {
-                                        unreadCount > 0 && (
-                                            <button
-                                                onClick={handleMarkAllRead}
-                                                disabled={markAllAsRead.isPending}
-                                                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium disabled:opacity-50"
-                                            >
-                                                {markAllAsRead.isPending ? 'Marking...' : 'Mark all read'}
-                                            </button>
-                                        )
-                                    }
+                    {showNotifications && (
+                        <div className="absolute top-full right-0 mt-3 w-96 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all">
+
+                            {/* Header */}
+                            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-semibold text-gray-900 dark:text-white text-base">
+                                        Notifications
+                                    </h3>
+                                    {countsData?.data && (
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                            {unreadCount} unread
+                                            {urgentCount > 0 && `, ${urgentCount} urgent`}
+                                        </p>
+                                    )}
                                 </div>
-
-                                {/* Notifications List */}
-                                <div className="max-h-96 overflow-y-auto" >
-                                    {
-                                        notificationsLoading ? (
-                                            <div className="p-8 text-center" >
-                                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"> </div>
-                                                < p className="text-sm text-gray-500 dark:text-gray-400 mt-2" > Loading...</p>
-                                            </div>
-                                        ) : notifications.length === 0 ? (
-                                            <div className="p-8 text-center text-gray-500 dark:text-gray-400" >
-                                                <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                                <p>No notifications </p>
-                                            </div>
-                                        ) : (
-                                            <div className="divide-y divide-gray-200 dark:divide-gray-700" >
-                                                {
-                                                    notifications.map((notification: NotificationAPI) => (
-                                                        <div
-                                                            key={notification.id}
-                                                            onClick={() => handleNotificationClick(notification)}
-                                                            className={`relative p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors border-l-4 ${!notification.isRead ? getPriorityColor(notification.priority) : 'border-l-gray-300 dark:border-l-gray-600'
-                                                                }`
-                                                            }
-                                                        >
-                                                            <div className="flex items-start space-x-3" >
-                                                                {/* Icon */}
-                                                                < div className="flex-shrink-0 mt-1" >
-                                                                    {getNotificationIcon(notification.type)}
-                                                                </div>
-
-                                                                {/* Content */}
-                                                                <div className="flex-1 min-w-0" >
-                                                                    <div className="flex items-center justify-between" >
-                                                                        <p className={
-                                                                            `text-sm font-medium ${!notification.isRead
-                                                                                ? 'text-gray-900 dark:text-white'
-                                                                                : 'text-gray-700 dark:text-gray-300'
-                                                                            }`
-                                                                        }>
-                                                                            {notification.title}
-                                                                        </p>
-                                                                        < div className="flex items-center space-x-1" >
-                                                                            <span className="text-xs text-gray-500 dark:text-gray-400" >
-                                                                                {formatNotificationTime(notification.createdAt)}
-                                                                            </span>
-
-                                                                            {/* Actions Menu */}
-                                                                            <button
-                                                                                onClick={
-                                                                                    (e) => {
-                                                                                        e.stopPropagation();
-                                                                                        setShowActions(showActions === notification.id ? null : notification.id);
-                                                                                    }
-                                                                                }
-                                                                                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                            >
-                                                                                <MoreHorizontal className="h-3 w-3" />
-                                                                            </button>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    < p className="text-xs text-gray-600 dark:text-gray-400 mt-1 leading-relaxed" >
-                                                                        {notification.message}
-                                                                    </p>
-
-                                                                    {
-                                                                        notification.actionText && (
-                                                                            <div className="mt-2" >
-                                                                                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" >
-                                                                                    {notification.actionText}
-                                                                                </span>
-                                                                            </div>
-                                                                        )
-                                                                    }
-
-                                                                    {
-                                                                        notification.createdBy && (
-                                                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1" >
-                                                                                From: {notification.createdBy.name}
-                                                                            </p>
-                                                                        )
-                                                                    }
-                                                                </div>
-
-                                                                {/* Unread indicator */}
-                                                                {
-                                                                    !notification.isRead && (
-                                                                        <div className={
-                                                                            `flex-shrink-0 w-2 h-2 rounded-full mt-2 ${notification.priority === 'urgent' ? 'bg-red-500' :
-                                                                                notification.priority === 'high' ? 'bg-orange-500' : 'bg-blue-500'
-                                                                            }`
-                                                                        }> </div>
-                                                                    )
-                                                                }
-                                                            </div>
-
-                                                            {/* Actions Dropdown */}
-                                                            {
-                                                                showActions === notification.id && (
-                                                                    <div className="absolute right-2 top-12 bg-white dark:bg-gray-700 rounded-md shadow-lg border border-gray-200 dark:border-gray-600 py-1 z-50" >
-                                                                        <button
-                                                                            onClick={
-                                                                                (e) => {
-                                                                                    e.stopPropagation();
-                                                                                    if (notification.isRead) {
-                                                                                        markAsUnread.mutate(notification.id);
-                                                                                    } else {
-                                                                                        markAsRead.mutate(notification.id);
-                                                                                    }
-                                                                                    setShowActions(null);
-                                                                                }
-                                                                            }
-                                                                            className="w-full px-3 py-1 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center space-x-2"
-                                                                        >
-                                                                            {notification.isRead ? <Bell className="h-3 w-3" /> : <Check className="h-3 w-3" />}
-                                                                            < span > Mark as {notification.isRead ? 'unread' : 'read'
-                                                                            } </span>
-                                                                        </button>
-                                                                        < button
-                                                                            onClick={(e) => handleArchive(notification.id, e)}
-                                                                            className="w-full px-3 py-1 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center space-x-2"
-                                                                        >
-                                                                            <Archive className="h-3 w-3" />
-                                                                            <span>Archive </span>
-                                                                        </button>
-                                                                        < button
-                                                                            onClick={(e) => handleDelete(notification.id, e)}
-                                                                            className="w-full px-3 py-1 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-600 text-red-600 dark:text-red-400 flex items-center space-x-2"
-                                                                        >
-                                                                            <Trash2 className="h-3 w-3" />
-                                                                            <span>Delete </span>
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                        </div>
-                                                    ))}
-                                            </div>
-                                        )}
-                                </div>
-
-                                {/* Footer */}
-                                {
-                                    notifications.length > 0 && (
-                                        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700" >
-                                            <button
-                                                onClick={() => handleNavigation()}
-                                                className="w-full text-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium py-1"
-                                            >
-                                                View all notifications
-                                            </button>
-                                        </div>
-                                    )
-                                }
+                                {unreadCount > 0 && (
+                                    <button
+                                        onClick={handleMarkAllRead}
+                                        disabled={markAllAsRead.isPending}
+                                        className="text-xs px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition disabled:opacity-50"
+                                    >
+                                        {markAllAsRead.isPending ? 'Marking...' : 'Mark all read'}
+                                    </button>
+                                )}
                             </div>
-                        )}
+
+                            {/* Notifications List */}
+                            <div className="max-h-96 overflow-y-auto">
+                                {notificationsLoading ? (
+                                    <div className="p-8 text-center">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto" />
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Loading...</p>
+                                    </div>
+                                ) : notifications.length === 0 ? (
+                                    <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                                        <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                        <p>No notifications</p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-gray-200 dark:divide-gray-800">
+                                        {notifications.map((notification: NotificationAPI) => (
+                                            <div
+                                                key={notification.id}
+                                                onClick={() => handleNotificationClick(notification)}
+                                                className={`relative group p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors border-l-4 ${!notification.isRead
+                                                    ? getPriorityColor(notification.priority)
+                                                    : 'border-l-transparent'
+                                                    }`}
+                                            >
+                                                <div className="flex items-start space-x-4">
+                                                    {/* Icon */}
+                                                    <div className="flex-shrink-0">
+                                                        {getNotificationIcon(notification.type)}
+                                                    </div>
+
+                                                    {/* Content */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center justify-between">
+                                                            <p
+                                                                className={`text-sm font-medium truncate ${!notification.isRead
+                                                                    ? 'text-gray-900 dark:text-white'
+                                                                    : 'text-gray-700 dark:text-gray-300'
+                                                                    }`}
+                                                            >
+                                                                {notification.title}
+                                                            </p>
+                                                            <span className="text-xs text-gray-400">
+                                                                {formatNotificationTime(notification.createdAt)}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                                                            {notification.message}
+                                                        </p>
+
+                                                        {notification.actionText && (
+                                                            <span className="inline-block mt-2 px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                                                {notification.actionText}
+                                                            </span>
+                                                        )}
+
+                                                        {notification.createdBy && (
+                                                            <p className="text-xs text-gray-400 mt-1">
+                                                                From: {notification.createdBy.name}
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Unread dot */}
+                                                    {!notification.isRead && (
+                                                        <span
+                                                            className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${notification.priority === 'urgent'
+                                                                ? 'bg-red-500'
+                                                                : notification.priority === 'high'
+                                                                    ? 'bg-orange-500'
+                                                                    : 'bg-blue-500'
+                                                                }`}
+                                                        />
+                                                    )}
+                                                </div>
+
+                                                {/* Actions Dropdown */}
+                                                {showActions === notification.id && (
+                                                    <div className="absolute right-3 top-12 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[140px]">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                (notification.isRead ? markAsUnread : markAsRead).mutate(notification.id);
+                                                                setShowActions(null);
+                                                            }}
+                                                            className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                                        >
+                                                            {notification.isRead ? <Bell className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+                                                            Mark as {notification.isRead ? 'unread' : 'read'}
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleArchive(notification.id, e)}
+                                                            className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                                        >
+                                                            <Archive className="h-3 w-3" />
+                                                            Archive
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleDelete(notification.id, e)}
+                                                            className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400 flex items-center gap-2"
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            {notifications.length > 0 && (
+                                <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/30">
+                                    <button
+                                        onClick={() => handleNavigation()}
+                                        className="w-full text-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+                                    >
+                                        View all notifications
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                 </div>
             </div>
 
