@@ -6,12 +6,11 @@ interface DocumentType {
     name: string;
     category: string;
     categoryId: string;
-    dateAdded: string;
-    dueDate: string;
-    status: 'pending' | 'signed' | 'viewed' | 'overdue';
+    createdAt: string;
+    dueDate?: string;
+    status: 'pending' | 'signed' | 'viewed' | 'overdue' | 'completed';
     size: string;
     priority: 'high' | 'medium' | 'low';
-    content: string;
     fileUrl: string;
     signedDate?: string;
 }
@@ -171,6 +170,12 @@ const DocumentViewer: FC<DocumentViewerProps> = ({
     const getStatusConfig = (status: DocumentType['status']) => {
         switch (status) {
             case 'signed':
+                return {
+                    bgColor: 'bg-green-100 dark:bg-green-900/30',
+                    textColor: 'text-green-800 dark:text-green-400',
+                    label: 'Signed'
+                };
+            case 'completed':
                 return {
                     bgColor: 'bg-green-100 dark:bg-green-900/30',
                     textColor: 'text-green-800 dark:text-green-400',
@@ -437,7 +442,7 @@ const DocumentViewer: FC<DocumentViewerProps> = ({
                                 {document.name}
                             </h2>
                             <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                                <span>Added on {document.dateAdded}</span>
+                                <span>Added on {document.createdAt}</span>
                                 <span>•</span>
                                 <span>Due: {document.dueDate}</span>
                                 <span>•</span>

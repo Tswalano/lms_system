@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, type FC } from 'react';
 import {
     Plus,
@@ -30,6 +31,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { User } from "../contexts/AuthContext";
+import { createAvatar } from '@/lib/helper';
+import DocumentViewModal from '@/components/DocumentViewModal';
 
 // Interface for API Document
 interface ApiDocument {
@@ -41,6 +44,11 @@ interface ApiDocument {
     createdAt: string;
     uploadedById: string;
     uploadedByDisplay: string;
+    signatures: {
+        signed: number;
+        totalAssigned: number;
+        percentage: number;
+    };
 }
 
 // Interface for API Category
@@ -101,7 +109,6 @@ interface DocumentType {
     signatureRate: number;
     folder: string;
     size: string;
-    content: string;
     fileUrl: string;
     priority?: string;
     mimeType?: string;
@@ -113,7 +120,8 @@ interface NewDocumentState {
     name: string;
     folder: string;
     expiryFrequency: string;
-    file: File | null;
+    file?: File | null;
+    url?: string | null;
     status: 'active' | 'draft' | 'archived';
 }
 
@@ -132,14 +140,6 @@ interface EditDocumentState {
     status: 'active' | 'draft' | 'archived';
 }
 
-// Interface for Modal component props
-interface ModalProps {
-    show: boolean;
-    onClose: () => void;
-    title: string;
-    children: React.ReactNode;
-}
-
 const AdminDocumentsPage: FC = () => {
     const { authFetch, user } = useAuth();
     const queryClient = useQueryClient();
@@ -152,6 +152,7 @@ const AdminDocumentsPage: FC = () => {
     const [showEditModal, setShowEditModal] = useState<boolean>(false);
     const [selectedDocument, setSelectedDocument] = useState<DocumentType | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [activeTab, setActiveTab] = useState<"file" | "url">("file");
 
     // Local state for folders and documents
     const [folders, setFolders] = useState<FolderType[]>([]);
@@ -163,6 +164,7 @@ const AdminDocumentsPage: FC = () => {
         folder: '',
         expiryFrequency: '',
         file: null,
+        url: null,
         status: 'draft'
     });
 
@@ -196,6 +198,16 @@ const AdminDocumentsPage: FC = () => {
         'bg-red-500',
         'bg-indigo-500'
     ];
+
+    // URL validation function
+    const isValidUrl = (url: string): boolean => {
+        try {
+            const urlObj = new URL(url);
+            return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+        } catch {
+            return false;
+        }
+    };
 
     // API Functions
     const fetchDepartments = async (): Promise<Department[]> => {
@@ -325,10 +337,10 @@ const AdminDocumentsPage: FC = () => {
     });
 
     const createDocumentMutation = useMutation({
-        mutationFn: async (documentData: DocumentType) => {
+        mutationFn: async (documentPayload: any) => {
             const response = await authFetch('/admin-docs', {
                 method: 'POST',
-                body: JSON.stringify(documentData),
+                body: JSON.stringify(documentPayload),
             });
 
             if (!response.ok) {
@@ -338,8 +350,25 @@ const AdminDocumentsPage: FC = () => {
 
             return response.json();
         },
-        onSuccess: (responsePayload, documentData) => {
-            const document = { ...documentData, id: responsePayload.payload.id };
+        onSuccess: (responsePayload, documentPayload) => {
+            const document: DocumentType = {
+                id: responsePayload.payload.id,
+                name: documentPayload.name,
+                uploadedByDisplay: documentPayload.uploadedByDisplay,
+                uploadedById: documentPayload.uploadedById,
+                avatar: createAvatar(documentPayload.uploadedByDisplay.split(' ')[0], documentPayload.uploadedByDisplay.split(' ')[1]),
+                date: new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                }),
+                status: documentPayload.status || 'draft',
+                signatureRate: documentPayload.signatures ? documentPayload.signatures.percentage : 0,
+                folder: documentPayload.folder,
+                size: documentPayload.size,
+                // content: documentPayload.content,
+                fileUrl: documentPayload.fileUrl || documentPayload.finalUrl || "",
+            };
 
             setAllDocuments(prev => [document, ...prev]);
             setFolders(prev => prev.map(folder =>
@@ -348,7 +377,7 @@ const AdminDocumentsPage: FC = () => {
                     : folder
             ));
 
-            setNewDocument({ name: '', folder: '', file: null, status: 'draft', expiryFrequency: '' });
+            setNewDocument({ name: '', folder: '', file: null, url: null, status: 'draft', expiryFrequency: '' });
             setShowAddDocumentModal(false);
 
             toast.success("Document added successfully!", {
@@ -412,17 +441,16 @@ const AdminDocumentsPage: FC = () => {
                     name: doc.name,
                     uploadedByDisplay: doc.uploadedByDisplay,
                     uploadedById: doc.uploadedById,
-                    avatar: 'SU',
+                    avatar: createAvatar(doc.uploadedByDisplay.split(' ')[0], doc.uploadedByDisplay.split(' ')[1]),
                     date: new Date(doc.createdAt).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric'
                     }),
                     status: 'active',
-                    signatureRate: Math.floor(Math.random() * 100),
+                    signatureRate: doc.signatures ? doc.signatures.percentage : 0,
                     folder: category.id,
                     size: doc.file_size,
-                    content: `This is the ${doc.name} document. Content will be loaded when the document is accessed.`,
                     fileUrl: doc.file_url,
                     priority: doc.priority
                 });
@@ -465,6 +493,7 @@ const AdminDocumentsPage: FC = () => {
     };
 
     const handleAddDocument = async (): Promise<void> => {
+        // Validation
         if (!newDocument.name.trim() || !newDocument.folder) {
             toast.error("Validation Error", {
                 description: "Document name and folder are required.",
@@ -472,35 +501,65 @@ const AdminDocumentsPage: FC = () => {
             return;
         }
 
-        try {
-            const fileBasse64 = newDocument.file ? await getDocumentBase64(newDocument.file) : '';
+        // Check if both file and URL are provided or both are missing
+        const hasFile = !!newDocument.file;
+        const hasUrl = !!newDocument.url?.trim();
 
-            const document: DocumentType = {
-                id: Date.now(), // Temporary ID, will be replaced by API response
+        if (!hasFile && !hasUrl) {
+            toast.error("Validation Error", {
+                description: "Please either upload a file or provide a URL.",
+            });
+            return;
+        }
+
+        if (hasFile && hasUrl) {
+            toast.error("Validation Error", {
+                description: "Please provide either a file or a URL, not both.",
+            });
+            return;
+        }
+
+        // Validate URL format if URL is provided
+        if (hasUrl && !isValidUrl(newDocument.url!)) {
+            toast.error("Validation Error", {
+                description: "Please enter a valid URL (must start with http:// or https://).",
+            });
+            return;
+        }
+
+        try {
+            const documentPayload: any = {
                 name: newDocument.name,
-                uploadedByDisplay: `${(user as User).firstName} ${(user as User).lastName}`,
                 uploadedById: (user as User).id,
-                avatar: 'CU',
-                date: new Date().toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                }),
-                status: newDocument.status,
-                signatureRate: 0,
+                uploadedByDisplay: `${(user as User).firstName} ${(user as User).lastName}`,
+                departmentId: null, // Adjust as needed
                 folder: newDocument.folder,
-                size: newDocument.file ? `${Math.round(newDocument.file.size / 1024)} KB` : '0 KB',
-                content: 'Document content will be processed and displayed here once uploaded.',
-                fileUrl: "",
-                mimeType: newDocument.file ? newDocument.file.type : '',
-                fileBase64: fileBasse64 ? fileBasse64.split(",")[1] : null
+                content: hasUrl
+                    ? `This document is linked to: ${newDocument.url}`
+                    : 'Document content will be processed and displayed here once uploaded.',
+                status: newDocument.status,
             };
 
-            createDocumentMutation.mutate(document);
+            if (hasUrl) {
+                // URL-based document
+                documentPayload.fileUrl = newDocument.url;
+                documentPayload.size = 'External Link';
+                documentPayload.mimeType = 'text/html'; // Default for URLs
+                documentPayload.fileBase64 = null;
+            } else if (hasFile) {
+                // File-based document
+                const fileBase64 = await getDocumentBase64(newDocument.file!);
+                documentPayload.size = `${Math.round(newDocument.file!.size / 1024)} KB`;
+                documentPayload.mimeType = newDocument.file!.type || 'application/octet-stream';
+                documentPayload.fileBase64 = fileBase64 ? fileBase64.split(",")[1] : null;
+                documentPayload.fileUrl = null;
+            }
+
+            createDocumentMutation.mutate(documentPayload);
         } catch (error) {
-            console.error('Error processing file:', error);
-            toast.error("Error processing file", {
-                description: "Failed to process the selected file. Please try again.",
+            console.error('Error processing document:', error);
+            toast.error("Error processing document", {
+                description: "Failed to process the document. Please try again.",
             });
         }
     };
@@ -511,12 +570,18 @@ const AdminDocumentsPage: FC = () => {
     };
 
     const handleDownloadDocument = (doc: DocumentType): void => {
-        const link = document.createElement('a');
-        link.href = doc.fileUrl;
-        link.download = doc.name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        if (isValidUrl(doc.fileUrl)) {
+            // If it's a URL, open in new tab
+            window.open(doc.fileUrl, '_blank');
+        } else {
+            // If it's a direct file, download it
+            const link = document.createElement('a');
+            link.href = doc.fileUrl;
+            link.download = doc.name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
     };
 
     const handleEditDocument = (doc: DocumentType): void => {
@@ -591,7 +656,7 @@ const AdminDocumentsPage: FC = () => {
         e.preventDefault();
         setIsDragging(false);
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            setNewDocument({ ...newDocument, file: e.dataTransfer.files[0] });
+            setNewDocument({ ...newDocument, file: e.dataTransfer.files[0], url: null });
             e.dataTransfer.clearData();
         }
     };
@@ -612,6 +677,16 @@ const AdminDocumentsPage: FC = () => {
         setNewFolder({ ...newFolder, name: e.target.value });
     };
 
+    // Handle tab switching and clear opposite input
+    const handleTabChange = (tab: "file" | "url") => {
+        setActiveTab(tab);
+        if (tab === "file") {
+            setNewDocument(prev => ({ ...prev, url: null }));
+        } else {
+            setNewDocument(prev => ({ ...prev, file: null }));
+        }
+    };
+
     // Computed values
     const filteredDocuments: DocumentType[] = selectedFolder
         ? allDocuments.filter(doc => doc.folder === selectedFolder)
@@ -619,32 +694,6 @@ const AdminDocumentsPage: FC = () => {
 
     const isLoading = documentsLoading || departmentsLoading;
     const hasError = documentsError || departmentsError;
-
-    // Memoized Modal Component to prevent re-renders
-    const Modal = React.memo<ModalProps>(({ show, onClose, title, children }) => {
-        if (!show) return null;
-
-        return (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-600/50">
-                    <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{title}</h3>
-                            <button
-                                onClick={onClose}
-                                className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-colors"
-                            >
-                                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                            </button>
-                        </div>
-                    </div>
-                    <div className="p-6">
-                        {children}
-                    </div>
-                </div>
-            </div>
-        );
-    });
 
     return (
         <div className="font-inter">
@@ -978,14 +1027,30 @@ const AdminDocumentsPage: FC = () => {
                                 </Select>
                             </div>
 
-                            <div>
-                                <Label
-                                    htmlFor="new-doc-file"
-                                    className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2"
+                            {/* Tabs */}
+                            <div className="flex gap-4 mb-4">
+                                <button
+                                    onClick={() => handleTabChange("file")}
+                                    className={`px-4 py-2 font-medium ${activeTab === "file"
+                                        ? "border-b-2 border-cyan-500 text-cyan-600"
+                                        : "text-gray-500 dark:text-gray-400"
+                                        }`}
                                 >
                                     Upload File
-                                </Label>
+                                </button>
+                                <button
+                                    onClick={() => handleTabChange("url")}
+                                    className={`px-4 py-2 font-medium ${activeTab === "url"
+                                        ? "border-b-2 border-cyan-500 text-cyan-600"
+                                        : "text-gray-500 dark:text-gray-400"
+                                        }`}
+                                >
+                                    Paste URL
+                                </button>
+                            </div>
 
+                            {/* Tab Content */}
+                            {activeTab === "file" && (
                                 <div
                                     onDragOver={(e) => {
                                         e.preventDefault();
@@ -1020,7 +1085,28 @@ const AdminDocumentsPage: FC = () => {
                                         accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
                                     />
                                 </div>
-                            </div>
+                            )}
+
+                            {activeTab === "url" && (
+                                <div>
+                                    <Label htmlFor="new-doc-url" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                                        Document URL
+                                    </Label>
+                                    <Input
+                                        id="new-doc-url"
+                                        type="text"
+                                        value={newDocument.url || ""}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                            setNewDocument({ ...newDocument, url: e.target.value, file: null })
+                                        }
+                                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-lg"
+                                        placeholder="Enter document URL"
+                                    />
+                                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                                        If you provide a URL, you don’t need to upload a file.
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         {/* Footer */}
@@ -1177,70 +1263,11 @@ const AdminDocumentsPage: FC = () => {
 
 
             {/* View Document Modal */}
-            <Modal
-                show={showViewModal}
-                onClose={() => setShowViewModal(false)}
-                title="View Document"
-            >
-                {selectedDocument && (
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 rounded-lg flex items-center justify-center">
-                                <FileText className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedDocument.name}</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    Uploaded by {selectedDocument.uploadedByDisplay} on {selectedDocument.date}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 py-4 border-y border-gray-200 dark:border-gray-700">
-                            <div>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Status:</span>
-                                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedDocument.status)}`}>
-                                    {selectedDocument.status.charAt(0).toUpperCase() + selectedDocument.status.slice(1)}
-                                </span>
-                            </div>
-                            <div>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Size:</span>
-                                <span className="ml-2 text-sm text-gray-900 dark:text-white">{selectedDocument.size}</span>
-                            </div>
-                            <div>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Signatures:</span>
-                                <span className="ml-2 text-sm text-gray-900 dark:text-white">{selectedDocument.signatureRate}%</span>
-                            </div>
-                            <div>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Folder:</span>
-                                <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                                    {folders.find(f => f.id === selectedDocument.folder)?.name || 'Unknown'}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 pt-4">
-                            <button
-                                onClick={() => handleDownloadDocument(selectedDocument)}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:opacity-90 transition-opacity"
-                            >
-                                <Download className="w-4 h-4" />
-                                Download
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowViewModal(false);
-                                    handleEditDocument(selectedDocument);
-                                }}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90 transition-opacity"
-                            >
-                                <Edit3 className="w-4 h-4" />
-                                Edit
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </Modal>
+            <DocumentViewModal
+                showViewModal={showViewModal}
+                setShowViewModal={setShowViewModal}
+                selectedDocument={selectedDocument}
+            />
 
             {/* Edit Document Modal */}
             {showEditModal && (

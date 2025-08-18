@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import {
     S3Client, S3ClientConfig,
     PutObjectCommand, PutObjectCommandInput,
-    DeleteObjectCommand, DeleteObjectCommandInput } from "@aws-sdk/client-s3";
+    DeleteObjectCommand, DeleteObjectCommandInput
+} from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
 import mysql from 'mysql2/promise';
 import { extension } from "mime-types";
@@ -145,30 +146,41 @@ adminDocs.get('/by-category', async (c) => {
     try {
         connection = await DatabaseService.createConnection();
 
+        // SQL query to get all categories and their related documents,
+        // and also count the number of signatures and total assignments for each document.
         const selectSql = `
-            select 
-                dc.id as category_id,
-                dc.name as category_name,
-                dc.description as category_description,
-                dc.color as category_color,
-                d.id as document_id,
-                d.name as document_name,
+            SELECT
+                dc.id AS category_id,
+                dc.name AS category_name,
+                dc.description AS category_description,
+                dc.color AS category_color,
+                d.id AS document_id,
+                d.name AS document_name,
                 d.file_url,
                 d.file_size,
                 d.priority,
-                d.createdat as document_created_at,
-                d.created_by as uploadedById,
-                concat(u.firstName, ' ', u.lastName) as uploadedByDisplay
-            from document_categories dc
-            left outer join documents d on dc.id = d.category_id
-            left outer join users as u on u.id = d.created_by
-            order by dc.name asc, d.name asc
+                d.createdat AS document_created_at,
+                d.created_by AS uploaded_by_id,
+                CONCAT(u.firstName, ' ', u.lastName) AS uploaded_by_display,
+                COUNT(uda.user_id) AS total_assignments,
+                COUNT(ds.user_id) AS total_signatures
+            FROM document_categories dc
+            LEFT JOIN documents d ON dc.id = d.category_id
+            LEFT JOIN users u ON u.id = d.created_by
+            LEFT JOIN user_document_assignments uda ON d.id = uda.document_id
+            LEFT JOIN document_signatures ds ON uda.user_id = ds.user_id AND uda.document_id = ds.document_id
+            GROUP BY
+                dc.id, dc.name, dc.description, dc.color,
+                d.id, d.name, d.file_url, d.file_size, d.priority,
+                d.createdat, d.created_by, uploaded_by_display
+            ORDER BY dc.name ASC, d.name ASC;
         `;
 
         const [rows] = await connection.execute<any[]>(selectSql);
 
-        // Group documents under their categories
-        const grouped = rows.reduce((acc, row) => {
+        const grouped = new Map<number, any>();
+
+        rows.forEach(row => {
             const {
                 category_id,
                 category_name,
@@ -180,48 +192,63 @@ adminDocs.get('/by-category', async (c) => {
                 file_size,
                 priority,
                 document_created_at,
-                uploadedById,
-                uploadedByDisplay
+                uploaded_by_id,
+                uploaded_by_display,
+                total_assignments,
+                total_signatures
             } = row;
 
-            if (!acc[category_id]) {
-                acc[category_id] = {
+            // Initialize the category in the map if it doesn't exist
+            if (!grouped.has(category_id)) {
+                grouped.set(category_id, {
                     id: category_id,
                     name: category_name,
                     description: category_description,
                     color: category_color,
                     documents: []
-                };
+                });
             }
 
-            acc[category_id].documents.push({
-                id: document_id,
-                name: document_name,
-                file_url,
-                file_size,
-                priority,
-                createdAt: document_created_at,
-                uploadedById,
-                uploadedByDisplay
-            });
+            // If a document exists, add it to the category's documents array
+            if (document_id !== null) {
+                const signatures_percentage = total_assignments > 0
+                    ? parseFloat(((total_signatures / total_assignments) * 100).toFixed(2))
+                    : 0;
 
-            return acc;
-        }, {} as Record<string, any>);
+                grouped.get(category_id)?.documents.push({
+                    id: document_id,
+                    name: document_name,
+                    file_url: file_url,
+                    file_size: file_size,
+                    priority: priority,
+                    createdAt: document_created_at,
+                    uploadedById: uploaded_by_id,
+                    uploadedByDisplay: uploaded_by_display,
+                    signatures: {
+                        signed: total_signatures,
+                        totalAssigned: total_assignments,
+                        percentage: signatures_percentage
+                    }
+                });
+            }
+        });
 
         const response = ResponseService.success(
             "Document categories with documents retrieved successfully",
-            Object.values(grouped)
+            Array.from(grouped.values())
         );
 
         return c.json(response, 200);
+    } catch (error) {
+        console.error("Error retrieving documents by category:", error);
+        return c.json(ResponseService.error("DocumentRetrievalError", "Failed to retrieve documents by category"), 500);
     } finally {
-        if (!!connection) await connection.end();
+        if (connection) await connection.end();
     }
-
 });
 
 adminDocs.post('/', async (c) => {
-    console.log("PUT /admin-docs");
+    console.log("POST /admin-docs");
 
     // TODO: Perform S3 upload and database changes inside a MySQL transaction
 
@@ -248,17 +275,49 @@ adminDocs.post('/', async (c) => {
         mimeType,
         fileBase64
     } = requestBody;
+
     let finalUrl;
     let isUploadedToS3 = false;
     let s3Client: S3Client | null = null;
 
-    if (!!fileUrl) {
+    // Validate input - either fileUrl or fileBase64 must be provided
+    if (!fileUrl?.trim() && !fileBase64?.trim()) {
+        const validationErrorResponse = ResponseService.error(
+            "ValidationError",
+            "Either a file URL or file data must be provided"
+        );
+        return c.json(validationErrorResponse, 400);
+    }
+
+    if (!!fileUrl?.trim()) {
         // This document will point to an existing file
-        // available publicly on the internet and, will
+        // available publicly on the internet and will
         // not be uploaded to S3
-        finalUrl = fileUrl;
+
+        // Validate URL format
+        try {
+            const url = new URL(fileUrl.trim());
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+                throw new Error('Invalid protocol');
+            }
+            finalUrl = fileUrl.trim();
+        } catch (urlError) {
+            const urlValidationErrorResponse = ResponseService.error(
+                "InvalidUrlError",
+                "Please provide a valid URL starting with http:// or https://"
+            );
+            return c.json(urlValidationErrorResponse, 400);
+        }
     } else {
         // This document will be uploaded to S3
+
+        if (!mimeType?.trim()) {
+            const mimeTypeErrorResponse = ResponseService.error(
+                "ValidationError",
+                "MIME type is required for file uploads"
+            );
+            return c.json(mimeTypeErrorResponse, 400);
+        }
 
         try {
             const s3ClientConfig: S3ClientConfig = {};
@@ -268,11 +327,11 @@ adminDocs.post('/', async (c) => {
             const putObjectCommandInput: PutObjectCommandInput = {
                 Bucket: process.env.POLICY_DOCUMENTS_BUCKET_NAME,
                 Key: `${folder}/${name}.${objectNameExtension}`,
-                Body: Buffer.from(fileBase64, 'base64'), 
+                Body: Buffer.from(fileBase64, 'base64'),
                 ContentType: mimeType,
             }
             const putObjectCommand: PutObjectCommand = new PutObjectCommand(putObjectCommandInput);
-            /*const putObjectResrponse: PutObjectCommandOutput = */ await s3Client.send(putObjectCommand);
+            /*const putObjectResponse: PutObjectCommandOutput = */ await s3Client.send(putObjectCommand);
 
             finalUrl = `${process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL}/${folder}/${name}.${objectNameExtension}`;
             isUploadedToS3 = true;
@@ -302,8 +361,8 @@ adminDocs.post('/', async (c) => {
             name,
             folder,
             finalUrl,
-            size,
-            content,
+            size || '0 KB', // Default size for URL documents
+            content || 'Document content will be processed and displayed here once uploaded.',
             uploadedById
         ]);
 
@@ -316,7 +375,7 @@ adminDocs.post('/', async (c) => {
         const newDocumentRecords = await connection.execute<any[]>(fetchNewDocumentStatement);
 
         const response = ResponseService.success(
-            "Document categories with documents retrieved successfully",
+            "Document created successfully",
             newDocumentRecords[0][0]
         );
 
@@ -324,18 +383,19 @@ adminDocs.post('/', async (c) => {
     } catch (databaseError: any) {
         console.error("NEW DOCUMENT ERROR: DATABASE:", databaseError);
 
-        let responseMessage = "";
+        let responseMessage = "Failed to save document to database.";
 
         if (isUploadedToS3 && s3Client) {
             // If the document was uploaded to S3 but failed to save in the database,
             // we should delete it from S3 to avoid orphaned files
 
-            responseMessage = "Document uploaded to S3. Insert into database failed.";
+            responseMessage = "Document uploaded to S3 but failed to save in database.";
 
             try {
+                const objectNameExtension = extension(mimeType);
                 const deleteObjectCommandInput: DeleteObjectCommandInput = {
                     Bucket: process.env.POLICY_DOCUMENTS_BUCKET_NAME,
-                    Key: `${folder}/${name}`,
+                    Key: `${folder}/${name}.${objectNameExtension}`,
                 };
                 const deleteObjectCommand: DeleteObjectCommand = new DeleteObjectCommand(deleteObjectCommandInput);
                 await s3Client.send(deleteObjectCommand);
@@ -357,12 +417,11 @@ adminDocs.post('/', async (c) => {
     } finally {
         if (!!connection) await connection.end();
     }
-
 });
 
 adminDocs.post('/assignments', async (c) => {
     console.log("POST /assignments");
-    
+
     const requestBody = await c.req.json();
     const {
         userId,
@@ -512,5 +571,65 @@ adminDocs.post('/assignments', async (c) => {
         if (connection) await connection.end();
     }
 });
+
+adminDocs.get('/:document_id/signatures', async (c) => {
+    console.log("GET /admin-docs/:document_id/signatures");
+
+    let connection;
+    try {
+        const { document_id } = c.req.param();
+        if (!document_id) {
+            return c.json(ResponseService.error("InvalidRequest", "Document ID is required."), 400);
+        }
+
+        connection = await DatabaseService.createConnection();
+
+        // SQL query to get the list of all assigned users for a document
+        // and check if they have a corresponding signature record.
+        const selectSql = `
+            SELECT
+                u.id AS user_id,
+                CONCAT(u.firstName, ' ', u.lastName) AS user_name,
+                uda.status AS assignment_status,
+                ds.signed_at IS NOT NULL AS has_signed,
+                ds.signed_at
+            FROM user_document_assignments uda
+            LEFT JOIN users u ON uda.user_id = u.id
+            LEFT JOIN document_signatures ds ON ds.user_id = uda.user_id AND ds.document_id = uda.document_id
+            WHERE uda.document_id = ?
+            ORDER BY has_signed DESC, user_name ASC;
+        `;
+
+        const [rows] = await connection.execute<any[]>(selectSql, [document_id]);
+
+        const signedUsers = rows.filter(row => row.has_signed);
+        const notSignedUsers = rows.filter(row => !row.has_signed);
+
+        const response = ResponseService.success(
+            "Document signature status retrieved successfully.",
+            {
+                signed: signedUsers.map(u => ({
+                    id: u.user_id,
+                    name: u.user_name,
+                    signedAt: u.signed_at
+                })),
+                notSigned: notSignedUsers.map(u => ({
+                    id: u.user_id,
+                    name: u.user_name,
+                    status: u.assignment_status
+                }))
+            }
+        );
+
+        return c.json(response, 200);
+
+    } catch (error) {
+        console.error("Error retrieving document signature status:", error);
+        return c.json(ResponseService.error("DocumentSignatureRetrievalError", "Failed to retrieve document signature status."), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
 
 export default adminDocs;

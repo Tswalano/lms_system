@@ -101,7 +101,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: "performance", label: "Performance Reviews", icon: ChartSpline, path: "/performance" },
             ]
         }] : []),
-        ...(process.env.NODE_ENV === 'development' ? [{
+        ...(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? [{
             id: 'company-resources',
             label: 'Resources',
             icon: Building2,
