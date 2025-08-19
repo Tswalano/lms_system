@@ -33,6 +33,7 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
+      branch: ${{ steps.filter.outputs.branch }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -41,6 +42,7 @@ jobs:
         run: |
           FRONTEND=false
           BACKEND=false
+          BRANCH=${GITHUB_REF##*/}
           
           # Handle case where there's no previous commit (first push)
           if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ] || [ -z "${{ github.event.before }}" ]; then
@@ -68,7 +70,8 @@ jobs:
           
           echo "frontend=$FRONTEND" >> $GITHUB_OUTPUT
           echo "backend=$BACKEND" >> $GITHUB_OUTPUT
-          echo "Frontend: $FRONTEND, Backend: $BACKEND"
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "Frontend: $FRONTEND, Backend: $BACKEND, Branch: $BRANCH"
     
   semantic-release:
     needs: [detect-changes]
@@ -80,6 +83,7 @@ jobs:
     outputs:
       new-release-published: ${{ steps.semantic.outputs.new-release-published }}
       new-release-version: ${{ steps.semantic.outputs.new-release-version }}
+      release-type: ${{ steps.semantic.outputs.release-type }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -94,13 +98,36 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          npx semantic-release
-          if [ -f .semantic-release-output ]; then
-            NEW_VERSION=$(cat .semantic-release-output)
+          echo "Running semantic-release on branch: ${GITHUB_REF##*/}"
+          
+          # Run semantic-release and capture output
+          npx semantic-release --dry-run=false > semantic-output.log 2>&1 || true
+          cat semantic-output.log
+          
+          # Check if a release was published
+          if grep -q "Published release" semantic-output.log; then
             echo "new-release-published=true" >> $GITHUB_OUTPUT
-            echo "new-release-version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            
+            # Extract version from semantic-release output
+            VERSION=$(grep -o "Published release [0-9]\+\.[0-9]\+\.[0-9]\+\(-dev\.[0-9]\+\)\?" semantic-output.log | sed 's/Published release //')
+            if [ -z "$VERSION" ]; then
+              # Fallback: get version from package.json if semantic-release updated it
+              VERSION=$(node -p "require('./package.json').version")
+            fi
+            
+            echo "new-release-version=$VERSION" >> $GITHUB_OUTPUT
+            
+            # Determine release type
+            if [[ "$VERSION" =~ -dev\. ]]; then
+              echo "release-type=prerelease" >> $GITHUB_OUTPUT
+            else
+              echo "release-type=release" >> $GITHUB_OUTPUT
+            fi
+            
+            echo "Released version: $VERSION"
           else
             echo "new-release-published=false" >> $GITHUB_OUTPUT
+            echo "No new release published"
           fi
 
   frontend-deploy:
@@ -136,7 +163,24 @@ jobs:
           ENV="${{ github.event.inputs.environment || 'prod' }}"
           VERSION=""
 
-          if [ "$BRANCH" = "dev" ]; then
+          echo "Branch: $BRANCH"
+          echo "Event: ${{ github.event_name }}"
+          echo "Semantic release published: ${{ needs.semantic-release.outputs.new-release-published }}"
+          echo "Semantic release version: ${{ needs.semantic-release.outputs.new-release-version }}"
+          echo "Release type: ${{ needs.semantic-release.outputs.release-type }}"
+
+          # If semantic-release published a new version, use it
+          if [ "${{ needs.semantic-release.outputs.new-release-published }}" = "true" ]; then
+            VERSION="${{ needs.semantic-release.outputs.new-release-version }}"
+            
+            # Set environment based on release type
+            if [ "${{ needs.semantic-release.outputs.release-type }}" = "prerelease" ]; then
+              ENV="dev"
+            else
+              ENV="prod"
+            fi
+          elif [ "$BRANCH" = "dev" ]; then
+            # For dev branch without semantic release, create a dev version
             BASE_VERSION=$(node -p "require('../package.json').version")
             SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
             VERSION="${BASE_VERSION}-dev.${SHORT_SHA}"
@@ -144,26 +188,24 @@ jobs:
           elif [ "${{ github.event_name }}" = "release" ]; then
             VERSION="${{ github.event.release.tag_name }}"
             ENV="prod"
-          elif [ "${{ needs.semantic-release.outputs.new-release-published }}" = "true" ]; then
-            VERSION="${{ needs.semantic-release.outputs.new-release-version }}"
-            ENV="prod"
           else
+            # Fallback for main branch
             LATEST_RELEASE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
               "https://api.github.com/repos/${{ github.repository }}/releases/latest" | \
               grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]*).*/\1/' || echo "")
             if [ ! -z "$LATEST_RELEASE" ]; then
               VERSION="$LATEST_RELEASE"
-              ENV="prod"
             else
               VERSION=$(node -p "require('../package.json').version")
-              ENV="prod"
             fi
+            ENV="prod"
           fi
 
           echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "environment=$ENV" >> $GITHUB_OUTPUT
           echo "=== FRONTEND VERSION: $VERSION ==="
+          echo "=== ENVIRONMENT: $ENV ==="
 
       - name: Build with version
         run: npm run build

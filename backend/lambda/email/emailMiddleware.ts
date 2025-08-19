@@ -124,10 +124,10 @@ function getEmailConfiguration(): EnvironmentEmailConfig {
         };
     } else {
         return {
-            managementEmail: "glen.mogane@disraptor.com",
+            managementEmail: "glen.mogane@disraptor.co.za",
             managementCcEmails: [
-                "hanness@disraptor.com",
-                "xolani@disraptor.com"
+                "hanness@disraptor.co.za",
+                "xolani@disraptor.co.za"
             ],
             environment: 'dev'
         };
