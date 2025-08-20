@@ -187,9 +187,7 @@ notificationRoutes.get('/', async (c: Context): Promise<Response> => {
             createdAt: notification.createdAt,
             relatedId: notification.relatedId,
             relatedType: notification.relatedType,
-            createdBy: notification.creatorFirstName || notification.creatorLastName ? {
-                name: `${notification.creatorFirstName || ''} ${notification.creatorLastName || ''}`.trim()
-            } : null,
+            createdBy: notification.creatorFirstName || notification.creatorLastName ? `${notification.creatorFirstName || ''} ${notification.creatorLastName || ''}`.trim() : null,
             metadata: notification.metadata ? JSON.parse(notification.metadata) : null
         }));
 

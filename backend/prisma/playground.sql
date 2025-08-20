@@ -92,3 +92,5 @@ GROUP BY
     u.firstName,
     u.lastName
 ORDER BY signature_percentage ASC;
+
+Select * from notifications;

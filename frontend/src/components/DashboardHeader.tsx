@@ -26,9 +26,7 @@ interface NotificationAPI {
     createdAt: string;
     relatedId?: string;
     relatedType?: string;
-    createdBy?: {
-        name: string;
-    };
+    createdBy?: string;
     metadata?: any;
 }
 
@@ -301,7 +299,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
                                                         {notification.createdBy && (
                                                             <p className="text-xs text-gray-400 mt-1">
-                                                                From: {notification.createdBy.name}
+                                                                From: {notification.createdBy}
                                                             </p>
                                                         )}
                                                     </div>

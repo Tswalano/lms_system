@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNotifications, useNotificationCounts, useNotificationMutations } from "@/hooks/useNotifications";
 import {
     Bell,
@@ -10,7 +10,6 @@ import {
     Check,
     CheckCircle,
     AlertTriangle,
-    Info,
     RefreshCw,
     Eye,
     EyeOff,
@@ -20,13 +19,15 @@ import {
     ArchiveX,
     Loader2,
     MoreHorizontal,
-    User
+    User,
+    X
 } from 'lucide-react';
+import { toCamelCase } from '@/lib/helper';
 
 // Type definitions matching API response
 interface Notification {
     id: string;
-    type: 'info' | 'warning' | 'error' | 'success';
+    type: 'info' | 'warning' | 'error' | 'success' | 'action_required';
     category: string;
     title: string;
     message: string;
@@ -42,6 +43,11 @@ interface Notification {
     relatedType: string | null;
     createdBy: string | null;
     metadata: any;
+}
+
+interface NotificationType extends Notification {
+    creatorFirstName: string | null;
+    creatorLastName: string | null;
 }
 
 interface Stats {
@@ -69,7 +75,6 @@ const NotificationCenterPage: React.FC = () => {
     const [sortBy,] = useState<SortOption>('newest');
     const [showArchived,] = useState<boolean>(false);
     const [showQuickActions, setShowQuickActions] = useState<boolean>(false);
-    const [filteredNotifications, setFilteredNotifications] = useState<Notification[]>([]);
 
     // API Hooks
     const {
@@ -96,24 +101,25 @@ const NotificationCenterPage: React.FC = () => {
     } = useNotificationMutations();
 
     // Extract notifications and counts from API response
-    const notifications: Notification[] = notificationsResponse?.data?.notifications || [];
+    const notifications = useMemo(() => notificationsResponse?.data?.notifications || [], [notificationsResponse]);
     const countsData = countsResponse?.data;
 
     const counts = {
-        total: countsData?.recentCount || 0,
-        unread: countsData?.totalUnread || 0,
-        urgent: parseInt(countsData?.urgentUnread?.toString() || '0'),
-        archived: parseInt(countsData?.archivedCount?.toString() || '0')
+        total: Number(countsData?.recentCount) || 0,
+        unread: Number(countsData?.totalUnread) || 0,
+        urgent: Number(countsData?.urgentUnread) || 0,
+        archived: Number(countsData?.archivedCount) || 0
     };
 
-    // Filter and search logic
-    useEffect(() => {
+    // Memoize the priority order to prevent recreating it on every render
+    const priorityOrder = useMemo(() => ({ urgent: 3, high: 2, normal: 1 }), []);
+
+    // Filter and search logic - moved to useMemo to prevent infinite re-renders
+    const filteredNotifications: NotificationType[] = useMemo(() => {
         if (!notifications.length) {
-            setFilteredNotifications([]);
-            return;
+            return [];
         }
 
-        const priorityOrder: Record<string, number> = { urgent: 3, high: 2, normal: 1 };
         const filtered = notifications.filter((notification: Notification) => {
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
@@ -144,27 +150,26 @@ const NotificationCenterPage: React.FC = () => {
             }
         });
 
-        setFilteredNotifications(filtered);
-    }, [notifications, searchQuery, selectedFilter, sortBy]);
+        return filtered;
+    }, [notifications, searchQuery, selectedFilter, sortBy, priorityOrder]);
 
-    const getNotificationIcon = (type: Notification['type']): JSX.Element => {
-        const iconClass = "w-4 h-4";
-        const iconMap: Record<Notification['type'], JSX.Element> = {
-            info: <Info className={`${iconClass} text-blue-500`} />,
-            warning: <AlertTriangle className={`${iconClass} text-amber-500`} />,
-            error: <AlertTriangle className={`${iconClass} text-red-500`} />,
-            success: <CheckCircle className={`${iconClass} text-green-500`} />
-        };
-        return iconMap[type] || <Bell className={`${iconClass} text-gray-500`} />;
+    const getNotificationIcon = (type: string): JSX.Element => {
+        switch (type) {
+            case 'success': return <Check className="h-4 w-4 text-green-500" />;
+            case 'warning': return <Clock className="h-4 w-4 text-yellow-500" />;
+            case 'error': return <X className="h-4 w-4 text-red-500" />;
+            case 'action_required': return <Bell className="h-4 w-4 text-purple-500" />;
+            default: return <Bell className="h-4 w-4 text-blue-500" />;
+        }
     };
 
-    const getPriorityColor = (priority: Notification['priority']): string => {
-        const colorMap: Record<Notification['priority'], string> = {
-            urgent: "text-red-600 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-900/20 dark:border-red-800",
-            high: "text-amber-600 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-900/20 dark:border-amber-800",
-            normal: "text-blue-600 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-900/20 dark:border-blue-800"
-        };
-        return colorMap[priority] || colorMap.normal;
+    const getPriorityColor = (priority: string): string => {
+        switch (priority) {
+            case 'urgent': return 'border-l-red-500 bg-red-50/50 dark:bg-red-900/10';
+            case 'high': return 'border-l-orange-500 bg-orange-50/50 dark:bg-orange-900/10';
+            case 'normal': return 'border-l-blue-500 bg-blue-50/50 dark:bg-blue-900/10';
+            default: return 'border-l-gray-500 bg-gray-50/50 dark:bg-gray-900/10';
+        }
     };
 
     const formatTime = (dateString: string): string => {
@@ -256,8 +261,8 @@ const NotificationCenterPage: React.FC = () => {
 
     if (notificationsError) {
         return (
-            <div className="max-w-4xl mx-auto p-6">
-                <div className="text-center py-12">
+            <div className="max-w-4xl mx-auto space-y-6">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center">
                     <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-red-500" />
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         Failed to load notifications
@@ -310,7 +315,7 @@ const NotificationCenterPage: React.FC = () => {
                             <stat.icon className={`w-4 h-4 ${stat.color}`} />
                             <div>
                                 <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                                    {countsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : stat.value}
+                                    {countsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : Number(stat.value) || 0}
                                 </p>
                                 <p className="text-xs text-gray-600 dark:text-gray-400">{stat.label}</p>
                             </div>
@@ -372,38 +377,6 @@ const NotificationCenterPage: React.FC = () => {
                         ))}
                     </div>
                 )}
-
-                {/* Bulk actions */}
-                {/* {selectedNotifications.size > 0 && (
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                            {selectedNotifications.size} selected
-                        </span>
-                        <div className="flex gap-1">
-                            <button
-                                onClick={() => Array.from(selectedNotifications).forEach(id => markAsRead.mutate(id))}
-                                className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
-                                title="Mark as read"
-                            >
-                                <Check className="w-4 h-4" />
-                            </button>
-                            <button
-                                onClick={() => Array.from(selectedNotifications).forEach(id => archiveNotification.mutate(id))}
-                                className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                title="Archive"
-                            >
-                                <Archive className="w-4 h-4" />
-                            </button>
-                            <button
-                                onClick={() => Array.from(selectedNotifications).forEach(id => deleteNotification.mutate(id))}
-                                className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                                title="Delete"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-                )} */}
             </div>
 
             {/* Notifications List */}
@@ -481,7 +454,7 @@ const NotificationCenterPage: React.FC = () => {
                                     <div className="flex items-center gap-1">
                                         <button
                                             onClick={handleMarkAllRead}
-                                            disabled={isMutating || filteredNotifications.every(n => n.isRead === 1)}
+                                            disabled={isMutating || filteredNotifications.every((n: any) => n.isRead === 1)}
                                             className="px-3 py-1.5 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {isMutating ? (
@@ -551,13 +524,13 @@ const NotificationCenterPage: React.FC = () => {
                     </div>
                 ) : (
                     <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {filteredNotifications.map((notification) => (
+                        {filteredNotifications.map((notification: NotificationType) => (
                             <div
                                 key={notification.id}
-                                className={`group relative transition-all duration-200 ${notification.isRead === 0
-                                    ? 'bg-gradient-to-r from-blue-50/80 to-transparent dark:from-blue-900/20 dark:to-transparent border-l-2 border-blue-500'
+                                className={`group relative transition-all duration-200 border-l-4 ${getPriorityColor(notification.priority)} ${notification.isRead === 0
+                                    ? ''
                                     : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
-                                    } ${selectedNotifications.has(notification.id) ? 'bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200 dark:ring-blue-800' : ''}`}
+                                    } ${selectedNotifications.has(notification.id) ? 'ring-1 ring-blue-200 dark:ring-blue-800' : ''}`}
                             >
                                 <div className="p-4">
                                     <div className="flex gap-3">
@@ -573,11 +546,7 @@ const NotificationCenterPage: React.FC = () => {
 
                                         {/* Icon */}
                                         <div className="flex-shrink-0 pt-0.5">
-                                            <div className={`p-2 rounded-lg ${notification.type === 'info' ? 'bg-blue-100 dark:bg-blue-900/30' :
-                                                notification.type === 'warning' ? 'bg-amber-100 dark:bg-amber-900/30' :
-                                                    notification.type === 'error' ? 'bg-red-100 dark:bg-red-900/30' :
-                                                        'bg-green-100 dark:bg-green-900/30'
-                                                }`}>
+                                            <div className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                                                 {getNotificationIcon(notification.type)}
                                             </div>
                                         </div>
@@ -595,7 +564,10 @@ const NotificationCenterPage: React.FC = () => {
                                                             {notification.title}
                                                         </h4>
 
-                                                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${getPriorityColor(notification.priority)}`}>
+                                                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${notification.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                                                            notification.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
+                                                                'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                                            }`}>
                                                             {notification.priority}
                                                         </span>
 
@@ -616,13 +588,13 @@ const NotificationCenterPage: React.FC = () => {
                                                             {formatTime(notification.createdAt)}
                                                         </span>
                                                         <span className="flex items-center gap-1">
-                                                            <div className="w-1 h-1 bg-gray-400 rounded-full">{" "}</div>
-                                                            {notification.category.replace('_', ' ')}
+                                                            <div className="w-1 h-1 bg-gray-400 rounded-full my-2"></div>
+                                                            {notification.category ? toCamelCase(notification.category.replace('_', ' ')) : 'General'}
                                                         </span>
                                                         {notification.createdBy && (
                                                             <span className="flex items-center gap-1">
                                                                 <User className="w-3 h-3" />
-                                                                {notification.createdBy}
+                                                                {typeof notification.createdBy === 'string' ? notification.createdBy : 'Unknown'}
                                                             </span>
                                                         )}
                                                     </div>
