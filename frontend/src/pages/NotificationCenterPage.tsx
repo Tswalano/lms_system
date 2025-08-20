@@ -153,22 +153,91 @@ const NotificationCenterPage: React.FC = () => {
         return filtered;
     }, [notifications, searchQuery, selectedFilter, sortBy, priorityOrder]);
 
+    // Fixed: Returns JSX element for notification icon
     const getNotificationIcon = (type: string): JSX.Element => {
+        const iconClass = "h-4 w-4";
         switch (type) {
-            case 'success': return <Check className="h-4 w-4 text-green-500" />;
-            case 'warning': return <Clock className="h-4 w-4 text-yellow-500" />;
-            case 'error': return <X className="h-4 w-4 text-red-500" />;
-            case 'action_required': return <Bell className="h-4 w-4 text-purple-500" />;
-            default: return <Bell className="h-4 w-4 text-blue-500" />;
+            case 'success':
+                return <Check className={`${iconClass} text-green-500`} />;
+            case 'warning':
+                return <AlertTriangle className={`${iconClass} text-yellow-500`} />;
+            case 'error':
+                return <X className={`${iconClass} text-red-500`} />;
+            case 'info':
+                return <Bell className={`${iconClass} text-blue-500`} />;
+            case 'action_required':
+                return <Bell className={`${iconClass} text-purple-500`} />;
+            default:
+                return <Bell className={`${iconClass} text-gray-500`} />;
         }
     };
 
-    const getPriorityColor = (priority: string): string => {
+    // Fixed: Returns proper styling classes for notification borders
+    // const getNotificationStyles = (type: string, isRead: number | string | boolean): string => {
+    //     // Debug logging
+    //     console.log('getNotificationStyles called with:', { type, isRead, typeOfIsRead: typeof isRead });
+
+    //     // Handle different formats of isRead (number, string, boolean)
+    //     const isReadNormalized = isRead === 1 || isRead === "1" || isRead === true || isRead === "true";
+
+    //     // If notification is read, no border or background
+    //     if (isReadNormalized) {
+    //         console.log('Notification is read, returning empty styles');
+    //         return '';
+    //     }
+
+    //     // If notification is unread, add left border and subtle background based on type
+    //     console.log('Notification is unread, applying styles for type:', type);
+    //     const typeNormalized = type?.toLowerCase() || '';
+
+    //     switch (typeNormalized) {
+    //         case 'error':
+    //         case 'urgent':
+    //             return 'border-l-4 border-l-red-500 bg-red-50/30 dark:bg-red-900/5';
+    //         case 'warning':
+    //             return 'border-l-4 border-l-yellow-500 bg-yellow-50/30 dark:bg-yellow-900/5';
+    //         case 'success':
+    //             return 'border-l-4 border-l-green-500 bg-green-50/30 dark:bg-green-900/5';
+    //         case 'info':
+    //             return 'border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-900/5';
+    //         case 'action_required':
+    //             return 'border-l-4 border-l-purple-500 bg-purple-50/30 dark:bg-purple-900/5';
+    //         default:
+    //             console.log('Using default blue styling for type:', type);
+    //             return 'border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-900/5';
+    //     }
+    // };
+
+    // const getTypeStyles = (type: string): string => {
+    //     switch (type) {
+    //         case "error":
+    //             return "border-l-4 border-l-red-500 dark:border-l-red-400 bg-red-50/50 dark:bg-red-900/20";
+    //         case "warning":
+    //             return "border-l-4 border-l-orange-500 dark:border-l-orange-400 bg-orange-50/50 dark:bg-orange-900/20";
+    //         case "info":
+    //             return "border-l-4 border-l-blue-500 dark:border-l-blue-400 bg-blue-50/50 dark:bg-blue-900/20";
+    //         case "success":
+    //             return "border-l-4 border-l-green-500 dark:border-l-green-400 bg-green-50/50 dark:bg-green-900/20";
+    //         case "urgent":
+    //             return "border-l-4 border-l-red-600 dark:border-l-red-500 bg-red-100/50 dark:bg-red-900/30";
+    //         default:
+    //             return "border-l-4 border-l-blue-500 dark:border-l-blue-400 bg-blue-50/50 dark:bg-blue-900/20";
+    //     }
+    // };
+
+
+
+    // Fixed: Separate function for priority badge colors
+    const getPriorityBadgeStyles = (priority: string): string => {
         switch (priority) {
-            case 'urgent': return 'border-l-red-500 bg-red-50/50 dark:bg-red-900/10';
-            case 'high': return 'border-l-orange-500 bg-orange-50/50 dark:bg-orange-900/10';
-            case 'normal': return 'border-l-blue-500 bg-blue-50/50 dark:bg-blue-900/10';
-            default: return 'border-l-gray-500 bg-gray-50/50 dark:bg-gray-900/10';
+            case 'urgent':
+                return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-800';
+            case 'high':
+                return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 ring-1 ring-orange-200 dark:ring-orange-800';
+            case 'normal':
+                return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-800';
+            default:
+                return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300 ring-1 ring-gray-200 dark:ring-gray-800';
         }
     };
 
@@ -353,8 +422,9 @@ const NotificationCenterPage: React.FC = () => {
                         <button
                             onClick={() => refetchNotifications()}
                             disabled={isLoading}
-                            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+                            className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
                         >
+                            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                         </button>
                     </div>
                 </div>
@@ -523,133 +593,141 @@ const NotificationCenterPage: React.FC = () => {
                         </p>
                     </div>
                 ) : (
-                    <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {filteredNotifications.map((notification: NotificationType) => (
-                            <div
-                                key={notification.id}
-                                className={`group relative transition-all duration-200 border-l-4 ${getPriorityColor(notification.priority)} ${notification.isRead === 0
-                                    ? ''
-                                    : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
-                                    } ${selectedNotifications.has(notification.id) ? 'ring-1 ring-blue-200 dark:ring-blue-800' : ''}`}
-                            >
-                                <div className="p-4">
-                                    <div className="flex gap-3">
-                                        {/* Checkbox */}
-                                        <div className="flex items-start pt-0.5">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedNotifications.has(notification.id)}
-                                                onChange={() => handleSelectNotification(notification.id)}
-                                                className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors"
-                                            />
-                                        </div>
+                    <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
+                        {filteredNotifications.map((notification: NotificationType) => {
+                            const isUnread = notification.isRead === 0;
 
-                                        {/* Icon */}
-                                        <div className="flex-shrink-0 pt-0.5">
-                                            <div className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                                                {getNotificationIcon(notification.type)}
+                            return (
+                                <div key={notification.id}
+                                    className={`group flex gap-4 border-b border-gray-200 dark:border-gray-700 transition-colors duration-200 ${isUnread ? 'border-l-4 border-l-orange-500 dark:border-l-orange-400 bg-orange-50/50 dark:bg-orange-900/20' : ''}`}>
+                                    <div className="p-4 flex gap-3 w-full">
+                                        <div className="flex gap-4">
+                                            {/* Checkbox */}
+                                            <div className="flex items-start pt-1">
+                                                <input
+                                                    type="checkbox"
+                                                    // checked={isSelected}
+                                                    onChange={() => handleSelectNotification(notification.id)}
+                                                    className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors"
+                                                />
                                             </div>
-                                        </div>
 
-                                        {/* Content */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="flex-1 min-w-0">
-                                                    {/* Title and Priority */}
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <h4 className={`text-sm font-semibold leading-tight ${notification.isRead === 0
-                                                            ? 'text-gray-900 dark:text-white'
-                                                            : 'text-gray-700 dark:text-gray-300'
-                                                            }`}>
-                                                            {notification.title}
-                                                        </h4>
-
-                                                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${notification.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                                                            notification.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
-                                                                'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                                                            }`}>
-                                                            {notification.priority}
-                                                        </span>
-
-                                                        {notification.isRead === 0 && (
-                                                            <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Message */}
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-3">
-                                                        {notification.message}
-                                                    </p>
-
-                                                    {/* Metadata */}
-                                                    <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                                                        <span className="flex items-center gap-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            {formatTime(notification.createdAt)}
-                                                        </span>
-                                                        <span className="flex items-center gap-1">
-                                                            <div className="w-1 h-1 bg-gray-400 rounded-full my-2"></div>
-                                                            {notification.category ? toCamelCase(notification.category.replace('_', ' ')) : 'General'}
-                                                        </span>
-                                                        {notification.createdBy && (
-                                                            <span className="flex items-center gap-1">
-                                                                <User className="w-3 h-3" />
-                                                                {typeof notification.createdBy === 'string' ? notification.createdBy : 'Unknown'}
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Action Button */}
-                                                    {notification.actionText && (
-                                                        <div className="mt-3">
-                                                            <button className="px-3 py-1.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-lg text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors">
-                                                                {notification.actionText}
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                            {/* Icon */}
+                                            <div className="flex-shrink-0 pt-1">
+                                                <div className="p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                                                    {getNotificationIcon(notification.type)}
                                                 </div>
+                                            </div>
 
-                                                {/* Action Buttons */}
-                                                <div className="flex items-start gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                    <button
-                                                        onClick={() => handleToggleRead(notification.id, notification.isRead)}
-                                                        disabled={isMutating}
-                                                        className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
-                                                        title={notification.isRead === 1 ? 'Mark as unread' : 'Mark as read'}
-                                                    >
-                                                        {isMutating ? (
-                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                        ) : notification.isRead === 1 ? (
-                                                            <EyeOff className="w-4 h-4" />
-                                                        ) : (
-                                                            <Eye className="w-4 h-4" />
+                                            {/* Content */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                        {/* Title, Priority, and Unread Indicator */}
+                                                        <div className="flex items-center gap-3 mb-2">
+                                                            <h4 className={`text-sm font-semibold leading-tight ${(notification.isRead === 0)
+                                                                ? 'text-gray-900 dark:text-white'
+                                                                : 'text-gray-700 dark:text-gray-300'
+                                                                }`}>
+                                                                {notification.title}
+                                                            </h4>
+
+                                                            {/* Priority Badge */}
+                                                            {notification.priority && (
+                                                                <span className={`
+                                                                    px-2.5 py-1 text-xs font-medium rounded-full
+                                                                    ${getPriorityBadgeStyles(notification.priority)}
+                                                                `}>
+                                                                    {notification.priority}
+                                                                </span>
+                                                            )}
+
+                                                            {/* Unread Indicator */}
+                                                            {(notification.isRead === 0) && (
+                                                                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 animate-pulse"></div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Message */}
+                                                        <p className={`text-sm leading-relaxed mb-4 ${(notification.isRead === 0)
+                                                            ? 'text-gray-800 dark:text-gray-200'
+                                                            : 'text-gray-600 dark:text-gray-400'
+                                                            }`}>
+                                                            {notification.message}
+                                                        </p>
+
+                                                        {/* Metadata */}
+                                                        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 mb-3">
+                                                            <span className="flex items-center gap-1.5">
+                                                                <Clock className="w-3 h-3" />
+                                                                {formatTime(notification.createdAt)}
+                                                            </span>
+
+                                                            <div className="flex items-center gap-1.5">
+                                                                <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                                                                <span>{notification.category ? toCamelCase(notification.category.replace('_', ' ')) : 'General'}</span>
+                                                            </div>
+
+                                                            {notification.createdBy && (
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <User className="w-3 h-3" />
+                                                                    {typeof notification.createdBy === 'string' ? notification.createdBy : 'Unknown'}
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Action Button */}
+                                                        {notification.actionText && (
+                                                            <div className="mt-3">
+                                                                <button className="px-4 py-2 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-lg text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-all duration-200 hover:shadow-sm">
+                                                                    {notification.actionText}
+                                                                </button>
+                                                            </div>
                                                         )}
-                                                    </button>
+                                                    </div>
 
-                                                    <button
-                                                        onClick={() => handleArchive(notification.id)}
-                                                        disabled={isMutating}
-                                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors disabled:opacity-50"
-                                                        title="Archive"
-                                                    >
-                                                        <Archive className="w-4 h-4" />
-                                                    </button>
+                                                    {/* Action Buttons */}
+                                                    <div className="flex items-start gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                                        <button
+                                                            onClick={() => handleToggleRead(notification.id, notification.isRead)}
+                                                            disabled={isMutating}
+                                                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+                                                            title={notification.isRead === 1 ? 'Mark as unread' : 'Mark as read'}
+                                                        >
+                                                            {isMutating ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            ) : notification.isRead === 1 ? (
+                                                                <EyeOff className="w-4 h-4" />
+                                                            ) : (
+                                                                <Eye className="w-4 h-4" />
+                                                            )}
+                                                        </button>
 
-                                                    <button
-                                                        onClick={() => handleDelete(notification.id)}
-                                                        disabled={isMutating}
-                                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                        <button
+                                                            onClick={() => handleArchive(notification.id)}
+                                                            disabled={isMutating}
+                                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors disabled:opacity-50"
+                                                            title="Archive"
+                                                        >
+                                                            <Archive className="w-4 h-4" />
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => handleDelete(notification.id)}
+                                                            disabled={isMutating}
+                                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

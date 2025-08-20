@@ -38,7 +38,6 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     const { user } = useAuth();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [showNotifications, setShowNotifications] = useState(false);
-    // const [selectedNotifications, setSelectedNotifications] = useState<Set<string>>(new Set());
     const [showActions, setShowActions] = useState<string | null>(null);
 
     const notificationRef = useRef<HTMLDivElement>(null);
@@ -130,16 +129,33 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             case 'warning': return <Clock className="h-4 w-4 text-yellow-500" />;
             case 'error': return <X className="h-4 w-4 text-red-500" />;
             case 'action_required': return <Bell className="h-4 w-4 text-purple-500" />;
-            default: return <Bell className="h-4 w-4 text-blue-500" />;
+            case 'info': return <Bell className="h-4 w-4 text-blue-500" />;
+            default: return <Bell className="h-4 w-4 text-gray-500" />;
         }
     };
 
-    const getPriorityColor = (priority: string) => {
-        switch (priority) {
-            case 'urgent': return 'border-l-red-500 bg-red-50/50 dark:bg-red-900/10';
-            case 'high': return 'border-l-orange-500 bg-orange-50/50 dark:bg-orange-900/10';
-            case 'normal': return 'border-l-blue-500 bg-blue-50/50 dark:bg-blue-900/10';
-            default: return 'border-l-gray-500 bg-gray-50/50 dark:bg-gray-900/10';
+    // Fixed: Function to get notification styling based on type and read status
+    const getNotificationStyles = (type: string, isRead: boolean): string => {
+        // If notification is read, no border or background
+        if (isRead) {
+            return '';
+        }
+
+        // If notification is unread, add left border and subtle background based on type
+        switch (type) {
+            case 'error':
+            case 'urgent':
+                return 'border-l-4 border-l-red-500 bg-red-50/30 dark:bg-red-900/10';
+            case 'warning':
+                return 'border-l-4 border-l-yellow-500 bg-yellow-50/30 dark:bg-yellow-900/10';
+            case 'success':
+                return 'border-l-4 border-l-green-500 bg-green-50/30 dark:bg-green-900/10';
+            case 'info':
+                return 'border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-900/10';
+            case 'action_required':
+                return 'border-l-4 border-l-purple-500 bg-purple-50/30 dark:bg-purple-900/10';
+            default:
+                return 'border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-900/10';
         }
     };
 
@@ -191,28 +207,24 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     return (
         <div className={`relative ${getResponsivePadding()} pt-8 lg:pt-16 overflow-visible transition-all duration-300`}>
             {/* Notification Center */}
-            < div className="absolute top-8 lg:top-16 right-4 lg:right-8 mr-20 z-50" ref={notificationRef} >
-                <div className="relative" >
+            <div className="absolute top-8 lg:top-16 right-4 lg:right-8 mr-20 z-50" ref={notificationRef}>
+                <div className="relative">
                     {/* Bell Icon Button */}
-                    < button
+                    <button
                         onClick={() => setShowNotifications(!showNotifications)}
                         className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors relative"
                     >
                         <Bell className="w-5 h-5" />
 
                         {/* Unread Badge */}
-                        {
-                            unreadCount > 0 && (
-                                <div className={
-                                    `absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center ${urgentCount > 0 ? 'bg-red-500 animate-pulse' : 'bg-blue-500'
-                                    }`
-                                }>
-                                    <span className="text-xs text-white font-bold" >
-                                        {unreadCount > 9 ? '9+' : unreadCount
-                                        }
-                                    </span>
-                                </div>
-                            )}
+                        {unreadCount > 0 && (
+                            <div className={`absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center ${urgentCount > 0 ? 'bg-red-500 animate-pulse' : 'bg-blue-500'
+                                }`}>
+                                <span className="text-xs text-white font-bold">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            </div>
+                        )}
                     </button>
 
                     {/* Notification Dropdown */}
@@ -257,98 +269,124 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                                     </div>
                                 ) : (
                                     <div className="divide-y divide-gray-200 dark:divide-gray-800">
-                                        {notifications.map((notification: NotificationAPI) => (
-                                            <div
-                                                key={notification.id}
-                                                onClick={() => handleNotificationClick(notification)}
-                                                className={`relative group p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors border-l-4 ${!notification.isRead
-                                                    ? getPriorityColor(notification.priority)
-                                                    : 'border-l-transparent'
-                                                    }`}
-                                            >
-                                                <div className="flex items-start space-x-4">
-                                                    {/* Icon */}
-                                                    <div className="flex-shrink-0">
-                                                        {getNotificationIcon(notification.type)}
-                                                    </div>
+                                        {notifications.map((notification: NotificationAPI) => {
+                                            const notificationStyles = getNotificationStyles(notification.type, notification.isRead);
 
-                                                    {/* Content */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between">
-                                                            <p
-                                                                className={`text-sm font-medium truncate ${!notification.isRead
-                                                                    ? 'text-gray-900 dark:text-white'
-                                                                    : 'text-gray-700 dark:text-gray-300'
-                                                                    }`}
-                                                            >
-                                                                {notification.title}
-                                                            </p>
-                                                            <span className="text-xs text-gray-400">
-                                                                {formatNotificationTime(notification.createdAt)}
-                                                            </span>
+                                            return (
+                                                <div
+                                                    key={notification.id}
+                                                    className={`group relative transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer ${notificationStyles}`}
+                                                    onClick={() => handleNotificationClick(notification)}
+                                                >
+                                                    <div className="p-4 flex gap-3 w-full">
+                                                        {/* Icon */}
+                                                        <div className="flex-shrink-0 pt-1">
+                                                            <div className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                                                                {getNotificationIcon(notification.type)}
+                                                            </div>
                                                         </div>
-                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                                                            {notification.message}
-                                                        </p>
 
-                                                        {notification.actionText && (
-                                                            <span className="inline-block mt-2 px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                                                {notification.actionText}
-                                                            </span>
-                                                        )}
+                                                        {/* Content */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-start justify-between gap-2">
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <p className={`text-sm font-medium truncate ${!notification.isRead
+                                                                                ? "text-gray-900 dark:text-white"
+                                                                                : "text-gray-700 dark:text-gray-300"
+                                                                            }`}>
+                                                                            {notification.title}
+                                                                        </p>
 
-                                                        {notification.createdBy && (
-                                                            <p className="text-xs text-gray-400 mt-1">
-                                                                From: {notification.createdBy}
-                                                            </p>
-                                                        )}
+                                                                        {/* Priority Badge */}
+                                                                        {notification.priority && notification.priority !== 'normal' && (
+                                                                            <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full ${notification.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                                                                                    notification.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
+                                                                                        'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                                                                }`}>
+                                                                                {notification.priority}
+                                                                            </span>
+                                                                        )}
+
+                                                                        {/* Unread Indicator */}
+                                                                        {!notification.isRead && (
+                                                                            <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 animate-pulse"></div>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-1">
+                                                                        {notification.message}
+                                                                    </p>
+
+                                                                    <div className="flex items-center justify-between text-xs text-gray-400">
+                                                                        <span>{formatNotificationTime(notification.createdAt)}</span>
+                                                                        {notification.createdBy && (
+                                                                            <span>From: {notification.createdBy}</span>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {notification.actionText && (
+                                                                        <span className="inline-block mt-2 px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                                                            {notification.actionText}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Actions Menu Button */}
+                                                                <div className="relative">
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setShowActions(showActions === notification.id ? null : notification.id);
+                                                                        }}
+                                                                        className="p-1 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded transition-all"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                                                        </svg>
+                                                                    </button>
+
+                                                                    {/* Actions Dropdown */}
+                                                                    {showActions === notification.id && (
+                                                                        <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[140px]">
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    (notification.isRead ? markAsUnread : markAsRead).mutate(notification.id);
+                                                                                    setShowActions(null);
+                                                                                }}
+                                                                                className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                                                            >
+                                                                                {notification.isRead ? (
+                                                                                    <Bell className="h-3 w-3" />
+                                                                                ) : (
+                                                                                    <Check className="h-3 w-3" />
+                                                                                )}
+                                                                                Mark as {notification.isRead ? "unread" : "read"}
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={(e) => handleArchive(notification.id, e)}
+                                                                                className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                                                            >
+                                                                                <Archive className="h-3 w-3" />
+                                                                                Archive
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={(e) => handleDelete(notification.id, e)}
+                                                                                className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400 flex items-center gap-2"
+                                                                            >
+                                                                                <Trash2 className="h-3 w-3" />
+                                                                                Delete
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-
-                                                    {/* Unread dot */}
-                                                    {!notification.isRead && (
-                                                        <span
-                                                            className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${notification.priority === 'urgent'
-                                                                ? 'bg-red-500'
-                                                                : notification.priority === 'high'
-                                                                    ? 'bg-orange-500'
-                                                                    : 'bg-blue-500'
-                                                                }`}
-                                                        />
-                                                    )}
                                                 </div>
-
-                                                {/* Actions Dropdown */}
-                                                {showActions === notification.id && (
-                                                    <div className="absolute right-3 top-12 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[140px]">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                (notification.isRead ? markAsUnread : markAsRead).mutate(notification.id);
-                                                                setShowActions(null);
-                                                            }}
-                                                            className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                                                        >
-                                                            {notification.isRead ? <Bell className="h-3 w-3" /> : <Check className="h-3 w-3" />}
-                                                            Mark as {notification.isRead ? 'unread' : 'read'}
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => handleArchive(notification.id, e)}
-                                                            className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                                                        >
-                                                            <Archive className="h-3 w-3" />
-                                                            Archive
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => handleDelete(notification.id, e)}
-                                                            className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400 flex items-center gap-2"
-                                                        >
-                                                            <Trash2 className="h-3 w-3" />
-                                                            Delete
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -366,41 +404,40 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                             )}
                         </div>
                     )}
-
                 </div>
             </div>
 
             {/* Content Container */}
-            <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-4 lg:space-y-6" >
+            <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-4 lg:space-y-6">
                 {/* Main Greeting Card */}
-                < div className="backdrop-blur-sm max-w-2xl mx-auto transform hover:scale-105 transition-all duration-300" >
+                <div className="backdrop-blur-sm max-w-2xl mx-auto transform hover:scale-105 transition-all duration-300">
                     {/* Emoji and Time Section */}
-                    < div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 mb-3 lg:mb-4" >
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 mb-3 lg:mb-4">
                         <div
                             className="text-5xl lg:text-6xl animate-bounce drop-shadow-sm"
                             style={{ animationDuration: '2.5s', animationTimingFunction: 'ease-in-out' }}
                         >
                             {getTimeEmoji()}
                         </div>
-                        < div className="hidden sm:block h-8 w-px bg-gradient-to-b from-transparent via-blue-300 dark:via-blue-500 to-transparent" > </div>
-                        < div className="text-sm lg:text-lg font-medium text-gray-700 dark:text-gray-200 bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/60 dark:to-green-900/60 px-3 lg:px-4 py-1.5 lg:py-2 rounded-full backdrop-blur-sm border border-blue-200/30 dark:border-blue-700/30 transition-all duration-300" >
-                            <span className="font-mono" >
+                        <div className="hidden sm:block h-8 w-px bg-gradient-to-b from-transparent via-blue-300 dark:via-blue-500 to-transparent"></div>
+                        <div className="text-sm lg:text-lg font-medium text-gray-700 dark:text-gray-200 bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/60 dark:to-green-900/60 px-3 lg:px-4 py-1.5 lg:py-2 rounded-full backdrop-blur-sm border border-blue-200/30 dark:border-blue-700/30 transition-all duration-300">
+                            <span className="font-mono">
                                 {formatTime(currentTime)}
                             </span>
                         </div>
                     </div>
 
                     {/* Main Greeting Text */}
-                    <div className="space-y-2 lg:space-y-3" >
-                        <div className="text-xl sm:text-2xl lg:text-4xl font-bold" >
-                            <span className="bg-gradient-to-r from-blue-600 via-cyan-500 to-green-500 dark:from-blue-400 dark:via-cyan-400 dark:to-green-400 bg-clip-text text-transparent" >
+                    <div className="space-y-2 lg:space-y-3">
+                        <div className="text-xl sm:text-2xl lg:text-4xl font-bold">
+                            <span className="bg-gradient-to-r from-blue-600 via-cyan-500 to-green-500 dark:from-blue-400 dark:via-cyan-400 dark:to-green-400 bg-clip-text text-transparent">
                                 {getGreeting()}, {user?.firstName} {user?.lastName}
                             </span>
                         </div>
                     </div>
 
                     {/* Subtitle */}
-                    <p className="text-sm lg:text-lg text-gray-600 dark:text-gray-300 mt-3 lg:mt-4 font-medium" >
+                    <p className="text-sm lg:text-lg text-gray-600 dark:text-gray-300 mt-3 lg:mt-4 font-medium">
                         Welcome back to your dashboard
                     </p>
                 </div>

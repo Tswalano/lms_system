@@ -4,6 +4,7 @@ import { FileText, Eye, Edit3, Download, Trash2 } from 'lucide-react';
 interface DocumentType {
     id: number;
     name: string;
+    category: string;
     uploadedByDisplay: string;
     uploadedById: string;
     avatar: string;
@@ -77,6 +78,9 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                                 Name
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Folder
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 Upload By
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -103,6 +107,9 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                                             <div className="text-sm text-gray-500 dark:text-gray-400">{doc.date} • {doc.size}</div>
                                         </div>
                                     </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className="text-sm text-gray-900 dark:text-white">{doc.category}</span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center gap-3">
