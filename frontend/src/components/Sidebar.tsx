@@ -46,6 +46,48 @@ const Sidebar: React.FC<SidebarProps> = ({
     // Changed: Only store a single active section ID instead of a Set
     const [activeSection, setActiveSection] = useState<string | null>('workspace');
 
+    // Define menu sections with better organization - MOVED BEFORE useEffect
+    const menuSections: MenuSection[] = [
+        {
+            id: 'workspace',
+            label: 'Workspace',
+            icon: Home,
+            defaultOpen: true,
+            items: [
+                { id: "dashboard", label: "Dashboard", icon: BarChart3, path: "/" },
+                { id: "team", label: "Team Calendar", icon: Calendar, path: "/team-availability" },
+                { id: "apply", label: "Request Leave", icon: FileText, path: "/apply-leave" },
+                { id: "history", label: "My Requests", icon: Clock, path: "/leave-history" },
+                ...(userRole === 'admin' ? [
+                    { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave" },
+                    // TODO: query the leave request data to get the count of un-approved leave requests and add t to the badge 
+                    // { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave", badge: "3" },
+                    { id: "team-history", label: "Team History", icon: History, path: "/team-leave-history" },
+                ] : [])
+            ]
+        },
+        ...(userRole === 'admin' ? [{
+            id: 'administration',
+            label: 'Administration',
+            icon: Settings,
+            items: [
+                { id: "manage", label: "Manage Team", icon: Users, path: "/manage-employees" },
+                { id: "performance", label: "Performance Reviews", icon: ChartSpline, path: "/performance" },
+            ]
+        }] : []),
+        ...(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? [{
+            id: 'company-resources',
+            label: 'Resources',
+            icon: Building2,
+            items: [
+                ...(userRole === 'admin' ? [
+                    { id: "admin-docs", label: "Admin Documents", icon: ArchiveRestore, path: "/admin-document" }
+                ] : []),
+                { id: "employee-docs", label: "Employee Handbook", icon: FileCheck2, path: "/employee-document" },
+            ]
+        }] : [])
+    ].filter(section => section.items.length > 0);
+
     // Load collapse state from localStorage on component mount
     useEffect(() => {
         const savedCollapseState = localStorage.getItem('sidebarCollapsed');
@@ -72,47 +114,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 localStorage.setItem('sidebarActiveSection', currentSection.id);
             }
         }
-    }, [location.pathname]);
-
-    // Define menu sections with better organization
-    const menuSections: MenuSection[] = [
-        {
-            id: 'workspace',
-            label: 'Workspace',
-            icon: Home,
-            defaultOpen: true,
-            items: [
-                { id: "dashboard", label: "Dashboard", icon: BarChart3, path: "/" },
-                { id: "team", label: "Team Calendar", icon: Calendar, path: "/team-availability" },
-                { id: "apply", label: "Request Leave", icon: FileText, path: "/apply-leave" },
-                { id: "history", label: "My Requests", icon: Clock, path: "/leave-history" },
-                ...(userRole === 'admin' ? [
-                    { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave", badge: "3" },
-                    { id: "team-history", label: "Team History", icon: History, path: "/team-leave-history" },
-                ] : [])
-            ]
-        },
-        ...(userRole === 'admin' ? [{
-            id: 'administration',
-            label: 'Administration',
-            icon: Settings,
-            items: [
-                { id: "manage", label: "Manage Team", icon: Users, path: "/manage-employees" },
-                { id: "performance", label: "Performance Reviews", icon: ChartSpline, path: "/performance" },
-            ]
-        }] : []),
-        ...(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? [{
-            id: 'company-resources',
-            label: 'Resources',
-            icon: Building2,
-            items: [
-                ...(userRole === 'admin' ? [
-                    { id: "admin-docs", label: "Admin Documents", icon: ArchiveRestore, path: "/admin-document" }
-                ] : []),
-                { id: "employee-docs", label: "Employee Handbook", icon: FileCheck2, path: "/employee-document" },
-            ]
-        }] : [])
-    ].filter(section => section.items.length > 0);
+    }, [location.pathname, menuSections]);
 
     const isActive = (path: string) => {
         return location.pathname === path;

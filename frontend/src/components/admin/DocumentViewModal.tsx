@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, CheckCircle, XCircle, X, AlertCircle, Clock, Clock10 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { toCamelCase } from '../lib/helper';
+import { toCamelCase } from '../../lib/helper';
 
 // Define the shape of a folder object
 // interface Folder {
