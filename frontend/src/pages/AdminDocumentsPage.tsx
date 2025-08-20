@@ -558,8 +558,6 @@ const AdminDocumentsPage: FC = () => {
         ? allDocuments.filter(doc => doc.folder === selectedFolder)
         : allDocuments;
 
-    console.log('filteredDocuments:', filteredDocuments);
-
     const isLoading = documentsLoading || departmentsLoading;
     const hasError = documentsError || departmentsError;
 

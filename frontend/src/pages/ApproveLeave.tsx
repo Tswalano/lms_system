@@ -708,15 +708,16 @@ const ApproveLeave = () => {
                                         </Button>
                                     </>
                                 )}
-                                <Button
+                                <button
                                     onClick={() => setIsDetailsModalOpen(false)}
-                                    variant={selectedLeaveDetails.status === 'pending' ? 'outline' : 'default'}
-                                    className={selectedLeaveDetails.status === 'pending' ? 'flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700' : 'w-full bg-gray-800 hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-white'}
-                                // className={selectedLeaveDetails.status === 'pending' ? '' : 'flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200'}
-
+                                    className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${selectedLeaveDetails.status === 'pending'
+                                            ? 'flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-300 dark:border-slate-700'
+                                            : 'w-full bg-slate-700 hover:bg-slate-800 dark:bg-slate-500 dark:hover:bg-slate-400 text-white'
+                                        }`}
                                 >
                                     Close
-                                </Button>
+                                </button>
+
                             </div>
                         </div>
                     </div>

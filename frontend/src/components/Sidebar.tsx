@@ -241,46 +241,53 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
-                    <div className="p-4 space-y-6">
-                        {/* User Profile */}
+                    {/* User Profile */}
+                    <div className={cn("p-4", isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "" : "")}>
                         <Link
                             to="/profile"
                             onClick={handleMenuItemClick}
                             className={cn(
-                                "flex items-center gap-3 p-4 rounded-2xl transition-all duration-300 group cursor-pointer border",
+                                "flex items-center gap-3 mb-6 p-3 rounded-xl transition-all duration-200 group cursor-pointer",
                                 isActive('/profile')
-                                    ? "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 border-transparent shadow-lg shadow-cyan-500/25 scale-[1.02]"
-                                    : "bg-gradient-to-r from-blue-50/80 via-cyan-50/80 to-green-50/80 dark:from-blue-900/20 dark:via-cyan-900/20 dark:to-green-900/20 border-cyan-200/50 dark:border-cyan-800/50 hover:from-blue-100/80 hover:via-cyan-100/80 hover:to-green-100/80 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30 hover:shadow-lg hover:scale-[1.02]",
-                                isCollapsed && isLgUp ? "justify-center p-3" : ""
+                                    ? isCollapsed ? "" : "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 border border-green-500 shadow-lg shadow-cyan-500/25"
+                                    : isCollapsed && window.matchMedia('(min-width: 1024px)').matches
+                                        ? "bg-transparent border-transparent hover:bg-transparent"
+                                        : "bg-gradient-to-r from-blue-50 via-cyan-50 to-green-50 dark:from-blue-900/20 dark:via-cyan-900/20 dark:to-green-900/20 border border-cyan-200 dark:border-cyan-800 hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30",
+                                isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "justify-center" : ""
                             )}
                             title={isCollapsed ? `${user?.firstName} ${user?.lastName}` : undefined}
                         >
-                            <div className={cn(
-                                "w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all duration-300 shadow-md",
-                                isActive("/profile")
-                                    ? "bg-white/20 text-white"
-                                    : "bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 text-white"
-                            )}>
-                                <span className="font-bold text-sm">
+                            <div
+                                className={cn(
+                                    "w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all duration-300 shadow-md",
+                                    isCollapsed
+                                        ? "bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 text-white"
+                                        : isActive("/profile")
+                                            ? "bg-white/20 text-white"
+                                            : "bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 text-white"
+                                )}
+                            >
+                                <span className="font-semibold text-sm">
                                     {getInitials(user?.firstName, user?.lastName)}
                                 </span>
                             </div>
 
-                            {(!isCollapsed || !isLgUp) && (
+
+                            {(!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) && (
                                 <div className="flex-1 min-w-0">
                                     <p className={cn(
-                                        "font-bold text-sm",
+                                        "font-semibold",
                                         isActive('/profile')
                                             ? "text-white"
-                                            : "bg-gradient-to-r from-blue-700 via-cyan-600 to-green-600 dark:from-blue-300 dark:via-cyan-300 dark:to-green-300 bg-clip-text text-transparent"
+                                            : "bg-gradient-to-r from-blue-700 via-cyan-600 to-green-600 dark:from-blue-300 dark:via-cyan-300 dark:to-green-300 bg-clip-text text-transparent group-hover:from-blue-800 group-hover:via-cyan-700 group-hover:to-green-700 dark:group-hover:from-blue-200 dark:group-hover:via-cyan-200 dark:group-hover:to-green-200"
                                     )}>
                                         {`${user?.firstName} ${user?.lastName}`}
                                     </p>
                                     <p className={cn(
-                                        "text-xs truncate mt-1",
+                                        "text-sm truncate",
                                         isActive('/profile')
                                             ? "text-white/80"
-                                            : "text-gray-600 dark:text-gray-400"
+                                            : "text-gray-500 dark:text-gray-400 group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-green-600 dark:group-hover:from-cyan-400 dark:group-hover:to-green-400 group-hover:bg-clip-text group-hover:text-transparent"
                                     )}>
                                         {user?.jobTitle}
                                     </p>

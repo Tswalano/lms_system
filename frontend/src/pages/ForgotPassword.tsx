@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Mail, CheckCircle, Lock, Key, Loader2, Shield, Clock } from "lucide-react";
+import { ArrowLeft, Mail, CheckCircle, Lock, Key, Loader2, Shield, Clock, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 
@@ -208,6 +208,16 @@ const ForgotPassword = () => {
                                         <p className="text-sm text-green-100">Choose a strong, secure password</p>
                                     </div>
                                 </div>
+
+                                <div className="flex items-center space-x-4 text-white/90">
+                                    <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <User className="w-5 h-5" />
+                                    </div>
+                                    <div className="text-left">
+                                        <h3 className="font-semibold">Use Your New Password</h3>
+                                        <p className="text-sm text-green-100">Log in with your new password</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -218,8 +228,12 @@ const ForgotPassword = () => {
                     <div className="w-full max-w-md">
                         <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 p-8">
                             <div className="text-center mb-8">
-                                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-2xl mb-4">
-                                    <Key className="w-8 h-8 text-white" />
+                                <div className="inline-flex items-center justify-center mb-4">
+                                    <img
+                                        src='favicon.png'
+                                        alt="Disruptor Logo"
+                                        className="h-16 w-16 object-contain"
+                                    />
                                 </div>
                                 <h2 className="text-3xl font-bold bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent mb-2">
                                     Reset Password
@@ -314,13 +328,11 @@ const ForgotPassword = () => {
                             </div>
                         </div>
 
-                        {/* Demo Info */}
+                        {/* Copyright */}
                         <div className="mt-6 text-center">
-                            <div className="bg-green-50 dark:bg-green-950/30 rounded-xl p-4 border border-green-200 dark:border-green-800">
-                                <p className="text-sm text-green-700 dark:text-green-300">
-                                    <strong>Demo:</strong> Use code "123456"
-                                </p>
-                            </div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                &copy; {new Date().getFullYear()} Disraptor LMS. All rights reserved.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -413,8 +425,12 @@ const ForgotPassword = () => {
                 <div className="w-full max-w-md">
                     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 p-8">
                         <div className="text-center mb-8">
-                            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-2xl mb-4">
-                                <span className="text-white font-bold text-xl">D</span>
+                            <div className="inline-flex items-center justify-center mb-4">
+                                <img
+                                    src='favicon.png'
+                                    alt="Disruptor Logo"
+                                    className="h-16 w-16 object-contain"
+                                />
                             </div>
                             <h2 className="text-3xl font-bold bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent mb-2">
                                 Reset Password

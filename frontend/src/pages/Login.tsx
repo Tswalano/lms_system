@@ -81,6 +81,7 @@ const Login: React.FC = (): JSX.Element => {
                 <div className="absolute bottom-1/3 right-1/3 w-48 h-48 bg-emerald-200/30 dark:bg-emerald-800/20 rounded-full blur-3xl"></div>
                 <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-cyan-200/30 dark:bg-cyan-800/20 rounded-full blur-2xl"></div>
                 <div className="absolute bottom-1/4 left-1/3 w-36 h-36 bg-teal-200/30 dark:bg-teal-800/20 rounded-full blur-3xl"></div>
+                <div className="absolute left-1/3 right-1/3 w-48 h-48 bg-emerald-200/30 dark:bg-emerald-800/20 rounded-full blur-3xl"></div>
             </div>
 
             {/* Floating Animation Elements */}
@@ -161,8 +162,12 @@ const Login: React.FC = (): JSX.Element => {
                     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 p-8">
                         {/* Header */}
                         <div className="text-center mb-8">
-                            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-2xl mb-4">
-                                <span className="text-white font-bold text-xl">D</span>
+                            <div className="inline-flex items-center justify-center mb-4">
+                                <img
+                                    src='favicon.png'
+                                    alt="Disruptor Logo"
+                                    className="h-16 w-16 object-contain"
+                                />
                             </div>
                             <h2 className="text-3xl font-bold bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent mb-2">
                                 Welcome Back
