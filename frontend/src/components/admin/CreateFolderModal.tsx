@@ -65,6 +65,9 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
     };
 
     const handleClose = () => {
+
+        console.log(initialData);
+
         setFolderData({
             name: initialData.name || '',
             departmentId: initialData.departmentId || null,

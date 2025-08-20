@@ -60,12 +60,13 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full border border-gray-200/50 dark:border-slate-600/50">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200/50 dark:border-slate-600/50 overflow-hidden">
+
                 {/* Header */}
-                <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
+                <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50 rounded-t-2xl">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className={`w-12 h-12 bg-gradient-to-br ${styles.iconBg} rounded-xl flex items-center justify-center`}>
+                            <div className={`w-12 h-12 bg-gradient-to-br ${styles.iconBg} rounded-2xl flex items-center justify-center`}>
                                 <AlertTriangle className="w-6 h-6 text-white" />
                             </div>
                             <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{title}</h3>
@@ -89,19 +90,19 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 bg-gray-50 dark:bg-slate-700/30 border-t border-gray-100 dark:border-slate-600/30">
+                <div className="p-6 bg-gray-50 dark:bg-slate-700/30 border-t border-gray-100 dark:border-slate-600/30 rounded-b-2xl">
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
                             disabled={isLoading}
-                            className="flex-1 px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-800 dark:text-gray-200 font-medium rounded-lg disabled:opacity-50"
+                            className="flex-1 px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-800 dark:text-gray-200 font-medium rounded-2xl disabled:opacity-50"
                         >
                             {cancelText}
                         </button>
                         <button
                             onClick={onConfirm}
                             disabled={isLoading}
-                            className={`flex-1 px-4 py-2 ${styles.button} text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
+                            className={`flex-1 px-4 py-2 ${styles.button} text-white font-medium rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
                         >
                             {isLoading ? (
                                 <>
@@ -114,6 +115,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                         </button>
                     </div>
                 </div>
+
             </div>
         </div>
     );

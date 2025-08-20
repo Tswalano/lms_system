@@ -20,6 +20,7 @@ interface ApiDocument {
     file_url: string;
     file_size: string;
     priority: string;
+    category: string;
     createdAt: string;
     uploadedById: string;
     uploadedByDisplay: string;
@@ -75,6 +76,7 @@ interface DocumentType {
     status: 'active' | 'draft' | 'archived';
     signatureRate: number;
     folder: string;
+    category: string;
     size: string;
     fileUrl: string;
     priority?: string;
@@ -150,7 +152,7 @@ const AdminDocumentsPage: FC = () => {
 
     const fetchDepartments = async (): Promise<Department[]> => {
         try {
-            const response = await authFetch('/admin-docs/by-category', {
+            const response = await authFetch('/admin-docs/departments', {
                 method: 'GET',
             });
 
@@ -275,6 +277,7 @@ const AdminDocumentsPage: FC = () => {
             const document: DocumentType = {
                 id: responsePayload.payload.id,
                 name: documentPayload.name,
+                category: documentPayload.category,
                 uploadedByDisplay: documentPayload.uploadedByDisplay,
                 uploadedById: documentPayload.uploadedById,
                 avatar: createAvatar(documentPayload.uploadedByDisplay.split(' ')[0], documentPayload.uploadedByDisplay.split(' ')[1]),
@@ -394,10 +397,12 @@ const AdminDocumentsPage: FC = () => {
 
             const actualCategoryDocuments = category.documents.filter(dc => !!dc.id);
 
+
             actualCategoryDocuments.forEach(doc => {
                 transformedDocuments.push({
                     id: doc.id,
                     name: doc.name,
+                    category: doc.category,
                     uploadedByDisplay: doc.uploadedByDisplay,
                     uploadedById: doc.uploadedById,
                     avatar: createAvatar(doc.uploadedByDisplay.split(' ')[0], doc.uploadedByDisplay.split(' ')[1]),
@@ -552,6 +557,8 @@ const AdminDocumentsPage: FC = () => {
     const filteredDocuments: DocumentType[] = selectedFolder
         ? allDocuments.filter(doc => doc.folder === selectedFolder)
         : allDocuments;
+
+    console.log('filteredDocuments:', filteredDocuments);
 
     const isLoading = documentsLoading || departmentsLoading;
     const hasError = documentsError || departmentsError;

@@ -189,6 +189,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     };
 
     const handleEditFolder = (folder: FolderType) => {
+        console.log("editing folder", folder);
         setEditingFolder(folder);
         setShowEditModal(true);
     };

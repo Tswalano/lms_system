@@ -218,6 +218,7 @@ adminDocs.get('/by-category', async (c) => {
                 grouped.get(category_id)?.documents.push({
                     id: document_id,
                     name: document_name,
+                    category: category_name,
                     file_url: file_url,
                     file_size: file_size,
                     priority: priority,
@@ -631,5 +632,26 @@ adminDocs.get('/:document_id/signatures', async (c) => {
     }
 });
 
+
+// Get departments
+adminDocs.get('/departments', async (c) => {
+    console.log("GET /admin-docs/departments");
+    let connection;
+
+    try {
+        connection = await DatabaseService.createConnection();
+
+        const sql = `SELECT * FROM departments`;
+        const [departments] = await connection.execute(sql);
+        const response = ResponseService.success(
+            "Departments retrieved successfully",
+            departments
+        );
+        return c.json(response, 200);
+    } catch (error) {
+        console.error("Error retrieving departments:", error);
+        return c.json(ResponseService.error("DepartmentsRetrievalError", "Failed to retrieve departments."), 500);
+    }
+})
 
 export default adminDocs;
