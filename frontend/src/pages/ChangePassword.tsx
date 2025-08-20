@@ -160,8 +160,12 @@ const ChangePassword: React.FC = (): JSX.Element => {
                     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 p-8">
                         {/* Header */}
                         <div className="text-center mb-8">
-                            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-2xl mb-4">
-                                <Lock className="w-8 h-8 text-white" />
+                            <div className="inline-flex items-center justify-center mb-4">
+                                <img
+                                    src='favicon.png'
+                                    alt="Disruptor Logo"
+                                    className="h-16 w-16 object-contain"
+                                />
                             </div>
                             <h2 className="text-3xl font-bold bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent mb-2">
                                 {isForced ? "Set New Password" : "Change Password"}
