@@ -1,9 +1,14 @@
-import { manager_feedback_type, notification_category, notification_type, notification_priority, PrismaClient, document_categories } from '../lib/generated/prisma';
+import { manager_feedback_type, notification_category, notification_type, notification_priority, PrismaClient, document_categories, leave_status, leave_requests_leave_length, document_priority, document_assignment_status, user_role_type, performance_review_status, question_type, review_phase } from '../lib/generated/prisma';
 
 const prisma = new PrismaClient();
 
 async function main() {
     console.log('🌱 Starting seed...');
+
+    // Date calculations for 2 months ago to 2 months in the future
+    const now = new Date();
+    const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const twoMonthsFromNow = new Date(now.getFullYear(), now.getMonth() + 2, 28);
 
     // Existing admin user IDs
     const existingAdmins = [
@@ -72,6 +77,22 @@ async function main() {
             departments.push(created);
         }
     }
+
+    // Ensure we have all departments
+    if (departments.length !== 4) {
+        throw new Error(`Expected 4 departments, but got ${departments.length}`);
+    }
+
+    // Create department references for easier access
+    const engineeringDept = departments.find(d => d.name === 'Engineering');
+    const marketingDept = departments.find(d => d.name === 'Marketing');
+    const salesDept = departments.find(d => d.name === 'Sales');
+    const operationsDept = departments.find(d => d.name === 'Operations');
+
+    if (!engineeringDept || !marketingDept || !salesDept || !operationsDept) {
+        throw new Error('One or more departments could not be found or created');
+    }
+
     console.log(`✅ Created ${departments.length} departments`);
 
     // 2. Create admin users with proper relationships (create in order: managers first)
@@ -92,7 +113,7 @@ async function main() {
             dob: new Date('1985-05-20'),
             gender: 'Male',
             employeeId: 'EMP001',
-            departmentId: departments[0].id, // Engineering
+            departmentId: engineeringDept.id, // Engineering
             managerId: null, // CEO/Founder - no manager
             roleType: 'admin',
             jobLevel: 'Executive',
@@ -117,7 +138,7 @@ async function main() {
             dob: new Date('1988-08-10'),
             gender: 'Male',
             employeeId: 'EMP002',
-            departmentId: departments[0].id, // Engineering
+            departmentId: engineeringDept.id, // Engineering
             managerId: glen.id, // Reports to Glen
             roleType: 'engineer',
             jobLevel: 'Lead',
@@ -141,7 +162,7 @@ async function main() {
             dob: new Date('1990-04-05'),
             gender: 'Male',
             employeeId: 'EMP003',
-            departmentId: departments[1].id, // Marketing (Product Manager)
+            departmentId: marketingDept.id, // Marketing (Product Manager)
             managerId: glen.id, // Reports to Glen
             roleType: 'product_manager',
             jobLevel: 'Senior',
@@ -166,7 +187,7 @@ async function main() {
             dob: new Date('1985-05-20'),
             gender: 'Male',
             employeeId: 'EMP004',
-            departmentId: departments[0].id, // Engineering
+            departmentId: engineeringDept.id, // Engineering
             managerId: xolani.id, // Reports to Xolani
             roleType: 'engineer',
             jobLevel: 'Senior',
@@ -197,7 +218,7 @@ async function main() {
             dob: new Date('1984-05-18'),
             gender: 'Male',
             employeeId: 'EMP010',
-            departmentId: departments[2].id, // Sales
+            departmentId: salesDept.id, // Sales
             managerId: glen.id, // Reports to Glen
             roleType: 'manager',
             jobLevel: 'Senior',
@@ -221,7 +242,7 @@ async function main() {
             dob: new Date('1987-11-08'),
             gender: 'Female',
             employeeId: 'EMP007',
-            departmentId: departments[1].id, // Marketing
+            departmentId: marketingDept.id, // Marketing
             managerId: hannes.id, // Reports to Hannes
             roleType: 'manager',
             jobLevel: 'Senior',
@@ -248,7 +269,7 @@ async function main() {
                 dob: new Date('1992-03-15'),
                 gender: 'Female',
                 employeeId: 'EMP005',
-                departmentId: departments[0].id, // Engineering
+                departmentId: engineeringDept.id, // Engineering
                 managerId: xolani.id, // Reports to Xolani
                 roleType: 'engineer',
                 jobLevel: 'Senior',
@@ -271,7 +292,7 @@ async function main() {
                 dob: new Date('1989-07-22'),
                 gender: 'Male',
                 employeeId: 'EMP006',
-                departmentId: departments[0].id, // Engineering
+                departmentId: engineeringDept.id, // Engineering
                 managerId: xolani.id, // Reports to Xolani
                 roleType: 'engineer',
                 jobLevel: 'Mid',
@@ -295,7 +316,7 @@ async function main() {
                 dob: new Date('1994-01-30'),
                 gender: 'Male',
                 employeeId: 'EMP008',
-                departmentId: departments[1].id, // Marketing
+                departmentId: marketingDept.id, // Marketing
                 managerId: emma.id, // Reports to Emma Davis
                 roleType: 'engineer', // No direct content creator role, using engineer
                 jobLevel: 'Mid',
@@ -319,7 +340,7 @@ async function main() {
                 dob: new Date('1991-09-12'),
                 gender: 'Female',
                 employeeId: 'EMP009',
-                departmentId: departments[2].id, // Sales
+                departmentId: salesDept.id, // Sales
                 managerId: robert.id, // Reports to Robert Wilson
                 roleType: 'engineer', // No sales role in enum, using engineer
                 jobLevel: 'Mid',
@@ -343,7 +364,7 @@ async function main() {
                 dob: new Date('1993-12-03'),
                 gender: 'Female',
                 employeeId: 'EMP011',
-                departmentId: departments[3].id, // Operations
+                departmentId: operationsDept.id, // Operations
                 managerId: glen.id, // Reports to Glen
                 roleType: 'admin', // Operations coordinator
                 jobLevel: 'Mid',
@@ -367,7 +388,7 @@ async function main() {
                 dob: new Date('1999-04-25'),
                 gender: 'Non-binary',
                 employeeId: 'EMP012',
-                departmentId: departments[0].id, // Engineering
+                departmentId: engineeringDept.id, // Engineering
                 managerId: philemon.id, // Reports to Philemon
                 roleType: 'engineer',
                 jobLevel: 'Junior',
@@ -386,21 +407,21 @@ async function main() {
     console.log('👥 Creating user department assignments...');
     const userDeptData = [
         // Engineering assignments
-        { user_id: glen.id, department_id: departments[0].id },
-        { user_id: xolani.id, department_id: departments[0].id },
-        { user_id: philemon.id, department_id: departments[0].id },
-        { user_id: newUserIds[0], department_id: departments[0].id }, // Sarah
-        { user_id: newUserIds[1], department_id: departments[0].id }, // David
-        { user_id: newUserIds[7], department_id: departments[0].id }, // Alex
+        { user_id: glen.id, department_id: engineeringDept.id },
+        { user_id: xolani.id, department_id: engineeringDept.id },
+        { user_id: philemon.id, department_id: engineeringDept.id },
+        { user_id: newUserIds[0], department_id: engineeringDept.id }, // Sarah
+        { user_id: newUserIds[1], department_id: engineeringDept.id }, // David
+        { user_id: newUserIds[7], department_id: engineeringDept.id }, // Alex
         // Marketing assignments
-        { user_id: hannes.id, department_id: departments[1].id }, // Hannes
-        { user_id: emma.id, department_id: departments[1].id }, // Emma
-        { user_id: newUserIds[3], department_id: departments[1].id }, // James
+        { user_id: hannes.id, department_id: marketingDept.id }, // Hannes
+        { user_id: emma.id, department_id: marketingDept.id }, // Emma
+        { user_id: newUserIds[3], department_id: marketingDept.id }, // James
         // Sales assignments
-        { user_id: newUserIds[4], department_id: departments[2].id }, // Lisa
-        { user_id: robert.id, department_id: departments[2].id }, // Robert
+        { user_id: newUserIds[4], department_id: salesDept.id }, // Lisa
+        { user_id: robert.id, department_id: salesDept.id }, // Robert
         // Operations assignments
-        { user_id: newUserIds[6], department_id: departments[3].id }, // Jennifer
+        { user_id: newUserIds[6], department_id: operationsDept.id }, // Jennifer
     ];
 
     const userDepartments = [];
@@ -423,6 +444,196 @@ async function main() {
     }
     console.log(`✅ Created ${userDepartments.length} user department assignments`);
 
+    // 5. Create dummy leave requests from 2 months ago to 2 months in the future
+    console.log('📅 Creating dummy leave requests...');
+
+    const leaveTypes = ['Annual Leave', 'Sick Leave', 'Personal Leave', 'Family Responsibility Leave', 'Maternity Leave', 'Study Leave'];
+    const leaveRequests = [];
+
+    // Helper function to generate random date between two dates
+    function randomDate(start: Date, end: Date): Date {
+        return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+    }
+
+    // Helper function to add days to a date
+    function addDays(date: Date, days: number): Date {
+        const result = new Date(date);
+        result.setDate(result.getDate() + days);
+        return result;
+    }
+
+    // Create 30-50 leave requests across all users and time period
+    const numberOfRequests = 35;
+
+    for (let i = 0; i < numberOfRequests; i++) {
+        const userId = allUserIds[Math.floor(Math.random() * allUserIds.length)];
+        const leaveType = leaveTypes[Math.floor(Math.random() * leaveTypes.length)];
+        const startDate = randomDate(twoMonthsAgo, twoMonthsFromNow);
+        const duration = Math.floor(Math.random() * 10) + 1; // 1-10 days
+        const endDate = addDays(startDate, duration - 1);
+        const leaveLength = Math.random() > 0.8 ? 'half_day' : 'full_day';
+
+        // Determine status based on date (past requests more likely to be approved/rejected)
+        let status: leave_status = 'pending';
+        const isPastRequest = startDate < now;
+
+        if (isPastRequest) {
+            const statusOptions: leave_status[] = ['approved', 'rejected', 'cancelled'];
+            status = statusOptions[Math.floor(Math.random() * statusOptions.length)];
+            // 70% chance of approval for past requests
+            if (Math.random() < 0.7) status = 'approved';
+        } else {
+            // Future requests mostly pending, some approved
+            if (Math.random() < 0.3) status = 'approved';
+        }
+
+        const approvedBy = status === 'approved' ? glen.id : null;
+        const approvedAt = status === 'approved' ? new Date(startDate.getTime() - 24 * 60 * 60 * 1000) : null; // Approved 1 day before start
+
+        const requestData = {
+            uid: userId,
+            leave_type: leaveType,
+            status: status,
+            duration: duration,
+            start_date: startDate,
+            end_date: endDate,
+            leave_length: leaveLength,
+            leave_comment: `${leaveType} request for ${duration} day${duration > 1 ? 's' : ''}`,
+            feedback: status === 'rejected' ? 'Insufficient leave balance' : null,
+            approved_by: approvedBy,
+            approved_at: approvedAt,
+            createdAt: new Date(startDate.getTime() - 7 * 24 * 60 * 60 * 1000), // Created 1 week before start
+            updatedAt: approvedAt || new Date(startDate.getTime() - 7 * 24 * 60 * 60 * 1000),
+        };
+
+        try {
+            const leaveRequest = await prisma.leave_requests.create({
+                data: requestData
+            });
+            leaveRequests.push(leaveRequest);
+
+            // Create action log entry for approved/rejected requests
+            if (status !== 'pending') {
+                await prisma.leave_action_log.create({
+                    data: {
+                        leave_id: leaveRequest.id,
+                        manager_id: glen.id, // Glen approves most requests
+                        action: status === 'approved' ? 'approved' : 'rejected',
+                        previous_status: 'pending',
+                        new_status: status,
+                        timestamp: approvedAt || new Date(),
+                    }
+                });
+            }
+        } catch (error) {
+            console.warn(`⚠️ Could not create leave request: ${error}`);
+        }
+    }
+
+    console.log(`✅ Created ${leaveRequests.length} leave requests`);
+
+    // 6. Create some document categories and sample documents
+    console.log('📄 Creating document categories and sample documents...');
+
+    const docCategories = [];
+    const categoryData = [
+        { name: 'HR Policies', description: 'Human Resources policies and procedures', departmentId: operationsDept.id, color: '#3B82F6' },
+        { name: 'Engineering Standards', description: 'Technical standards and best practices', departmentId: engineeringDept.id, color: '#10B981' },
+        { name: 'Marketing Guidelines', description: 'Brand guidelines and marketing procedures', departmentId: marketingDept.id, color: '#F59E0B' },
+        { name: 'Sales Training', description: 'Sales processes and training materials', departmentId: salesDept.id, color: '#EF4444' },
+    ];
+
+    for (const category of categoryData) {
+        const existing = await prisma.document_categories.findFirst({
+            where: { name: category.name }
+        });
+
+        if (existing) {
+            docCategories.push(existing);
+        } else {
+            const created = await prisma.document_categories.create({
+                data: category
+            });
+            docCategories.push(created);
+        }
+    }
+
+    // Create sample documents
+    const documents = [];
+    const documentData = [
+        { name: 'Employee Handbook 2025', categoryId: docCategories[0].id, priority: 'high' as document_priority, createdBy: glen.id },
+        { name: 'Code Review Guidelines', categoryId: docCategories[1].id, priority: 'medium' as document_priority, createdBy: xolani.id },
+        { name: 'Brand Style Guide', categoryId: docCategories[2].id, priority: 'medium' as document_priority, createdBy: hannes.id },
+        { name: 'Sales Process Manual', categoryId: docCategories[3].id, priority: 'high' as document_priority, createdBy: robert.id },
+        { name: 'Remote Work Policy', categoryId: docCategories[0].id, priority: 'low' as document_priority, createdBy: glen.id },
+    ];
+
+    for (const doc of documentData) {
+        const existing = await prisma.documents.findFirst({
+            where: { name: doc.name }
+        });
+
+        if (!existing) {
+            const created = await prisma.documents.create({
+                data: {
+                    name: doc.name,
+                    category_id: doc.categoryId,
+                    file_url: `/documents/${doc.name.toLowerCase().replace(/\s+/g, '-')}.pdf`,
+                    file_size: `${Math.floor(Math.random() * 500) + 100}KB`,
+                    content: `This is the content for ${doc.name}`,
+                    priority: doc.priority,
+                    created_by: doc.createdBy,
+                }
+            });
+            documents.push(created);
+        }
+    }
+
+    console.log(`✅ Created ${docCategories.length} document categories and ${documents.length} documents`);
+
+    // 7. Create some notifications
+    console.log('🔔 Creating sample notifications...');
+
+    const notifications = [];
+    const notificationData = [
+        {
+            recipientId: xolani.id,
+            createdById: glen.id,
+            type: 'info' as notification_type,
+            category: 'leave_management' as notification_category,
+            title: 'Leave Request Approved',
+            message: 'Your annual leave request has been approved.',
+            priority: 'normal' as notification_priority,
+        },
+        {
+            recipientId: newUserIds[0], // Sarah
+            createdById: hannes.id,
+            type: 'action_required' as notification_type,
+            category: 'document_management' as notification_category,
+            title: 'Document Review Required',
+            message: 'Please review and sign the updated Employee Handbook.',
+            priority: 'high' as notification_priority,
+        },
+        {
+            recipientId: newUserIds[1], // David
+            createdById: null,
+            type: 'reminder' as notification_type,
+            category: 'performance_reviews' as notification_category,
+            title: 'Performance Review Due',
+            message: 'Your Q3 performance review is due in 3 days.',
+            priority: 'normal' as notification_priority,
+        },
+    ];
+
+    for (const notif of notificationData) {
+        const created = await prisma.notifications.create({
+            data: notif
+        });
+        notifications.push(created);
+    }
+
+    console.log(`✅ Created ${notifications.length} notifications`);
+
     // Final summary
     console.log(`
 🎉 Seed completed successfully!
@@ -432,6 +643,17 @@ async function main() {
 - Admin Users: ${adminUsers.length}
 - Additional Users: ${allCreatedUsers.length}
 - User Department Assignments: ${userDepartments.length}
+- Leave Requests: ${leaveRequests.length}
+- Document Categories: ${docCategories.length}
+- Documents: ${documents.length}
+- Notifications: ${notifications.length}
+
+📅 Leave Requests Timeline:
+- Period: ${twoMonthsAgo.toDateString()} to ${twoMonthsFromNow.toDateString()}
+- Total Requests: ${leaveRequests.length}
+- Approved: ${leaveRequests.filter(req => req.status === 'approved').length}
+- Pending: ${leaveRequests.filter(req => req.status === 'pending').length}
+- Rejected: ${leaveRequests.filter(req => req.status === 'rejected').length}
 
 👥 Organization Structure:
 - Glen Mogane (CEO) - No manager
@@ -448,12 +670,13 @@ async function main() {
 - Alex Thompson (Junior Developer) - Reports to Philemon
 
 🔄 System Features Ready:
-✅ Leave Management System
+✅ Leave Management System with Historical Data
 ✅ Document Management with Training
-✅ Performance Review System (Q3 2025)
+✅ Performance Review System
 ✅ Notification Center
 ✅ User Hierarchy & Departments
 ✅ Comprehensive audit trails
+✅ Dummy data spanning 4 months (2 months past to 2 months future)
     `);
 }
 

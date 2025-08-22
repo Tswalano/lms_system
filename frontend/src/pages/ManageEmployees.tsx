@@ -827,10 +827,8 @@ const ManageEmployees = () => {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-gray-600 dark:text-gray-400">{employee.jobTitle}</TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline" className="bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                                            {getDepartmentName(employee.departmentId || employee.departmentId, employee.department)}
-                                        </Badge>
+                                    <TableCell className="text-gray-600 dark:text-gray-400">
+                                        {getDepartmentName(employee.departmentId || employee.departmentId, employee.department)}
                                     </TableCell>
                                     <TableCell>
                                         {employee.role === 'admin' ? (
