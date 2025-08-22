@@ -577,7 +577,7 @@ app.delete('/delete-user', async (c) => {
 // This endpoint is for admin to add a new user. It will create the user in Cognito and add to the database
 app.post('/add-user', async (c) => {
     try {
-        const { firstName, lastName, jobTitle, isAdmin } = await c.req.json();
+        const { firstName, lastName, jobTitle, isAdmin, departmentId } = await c.req.json();
 
         // Validate required fields
         if (!firstName || !lastName || !jobTitle) {
@@ -674,8 +674,8 @@ app.post('/add-user', async (c) => {
 
             // Add user to database
             const insertSql = `
-                INSERT INTO users (id, email, firstName, lastName, role, jobTitle, phoneNumber, dob, gender, createdAt, updatedAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                INSERT INTO users (id, email, firstName, lastName, role, jobTitle, departmentId, phoneNumber, dob, gender, createdAt, updatedAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             `;
 
             await connection.execute(insertSql, [
@@ -685,19 +685,30 @@ app.post('/add-user', async (c) => {
                 lastName,
                 role,
                 jobTitle || '', // Pass null if jobTitle is empty/undefined for DB
+                departmentId,
                 '+27000000000', // Hardcoded - consider making dynamic or optional
                 '0000-01-01',   // Hardcoded - consider making dynamic or optional
                 '-'             // Hardcoded - consider making dynamic or optional
             ]);
 
             // Get the created user
-            // const [createdRows] = await connection.execute(checkSql, [email]);
-            // const createdUser = (createdRows as any[])[0];
+            const [createdRows] = await connection.execute(checkSql, [email]);
+            const createdUser = {
+                uuid,
+                email,
+                firstName,
+                lastName,
+                role,
+                jobTitle: jobTitle || '', 
+                phoneNumber: '+27000000000',
+                dob: '0000-01-01',   
+                gender: '-'
+            };
 
             const response = ResponseService.success(
                 "User created successfully. Welcome email sent with temporary password.",
                 {
-                    // user: createdUser,
+                    users: createdUser,
                     cognitoUsername: cognitoUser.User?.Username,
                     userStatus: cognitoUser.User?.UserStatus
                 }
