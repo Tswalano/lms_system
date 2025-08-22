@@ -5,7 +5,7 @@ import {
     DeleteObjectCommand, DeleteObjectCommandInput
 } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
-import mysql from 'mysql2/promise';
+import mysql, { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { extension } from "mime-types";
 import { DatabaseService } from '../helpers/databaseHeler';
 import { ResponseService } from '../models/apiResponse';
@@ -652,7 +652,6 @@ adminDocs.get('/:document_id/signatures', async (c) => {
     }
 });
 
-
 // Get departments
 adminDocs.get('/departments', async (c) => {
     console.log("GET /admin-docs/departments");
@@ -673,5 +672,193 @@ adminDocs.get('/departments', async (c) => {
         return c.json(ResponseService.error("DepartmentsRetrievalError", "Failed to retrieve departments."), 500);
     }
 })
+
+// Delete category
+adminDocs.delete('/categories/:category_id', async (c) => {
+    console.log("DELETE /admin-docs/categories/:category_id");
+    let connection;
+
+    try {
+        const { category_id } = c.req.param();
+        if (!category_id) {
+            return c.json(ResponseService.error("InvalidRequest", "Category ID is required."), 400);
+        }
+
+        const categoryId = parseInt(category_id);
+        if (isNaN(categoryId)) {
+            return c.json(ResponseService.error("InvalidRequest", "Category ID must be a valid number."), 400);
+        }
+
+        connection = await DatabaseService.createConnection();
+
+        // Check if category exists
+        const checkCategorySql = `SELECT id, name FROM document_categories WHERE id = ?`;
+        const [categoryRows] = await connection.execute<RowDataPacket[]>(checkCategorySql, [categoryId]);
+
+        if (categoryRows.length === 0) {
+            return c.json(ResponseService.error("CategoryNotFound", "Category not found."), 404);
+        }
+
+        const categoryName = categoryRows[0].name;
+
+        // Check if category has documents
+        const checkDocumentsSql = `SELECT COUNT(*) as count FROM documents WHERE category_id = ?`;
+        const [documentRows] = await connection.execute<RowDataPacket[]>(checkDocumentsSql, [categoryId]);
+        const documentCount = documentRows[0]?.count || 0;
+
+        if (documentCount > 0) {
+            return c.json(ResponseService.error(
+                "CategoryNotEmpty",
+                `Cannot delete folder "${categoryName}". It contains ${documentCount} document${documentCount > 1 ? 's' : ''}. Please move or delete them first.`
+            ), 400);
+        }
+
+        // Delete category
+        const deleteSql = `DELETE FROM document_categories WHERE id = ?`;
+        const [deleteResult] = await connection.execute<ResultSetHeader>(deleteSql, [categoryId]);
+
+        if (deleteResult.affectedRows === 0) {
+            return c.json(ResponseService.error("CategoryDeletionError", "Failed to delete category. Category may not exist."), 400);
+        }
+
+        return c.json(ResponseService.success(
+            "Category deleted successfully",
+            {
+                deletedCategoryId: categoryId,
+                deletedCategoryName: categoryName,
+                message: `Folder "${categoryName}" has been deleted successfully.`
+            }
+        ), 200);
+
+    } catch (error) {
+        console.error("Error deleting category:", error);
+
+        return c.json(ResponseService.error("CategoryDeletionError", "An unexpected error occurred while deleting the category."), 500);
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
+    }
+});
+
+// Update category
+adminDocs.put('/categories/:category_id', async (c) => {
+    console.log("PUT /admin-docs/categories/:category_id");
+    let connection;
+
+    try {
+        const { category_id } = c.req.param();
+        if (!category_id) {
+            return c.json(ResponseService.error("InvalidRequest", "Category ID is required."), 400);
+        }
+
+        const categoryId = parseInt(category_id);
+        if (isNaN(categoryId)) {
+            return c.json(ResponseService.error("InvalidRequest", "Category ID must be a valid number."), 400);
+        }
+
+        const body = await c.req.json();
+        const { name, color, departmentId } = body;
+
+        console.log(body)
+
+        if (!name) {
+            return c.json(ResponseService.error("InvalidRequest", "Category name is required and cannot be empty."), 400);
+        }
+
+        const trimmedName = name.trim();
+        if (trimmedName.length > 100) {
+            return c.json(ResponseService.error("InvalidRequest", "Category name cannot exceed 100 characters."), 400);
+        }
+
+        if (color && typeof color !== 'string') {
+            return c.json(ResponseService.error("InvalidRequest", "Color must be a string."), 400);
+        }
+
+        let validDepartmentId = null;
+        if (departmentId !== undefined && departmentId !== null) {
+            validDepartmentId = parseInt(departmentId);
+            if (isNaN(validDepartmentId)) {
+                return c.json(ResponseService.error("InvalidRequest", "Department ID must be a valid number."), 400);
+            }
+        }
+
+        connection = await DatabaseService.createConnection();
+
+        const checkCategorySql = `SELECT id, name, color, departmentId FROM document_categories WHERE id = ?`;
+        const [categoryRows] = await connection.execute<RowDataPacket[]>(checkCategorySql, [categoryId]);
+
+        if (categoryRows.length === 0) {
+            return c.json(ResponseService.error("CategoryNotFound", "Category not found."), 404);
+        }
+
+        const currentCategory = categoryRows[0];
+
+        // Check for duplicate name
+        const checkNameSql = `SELECT id FROM document_categories WHERE name = ? AND id != ?`;
+        const [nameRows] = await connection.execute<RowDataPacket[]>(checkNameSql, [trimmedName, categoryId]);
+
+        if (nameRows.length > 0) {
+            return c.json(ResponseService.error(
+                "CategoryNameExists",
+                `A folder with the name "${trimmedName}" already exists.`
+            ), 400);
+        }
+
+        if (validDepartmentId !== null) {
+            const checkDepartmentSql = `SELECT id FROM departments WHERE id = ?`;
+            const [departmentRows] = await connection.execute<RowDataPacket[]>(checkDepartmentSql, [validDepartmentId]);
+            if (departmentRows.length === 0) {
+                return c.json(ResponseService.error("DepartmentNotFound", "Selected department does not exist."), 400);
+            }
+        }
+
+        const updateSql = `UPDATE document_categories SET name = ?, color = ?, departmentId = ?, updatedAt = NOW() WHERE id = ?`;
+        const [updateResult] = await connection.execute<ResultSetHeader>(updateSql, [trimmedName, color, validDepartmentId, categoryId]);
+
+        if (updateResult.affectedRows === 0) {
+            return c.json(ResponseService.error("CategoryUpdateError", "Failed to update category."), 500);
+        }
+
+        const getUpdatedSql = `
+            SELECT dc.id, dc.name, dc.color, dc.departmentId, dc.createdAt, dc.updatedAt,
+                   d.name as department_name
+            FROM document_categories dc
+            LEFT JOIN departments d ON dc.departmentId = d.id
+            WHERE dc.id = ?
+        `;
+        const [updatedRows] = await connection.execute<RowDataPacket[]>(getUpdatedSql, [categoryId]);
+        const updatedCategory = updatedRows[0];
+
+        return c.json(ResponseService.success(
+            "Category updated successfully",
+            {
+                id: updatedCategory.id,
+                name: updatedCategory.name,
+                color: updatedCategory.color,
+                departmentId: updatedCategory.departmentId,
+                departmentName: updatedCategory.department_name,
+                createdAt: updatedCategory.createdAt,
+                updatedAt: updatedCategory.updatedAt,
+                changes: {
+                    nameChanged: currentCategory.name !== trimmedName,
+                    colorChanged: color !== undefined && currentCategory.color !== color,
+                    departmentChanged: departmentId !== undefined && currentCategory.departmentId !== validDepartmentId
+                }
+            }
+        ), 200);
+
+    } catch (error) {
+        console.error("Error updating category:", error);
+
+        return c.json(ResponseService.error("CategoryUpdateError", "An unexpected error occurred while updating the category."), 500);
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
+    }
+});
+
+
 
 export default adminDocs;
