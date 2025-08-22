@@ -130,7 +130,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
         mutationFn: async ({ id, ...folderData }: { id: number } & Partial<NewFolderState>) => {
             const response = await authFetch(`/admin-docs/categories/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify(folderData)
+                body: JSON.stringify({ ...folderData })
             });
 
             if (!response.ok) {
