@@ -156,6 +156,8 @@ adminDocs.get('/by-category', async (c) => {
                 dc.color AS category_color,
                 d.id AS document_id,
                 d.name AS document_name,
+                dpt.name AS department_name,
+                dpt.id AS department_id,
                 d.file_url,
                 d.file_size,
                 d.priority,
@@ -164,15 +166,27 @@ adminDocs.get('/by-category', async (c) => {
                 CONCAT(u.firstName, ' ', u.lastName) AS uploaded_by_display,
                 COUNT(uda.user_id) AS total_assignments,
                 COUNT(ds.user_id) AS total_signatures
-            FROM document_categories dc
-            LEFT JOIN documents d ON dc.id = d.category_id
-            LEFT JOIN users u ON u.id = d.created_by
-            LEFT JOIN user_document_assignments uda ON d.id = uda.document_id
-            LEFT JOIN document_signatures ds ON uda.user_id = ds.user_id AND uda.document_id = ds.document_id
+            FROM
+                document_categories dc
+                LEFT JOIN documents d ON dc.id = d.category_id
+                LEFT JOIN users u ON u.id = d.created_by
+                LEFT JOIN user_document_assignments uda ON d.id = uda.document_id
+                LEFT JOIN document_signatures ds ON uda.user_id = ds.user_id
+                AND uda.document_id = ds.document_id
+                LEFT JOIN departments dpt ON dc.departmentId = dpt.id
             GROUP BY
-                dc.id, dc.name, dc.description, dc.color,
-                d.id, d.name, d.file_url, d.file_size, d.priority,
-                d.createdat, d.created_by, uploaded_by_display
+                dc.id,
+                dc.name,
+                dc.description,
+                dc.color,
+                d.id,
+                d.name,
+                d.file_url,
+                d.file_size,
+                d.priority,
+                d.createdat,
+                d.created_by,
+                uploaded_by_display
             ORDER BY dc.name ASC, d.name ASC;
         `;
 
@@ -188,6 +202,8 @@ adminDocs.get('/by-category', async (c) => {
                 category_color,
                 document_id,
                 document_name,
+                department_name,
+                department_id,
                 file_url,
                 file_size,
                 priority,
@@ -202,6 +218,8 @@ adminDocs.get('/by-category', async (c) => {
             if (!grouped.has(category_id)) {
                 grouped.set(category_id, {
                     id: category_id,
+                    departmentId: department_id,
+                    department: department_name,
                     name: category_name,
                     description: category_description,
                     color: category_color,
@@ -218,6 +236,8 @@ adminDocs.get('/by-category', async (c) => {
                 grouped.get(category_id)?.documents.push({
                     id: document_id,
                     name: document_name,
+                    department: department_name,
+                    departmentId: department_id,
                     category: category_name,
                     file_url: file_url,
                     file_size: file_size,

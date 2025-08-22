@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Loader2, UserPlus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Loader2, FolderPlus } from 'lucide-react';
 import {
     Select,
     SelectContent,
@@ -19,7 +19,7 @@ interface Department {
 
 interface NewFolderState {
     name: string;
-    departmentId: number | null;
+    departmentId: number;
     color: string;
 }
 
@@ -40,7 +40,9 @@ const folderColors = [
     'bg-purple-500',
     'bg-orange-500',
     'bg-red-500',
-    'bg-indigo-500'
+    'bg-indigo-500',
+    'bg-pink-500',
+    'bg-yellow-500'
 ];
 
 const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
@@ -54,32 +56,52 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
     submitText = "Add Folder"
 }) => {
     const [folderData, setFolderData] = useState<NewFolderState>({
-        name: initialData.name || '',
-        departmentId: initialData.departmentId || null,
-        color: initialData.color || 'bg-blue-500'
+        name: '',
+        departmentId: departments.length > 0 ? departments[0].id : 0,
+        color: 'bg-blue-500'
     });
 
+    // Update form data when initialData changes (for edit mode)
+    useEffect(() => {
+        if (isOpen) {
+            setFolderData({
+                name: initialData.name || '',
+                departmentId: initialData.departmentId || (departments.length > 0 ? departments[0].id : 0),
+                color: initialData.color || 'bg-blue-500'
+            });
+        }
+    }, [isOpen, initialData, departments]);
+
     const handleSubmit = () => {
-        if (!folderData.name.trim()) return;
-        onSubmit(folderData);
+        if (!folderData.name.trim()) {
+            return;
+        }
+
+        // Ensure we have a valid departmentId
+        const validDepartmentId = folderData.departmentId || (departments.length > 0 ? departments[0].id : 0);
+
+        onSubmit({
+            ...folderData,
+            departmentId: validDepartmentId,
+            name: folderData.name.trim()
+        });
     };
 
     const handleClose = () => {
-
-        console.log(initialData);
-
+        // Reset form to initial state
         setFolderData({
-            name: initialData.name || '',
-            departmentId: initialData.departmentId || null,
-            color: initialData.color || 'bg-blue-500'
+            name: '',
+            departmentId: departments.length > 0 ? departments[0].id : 0,
+            color: 'bg-blue-500'
         });
         onClose();
     };
 
     const handleDepartmentChange = (value: string) => {
+        const departmentId = parseInt(value);
         setFolderData(prev => ({
             ...prev,
-            departmentId: value === "none" ? null : parseInt(value)
+            departmentId: departmentId
         }));
     };
 
@@ -97,7 +119,7 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                                <UserPlus className="w-6 h-6 text-white" />
+                                <FolderPlus className="w-6 h-6 text-white" />
                             </div>
                             <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{title}</h3>
                         </div>

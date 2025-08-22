@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Moon, Sun, History, Users, Menu, X, ChevronsRight, ChevronsLeft, ChartSpline, FileCheck2, ChevronsDown, Calendar, BarChart3, Settings, Building2 } from "lucide-react";
+import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Moon, Sun, History, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, ChevronsDown, Calendar, BarChart3, Settings, Building2 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -58,12 +58,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: "team", label: "Team Calendar", icon: Calendar, path: "/team-availability" },
                 { id: "apply", label: "Request Leave", icon: FileText, path: "/apply-leave" },
                 { id: "history", label: "My Requests", icon: Clock, path: "/leave-history" },
-                ...(userRole === 'admin' ? [
-                    { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave" },
-                    // TODO: query the leave request data to get the count of un-approved leave requests and add t to the badge 
-                    // { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave", badge: "3" },
-                    { id: "team-history", label: "Team History", icon: History, path: "/team-leave-history" },
-                ] : [])
             ]
         },
         ...(userRole === 'admin' ? [{
@@ -72,7 +66,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             icon: Settings,
             items: [
                 { id: "manage", label: "Manage Team", icon: Users, path: "/manage-employees" },
-                { id: "performance", label: "Performance Reviews", icon: ChartSpline, path: "/performance" },
+                { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave" },
+                // TODO: query the leave request data to get the count of un-approved leave requests and add t to the badge 
+                // { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave", badge: "3" },
+                { id: "team-history", label: "Team History", icon: History, path: "/team-leave-history" },
+                // { id: "performance", label: "Performance Reviews", icon: ChartSpline, path: "/performance" },
             ]
         }] : []),
         ...(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? [{
@@ -240,7 +238,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
 
                 {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
+                <div className="flex-1 overflow-y-none scrollbar-none scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
                     {/* User Profile */}
                     <div className={cn("p-4", isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "" : "")}>
                         <Link

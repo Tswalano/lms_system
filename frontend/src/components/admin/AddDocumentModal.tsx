@@ -11,14 +11,15 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
 interface FolderType {
-    id?: string;
+    id: number;
     name: string;
-    fileCount: number;
-    size: string;
+    departmentId?: number;
     color: string;
-    icon: React.ElementType;
+    department?: string;
+    fileCount?: number;
+    size?: string;
+    icon?: React.ElementType;
     description?: string;
-    departmentId: number | null;
 }
 
 interface NewDocumentState {
@@ -180,7 +181,7 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({
                                     <SelectItem
                                         className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
                                         key={folder.id}
-                                        value={folder.id as string}
+                                        value={folder.id.toString()}
                                     >
                                         {folder.name}
                                     </SelectItem>
@@ -194,8 +195,8 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({
                         <button
                             onClick={() => handleTabChange("file")}
                             className={`px-4 py-2 font-medium ${activeTab === "file"
-                                    ? "border-b-2 border-cyan-500 text-cyan-600"
-                                    : "text-gray-500 dark:text-gray-400"
+                                ? "border-b-2 border-cyan-500 text-cyan-600"
+                                : "text-gray-500 dark:text-gray-400"
                                 }`}
                         >
                             Upload File
@@ -203,8 +204,8 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({
                         <button
                             onClick={() => handleTabChange("url")}
                             className={`px-4 py-2 font-medium ${activeTab === "url"
-                                    ? "border-b-2 border-cyan-500 text-cyan-600"
-                                    : "text-gray-500 dark:text-gray-400"
+                                ? "border-b-2 border-cyan-500 text-cyan-600"
+                                : "text-gray-500 dark:text-gray-400"
                                 }`}
                         >
                             Paste URL
@@ -221,8 +222,8 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({
                             onDragLeave={() => setIsDragging(false)}
                             onDrop={handleDrop}
                             className={`flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl transition-all duration-200 cursor-pointer ${isDragging
-                                    ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20"
-                                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20"
+                                : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
                                 } hover:border-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-900/20`}
                             onClick={() => document.getElementById("doc-file")?.click()}
                         >
