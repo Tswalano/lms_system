@@ -399,6 +399,11 @@ const CalendarSection = () => {
                             <div className="w-3 h-3 bg-yellow-100 border-2 border-orange-400 rounded"></div>
                             <span className="text-gray-600 dark:text-gray-400">Public Holiday</span>
                         </div>
+                        {/* Birthdays */}
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 bg-pink-100 border border-pink-300 rounded"></div>
+                            <span className="text-gray-600 dark:text-gray-400">Birthdays</span>
+                        </div>
                     </div>
                 </div>
             </div>

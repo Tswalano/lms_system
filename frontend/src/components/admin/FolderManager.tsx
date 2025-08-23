@@ -4,7 +4,7 @@ import { FolderPlus, Loader2, AlertCircle, Folder } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import CreateFolderModal from './CreateFolderModal';
-import ConfirmationModal from './ConfirmationModal';
+import ConfirmationModal from '../ConfirmationModal';
 import FolderCard from './FolderCard';
 
 interface Department {

@@ -53,7 +53,7 @@ interface PasswordFormData {
     confirmPassword: string;
 }
 
-const UserProfile: React.FC = () => {
+const UserProfilePage: React.FC = () => {
     const { authFetch } = useAuth();
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const [isChangingPassword, setIsChangingPassword] = useState<boolean>(false);
@@ -732,4 +732,4 @@ const UserProfile: React.FC = () => {
     );
 };
 
-export default UserProfile;
+export default UserProfilePage;

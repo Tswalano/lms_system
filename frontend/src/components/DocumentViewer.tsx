@@ -1,5 +1,6 @@
 import React, { type FC, useState, useEffect } from 'react';
 import { X, Download, PenTool, FileText, ExternalLink, AlertCircle, Loader } from 'lucide-react';
+import { formatDate } from '@/lib/helper';
 
 interface DocumentType {
     id: number;
@@ -442,7 +443,7 @@ const DocumentViewer: FC<DocumentViewerProps> = ({
                                 {document.name}
                             </h2>
                             <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                                <span>Added on {document.createdAt}</span>
+                                <span>Added on {formatDate(document.createdAt)}</span>
                                 <span>•</span>
                                 <span>Due: {document.dueDate}</span>
                                 <span>•</span>

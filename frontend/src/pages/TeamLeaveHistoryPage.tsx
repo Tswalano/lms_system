@@ -49,7 +49,7 @@ interface ApiResponse {
     data?: LeaveHistoryItem[];
 }
 
-const TeamListLeaveHistory = () => {
+const TeamListLeaveHistoryPage = () => {
     const { authFetch } = useAuth();
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -297,6 +297,13 @@ const TeamListLeaveHistory = () => {
                                     <p className="text-sm text-gray-500 mt-1">
                                         {historyErrorMessage instanceof Error ? historyErrorMessage.message : 'Something went wrong'}
                                     </p>
+                                </div>
+                            </div>
+                        ) : historyLoading ? (
+                            <div className="flex items-center justify-center py-12">
+                                <div className="text-center">
+                                    <Loader2 className="w-12 h-12 mx-auto mb-4 text-blue-500 animate-spin" />
+                                    <p className="text-gray-500 dark:text-gray-400 font-medium">Loading leave history</p>
                                 </div>
                             </div>
                         ) : leaveHistory.length === 0 && !historyLoading ? (
@@ -551,6 +558,13 @@ const TeamListLeaveHistory = () => {
                                 </p>
                             </div>
                         </div>
+                    ) : usersLoading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <div className="text-center">
+                                <Loader2 className="w-12 h-12 mx-auto mb-4 text-blue-500 animate-spin" />
+                                <p className="text-gray-500 dark:text-gray-400 font-medium">Loading team members</p>
+                            </div>
+                        </div>
                     ) : filteredUsers.length === 0 && !usersLoading ? (
                         <div className="text-center py-12">
                             <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
@@ -623,4 +637,4 @@ const TeamListLeaveHistory = () => {
     );
 };
 
-export default TeamListLeaveHistory;
+export default TeamListLeaveHistoryPage;

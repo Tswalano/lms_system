@@ -16,7 +16,7 @@ const DashboardFooter: React.FC = () => {
     const currentYear = new Date().getFullYear();
 
     const footerLinks = [
-        { name: 'Terms of Service', href: '/terms' },
+        { name: 'Terms of Service', href: '/terms-of-service' },
         { name: 'Support', href: '/support' }
     ];
 

@@ -3,7 +3,7 @@ import { ArrowLeft, Mail, CheckCircle, Lock, Key, Loader2, Shield, Clock, User }
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 
-const ForgotPassword = () => {
+const ForgotPasswordPage = () => {
     const { forgotPassword, resetPassword } = useAuth();
     const [email, setEmail] = useState("");
     const [code, setCode] = useState("");
@@ -504,4 +504,4 @@ const ForgotPassword = () => {
     );
 };
 
-export default ForgotPassword;
+export default ForgotPasswordPage;
