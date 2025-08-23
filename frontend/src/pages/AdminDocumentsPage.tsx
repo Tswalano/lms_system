@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, type FC } from 'react';
+import { useState, useEffect, type FC } from 'react';
 import { Plus, FileBadge, FolderPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +10,7 @@ import DocumentViewModal from '@/components/admin/DocumentViewModal';
 import AddDocumentModal from '@/components/admin/AddDocumentModal';
 import DocumentTable from '@/components/admin/DocumentTable';
 import FolderManager from '@/components/admin/FolderManager';
-import ConfirmationModal from '@/components/admin/ConfirmationModal';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import CreateFolderModal from '@/components/admin/CreateFolderModal';
 
 // Interfaces
@@ -71,6 +71,7 @@ interface DocumentType {
     name: string;
     uploadedByDisplay: string;
     uploadedById: string;
+    department: string;
     avatar: string;
     date: string;
     status: 'active' | 'draft' | 'archived';
@@ -209,7 +210,7 @@ const AdminDocumentsPage: FC = () => {
         if (departmentsData) {
             setDepartments(departmentsData);
         }
-    }, [departmentsData]); // Fixed: Added missing dependency array
+    }, [departmentsData]);
 
     // Folder mutations
     const createFolderMutation = useMutation({
@@ -280,6 +281,7 @@ const AdminDocumentsPage: FC = () => {
                 category: documentPayload.category || folderName,
                 uploadedByDisplay: documentPayload.uploadedByDisplay,
                 uploadedById: documentPayload.uploadedById,
+                department: documentPayload.department,
                 avatar: createAvatar(
                     documentPayload.uploadedByDisplay.split(' ')[0] || '',
                     documentPayload.uploadedByDisplay.split(' ')[1] || ''
@@ -424,6 +426,7 @@ const AdminDocumentsPage: FC = () => {
                     category: doc.category,
                     uploadedByDisplay: doc.uploadedByDisplay,
                     uploadedById: doc.uploadedById,
+                    department: doc.department,
                     avatar: createAvatar(nameParts[0] || '', nameParts[1] || ''),
                     date: new Date(doc.createdAt).toLocaleDateString('en-US', {
                         year: 'numeric',
@@ -552,16 +555,15 @@ const AdminDocumentsPage: FC = () => {
     };
 
     const handleDownloadDocument = (doc: DocumentType): void => {
-        if (isValidUrl(doc.fileUrl)) {
-            window.open(doc.fileUrl, '_blank');
-        } else {
-            const link = document.createElement('a');
-            link.href = doc.fileUrl;
-            link.download = doc.name;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
+        const link = document.createElement('a');
+        link.href = doc.fileUrl;
+        link.target = '_blank';   // open in a new tab
+        link.rel = 'noopener noreferrer'; // security best practice
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        console.log(`Opening ${doc.name} in a new tab...`);
     };
 
     const handleEditDocument = (doc: DocumentType): void => {

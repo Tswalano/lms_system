@@ -5,7 +5,7 @@ import { Eye, EyeOff, Lock, Loader2, Shield, Key, ArrowLeft } from "lucide-react
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
-const ChangePassword: React.FC = (): JSX.Element => {
+const ChangePasswordPage: React.FC = (): JSX.Element => {
     const [showCurrentPassword, setShowCurrentPassword] = useState<boolean>(false);
     const [showNewPassword, setShowNewPassword] = useState<boolean>(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
@@ -342,4 +342,4 @@ const ChangePassword: React.FC = (): JSX.Element => {
     );
 };
 
-export default ChangePassword;
+export default ChangePasswordPage;

@@ -30,7 +30,12 @@ export function checkOverdue(date: string | Date, actualStatus: string): string 
 
 
 // Format date 2025-08-18T19:20:00.000Z
-export function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date | undefined): string {
+
+    if (!date) {
+        return '';
+    }
+
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     const formattedDate = dateObj.toLocaleDateString('en-ZA', {
         year: 'numeric',

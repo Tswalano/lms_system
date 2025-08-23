@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Moon, Sun, History, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, ChevronsDown, Calendar, BarChart3, Settings, Building2 } from "lucide-react";
+import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Moon, Sun, History, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, ChevronsDown, Calendar, Settings, Building2 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -54,10 +54,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             icon: Home,
             defaultOpen: true,
             items: [
-                { id: "dashboard", label: "Dashboard", icon: BarChart3, path: "/" },
+                { id: "dashboard", label: "Dashboard", icon: Home, path: "/" },
                 { id: "team", label: "Team Calendar", icon: Calendar, path: "/team-availability" },
-                { id: "apply", label: "Request Leave", icon: FileText, path: "/apply-leave" },
-                { id: "history", label: "My Requests", icon: Clock, path: "/leave-history" },
+                { id: "apply", label: "Apply for Leave", icon: FileText, path: "/apply-leave" },
+                { id: "history", label: "My Leave Requests", icon: Clock, path: "/leave-history" },
             ]
         },
         ...(userRole === 'admin' ? [{
@@ -65,12 +65,12 @@ const Sidebar: React.FC<SidebarProps> = ({
             label: 'Administration',
             icon: Settings,
             items: [
-                { id: "manage", label: "Manage Team", icon: Users, path: "/manage-employees" },
+                { id: "team-history", label: "Team Directory", icon: History, path: "/team-leave-history" },
                 { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave" },
                 // TODO: query the leave request data to get the count of un-approved leave requests and add t to the badge 
                 // { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave", badge: "3" },
-                { id: "team-history", label: "Team History", icon: History, path: "/team-leave-history" },
                 // { id: "performance", label: "Performance Reviews", icon: ChartSpline, path: "/performance" },
+                { id: "manage", label: "Manage Employees", icon: Users, path: "/manage-employees" },
             ]
         }] : []),
         ...(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? [{

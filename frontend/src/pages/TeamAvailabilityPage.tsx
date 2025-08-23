@@ -37,7 +37,7 @@ interface ApiResponse {
     payload: { summary: string, teamMembers: TeamMember[] };
 }
 
-const TeamAvailability = () => {
+const TeamAvailabilityPage = () => {
     const { authFetch } = useAuth();
     const [filter, setFilter] = useState<string>("all");
     const [searchTerm, setSearchTerm] = useState<string>("");
@@ -718,4 +718,4 @@ const TeamAvailability = () => {
     );
 };
 
-export default TeamAvailability;
+export default TeamAvailabilityPage;

@@ -28,7 +28,7 @@ interface ApiResponse {
     data?: any;
 }
 
-const ApplyLeave = () => {
+const ApplyLeavePage = () => {
     const { authFetch } = useAuth();
     const [formData, setFormData] = useState<LeaveApplicationData>({
         leaveType: '',
@@ -415,4 +415,4 @@ const ApplyLeave = () => {
     );
 };
 
-export default ApplyLeave;
+export default ApplyLeavePage;

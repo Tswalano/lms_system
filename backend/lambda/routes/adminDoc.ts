@@ -652,6 +652,35 @@ adminDocs.get('/:document_id/signatures', async (c) => {
     }
 });
 
+// Add department
+adminDocs.post('/departments', async (c) => {
+    console.log("POST /admin-docs/departments");
+    let connection;
+
+    try {
+        connection = await DatabaseService.createConnection();
+
+        const { name, description } = await c.req.json();
+
+        if (!name) {
+            return c.json(ResponseService.error("InvalidRequest", "Department name is required."), 400);
+        }
+
+        const sql = `INSERT INTO departments (name, description) VALUES (?,?)`;
+        await connection.execute(sql, [name, description]);
+        const response = ResponseService.success(
+            "Department added successfully",
+            []
+        );
+        return c.json(response, 200);
+    } catch (error) {
+        console.error("Error adding department:", error);
+        return c.json(ResponseService.error("DepartmentAdditionError", "Failed to add department."), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+})
+
 // Get departments
 adminDocs.get('/departments', async (c) => {
     console.log("GET /admin-docs/departments");
@@ -670,6 +699,73 @@ adminDocs.get('/departments', async (c) => {
     } catch (error) {
         console.error("Error retrieving departments:", error);
         return c.json(ResponseService.error("DepartmentsRetrievalError", "Failed to retrieve departments."), 500);
+    }
+})
+
+// Update department
+adminDocs.put('/departments/:department_id', async (c) => {
+    console.log("PATCH /admin-docs/departments/:department_id");
+    let connection;
+
+    try {
+        const { department_id } = c.req.param();
+        if (!department_id) {
+            return c.json(ResponseService.error("InvalidRequest", "Department ID is required."), 400);
+        }
+
+        const departmentId = parseInt(department_id);
+        if (isNaN(departmentId)) {
+            return c.json(ResponseService.error("InvalidRequest", "Department ID must be a valid number."), 400);
+        }
+
+        connection = await DatabaseService.createConnection();
+
+        const { name, description } = await c.req.json();
+        const sql = `UPDATE departments SET name = ?, description = ? WHERE id = ?`;
+        await connection.execute(sql, [name, description, departmentId]);
+        const response = ResponseService.success(
+            "Department updated successfully",
+            []
+        );
+        return c.json(response, 200);
+    } catch (error) {
+        console.error("Error updating department:", error);
+        return c.json(ResponseService.error("DepartmentUpdateError", "Failed to update department."), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+})
+
+// Delete department
+adminDocs.delete('/departments/:department_id', async (c) => {
+    console.log("DELETE /admin-docs/departments/:department_id");
+    let connection;
+
+    try {
+        const { department_id } = c.req.param();
+        if (!department_id) {
+            return c.json(ResponseService.error("InvalidRequest", "Department ID is required."), 400);
+        }
+
+        const departmentId = parseInt(department_id);
+        if (isNaN(departmentId)) {
+            return c.json(ResponseService.error("InvalidRequest", "Department ID must be a valid number."), 400);
+        }
+
+        connection = await DatabaseService.createConnection();
+
+        const sql = `DELETE FROM departments WHERE id = ?`;
+        const [rows] = await connection.execute(sql, [departmentId]);
+        const response = ResponseService.success(
+            "Department deleted successfully",
+            rows
+        );
+        return c.json(response, 200);
+    } catch (error) {
+        console.error("Error deleting department:", error);
+        return c.json(ResponseService.error("DepartmentDeletionError", "Failed to delete department."), 500);
+    } finally {
+        if (connection) await connection.end();
     }
 })
 
@@ -759,8 +855,6 @@ adminDocs.put('/categories/:category_id', async (c) => {
 
         const body = await c.req.json();
         const { name, color, departmentId } = body;
-
-        console.log(body)
 
         if (!name) {
             return c.json(ResponseService.error("InvalidRequest", "Category name is required and cannot be empty."), 400);

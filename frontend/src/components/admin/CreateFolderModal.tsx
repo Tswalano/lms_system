@@ -70,7 +70,7 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
                 color: initialData.color || 'bg-blue-500'
             });
         }
-    }, [isOpen, initialData, departments]);
+    }, [isOpen, departments]);
 
     const handleSubmit = () => {
         if (!folderData.name.trim()) {
