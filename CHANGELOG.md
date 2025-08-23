@@ -56,6 +56,64 @@
 * **UI:** Fixed the department assignemnet on the Manage team page and adjusted the APIs for getting all users to return the departmens ([1a44cf7](https://github.com/Disraptor-Devs/employee-management-system/commit/1a44cf7cebf1f664a02c5708c693d35ff7f30890))
 * **UI:** Intergrated Update and Delete folders and added a footer ([fdd4204](https://github.com/Disraptor-Devs/employee-management-system/commit/fdd42048db6b6349dfa00ad16a40e2cdbcea2531))
 
+# 1.0.0-dev.1 (2025-08-23)
+
+
+### Bug Fixes
+
+* **backend:** Endpoint APIs to allow update leave request ([38a78d0](https://github.com/Disraptor-Devs/employee-management-system/commit/38a78d0bf2797437a80f23c27496d40c2fa522f4))
+* **backend:** leave api to retrieve current year ([a026401](https://github.com/Disraptor-Devs/employee-management-system/commit/a026401bf102f803e16409ecb761eb34c5b391d6))
+* **backend:** leave api to retrieve current year ([06006e4](https://github.com/Disraptor-Devs/employee-management-system/commit/06006e463c668671a32a8162dba48aed804751f0))
+* **backend:** leave api to retrieve current year ([c779d41](https://github.com/Disraptor-Devs/employee-management-system/commit/c779d414e0c04327b8963715c1646f827a8de214))
+* **backend:** leave api to retrieve current year ([5c673a7](https://github.com/Disraptor-Devs/employee-management-system/commit/5c673a78288ac32a8c19a4c086f97b64a2ab0d30))
+* **backend:** leave api to retrieve current year ([401c077](https://github.com/Disraptor-Devs/employee-management-system/commit/401c07790e20800090974e631d50114f4a4b8d47))
+* **backend:** leave api to retrieve current year ([00bb842](https://github.com/Disraptor-Devs/employee-management-system/commit/00bb842bad9cb1bbdf5e653da523926744009758))
+* **frontend:** add package name for semantic-release ([d995adf](https://github.com/Disraptor-Devs/employee-management-system/commit/d995adf510476c720bc7bb7f8ed3b294d98a461e))
+* **frontend:** add package name for semantic-release ([e087100](https://github.com/Disraptor-Devs/employee-management-system/commit/e087100f588b0e153e0aee21f8773811372919ea))
+* **frontend:** add package name for semantic-release ([eed0571](https://github.com/Disraptor-Devs/employee-management-system/commit/eed0571976aeac97089cbd00c907ce132be6d041))
+* **frontend:** add package name for semantic-release ([8c2fc28](https://github.com/Disraptor-Devs/employee-management-system/commit/8c2fc283039d562fc8035df389ac96c2b6995424))
+* **frontend:** Added versioning to dislay on the UI ([5ef69d8](https://github.com/Disraptor-Devs/employee-management-system/commit/5ef69d8b2dc2de63cf5439c3865976f5bc0c8358))
+* **frontend:** Apply for leave selecting one day before. and edit leave history functionality ([d66ee3b](https://github.com/Disraptor-Devs/employee-management-system/commit/d66ee3b90a5b603595e44a70401d3111733cdca1))
+* **frontend:** Color scheme on edit leave modal to match the application color pallet ([ee094be](https://github.com/Disraptor-Devs/employee-management-system/commit/ee094befc7a4192a72d029de16c17c351611ea0f))
+* **frontend:** Layout overhaul ([da39d89](https://github.com/Disraptor-Devs/employee-management-system/commit/da39d892e8f804adbcd78b6819b5a1d8f4362052))
+* **frontend:** test new version flow ([1684a2f](https://github.com/Disraptor-Devs/employee-management-system/commit/1684a2f7bfa6f83b5448ba16fce430b6dc385000))
+* **frontend:** test new version flow ([49e0bdd](https://github.com/Disraptor-Devs/employee-management-system/commit/49e0bdda8071f06efc320119e4486a6dc1264a09))
+* **frontend:** test new version flow ([87d2008](https://github.com/Disraptor-Devs/employee-management-system/commit/87d20084d81c76c43bd05ef24fdb192224830e38))
+* **frontend:** Test Version Release Sync ([1d27d60](https://github.com/Disraptor-Devs/employee-management-system/commit/1d27d60bf66425215bf4aae0adda77bb1973fa29))
+* **frontend:** Test Version Release Sync ([6a0824b](https://github.com/Disraptor-Devs/employee-management-system/commit/6a0824b48e57e20b04c94c1ea2160a1686421198))
+* **frontend:** Test Version Release Sync ([63bfa97](https://github.com/Disraptor-Devs/employee-management-system/commit/63bfa97de480bd0c173e7101eadfef87120b6bb4))
+* **frontend:** Test Version Release Sync ([96cf854](https://github.com/Disraptor-Devs/employee-management-system/commit/96cf854c1174a75ac2d1bb1a8ce34dc38c58bfea))
+* **frontend:** test version sync ([6baf9b2](https://github.com/Disraptor-Devs/employee-management-system/commit/6baf9b2f02c9d714090d48aa8d57404e7474f234))
+* **frontend:** Version ([851c496](https://github.com/Disraptor-Devs/employee-management-system/commit/851c496d8046a2e4221c9a86b50641cef59fb1d0))
+* **frontend:** Version ([7108f5d](https://github.com/Disraptor-Devs/employee-management-system/commit/7108f5d4e8d2f719f8c882ea19dcfcccb28545d0))
+* **frotend:** deployment versioning on s3 trigger test workflow ([61626c4](https://github.com/Disraptor-Devs/employee-management-system/commit/61626c4f221206d0e1923cf36849844b56297513))
+* trigger build ([8e08d8f](https://github.com/Disraptor-Devs/employee-management-system/commit/8e08d8f3507d61c5f35d26a365f112f1d9a0360e))
+* **UI&backend:** Rfined the APIS for users and admin to show metric data such as views, signed, and percentage of signed users ([607d4a4](https://github.com/Disraptor-Devs/employee-management-system/commit/607d4a40c61df21258552f0e22892935d01b8053))
+* **ui:** Improve colors, padding, and action menu labels for better visibility ([ffcee3b](https://github.com/Disraptor-Devs/employee-management-system/commit/ffcee3b63fb8c29e260acb031ac2f7a9087d6dfe))
+* **ui:** Sidebar to expand and collapse ([60a008a](https://github.com/Disraptor-Devs/employee-management-system/commit/60a008aed8d62a06765ee9687a2730b786b7c318))
+* **UI:** Status color on dialogs ([72f912c](https://github.com/Disraptor-Devs/employee-management-system/commit/72f912cd56a0d2f6f93d1ce38129c2afb8d85bad))
+* **workflow:** CDK workflow envs ([9d768ac](https://github.com/Disraptor-Devs/employee-management-system/commit/9d768ac0d3d11fb472f5120b928009badc0b7e6e))
+
+
+### Features
+
+* Add Performance Review page, Admin Document Management for contracts, and Employee page for digital contract viewing/signing ([fd04409](https://github.com/Disraptor-Devs/employee-management-system/commit/fd04409e69c61d7fd28ab61348c858e634eb12c5))
+* **backend:** Added a Multi-Environment CDK Deployment ([5ae0082](https://github.com/Disraptor-Devs/employee-management-system/commit/5ae0082cbdfc22604b2e8f1a067f314cb403b1fb))
+* **ci:** CDK Faulure Fix ([366aad0](https://github.com/Disraptor-Devs/employee-management-system/commit/366aad0811e7460a4ac9981a29cc414880fb179c))
+* **FE&BE:** Added Notifiction center and Progress on Performance Review UI Flow ([3710ac9](https://github.com/Disraptor-Devs/employee-management-system/commit/3710ac98dc3ff2c092b9479edd2dfa1480936502))
+* **frontend:** added color on buttons and used shadcn calender popovers ([141fa45](https://github.com/Disraptor-Devs/employee-management-system/commit/141fa4560dbc02c0bf2e7d0e5588902e08948769))
+* **frontend:** leave history overhaul table designwith expandable leave details ([6e7360e](https://github.com/Disraptor-Devs/employee-management-system/commit/6e7360e6c590b29a11704e36230f19515a3ed4cd))
+* **frontend:** leave history overhaul table designwith expandable leave details ([086aff0](https://github.com/Disraptor-Devs/employee-management-system/commit/086aff035ad636d18e39a588ec47858334395515))
+* **frotend:** itergrated the API functionalities in the frontend v1 ([899c650](https://github.com/Disraptor-Devs/employee-management-system/commit/899c65029a1c87feab28409e7b9ab96deccba7cb))
+* Implement employee management page with add, edit, and delete functionality ([8feb7a4](https://github.com/Disraptor-Devs/employee-management-system/commit/8feb7a41fa4aedbec73bb204da0e9aa7fd81d476))
+* **leave:** add leave calendar UI ([399db6d](https://github.com/Disraptor-Devs/employee-management-system/commit/399db6d5e1d823426b76c10994f702619b4675ec))
+* **leave:** add leave calendar UI ([8f09b69](https://github.com/Disraptor-Devs/employee-management-system/commit/8f09b69d2e4fd8e1af04b9dc19907b126c77f864))
+* **leave:** add leave calendar UI ([b015729](https://github.com/Disraptor-Devs/employee-management-system/commit/b0157294ef02d1b1773b5b484f89e31205b82118))
+* **leave:** add leave calendar UI ([1cf9eba](https://github.com/Disraptor-Devs/employee-management-system/commit/1cf9eba1538362590375d5d40ccfebe9865741cf))
+* **ui:** DocumentViewer for Policy Intergration ([e38d0df](https://github.com/Disraptor-Devs/employee-management-system/commit/e38d0dfd04336f3124e7d291a401c2f855446357))
+* **UI:** Fixed the department assignemnet on the Manage team page and adjusted the APIs for getting all users to return the departmens ([1a44cf7](https://github.com/Disraptor-Devs/employee-management-system/commit/1a44cf7cebf1f664a02c5708c693d35ff7f30890))
+* **UI:** Intergrated Update and Delete folders and added a footer ([fdd4204](https://github.com/Disraptor-Devs/employee-management-system/commit/fdd42048db6b6349dfa00ad16a40e2cdbcea2531))
+
 # 1.0.0-dev.1 (2025-08-22)
 
 
