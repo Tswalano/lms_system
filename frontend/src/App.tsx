@@ -33,6 +33,7 @@ import NotificationCenterPage from "./pages/NotificationCenterPage";
 import SupportPage from "./pages/SupportPage";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
 import BackendDownPage from "./pages/BackendDownPage";
+import LandingPage from "./pages/LandingPage";
 
 const queryClient = new QueryClient();
 
@@ -216,6 +217,9 @@ const App: React.FC = () => (
 
               {/* Status Route */}
               <Route path="/status" element={<BackendDownPage />} />
+
+              {/* Lnding Route */}
+              <Route path="/welcome" element={<LandingPage />} />
 
               {/* Permission Denied Route */}
               <Route path="/permission-denied" element={<PermissionDenied />} />

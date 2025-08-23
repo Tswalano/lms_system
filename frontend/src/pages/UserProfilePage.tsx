@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/helper';
 
 interface LeaveData {
     leave_type: string;
@@ -258,15 +259,6 @@ const UserProfilePage: React.FC = () => {
         return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
     };
 
-    const formatDate = (dateString: string): string => {
-        if (!dateString) return 'Not provided';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    };
-
     const getRoleBadgeColor = (role: string): string => {
         switch (role && role.toLowerCase() || '') {
             case 'admin':
@@ -280,7 +272,7 @@ const UserProfilePage: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="px-16 max-w-6xl mx-auto">
+            <div className="px-16 max-w-7xl mx-auto">
                 <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12">
                     <div className="text-center">
                         <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
@@ -293,7 +285,7 @@ const UserProfilePage: React.FC = () => {
 
     if (!userData) {
         return (
-            <div className="px-16 max-w-6xl mx-auto">
+            <div className="px-16 max-w-7xl mx-auto">
                 <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12 text-center">
                     <p className="text-gray-600 dark:text-gray-400">Failed to load profile data.</p>
                     <Button onClick={fetchUserData} className="mt-4">
@@ -305,7 +297,7 @@ const UserProfilePage: React.FC = () => {
     }
 
     return (
-        <div className="px-16 max-w-6xl mx-auto">
+        <div className="px-16 max-w-7xl mx-auto">
             <div className="flex items-center justify-between">
                 <div className="mb-8 flex items-center gap-3">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
@@ -535,14 +527,17 @@ const UserProfilePage: React.FC = () => {
                                                 selected={profileData.dob ? new Date(profileData.dob) : undefined}
                                                 onSelect={(date) => {
                                                     if (date) {
-                                                        handleProfileChange('dob', date.toISOString().split('T')[0]);
+                                                        const year = date.getFullYear();
+                                                        const month = String(date.getMonth() + 1).padStart(2, '0'); // months are 0-based
+                                                        const day = String(date.getDate()).padStart(2, '0');
+                                                        handleProfileChange('dob', `${year}-${month}-${day}`);
                                                     }
                                                 }}
-                                                initialFocus
+                                                autoFocus
                                                 disabled={(date) => date > new Date()}
                                                 captionLayout="dropdown"
-                                                fromYear={1900}
-                                                toYear={new Date().getFullYear()}
+                                                startMonth={new Date(1900, 0)}
+                                                endMonth={new Date(new Date().getFullYear(), 0)}
                                                 className="rounded-md border"
                                             />
                                         </PopoverContent>

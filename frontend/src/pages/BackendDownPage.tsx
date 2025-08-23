@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Server, Database, Home, RefreshCw, AlertTriangle, Clock, Wifi, WifiOff, CheckCircle, XCircle, Check } from 'lucide-react';
+import { Server, Database, Home, RefreshCw, AlertTriangle, Wifi, WifiOff, CheckCircle, XCircle, Check } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { API_BASE_URL } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface HealthResponse {
     status: 'healthy' | 'unhealthy';
@@ -11,13 +12,9 @@ interface HealthResponse {
     database: 'connected' | 'disconnected';
 }
 
-interface BackendDownPageProps {
-    onRetry?: () => void;
-    onGoHome?: () => void;
-}
-
-const BackendDownPage: React.FC<BackendDownPageProps> = ({ onGoHome }) => {
+const BackendDownPage: React.FC = () => {
     const [manualRetryCount, setManualRetryCount] = useState(0);
+    const navigate = useNavigate();
 
     // Health check to monitor backend and database status
     const {
@@ -84,11 +81,7 @@ const BackendDownPage: React.FC<BackendDownPageProps> = ({ onGoHome }) => {
     };
 
     const handleGoHome = () => {
-        if (onGoHome) {
-            onGoHome();
-        } else {
-            window.location.href = '/';
-        }
+        navigate('/');
     };
 
     const handleContactSupport = () => {
@@ -301,56 +294,20 @@ const BackendDownPage: React.FC<BackendDownPageProps> = ({ onGoHome }) => {
                                 </div>
                             </div>
                         )}
-
-                        {/* Connection Details */}
-                        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-slate-600">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                <div className="text-center">
-                                    <div className="flex items-center justify-center gap-2 mb-1">
-                                        <Clock className="w-4 h-4 text-gray-500" />
-                                        <span className="font-medium text-gray-700 dark:text-gray-300">Detected</span>
-                                    </div>
-                                    <span className="text-gray-600 dark:text-gray-400">{new Date().toLocaleTimeString()}</span>
-                                </div>
-
-                                <div className="text-center">
-                                    <div className="flex items-center justify-center gap-2 mb-1">
-                                        <RefreshCw className="w-4 h-4 text-gray-500" />
-                                        <span className="font-medium text-gray-700 dark:text-gray-300">Retries</span>
-                                    </div>
-                                    <span className="text-gray-600 dark:text-gray-400">{failureCount + manualRetryCount}</span>
-                                </div>
-
-                                <div className="text-center">
-                                    <div className="flex items-center justify-center gap-2 mb-1">
-                                        <Wifi className="w-4 h-4 text-gray-500" />
-                                        <span className="font-medium text-gray-700 dark:text-gray-300">Auto Check</span>
-                                    </div>
-                                    <span className="text-gray-600 dark:text-gray-400">Every 15s</span>
-                                </div>
-
-                                <div className="text-center">
-                                    <div className="flex items-center justify-center gap-2 mb-1">
-                                        <AlertTriangle className="w-4 h-4 text-gray-500" />
-                                        <span className="font-medium text-gray-700 dark:text-gray-300">Priority</span>
-                                    </div>
-                                    <span className="text-red-600 dark:text-red-400 font-medium">High</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     {/* Action Buttons */}
                     <div className="flex flex-col sm:flex-row gap-4 mt-8 justify-center">
-                        <button
-                            onClick={handleManualRetry}
-                            disabled={isLoading}
-                            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                            {isLoading ? 'Checking...' : 'Retry Connection'}
-                        </button>
-
+                        {!isBackendOnline() && !isDatabaseConnected() && (
+                            <button
+                                onClick={handleManualRetry}
+                                disabled={isLoading}
+                                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                                {isLoading ? 'Checking...' : 'Retry Connection'}
+                            </button>
+                        )}
                         <button
                             onClick={handleGoHome}
                             className="border-2 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium px-8 py-3 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800"
@@ -360,50 +317,73 @@ const BackendDownPage: React.FC<BackendDownPageProps> = ({ onGoHome }) => {
                         </button>
                     </div>
 
+
                     {/* Emergency Information */}
-                    <div className="mt-8 pt-6 border-t border-gray-200/50 dark:border-slate-700/50">
-                        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-4 mb-4">
-                            <div className="flex items-start gap-3">
-                                <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
-                                <div>
-                                    <h4 className="font-medium text-orange-800 dark:text-orange-200 mb-1">Technical Issue Details</h4>
-                                    <p className="text-sm text-orange-700 dark:text-orange-300">
-                                        {isError ?
-                                            'The backend server is not responding (ERR_CONNECTION_REFUSED). This typically indicates the server is offline or unreachable.' :
-                                            healthData?.database === 'disconnected' ?
-                                                'The backend server is running but cannot establish a connection to the database. Data operations are temporarily unavailable.' :
-                                                'System is experiencing degraded performance. Some features may be limited.'
-                                        }
-                                    </p>
+                    {isError || healthData?.database === 'disconnected' ? (
+                        <div className="mt-8 pt-6 border-t border-gray-200/50 dark:border-slate-700/50">
+                            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-4 mb-4">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-medium text-orange-800 dark:text-orange-200 mb-1">Technical Issue Details</h4>
+                                        <p className="text-sm text-orange-700 dark:text-orange-300">
+                                            {isError ?
+                                                'The backend server is not responding (ERR_CONNECTION_REFUSED). This typically indicates the server is offline or unreachable.' :
+                                                healthData?.database === 'disconnected' ?
+                                                    'The backend server is running but cannot establish a connection to the database. Data operations are temporarily unavailable.' :
+                                                    'System is experiencing degraded performance. Some features may be limited.'
+                                            }
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                            <strong>Automatic monitoring is active.</strong> The page will refresh automatically once services are restored.
-                            For urgent matters, please contact our support team immediately.
-                        </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                                <strong>Automatic monitoring is active.</strong> The page will refresh automatically once services are restored.
+                                For urgent matters, please contact our support team immediately.
+                            </p>
 
-                        <div className="flex flex-wrap justify-center gap-4 text-sm">
-                            <button
-                                onClick={handleContactSupport}
-                                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors font-medium"
-                            >
-                                Emergency Support
-                            </button>
-                            <span className="text-gray-300 dark:text-gray-600">•</span>
-                            <a href="tel:+27111234567" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
-                                Call: +27 11 123 4567
-                            </a>
-                            <span className="text-gray-300 dark:text-gray-600">•</span>
-                            <button
-                                onClick={() => window.location.reload()}
-                                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                            >
-                                Reload Page
-                            </button>
+                            <div className="flex flex-wrap justify-center gap-4 text-sm">
+                                <button
+                                    onClick={handleContactSupport}
+                                    className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors font-medium"
+                                >
+                                    Emergency Support
+                                </button>
+                                <span className="text-gray-300 dark:text-gray-600">•</span>
+                                <a href="tel:+27111234567" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+                                    Call: +27 11 123 4567
+                                </a>
+                                <span className="text-gray-300 dark:text-gray-600">•</span>
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                                >
+                                    Reload Page
+                                </button>
+                            </div>
+                        </div>) : (
+                        <div className="mt-8 pt-6 border-t border-gray-200/50 dark:border-slate-700/50">
+                            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 mb-4">
+                                <div className="flex items-start gap-3">
+                                    <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-medium text-green-800 dark:text-green-200 mb-1">System Status</h4>
+                                        <p className="text-sm text-green-700 dark:text-green-300">
+                                            {isError ?
+                                                'The backend server is not responding (ERR_CONNECTION_REFUSED). This typically indicates the server is offline or unreachable.' :
+                                                healthData?.database === 'connected' ? 'The backend server is running but cannot establish a connection to the database. Data operations are temporarily unavailable.' :
+                                                    'System is experiencing degraded performance. Some features may be limited.'
+                                            }
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                                <strong>Automatic monitoring is active.</strong> The page will refresh automatically once services are restored.
+                            </p>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Additional Info */}
