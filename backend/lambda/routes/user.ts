@@ -306,7 +306,10 @@ app.get('/on-leave', async (c) => {
         const startDate = c.req.query('startDate') || c.req.query('start_date') || new Date().toISOString().split('T')[0];
         const endDate = c.req.query('endDate') || c.req.query('end_date') || startDate;
 
-        console.log('Debug - Query params:', { startDate, endDate });
+        // Get current date for status determination
+        const currentDate = new Date().toISOString().split('T')[0];
+
+        console.log('Debug - Query params:', { startDate, endDate, currentDate });
 
         // Validate parameters exist
         if (!startDate || !endDate) {
@@ -333,7 +336,7 @@ app.get('/on-leave', async (c) => {
             ), 400);
         }
 
-        // FIXED: Get ALL users with their leave status using LEFT JOIN
+        // Get ALL users with their leave requests (not just approved ones in the query range)
         const query = `
             SELECT 
                 u.id,
@@ -350,21 +353,19 @@ app.get('/on-leave', async (c) => {
             FROM users u
             LEFT JOIN leave_requests lr ON u.id = lr.uid 
                 AND lr.status = 'approved'
-                AND DATE(lr.start_date) <= ? 
-                AND DATE(lr.end_date) >= ?
             ORDER BY u.firstName, u.lastName, lr.start_date
         `;
 
-        console.log('Debug - Executing query with params:', [endDate, startDate]);
+        console.log('Debug - Executing query');
 
-        const [rows] = await connection.execute(query, [endDate, startDate]);
+        const [rows] = await connection.execute(query);
 
         console.log('Debug - Total rows returned:', (rows as any[]).length);
 
         // Group users and their leave data
         const userMap = new Map<string, {
             user: any;
-            leaves: any[];
+            allLeaves: any[];
         }>();
 
         for (const row of rows as any[]) {
@@ -379,7 +380,7 @@ app.get('/on-leave', async (c) => {
                         email: row.email,
                         jobTitle: row.jobTitle
                     },
-                    leaves: []
+                    allLeaves: []
                 });
             }
 
@@ -387,25 +388,18 @@ app.get('/on-leave', async (c) => {
             if (row.leave_type && row.start_date && row.end_date) {
                 const leaveStartDate = new Date(row.start_date);
                 const leaveEndDate = new Date(row.end_date);
-                const queryStartDate = new Date(startDate);
-                const queryEndDate = new Date(endDate);
-
-                // Calculate overlapping period within the query range
-                const overlapStart = new Date(Math.max(leaveStartDate.getTime(), queryStartDate.getTime()));
-                const overlapEnd = new Date(Math.min(leaveEndDate.getTime(), queryEndDate.getTime()));
-
-                // Calculate overlapping days
-                const overlappingDays = Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
                 // Calculate total leave duration
                 const totalDuration = Math.floor((leaveEndDate.getTime() - leaveStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-                userMap.get(userId)!.leaves.push({
+                userMap.get(userId)!.allLeaves.push({
                     leaveType: row.leave_type,
                     startDate: leaveStartDate.toISOString(),
                     endDate: leaveEndDate.toISOString(),
+                    startDateOnly: row.start_date_only,
+                    endDateOnly: row.end_date_only,
                     duration: totalDuration,
-                    overlappingDays
+                    status: row.status
                 });
             }
         }
@@ -413,25 +407,70 @@ app.get('/on-leave', async (c) => {
         console.log('Debug - Unique users processed:', userMap.size);
 
         // Build team member output
-        const teamMembers = Array.from(userMap.values()).map(({ user, leaves }) => {
+        const teamMembers = Array.from(userMap.values()).map(({ user, allLeaves }) => {
             const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
             const initials = `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase();
 
-            // Determine if user is on leave
-            const isOnLeave = leaves.length > 0;
+            // Determine current status based on today's date
+            const currentDateObj = new Date(currentDate);
 
-            // If on leave, get the primary leave info (could be the longest or most recent)
+            // Find leave that covers current date
+            const currentLeave = allLeaves.find(leave => {
+                const leaveStart = new Date(leave.startDateOnly);
+                const leaveEnd = new Date(leave.endDateOnly);
+                return currentDateObj >= leaveStart && currentDateObj <= leaveEnd;
+            });
+
+            // Find upcoming leaves (start after current date)
+            const upcomingLeaves = allLeaves.filter(leave => {
+                const leaveStart = new Date(leave.startDateOnly);
+                return leaveStart > currentDateObj;
+            }).sort((a, b) => new Date(a.startDateOnly).getTime() - new Date(b.startDateOnly).getTime());
+
+            // Find past leaves (ended before current date)
+            const pastLeaves = allLeaves.filter(leave => {
+                const leaveEnd = new Date(leave.endDateOnly);
+                return leaveEnd < currentDateObj;
+            }).sort((a, b) => new Date(b.endDateOnly).getTime() - new Date(a.endDateOnly).getTime());
+
+            // Determine status
+            let status = 'available';
             let primaryLeave = null;
-            if (isOnLeave) {
-                // Sort by overlapping days (descending) then by start date (most recent first)
-                leaves.sort((a, b) => {
-                    if (b.overlappingDays !== a.overlappingDays) {
-                        return b.overlappingDays - a.overlappingDays;
-                    }
-                    return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+
+            if (currentLeave) {
+                status = 'on-leave';
+                primaryLeave = currentLeave;
+            } else if (upcomingLeaves.length > 0) {
+                // Check if we need to show upcoming leave info based on query range
+                const queryStartObj = new Date(startDate);
+                const queryEndObj = new Date(endDate);
+
+                const relevantUpcomingLeave = upcomingLeaves.find(leave => {
+                    const leaveStart = new Date(leave.startDateOnly);
+                    const leaveEnd = new Date(leave.endDateOnly);
+                    return (leaveStart <= queryEndObj && leaveEnd >= queryStartObj);
                 });
 
-                primaryLeave = leaves[0];
+                if (relevantUpcomingLeave) {
+                    status = 'upcoming-leave';
+                    primaryLeave = relevantUpcomingLeave;
+                }
+            }
+
+            // Calculate overlapping days with query range if there's a primary leave
+            let overlappingDays = 0;
+            if (primaryLeave) {
+                const leaveStart = new Date(primaryLeave.startDateOnly);
+                const leaveEnd = new Date(primaryLeave.endDateOnly);
+                const queryStart = new Date(startDate);
+                const queryEnd = new Date(endDate);
+
+                const overlapStart = new Date(Math.max(leaveStart.getTime(), queryStart.getTime()));
+                const overlapEnd = new Date(Math.min(leaveEnd.getTime(), queryEnd.getTime()));
+
+                if (overlapStart <= overlapEnd) {
+                    overlappingDays = Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                }
             }
 
             const member = {
@@ -439,7 +478,7 @@ app.get('/on-leave', async (c) => {
                 name: fullName,
                 email: user.email,
                 jobTitle: user.jobTitle || null,
-                status: isOnLeave ? 'on-leave' : 'available',
+                status: status,
                 avatar: initials,
                 leaveType: primaryLeave?.leaveType || null,
                 leaveDates: primaryLeave ?
@@ -455,13 +494,15 @@ app.get('/on-leave', async (c) => {
                 startDate: primaryLeave?.startDate || null,
                 endDate: primaryLeave?.endDate || null,
                 duration: primaryLeave?.duration || null,
-                overlappingDays: primaryLeave?.overlappingDays || null,
-                // All leaves for this user in the date range
-                allLeaves: leaves
+                overlappingDays: overlappingDays,
+                // Categorized leaves
+                currentLeave: currentLeave || null,
+                upcomingLeaves: upcomingLeaves,
+                pastLeaves: pastLeaves.slice(0, 5) // Limit to recent 5 past leaves
             };
 
             console.log(`Debug - User ${user.id} (${fullName}): ${member.status}`,
-                isOnLeave ? {
+                primaryLeave ? {
                     leaveType: member.leaveType,
                     dates: member.leaveDates,
                     overlappingDays: member.overlappingDays
@@ -470,24 +511,36 @@ app.get('/on-leave', async (c) => {
             return member;
         });
 
-        // Calculate summary
+        // Calculate summary based on current status
         const onLeaveCount = teamMembers.filter(m => m.status === 'on-leave').length;
         const availableCount = teamMembers.filter(m => m.status === 'available').length;
+        const upcomingLeaveCount = teamMembers.filter(m => m.status === 'upcoming-leave').length;
+
+        // Count people who will be on leave during the query period
+        const onLeaveInPeriod = teamMembers.filter(m =>
+            m.status === 'on-leave' || (m.status === 'upcoming-leave' && m.overlappingDays > 0)
+        ).length;
 
         console.log('Debug - Final Summary:', {
             totalUsers: teamMembers.length,
-            onLeave: onLeaveCount,
+            currentlyOnLeave: onLeaveCount,
             available: availableCount,
-            queryRange: `${startDate} to ${endDate}`
+            upcomingLeave: upcomingLeaveCount,
+            onLeaveInQueryPeriod: onLeaveInPeriod,
+            queryRange: `${startDate} to ${endDate}`,
+            currentDate: currentDate
         });
 
         const response = ResponseService.success("Leave status fetched successfully", {
             teamMembers,
             summary: {
                 totalUsers: teamMembers.length,
-                onLeave: onLeaveCount,
+                currentlyOnLeave: onLeaveCount,
                 available: availableCount,
-                queryRange: `${startDate} to ${endDate}`
+                upcomingLeave: upcomingLeaveCount,
+                onLeaveInPeriod: onLeaveInPeriod,
+                queryRange: `${startDate} to ${endDate}`,
+                currentDate: currentDate
             }
         });
 
