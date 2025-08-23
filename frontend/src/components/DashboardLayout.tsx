@@ -1,6 +1,7 @@
 import React, { useState, type ReactNode } from 'react';
 import Sidebar from './Sidebar';
 import DashboardHeader from './DashboardHeader';
+import { Link } from 'react-router-dom';
 
 interface DashboardLayoutProps {
     children: ReactNode;
@@ -33,12 +34,12 @@ const DashboardFooter: React.FC = () => {
                     <div className="flex items-center gap-6 order-1 sm:order-2">
                         {footerLinks.map((link, index) => (
                             <React.Fragment key={link.name}>
-                                <a
-                                    href={link.href}
+                                <Link
+                                    to={link.href}
                                     className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors duration-200"
                                 >
                                     {link.name}
-                                </a>
+                                </Link>
                                 {index < footerLinks.length - 1 && (
                                     <span className="text-gray-300 dark:text-gray-600">•</span>
                                 )}

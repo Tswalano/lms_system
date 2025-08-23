@@ -39,7 +39,7 @@ export function formatDate(date: string | Date | undefined): string {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     const formattedDate = dateObj.toLocaleDateString('en-ZA', {
         year: 'numeric',
-        month: 'long',
+        month: 'short',
         day: 'numeric'
     });
 

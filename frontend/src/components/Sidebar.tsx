@@ -198,7 +198,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}>
                 {/* Header */}
                 <div className="flex-shrink-0 p-6 border-b border-gray-100/50 dark:border-slate-700/50">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-around">
                         <Link to="/" className="flex items-center gap-2" onClick={handleMenuItemClick}>
                             {!isCollapsed || !isLgUp ? (
                                 <img
@@ -209,9 +209,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                             ) : (
                                 <div className="w-14 h-14 flex items-center justify-center">
                                     <img
-                                        src='favicon.png'
+                                        src="favicon.png"
                                         alt="Disruptor Logo"
-                                        className="h-10 w-10 object-contain"
+                                        className="max-h-full max-w-full object-contain transition-all duration-300"
                                     />
                                 </div>
                             )}
