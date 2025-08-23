@@ -198,8 +198,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}>
                 {/* Header */}
                 <div className="flex-shrink-0 p-6 border-b border-gray-100/50 dark:border-slate-700/50">
-                    <div className="flex items-center justify-around">
-                        <Link to="/" className="flex items-center gap-2" onClick={handleMenuItemClick}>
+                    <div className="flex items-center justify-between">
+                        <Link to="/" className="flex items-center" onClick={handleMenuItemClick}>
                             {!isCollapsed || !isLgUp ? (
                                 <img
                                     src='https://disraptor.co.za/wp-content/uploads/2023/05/AWS_Disraptor_Brand-Guidelines_V_031-1.svg'
@@ -207,7 +207,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     className="h-14 w-auto transition-all duration-300"
                                 />
                             ) : (
-                                <div className="w-14 h-14 flex items-center justify-center">
+                                <div className="w-14 h-14 flex items-center justify-center pr-5">
                                     <img
                                         src="favicon.png"
                                         alt="Disruptor Logo"
