@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Moon, Sun, History, Users, Menu, X, ChevronsRight, ChevronsLeft, ChartSpline, FileCheck2, ChevronsDown, Calendar, BarChart3, Settings, Building2 } from "lucide-react";
+import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Moon, Sun, History, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, ChevronsDown, Calendar, Settings, Building2 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -54,16 +54,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             icon: Home,
             defaultOpen: true,
             items: [
-                { id: "dashboard", label: "Dashboard", icon: BarChart3, path: "/" },
+                { id: "dashboard", label: "Dashboard", icon: Home, path: "/" },
                 { id: "team", label: "Team Calendar", icon: Calendar, path: "/team-availability" },
-                { id: "apply", label: "Request Leave", icon: FileText, path: "/apply-leave" },
-                { id: "history", label: "My Requests", icon: Clock, path: "/leave-history" },
-                ...(userRole === 'admin' ? [
-                    { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave" },
-                    // TODO: query the leave request data to get the count of un-approved leave requests and add t to the badge 
-                    // { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave", badge: "3" },
-                    { id: "team-history", label: "Team History", icon: History, path: "/team-leave-history" },
-                ] : [])
+                { id: "apply", label: "Apply for Leave", icon: FileText, path: "/apply-leave" },
+                { id: "history", label: "My Leave Requests", icon: Clock, path: "/leave-history" },
             ]
         },
         ...(userRole === 'admin' ? [{
@@ -71,8 +65,12 @@ const Sidebar: React.FC<SidebarProps> = ({
             label: 'Administration',
             icon: Settings,
             items: [
-                { id: "manage", label: "Manage Team", icon: Users, path: "/manage-employees" },
-                { id: "performance", label: "Performance Reviews", icon: ChartSpline, path: "/performance" },
+                { id: "team-history", label: "Team Directory", icon: History, path: "/team-leave-history" },
+                { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave" },
+                // TODO: query the leave request data to get the count of un-approved leave requests and add t to the badge 
+                // { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave", badge: "3" },
+                // { id: "performance", label: "Performance Reviews", icon: ChartSpline, path: "/performance" },
+                { id: "manage", label: "Manage Employees", icon: Users, path: "/manage-employees" },
             ]
         }] : []),
         ...(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? [{
@@ -200,7 +198,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}>
                 {/* Header */}
                 <div className="flex-shrink-0 p-6 border-b border-gray-100/50 dark:border-slate-700/50">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-around">
                         <Link to="/" className="flex items-center gap-2" onClick={handleMenuItemClick}>
                             {!isCollapsed || !isLgUp ? (
                                 <img
@@ -211,9 +209,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                             ) : (
                                 <div className="w-14 h-14 flex items-center justify-center">
                                     <img
-                                        src='favicon.png'
+                                        src="favicon.png"
                                         alt="Disruptor Logo"
-                                        className="h-10 w-10 object-contain"
+                                        className="max-h-full max-w-full object-contain transition-all duration-300"
                                     />
                                 </div>
                             )}
@@ -240,7 +238,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
 
                 {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
+                <div className="flex-1 overflow-y-none scrollbar-none scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
                     {/* User Profile */}
                     <div className={cn("p-4", isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "" : "")}>
                         <Link

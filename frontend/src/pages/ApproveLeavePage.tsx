@@ -165,7 +165,7 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, employeeName, leaveTy
     );
 };
 
-const ApproveLeave = () => {
+const ApproveLeavePage = () => {
     const { authFetch } = useAuth()
     const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
     const [modalAction, setModalAction] = useState<'approve' | 'reject'>('approve');
@@ -711,8 +711,8 @@ const ApproveLeave = () => {
                                 <button
                                     onClick={() => setIsDetailsModalOpen(false)}
                                     className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${selectedLeaveDetails.status === 'pending'
-                                            ? 'flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-300 dark:border-slate-700'
-                                            : 'w-full bg-slate-700 hover:bg-slate-800 dark:bg-slate-500 dark:hover:bg-slate-400 text-white'
+                                        ? 'flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-300 dark:border-slate-700'
+                                        : 'w-full bg-slate-700 hover:bg-slate-800 dark:bg-slate-500 dark:hover:bg-slate-400 text-white'
                                         }`}
                                 >
                                     Close
@@ -728,4 +728,4 @@ const ApproveLeave = () => {
     );
 };
 
-export default ApproveLeave;
+export default ApproveLeavePage;

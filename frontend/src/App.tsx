@@ -5,21 +5,20 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
-import TeamAvailability from "./pages/TeamAvailability";
-import ApplyLeave from "./pages/ApplyLeave";
-import LeaveHistory from "./pages/LeaveHistory";
-import ApproveLeave from "./pages/ApproveLeave";
-import ManageEmployees from "./pages/ManageEmployees";
-import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import NotFound from "./pages/NotFound";
+import TeamAvailability from "./pages/TeamAvailabilityPage";
+import ApplyLeave from "./pages/ApplyLeavePage";
+import LeaveHistory from "./pages/LeaveHistoryPage";
+import ApproveLeave from "./pages/ApproveLeavePage";
+import ManageEmployees from "./pages/ManageEmployeesPage";
+import Login from "./pages/LoginPage";
+import ForgotPassword from "./pages/ForgotPasswordPage";
+import NotFound from "./components/NotFound";
 import type { ReactNode } from "react";
-import ChangePassword from "./pages/ChangePassword";
-import TeamListLeaveHistory from "./pages/TeamLeaveHistory";
-import UserProfile from "./pages/UserProfile";
-import PermissionDenied from "./pages/PermissionDenied";
+import ChangePassword from "./pages/ChangePasswordPage";
+import TeamListLeaveHistory from "./pages/TeamLeaveHistoryPage";
+import UserProfile from "./pages/UserProfilePage";
+import PermissionDenied from "./components/PermissionDenied";
 import DashboardLayout from "./components/DashboardLayout";
-import ProjectManagement from "./pages/ProjectManagement";
 import AdminDocumentsPage from "./pages/AdminDocumentsPage";
 import EmployeeDocumentsPage from "./pages/EmployeeDocumentsPage";
 // Import Performance Review Components
@@ -31,6 +30,10 @@ import PendingReviewsPage from "./pages/performance-review/pages/PendingReviewsP
 import ConductReviewPage from "./pages/performance-review/pages/ConductReviewPage";
 import AdminApp from "./pages/performance-review/pages/AdminApp";
 import NotificationCenterPage from "./pages/NotificationCenterPage";
+import SupportPage from "./pages/SupportPage";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
+import BackendDownPage from "./pages/BackendDownPage";
+import LandingPage from "./pages/LandingPage";
 
 const queryClient = new QueryClient();
 
@@ -113,9 +116,14 @@ const App: React.FC = () => (
                   <LeaveHistory />
                 </ProtectedRoute>
               } />
-              <Route path="/project-management" element={
+              <Route path="/support" element={
                 <ProtectedRoute>
-                  <ProjectManagement />
+                  <SupportPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/terms-of-service" element={
+                <ProtectedRoute>
+                  <TermsOfServicePage />
                 </ProtectedRoute>
               } />
 
@@ -206,6 +214,12 @@ const App: React.FC = () => (
                   <ChangePassword />
                 </PublicRoute>
               } />
+
+              {/* Status Route */}
+              <Route path="/status" element={<BackendDownPage />} />
+
+              {/* Lnding Route */}
+              <Route path="/welcome" element={<LandingPage />} />
 
               {/* Permission Denied Route */}
               <Route path="/permission-denied" element={<PermissionDenied />} />

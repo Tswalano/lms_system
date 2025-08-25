@@ -5,7 +5,7 @@ import {
     DeleteObjectCommand, DeleteObjectCommandInput
 } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
-import mysql from 'mysql2/promise';
+import mysql, { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { extension } from "mime-types";
 import { DatabaseService } from '../helpers/databaseHeler';
 import { ResponseService } from '../models/apiResponse';
@@ -156,6 +156,8 @@ adminDocs.get('/by-category', async (c) => {
                 dc.color AS category_color,
                 d.id AS document_id,
                 d.name AS document_name,
+                dpt.name AS department_name,
+                dpt.id AS department_id,
                 d.file_url,
                 d.file_size,
                 d.priority,
@@ -164,15 +166,27 @@ adminDocs.get('/by-category', async (c) => {
                 CONCAT(u.firstName, ' ', u.lastName) AS uploaded_by_display,
                 COUNT(uda.user_id) AS total_assignments,
                 COUNT(ds.user_id) AS total_signatures
-            FROM document_categories dc
-            LEFT JOIN documents d ON dc.id = d.category_id
-            LEFT JOIN users u ON u.id = d.created_by
-            LEFT JOIN user_document_assignments uda ON d.id = uda.document_id
-            LEFT JOIN document_signatures ds ON uda.user_id = ds.user_id AND uda.document_id = ds.document_id
+            FROM
+                document_categories dc
+                LEFT JOIN documents d ON dc.id = d.category_id
+                LEFT JOIN users u ON u.id = d.created_by
+                LEFT JOIN user_document_assignments uda ON d.id = uda.document_id
+                LEFT JOIN document_signatures ds ON uda.user_id = ds.user_id
+                AND uda.document_id = ds.document_id
+                LEFT JOIN departments dpt ON dc.departmentId = dpt.id
             GROUP BY
-                dc.id, dc.name, dc.description, dc.color,
-                d.id, d.name, d.file_url, d.file_size, d.priority,
-                d.createdat, d.created_by, uploaded_by_display
+                dc.id,
+                dc.name,
+                dc.description,
+                dc.color,
+                d.id,
+                d.name,
+                d.file_url,
+                d.file_size,
+                d.priority,
+                d.createdat,
+                d.created_by,
+                uploaded_by_display
             ORDER BY dc.name ASC, d.name ASC;
         `;
 
@@ -188,6 +202,8 @@ adminDocs.get('/by-category', async (c) => {
                 category_color,
                 document_id,
                 document_name,
+                department_name,
+                department_id,
                 file_url,
                 file_size,
                 priority,
@@ -202,6 +218,8 @@ adminDocs.get('/by-category', async (c) => {
             if (!grouped.has(category_id)) {
                 grouped.set(category_id, {
                     id: category_id,
+                    departmentId: department_id,
+                    department: department_name,
                     name: category_name,
                     description: category_description,
                     color: category_color,
@@ -218,6 +236,8 @@ adminDocs.get('/by-category', async (c) => {
                 grouped.get(category_id)?.documents.push({
                     id: document_id,
                     name: document_name,
+                    department: department_name,
+                    departmentId: department_id,
                     category: category_name,
                     file_url: file_url,
                     file_size: file_size,
@@ -632,6 +652,34 @@ adminDocs.get('/:document_id/signatures', async (c) => {
     }
 });
 
+// Add department
+adminDocs.post('/departments', async (c) => {
+    console.log("POST /admin-docs/departments");
+    let connection;
+
+    try {
+        connection = await DatabaseService.createConnection();
+
+        const { name, description } = await c.req.json();
+
+        if (!name) {
+            return c.json(ResponseService.error("InvalidRequest", "Department name is required."), 400);
+        }
+
+        const sql = `INSERT INTO departments (name, description) VALUES (?,?)`;
+        await connection.execute(sql, [name, description]);
+        const response = ResponseService.success(
+            "Department added successfully",
+            []
+        );
+        return c.json(response, 200);
+    } catch (error) {
+        console.error("Error adding department:", error);
+        return c.json(ResponseService.error("DepartmentAdditionError", "Failed to add department."), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+})
 
 // Get departments
 adminDocs.get('/departments', async (c) => {
@@ -653,5 +701,258 @@ adminDocs.get('/departments', async (c) => {
         return c.json(ResponseService.error("DepartmentsRetrievalError", "Failed to retrieve departments."), 500);
     }
 })
+
+// Update department
+adminDocs.put('/departments/:department_id', async (c) => {
+    console.log("PATCH /admin-docs/departments/:department_id");
+    let connection;
+
+    try {
+        const { department_id } = c.req.param();
+        if (!department_id) {
+            return c.json(ResponseService.error("InvalidRequest", "Department ID is required."), 400);
+        }
+
+        const departmentId = parseInt(department_id);
+        if (isNaN(departmentId)) {
+            return c.json(ResponseService.error("InvalidRequest", "Department ID must be a valid number."), 400);
+        }
+
+        connection = await DatabaseService.createConnection();
+
+        const { name, description } = await c.req.json();
+        const sql = `UPDATE departments SET name = ?, description = ? WHERE id = ?`;
+        await connection.execute(sql, [name, description, departmentId]);
+        const response = ResponseService.success(
+            "Department updated successfully",
+            []
+        );
+        return c.json(response, 200);
+    } catch (error) {
+        console.error("Error updating department:", error);
+        return c.json(ResponseService.error("DepartmentUpdateError", "Failed to update department."), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+})
+
+// Delete department
+adminDocs.delete('/departments/:department_id', async (c) => {
+    console.log("DELETE /admin-docs/departments/:department_id");
+    let connection;
+
+    try {
+        const { department_id } = c.req.param();
+        if (!department_id) {
+            return c.json(ResponseService.error("InvalidRequest", "Department ID is required."), 400);
+        }
+
+        const departmentId = parseInt(department_id);
+        if (isNaN(departmentId)) {
+            return c.json(ResponseService.error("InvalidRequest", "Department ID must be a valid number."), 400);
+        }
+
+        connection = await DatabaseService.createConnection();
+
+        const sql = `DELETE FROM departments WHERE id = ?`;
+        const [rows] = await connection.execute(sql, [departmentId]);
+        const response = ResponseService.success(
+            "Department deleted successfully",
+            rows
+        );
+        return c.json(response, 200);
+    } catch (error) {
+        console.error("Error deleting department:", error);
+        return c.json(ResponseService.error("DepartmentDeletionError", "Failed to delete department."), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+})
+
+// Delete category
+adminDocs.delete('/categories/:category_id', async (c) => {
+    console.log("DELETE /admin-docs/categories/:category_id");
+    let connection;
+
+    try {
+        const { category_id } = c.req.param();
+        if (!category_id) {
+            return c.json(ResponseService.error("InvalidRequest", "Category ID is required."), 400);
+        }
+
+        const categoryId = parseInt(category_id);
+        if (isNaN(categoryId)) {
+            return c.json(ResponseService.error("InvalidRequest", "Category ID must be a valid number."), 400);
+        }
+
+        connection = await DatabaseService.createConnection();
+
+        // Check if category exists
+        const checkCategorySql = `SELECT id, name FROM document_categories WHERE id = ?`;
+        const [categoryRows] = await connection.execute<RowDataPacket[]>(checkCategorySql, [categoryId]);
+
+        if (categoryRows.length === 0) {
+            return c.json(ResponseService.error("CategoryNotFound", "Category not found."), 404);
+        }
+
+        const categoryName = categoryRows[0].name;
+
+        // Check if category has documents
+        const checkDocumentsSql = `SELECT COUNT(*) as count FROM documents WHERE category_id = ?`;
+        const [documentRows] = await connection.execute<RowDataPacket[]>(checkDocumentsSql, [categoryId]);
+        const documentCount = documentRows[0]?.count || 0;
+
+        if (documentCount > 0) {
+            return c.json(ResponseService.error(
+                "CategoryNotEmpty",
+                `Cannot delete folder "${categoryName}". It contains ${documentCount} document${documentCount > 1 ? 's' : ''}. Please move or delete them first.`
+            ), 400);
+        }
+
+        // Delete category
+        const deleteSql = `DELETE FROM document_categories WHERE id = ?`;
+        const [deleteResult] = await connection.execute<ResultSetHeader>(deleteSql, [categoryId]);
+
+        if (deleteResult.affectedRows === 0) {
+            return c.json(ResponseService.error("CategoryDeletionError", "Failed to delete category. Category may not exist."), 400);
+        }
+
+        return c.json(ResponseService.success(
+            "Category deleted successfully",
+            {
+                deletedCategoryId: categoryId,
+                deletedCategoryName: categoryName,
+                message: `Folder "${categoryName}" has been deleted successfully.`
+            }
+        ), 200);
+
+    } catch (error) {
+        console.error("Error deleting category:", error);
+
+        return c.json(ResponseService.error("CategoryDeletionError", "An unexpected error occurred while deleting the category."), 500);
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
+    }
+});
+
+// Update category
+adminDocs.put('/categories/:category_id', async (c) => {
+    console.log("PUT /admin-docs/categories/:category_id");
+    let connection;
+
+    try {
+        const { category_id } = c.req.param();
+        if (!category_id) {
+            return c.json(ResponseService.error("InvalidRequest", "Category ID is required."), 400);
+        }
+
+        const categoryId = parseInt(category_id);
+        if (isNaN(categoryId)) {
+            return c.json(ResponseService.error("InvalidRequest", "Category ID must be a valid number."), 400);
+        }
+
+        const body = await c.req.json();
+        const { name, color, departmentId } = body;
+
+        if (!name) {
+            return c.json(ResponseService.error("InvalidRequest", "Category name is required and cannot be empty."), 400);
+        }
+
+        const trimmedName = name.trim();
+        if (trimmedName.length > 100) {
+            return c.json(ResponseService.error("InvalidRequest", "Category name cannot exceed 100 characters."), 400);
+        }
+
+        if (color && typeof color !== 'string') {
+            return c.json(ResponseService.error("InvalidRequest", "Color must be a string."), 400);
+        }
+
+        let validDepartmentId = null;
+        if (departmentId !== undefined && departmentId !== null) {
+            validDepartmentId = parseInt(departmentId);
+            if (isNaN(validDepartmentId)) {
+                return c.json(ResponseService.error("InvalidRequest", "Department ID must be a valid number."), 400);
+            }
+        }
+
+        connection = await DatabaseService.createConnection();
+
+        const checkCategorySql = `SELECT id, name, color, departmentId FROM document_categories WHERE id = ?`;
+        const [categoryRows] = await connection.execute<RowDataPacket[]>(checkCategorySql, [categoryId]);
+
+        if (categoryRows.length === 0) {
+            return c.json(ResponseService.error("CategoryNotFound", "Category not found."), 404);
+        }
+
+        const currentCategory = categoryRows[0];
+
+        // Check for duplicate name
+        const checkNameSql = `SELECT id FROM document_categories WHERE name = ? AND id != ?`;
+        const [nameRows] = await connection.execute<RowDataPacket[]>(checkNameSql, [trimmedName, categoryId]);
+
+        if (nameRows.length > 0) {
+            return c.json(ResponseService.error(
+                "CategoryNameExists",
+                `A folder with the name "${trimmedName}" already exists.`
+            ), 400);
+        }
+
+        if (validDepartmentId !== null) {
+            const checkDepartmentSql = `SELECT id FROM departments WHERE id = ?`;
+            const [departmentRows] = await connection.execute<RowDataPacket[]>(checkDepartmentSql, [validDepartmentId]);
+            if (departmentRows.length === 0) {
+                return c.json(ResponseService.error("DepartmentNotFound", "Selected department does not exist."), 400);
+            }
+        }
+
+        const updateSql = `UPDATE document_categories SET name = ?, color = ?, departmentId = ?, updatedAt = NOW() WHERE id = ?`;
+        const [updateResult] = await connection.execute<ResultSetHeader>(updateSql, [trimmedName, color, validDepartmentId, categoryId]);
+
+        if (updateResult.affectedRows === 0) {
+            return c.json(ResponseService.error("CategoryUpdateError", "Failed to update category."), 500);
+        }
+
+        const getUpdatedSql = `
+            SELECT dc.id, dc.name, dc.color, dc.departmentId, dc.createdAt, dc.updatedAt,
+                   d.name as department_name
+            FROM document_categories dc
+            LEFT JOIN departments d ON dc.departmentId = d.id
+            WHERE dc.id = ?
+        `;
+        const [updatedRows] = await connection.execute<RowDataPacket[]>(getUpdatedSql, [categoryId]);
+        const updatedCategory = updatedRows[0];
+
+        return c.json(ResponseService.success(
+            "Category updated successfully",
+            {
+                id: updatedCategory.id,
+                name: updatedCategory.name,
+                color: updatedCategory.color,
+                departmentId: updatedCategory.departmentId,
+                departmentName: updatedCategory.department_name,
+                createdAt: updatedCategory.createdAt,
+                updatedAt: updatedCategory.updatedAt,
+                changes: {
+                    nameChanged: currentCategory.name !== trimmedName,
+                    colorChanged: color !== undefined && currentCategory.color !== color,
+                    departmentChanged: departmentId !== undefined && currentCategory.departmentId !== validDepartmentId
+                }
+            }
+        ), 200);
+
+    } catch (error) {
+        console.error("Error updating category:", error);
+
+        return c.json(ResponseService.error("CategoryUpdateError", "An unexpected error occurred while updating the category."), 500);
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
+    }
+});
+
+
 
 export default adminDocs;

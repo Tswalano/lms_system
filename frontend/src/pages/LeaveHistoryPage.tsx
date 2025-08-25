@@ -43,7 +43,7 @@ interface ApiResponse {
     data: LeaveRecord[];
 }
 
-const LeaveHistory = () => {
+const LeaveHistoryPage = () => {
     const { authFetch } = useAuth()
     const [filter, setFilter] = useState<'all' | 'approved' | 'pending' | 'rejected' | 'cancelled'>('all');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -1030,4 +1030,4 @@ const LeaveHistory = () => {
     );
 };
 
-export default LeaveHistory;
+export default LeaveHistoryPage;

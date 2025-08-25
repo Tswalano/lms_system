@@ -1,6 +1,7 @@
 import React, { useState, type ReactNode } from 'react';
 import Sidebar from './Sidebar';
 import DashboardHeader from './DashboardHeader';
+import { Link } from 'react-router-dom';
 
 interface DashboardLayoutProps {
     children: ReactNode;
@@ -8,7 +9,48 @@ interface DashboardLayoutProps {
     contentClassName?: string;
     showSidebar?: boolean;
     showHeader?: boolean;
+    showFooter?: boolean;
 }
+
+// Footer Component
+const DashboardFooter: React.FC = () => {
+    const currentYear = new Date().getFullYear();
+
+    const footerLinks = [
+        { name: 'Terms of Service', href: '/terms-of-service' },
+        { name: 'Support', href: '/support' }
+    ];
+
+    return (
+        <footer className="relative z-10 py-6 px-4 lg:px-8">
+            <div className="px-4 lg:px-16 mx-auto">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    {/* Copyright Text - Left Side */}
+                    <div className="text-sm text-gray-600 dark:text-gray-400 order-2 sm:order-1">
+                        © {currentYear} Disrapto LMS System. All rights reserved.
+                    </div>
+
+                    {/* Links - Right Side */}
+                    <div className="flex items-center gap-6 order-1 sm:order-2">
+                        {footerLinks.map((link, index) => (
+                            <React.Fragment key={link.name}>
+                                <Link
+                                    to={link.href}
+                                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors duration-200"
+                                >
+                                    {link.name}
+                                </Link>
+                                {index < footerLinks.length - 1 && (
+                                    <span className="text-gray-300 dark:text-gray-600">•</span>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </footer>
+    );
+};
 
 // Main Dashboard Layout Component
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
@@ -16,7 +58,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     className = "",
     contentClassName = "",
     showSidebar = true,
-    showHeader = true
+    showHeader = true,
+    showFooter = true
 }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -60,7 +103,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             )}
 
             {/* Main Content Area */}
-            <div className={`${getMainContentMargin()} relative z-10 transition-all duration-300 ease-in-out`}>
+            <div className={`${getMainContentMargin()} relative z-10 transition-all duration-300 ease-in-out flex flex-col min-h-screen`}>
                 {/* Header */}
                 {showHeader && (
                     <DashboardHeader
@@ -69,12 +112,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                     />
                 )}
 
-                {/* Main Content */}
-                <main className={`p-4 lg:p-8 ${contentClassName}`}>
+                {/* Main Content - Flex grow to push footer down */}
+                <main className={`flex-grow p-4 lg:p-8 ${contentClassName}`}>
                     <div className="px-4 lg:px-16 mx-auto space-y-8">
                         {children}
                     </div>
                 </main>
+
+                {/* Footer */}
+                {showFooter && <DashboardFooter />}
             </div>
 
             {/* Additional Floating Elements for Visual Interest */}

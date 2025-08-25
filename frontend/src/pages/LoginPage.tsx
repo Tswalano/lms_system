@@ -3,7 +3,7 @@ import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, Loader2, ArrowRight, Clock, Calendar, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-const Login: React.FC = (): JSX.Element => {
+const LoginPage: React.FC = (): JSX.Element => {
     const [showPassword, setShowPassword] = useState<boolean>(false);
     const [username, setEmail] = useState<string>("");
     const [password, setPassword] = useState<string>("");
@@ -46,11 +46,11 @@ const Login: React.FC = (): JSX.Element => {
             if (result?.error) {
                 setError(result.error);
             } else {
-                setError("Login failed. Please check your credentials and try again.");
+                setError("LoginPage failed. Please check your credentials and try again.");
             }
 
         } catch (err: unknown) {
-            console.error("Login error:", err);
+            console.error("LoginPage error:", err);
             setError(
                 err instanceof Error
                     ? err.message
@@ -155,10 +155,10 @@ const Login: React.FC = (): JSX.Element => {
                 </div>
             </div>
 
-            {/* Right Side - Login Form */}
+            {/* Right Side - LoginPage Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-4 relative z-10">
                 <div className="w-full max-w-md">
-                    {/* Login Card */}
+                    {/* LoginPage Card */}
                     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 p-8">
                         {/* Header */}
                         <div className="text-center mb-8">
@@ -286,4 +286,4 @@ const Login: React.FC = (): JSX.Element => {
     );
 };
 
-export default Login;
+export default LoginPage;

@@ -11,6 +11,7 @@ import testRoutes from './routes/dummy';
 import userDoc from './routes/userDoc';
 import { performanceRoutes } from './routes/performance';
 import notificationRoutes from './routes/notifications';
+import { DatabaseService } from './helpers/databaseHeler';
 
 export const app = new Hono();
 
@@ -77,15 +78,46 @@ app.onError((err, c) => {
     return c.json({ error: 'Internal server error' }, 500);
 });
 
-// Health check endpoint
-app.get('/health', (c) =>
-    c.json({
-        status: 'healthy',
-        service: 'Leave Management System API',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-    })
-);
+// Health check endpoint to check the database connection
+app.get('/health', async (c) => {
+    try {
+        const connection = await DatabaseService.createConnection();
+
+        // Optionally, you can do a simple query to check if DB is responsive
+        const s = await connection.query('SELECT 1');
+        console.log('Health check query result:', s);
+
+        return c.json({
+            status: 'healthy',
+            service: 'Leave Management System API',
+            timestamp: new Date().toISOString(),
+            version: '1.0.0',
+            database: 'connected'
+        });
+    } catch (error: any) {
+        console.error('Health check failed:', error.code);
+
+        if (error.code === 'ER_ACCESS_DENIED_ERROR') {
+            return c.json({
+                status: 'unhealthy',
+                service: 'Leave Management System API',
+                timestamp: new Date().toISOString(),
+                version: '1.0.0',
+                database: 'disconnected',
+                error: 'Database connection lost'
+            });
+        }
+        return c.json({
+            status: 'unhealthy',
+            service: 'Leave Management System API',
+            timestamp: new Date().toISOString(),
+            version: '1.0.0',
+            database: 'disconnected',
+            error: error.message
+        }, 503); // Return 503 Service Unavailable
+    }
+});
+
 
 // Simple ping endpoint
 app.get('/ping', (c) =>

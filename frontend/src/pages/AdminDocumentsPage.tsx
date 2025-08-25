@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, type FC } from 'react';
+import { useState, useEffect, type FC } from 'react';
 import { Plus, FileBadge, FolderPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +10,7 @@ import DocumentViewModal from '@/components/admin/DocumentViewModal';
 import AddDocumentModal from '@/components/admin/AddDocumentModal';
 import DocumentTable from '@/components/admin/DocumentTable';
 import FolderManager from '@/components/admin/FolderManager';
-import ConfirmationModal from '@/components/admin/ConfirmationModal';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import CreateFolderModal from '@/components/admin/CreateFolderModal';
 
 // Interfaces
@@ -24,6 +24,8 @@ interface ApiDocument {
     createdAt: string;
     uploadedById: string;
     uploadedByDisplay: string;
+    department: string;
+    departmentId: number;
     signatures: {
         signed: number;
         totalAssigned: number;
@@ -32,8 +34,8 @@ interface ApiDocument {
 }
 
 interface ApiCategory {
-    departmentId: null;
-    id: string;
+    departmentId?: number;
+    id: number;
     name: string;
     description: string;
     color: string;
@@ -56,14 +58,12 @@ interface DocumentCategoriesResponse {
 }
 
 interface FolderType {
-    id?: string;
+    id: number;
     name: string;
-    fileCount: number;
-    size: string;
+    departmentId?: number;
     color: string;
-    icon: React.ElementType;
-    description?: string;
-    departmentId: number | null;
+    fileCount?: number;
+    totalSize?: string;
 }
 
 interface DocumentType {
@@ -71,6 +71,7 @@ interface DocumentType {
     name: string;
     uploadedByDisplay: string;
     uploadedById: string;
+    department: string;
     avatar: string;
     date: string;
     status: 'active' | 'draft' | 'archived';
@@ -95,7 +96,7 @@ interface NewDocumentState {
 
 interface NewFolderState {
     name: string;
-    departmentId: number | null;
+    departmentId: number;
     color: string;
 }
 
@@ -232,16 +233,12 @@ const AdminDocumentsPage: FC = () => {
 
             return response.json();
         },
-        onSuccess: (responsePayload, folderData) => {
-            const newCategory = responsePayload.payload;
+        onSuccess: (folderData) => {
             const folder: FolderType = {
-                id: newCategory.id,
+                id: folderData.id,
                 name: folderData.name,
-                fileCount: 0,
-                size: '0 MB',
                 color: folderData.color,
-                icon: FileBadge,
-                departmentId: folderData.departmentId || null
+                departmentId: folderData.departmentId
             };
 
             setFolders(prev => [...prev, folder]);
@@ -274,13 +271,21 @@ const AdminDocumentsPage: FC = () => {
             return response.json();
         },
         onSuccess: (responsePayload, documentPayload) => {
+            // Get the folder name from the folder ID
+            const selectedFolderObj = folders.find(f => f.id.toString() === documentPayload.folder.toString());
+            const folderName = selectedFolderObj ? selectedFolderObj.name : 'Unknown Folder';
+
             const document: DocumentType = {
                 id: responsePayload.payload.id,
                 name: documentPayload.name,
-                category: documentPayload.category,
+                category: documentPayload.category || folderName,
                 uploadedByDisplay: documentPayload.uploadedByDisplay,
                 uploadedById: documentPayload.uploadedById,
-                avatar: createAvatar(documentPayload.uploadedByDisplay.split(' ')[0], documentPayload.uploadedByDisplay.split(' ')[1]),
+                department: documentPayload.department,
+                avatar: createAvatar(
+                    documentPayload.uploadedByDisplay.split(' ')[0] || '',
+                    documentPayload.uploadedByDisplay.split(' ')[1] || ''
+                ),
                 date: new Date().toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short',
@@ -288,17 +293,25 @@ const AdminDocumentsPage: FC = () => {
                 }),
                 status: documentPayload.status || 'draft',
                 signatureRate: documentPayload.signatures ? documentPayload.signatures.percentage : 0,
-                folder: documentPayload.folder,
+                folder: folderName,
                 size: documentPayload.size,
                 fileUrl: documentPayload.fileUrl || documentPayload.finalUrl || "",
             };
 
             setAllDocuments(prev => [document, ...prev]);
-            setFolders(prev => prev.map(folder =>
-                folder.id === documentPayload.folder
-                    ? { ...folder, fileCount: folder.fileCount + 1 }
-                    : folder
-            ));
+
+            // Update the folder's file count and total size
+            setFolders(prev => prev.map(folder => {
+                if (folder.id.toString() === documentPayload.folder.toString()) {
+                    const folderDocuments = [...allDocuments.filter(doc => doc.folder === folder.name), document];
+                    return {
+                        ...folder,
+                        fileCount: folderDocuments.length,
+                        totalSize: calculateTotalSize(folderDocuments)
+                    };
+                }
+                return folder;
+            }));
 
             setShowAddDocumentModal(false);
 
@@ -331,12 +344,21 @@ const AdminDocumentsPage: FC = () => {
 
             setAllDocuments(prev => prev.filter(doc => doc.id !== docId));
 
+            // Update the folder's file count and total size after deletion
             if (documentToRemove) {
-                setFolders(prev => prev.map(folder =>
-                    folder.id === documentToRemove.folder
-                        ? { ...folder, fileCount: Math.max(0, folder.fileCount - 1) }
-                        : folder
-                ));
+                setFolders(prev => prev.map(folder => {
+                    if (folder.name === documentToRemove.folder) {
+                        const remainingDocuments = allDocuments.filter(doc =>
+                            doc.folder === folder.name && doc.id !== docId
+                        );
+                        return {
+                            ...folder,
+                            fileCount: remainingDocuments.length,
+                            totalSize: calculateTotalSize(remainingDocuments)
+                        };
+                    }
+                    return folder;
+                }));
             }
 
             setShowDeleteModal(false);
@@ -354,9 +376,13 @@ const AdminDocumentsPage: FC = () => {
     });
 
     // Helper functions
-    const calculateTotalSize = (documents: ApiDocument[]): string => {
+    const calculateTotalSize = (documents: DocumentType[]): string => {
         const totalBytes = documents.reduce((total, doc) => {
-            const sizeStr = doc?.file_size ? doc.file_size.toLowerCase() : "0 KB";
+            const sizeStr = doc.size ? doc.size.toLowerCase() : "0 kb";
+
+            // Skip external links
+            if (sizeStr === 'external link') return total;
+
             let bytes = 0;
 
             if (sizeStr.includes('kb')) {
@@ -370,7 +396,9 @@ const AdminDocumentsPage: FC = () => {
             return total + bytes;
         }, 0);
 
-        if (totalBytes < 1024 * 1024) {
+        if (totalBytes === 0) {
+            return '0 KB';
+        } else if (totalBytes < 1024 * 1024) {
             return `${(totalBytes / 1024).toFixed(1)} KB`;
         } else if (totalBytes < 1024 * 1024 * 1024) {
             return `${(totalBytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -384,28 +412,22 @@ const AdminDocumentsPage: FC = () => {
         const transformedDocuments: DocumentType[] = [];
 
         apiData.forEach(category => {
-            transformedFolders.push({
-                id: category.id,
-                name: category.name,
-                fileCount: category.documents.length,
-                size: calculateTotalSize(category.documents),
-                color: category.color,
-                icon: FileBadge,
-                description: category.description,
-                departmentId: category.departmentId || null
-            });
+            // Filter out documents that don't have an ID first
+            const validDocuments = category.documents.filter(doc => doc.id && doc.id > 0);
 
-            const actualCategoryDocuments = category.documents.filter(dc => !!dc.id);
+            // Transform documents for this category
+            const categoryDocuments: DocumentType[] = [];
+            validDocuments.forEach(doc => {
+                const nameParts = doc.uploadedByDisplay?.split(' ') || ['', ''];
 
-
-            actualCategoryDocuments.forEach(doc => {
-                transformedDocuments.push({
+                const transformedDoc: DocumentType = {
                     id: doc.id,
                     name: doc.name,
                     category: doc.category,
                     uploadedByDisplay: doc.uploadedByDisplay,
                     uploadedById: doc.uploadedById,
-                    avatar: createAvatar(doc.uploadedByDisplay.split(' ')[0], doc.uploadedByDisplay.split(' ')[1]),
+                    department: doc.department,
+                    avatar: createAvatar(nameParts[0] || '', nameParts[1] || ''),
                     date: new Date(doc.createdAt).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
@@ -413,11 +435,27 @@ const AdminDocumentsPage: FC = () => {
                     }),
                     status: 'active',
                     signatureRate: doc.signatures ? doc.signatures.percentage : 0,
-                    folder: category.id,
+                    folder: category.name,
                     size: doc.file_size,
                     fileUrl: doc.file_url,
                     priority: doc.priority
-                });
+                };
+
+                categoryDocuments.push(transformedDoc);
+                transformedDocuments.push(transformedDoc);
+            });
+
+            // Calculate totals for this folder
+            const totalSize = calculateTotalSize(categoryDocuments);
+            const fileCount = categoryDocuments.length;
+
+            transformedFolders.push({
+                id: category.id,
+                name: category.name,
+                color: category.color,
+                departmentId: category.departmentId,
+                fileCount: fileCount,
+                totalSize: totalSize
             });
         });
 
@@ -436,10 +474,6 @@ const AdminDocumentsPage: FC = () => {
     const handleFolderClick = (folderId: string): void => {
         setSelectedFolder(selectedFolder === folderId ? null : folderId);
     };
-
-    // const handleAddDepartment = (departmentData: NewDepartmentState): void => {
-    //     createDepartmentMutation.mutate(departmentData);
-    // };
 
     const handleCreateFolder = (folderData: NewFolderState): void => {
         createFolderMutation.mutate(folderData);
@@ -521,16 +555,15 @@ const AdminDocumentsPage: FC = () => {
     };
 
     const handleDownloadDocument = (doc: DocumentType): void => {
-        if (isValidUrl(doc.fileUrl)) {
-            window.open(doc.fileUrl, '_blank');
-        } else {
-            const link = document.createElement('a');
-            link.href = doc.fileUrl;
-            link.download = doc.name;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
+        const link = document.createElement('a');
+        link.href = doc.fileUrl;
+        link.target = '_blank';   // open in a new tab
+        link.rel = 'noopener noreferrer'; // security best practice
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        console.log(`Opening ${doc.name} in a new tab...`);
     };
 
     const handleEditDocument = (doc: DocumentType): void => {
@@ -562,7 +595,7 @@ const AdminDocumentsPage: FC = () => {
     const hasError = documentsError || departmentsError;
 
     const documentTableTitle = selectedFolder
-        ? `${folders.find(f => f.id === selectedFolder)?.name || 'Selected Folder'} Files`
+        ? `${folders.find(f => f.name === selectedFolder)?.name || 'Selected Folder'} Files`
         : 'All Files';
 
     return (
@@ -658,14 +691,6 @@ const AdminDocumentsPage: FC = () => {
                 submitText="Add Folder"
             />
 
-            {/* Add Department Modal */}
-            {/* <AddDepartmentModal
-                isOpen={showAddDepartmentModal}
-                onClose={() => setShowAddDepartmentModal(false)}
-                onSubmit={handleAddDepartment}
-                isLoading={createDepartmentMutation.isPending}
-            /> */}
-
             {/* View Document Modal */}
             <DocumentViewModal
                 showViewModal={showViewModal}
@@ -693,4 +718,3 @@ const AdminDocumentsPage: FC = () => {
 };
 
 export default AdminDocumentsPage;
-

@@ -4,7 +4,7 @@ import { FolderPlus, Loader2, AlertCircle, Folder } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import CreateFolderModal from './CreateFolderModal';
-import ConfirmationModal from './ConfirmationModal';
+import ConfirmationModal from '../ConfirmationModal';
 import FolderCard from './FolderCard';
 
 interface Department {
@@ -14,19 +14,20 @@ interface Department {
 }
 
 interface FolderType {
-    id?: string;
+    id: number;
     name: string;
-    fileCount: number;
-    size: string;
+    departmentId?: number;
     color: string;
-    icon: React.ElementType;
+    department?: string;
+    fileCount?: number;
+    totalSize?: string;
+    icon?: React.ElementType;
     description?: string;
-    departmentId: number | null;
 }
 
 interface NewFolderState {
     name: string;
-    departmentId: number | null;
+    departmentId: number;
     color: string;
 }
 
@@ -38,7 +39,7 @@ interface FolderManagerProps {
     onFolderSelect: (folderId: string | null) => void;
     onFolderCreated: (folder: FolderType) => void;
     onFolderUpdated: (folder: FolderType) => void;
-    onFolderDeleted: (folderId: string) => void;
+    onFolderDeleted: (folderId: number) => void;
     isLoading?: boolean;
     error?: Error | null;
     onRetry?: () => void;
@@ -67,6 +68,16 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     const [editingFolder, setEditingFolder] = useState<FolderType | null>(null);
     const [deletingFolder, setDeletingFolder] = useState<FolderType | null>(null);
 
+    // Helper function to get department name
+    const getDepartmentName = (departmentId?: number): string => {
+        console.log("departmentId", departmentId);
+        console.log("departments", departments);
+        console.log("folders", folders);
+        if (!departmentId) return 'No Department';
+        const department = departments.find(dept => dept.id === departmentId);
+        return department ? department.name : 'Unknown Department';
+    };
+
     // Create folder mutation
     const createFolderMutation = useMutation({
         mutationFn: async (folderData: NewFolderState) => {
@@ -88,16 +99,16 @@ const FolderManager: React.FC<FolderManagerProps> = ({
 
             return response.json();
         },
-        onSuccess: (responsePayload, folderData) => {
-            const newCategory = responsePayload.payload;
+        onSuccess: (response) => {
             const folder: FolderType = {
-                id: newCategory.id,
-                name: folderData.name,
+                id: response.payload?.id || response.id,
+                name: response.payload?.name || response.name,
+                color: response.payload?.color || response.color,
+                departmentId: response.payload?.departmentId || response.departmentId,
+                department: getDepartmentName(response.payload?.departmentId || response.departmentId),
                 fileCount: 0,
-                size: '0 MB',
-                color: folderData.color,
-                icon: Folder,
-                departmentId: folderData.departmentId || null
+                totalSize: '0 MB',
+                icon: Folder
             };
 
             onFolderCreated(folder);
@@ -116,10 +127,10 @@ const FolderManager: React.FC<FolderManagerProps> = ({
 
     // Update folder mutation
     const updateFolderMutation = useMutation({
-        mutationFn: async ({ id, ...folderData }: { id: string } & Partial<NewFolderState>) => {
+        mutationFn: async ({ id, ...folderData }: { id: number } & Partial<NewFolderState>) => {
             const response = await authFetch(`/admin-docs/categories/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify(folderData)
+                body: JSON.stringify({ ...folderData })
             });
 
             if (!response.ok) {
@@ -135,7 +146,8 @@ const FolderManager: React.FC<FolderManagerProps> = ({
                     ...editingFolder,
                     name: variables.name || editingFolder.name,
                     color: variables.color || editingFolder.color,
-                    departmentId: variables.departmentId !== undefined ? variables.departmentId : editingFolder.departmentId
+                    departmentId: variables.departmentId !== undefined ? variables.departmentId : editingFolder.departmentId,
+                    department: getDepartmentName(variables.departmentId !== undefined ? variables.departmentId : editingFolder.departmentId)
                 };
                 onFolderUpdated(updatedFolder);
             }
@@ -155,7 +167,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
 
     // Delete folder mutation
     const deleteFolderMutation = useMutation({
-        mutationFn: async (folderId: string) => {
+        mutationFn: async (folderId: number) => {
             const response = await authFetch(`/admin-docs/categories/${folderId}`, {
                 method: 'DELETE'
             });
@@ -211,6 +223,15 @@ const FolderManager: React.FC<FolderManagerProps> = ({
         if (!deletingFolder?.id) return;
         deleteFolderMutation.mutate(deletingFolder.id);
     };
+    // debugger
+    // Transform folders to include missing properties
+    const transformedFolders = folders.map(folder => ({
+        ...folder,
+        department: departments.find(dept => dept.id === folder.departmentId)?.name || 'Unknown Department',
+        fileCount: folder.fileCount || 0,
+        size: folder.totalSize || '0 MB',
+        icon: folder.icon || Folder
+    }));
 
     return (
         <>
@@ -243,7 +264,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
             ) : (
                 <>
                     {/* Folders Section */}
-                    {folders.length > 0 ? (
+                    {transformedFolders.length > 0 ? (
                         <div className="mb-8">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Folders</h2>
@@ -267,13 +288,13 @@ const FolderManager: React.FC<FolderManagerProps> = ({
                                     )}
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {folders.map((folder) => (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {transformedFolders.map((folder) => (
                                     <FolderCard
                                         key={folder.id}
                                         folder={folder}
-                                        isSelected={selectedFolder === folder.id}
-                                        onClick={() => onFolderClick(folder.id || '')}
+                                        isSelected={selectedFolder === folder.name} // Compare by name since selectedFolder is folder name
+                                        onClick={() => onFolderClick(folder.name)} // Pass folder name
                                         onEdit={() => handleEditFolder(folder)}
                                         onDelete={() => handleDeleteFolder(folder)}
                                         isDeleting={deleteFolderMutation.isPending && deletingFolder?.id === folder.id}
@@ -328,7 +349,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
                 isLoading={updateFolderMutation.isPending}
                 initialData={editingFolder ? {
                     name: editingFolder.name,
-                    departmentId: editingFolder.departmentId,
+                    departmentId: editingFolder.departmentId || 0,
                     color: editingFolder.color
                 } : undefined}
                 title="Edit Folder"

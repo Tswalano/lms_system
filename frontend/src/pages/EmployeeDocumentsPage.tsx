@@ -403,13 +403,15 @@ const EmployeeDocumentsPage: FC = () => {
     const handleDownloadDocument = (doc: DocumentType): void => {
         const link = document.createElement('a');
         link.href = doc.fileUrl;
-        link.download = doc.name;
+        link.target = '_blank';   // open in a new tab
+        link.rel = 'noopener noreferrer'; // security best practice
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        console.log(`Downloading ${doc.name}...`);
+        console.log(`Opening ${doc.name} in a new tab...`);
     };
+
 
     // Handle signing a document (opens signature dialog)
     const handleSignDocument = (doc: DocumentType): void => {
@@ -785,7 +787,7 @@ const EmployeeDocumentsPage: FC = () => {
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedDocument.name}</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    Added on {selectedDocument.createdAt} • Due: {selectedDocument.dueDate}
+                                    Added on {formatDate(selectedDocument.createdAt)} • Due: {formatDate(selectedDocument.dueDate)}
                                 </p>
                             </div>
                         </div>
