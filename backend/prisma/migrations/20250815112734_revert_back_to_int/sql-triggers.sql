@@ -166,9 +166,22 @@ CREATE TRIGGER after_user_create
 AFTER INSERT ON users
 FOR EACH ROW
 BEGIN
-    
-    
-
+    insert into user_document_assignments (
+        user_id,
+        document_id,
+        due_date -- ISSUE: How will the due date be calculated? 
+        -- status has default value of pending
+        -- assigned_at has default value of now()
+        -- completed_at is left null here 
+    )
+    select
+        usr.id,
+        doc.id,
+        date_add(now(), interval 7 day) 
+    from users as usr 
+    inner join departments as dep on dep.id = usr.departmentId
+    inner join document_categories as cat on cat.departmentId = dep.id
+    inner join documents as doc on doc.category_id = cat.id
+    where usr.id = new.id$$
 END$$
-
 DELIMITER;
