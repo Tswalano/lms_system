@@ -447,14 +447,14 @@ userDoc.post('/document-completion', async (c) => {
                 // Record document signature/acknowledgement
                 const signatureSql = `
                     INSERT INTO document_signatures 
-                    (user_id, document_id, ip_address, user_agent)
-                    VALUES (?, ?, ?, ?)
+                    (user_id, document_id, signed_at)
+                    VALUES (?, ?, NOW())
                     ON DUPLICATE KEY UPDATE 
-                    signed_at = NOW(), ip_address = VALUES(ip_address), user_agent = VALUES(user_agent)
+                        signed_at = NOW()
                 `;
 
                 await connection.execute<OkPacket>(signatureSql, [
-                    user_id, document_id, ipAddress, userAgent
+                    user_id, document_id
                 ]);
 
                 // Update assignment status

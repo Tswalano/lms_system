@@ -292,8 +292,8 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="flex items-center gap-2 mb-1">
                                                                         <p className={`text-sm font-medium truncate ${!notification.isRead
-                                                                                ? "text-gray-900 dark:text-white"
-                                                                                : "text-gray-700 dark:text-gray-300"
+                                                                            ? "text-gray-900 dark:text-white"
+                                                                            : "text-gray-700 dark:text-gray-300"
                                                                             }`}>
                                                                             {notification.title}
                                                                         </p>
@@ -301,8 +301,8 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                                                                         {/* Priority Badge */}
                                                                         {notification.priority && notification.priority !== 'normal' && (
                                                                             <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full ${notification.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                                                                                    notification.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
-                                                                                        'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                                                                notification.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
+                                                                                    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                                                                                 }`}>
                                                                                 {notification.priority}
                                                                             </span>
@@ -438,7 +438,8 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
                     {/* Subtitle */}
                     <p className="text-sm lg:text-lg text-gray-600 dark:text-gray-300 mt-3 lg:mt-4 font-medium">
-                        Welcome back to your dashboard
+                        {user && user.dob === new Date().getFullYear().toString() ? `🎉 Happy Birthday ${user?.firstName} ${user?.lastName}! Wishing a fantastic day!`
+                            : 'Welcome back to Disraptor Hub!'}
                     </p>
                 </div>
             </div>

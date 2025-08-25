@@ -62,6 +62,20 @@ interface PublicHoliday {
     dayOfWeek: string;
 }
 
+interface Birthday {
+    id: string;
+    userId: number;
+    name: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    jobTitle: string;
+    dob: string;
+    birthdayDate: string;
+    age: number;
+    isToday: boolean;
+}
+
 interface LeaveCalendarResponse {
     dateRange: {
         startDate: string;
@@ -69,6 +83,16 @@ interface LeaveCalendarResponse {
     };
     leaveRequests: mysql.RowDataPacket[];
     publicHolidays: PublicHoliday[];
+}
+
+interface LeaveCalendarWithBirthdaysResponse {
+    dateRange: {
+        startDate: string;
+        endDate: string;
+    };
+    leaveRequests: any[];
+    publicHolidays: PublicHoliday[];
+    birthdays: Birthday[];
 }
 
 // Format dates for display
@@ -1088,34 +1112,31 @@ app.get('/leave-calendar', async (c: Context): Promise<Response> => {
     }
 });
 
-// GET /leave-balance - Get leave balance (placeholder)
-app.get('/leave-calendar', async (c: Context): Promise<Response> => {
+app.get('/leave-calendar-with-birthdays', async (c: Context): Promise<Response> => {
     let connection: mysql.Connection | null = null;
     try {
         connection = await DatabaseService.createConnection();
 
-        // Get current date in UTC
-        const now = dayjs.utc();
-
-        // Set default date range (current month)
+        // Get query parameters with proper date handling
+        const now = dayjs().utc();
         const defaultStartDate = now.startOf('month').format('YYYY-MM-DD');
         const defaultEndDate = now.endOf('month').format('YYYY-MM-DD');
 
-        // Get query parameters
         const queryParams = {
             start_date: c.req.query('start_date') || defaultStartDate,
             end_date: c.req.query('end_date') || defaultEndDate
         };
 
-        // Validate dates
+        // Validate date format
         if (!dayjs(queryParams.start_date, 'YYYY-MM-DD', true).isValid() ||
             !dayjs(queryParams.end_date, 'YYYY-MM-DD', true).isValid()) {
             return c.json<ApiResponse>({
                 success: false,
-                message: 'Invalid date format. Use YYYY-MM-DD'
+                message: 'Invalid date format. Please use YYYY-MM-DD'
             }, 400);
         }
 
+        // Validate date range
         if (dayjs(queryParams.start_date).isAfter(dayjs(queryParams.end_date))) {
             return c.json<ApiResponse>({
                 success: false,
@@ -1123,7 +1144,7 @@ app.get('/leave-calendar', async (c: Context): Promise<Response> => {
             }, 400);
         }
 
-        // Fetch approved leave requests
+        // Fetch approved leave requests within date range
         const [leaveCalendar] = await connection.query<mysql.RowDataPacket[]>(`
             SELECT 
                 lr.id, 
@@ -1147,7 +1168,66 @@ app.get('/leave-calendar', async (c: Context): Promise<Response> => {
             ORDER BY lr.start_date ASC
         `, [queryParams.end_date, queryParams.start_date]);
 
-        // Get public holidays
+        // Fetch birthdays within date range
+        const [birthdayResults] = await connection.query<mysql.RowDataPacket[]>(`
+            SELECT 
+                u.id,
+                u.firstName,
+                u.lastName,
+                u.email,
+                u.jobTitle,
+                u.dob,
+                DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) as birthday_this_year,
+                YEAR(CURDATE()) - YEAR(u.dob) - (DATE_FORMAT(CURDATE(), '%m%d') < DATE_FORMAT(u.dob, '%m%d')) as current_age
+            FROM users u
+            WHERE u.dob IS NOT NULL
+            AND (u.isActive IS NULL OR u.isActive = 1)
+            AND (
+                -- Birthday falls within the requested date range this year
+                DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) BETWEEN ? AND ?
+                OR
+                -- Handle year boundary cases (e.g., Dec to Jan)
+                (YEAR(?) < YEAR(?) AND 
+                 (DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) >= ? OR
+                  DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) <= ?))
+            )
+            ORDER BY DATE_FORMAT(u.dob, '%m-%d'), u.firstName
+        `, [
+            queryParams.start_date, // For YEAR() calculation
+            queryParams.start_date, // For YEAR() calculation in range check
+            queryParams.start_date,
+            queryParams.end_date,
+            queryParams.start_date, // For year boundary check
+            queryParams.end_date,   // For year boundary check
+            queryParams.start_date, // For year boundary check
+            queryParams.start_date, // For >= comparison
+            queryParams.end_date,   // For year boundary check
+            queryParams.end_date    // For <= comparison
+        ]);
+
+        // Transform birthday data
+        const birthdays: Birthday[] = birthdayResults.map(user => {
+            const birthdayThisYear = dayjs(user.birthday_this_year);
+            const age = user.current_age + 1; // Age they'll turn on birthday
+            const isToday = birthdayThisYear.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+
+            return {
+                id: `birthday-${user.id}`,
+                userId: user.id,
+                name: `${user.firstName} ${user.lastName}`,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                jobTitle: user.jobTitle || '',
+                profilePicture: user.profilePicture,
+                dob: dayjs(user.dob).format('YYYY-MM-DD'),
+                birthdayDate: birthdayThisYear.format('YYYY-MM-DD'),
+                age: age,
+                isToday: isToday
+            };
+        });
+
+        // Get public holidays using Google Calendar API
         let publicHolidays: PublicHoliday[] = [];
         try {
             const holidayDates = await getPublicHolidayDatesUsingGoogleCalendarAPIAsync(
@@ -1162,33 +1242,239 @@ app.get('/leave-calendar', async (c: Context): Promise<Response> => {
             }));
         } catch (error) {
             console.error('Failed to fetch public holidays:', error);
-            // Optionally add a warning to the response if needed
+            // Continue without holidays rather than failing the entire request
         }
 
-        return c.json<ApiResponse<LeaveCalendarResponse>>({
+        return c.json<ApiResponse<LeaveCalendarWithBirthdaysResponse>>({
             success: true,
-            message: 'Leave calendar retrieved successfully',
+            message: 'Calendar data with birthdays retrieved successfully',
             data: {
                 dateRange: {
                     startDate: queryParams.start_date,
                     endDate: queryParams.end_date
                 },
                 leaveRequests: leaveCalendar,
-                publicHolidays: publicHolidays
+                publicHolidays,
+                birthdays
             }
         }, 200);
 
     } catch (error) {
-        console.error('Get leave calendar error:', error);
-
+        console.error('Get calendar with birthdays error:', error);
         return c.json<ApiResponse>({
             success: false,
-            message: 'Failed to retrieve leave calendar'
+            message: 'Failed to retrieve calendar data with birthdays'
         }, 500);
     } finally {
         if (connection) await connection.end();
     }
 });
+
+// Standalone birthdays endpoint (optional - for birthday-specific queries)
+app.get('/birthdays', async (c: Context): Promise<Response> => {
+    let connection: mysql.Connection | null = null;
+    try {
+        connection = await DatabaseService.createConnection();
+
+        // Get query parameters
+        const now = dayjs().utc();
+        const defaultStartDate = now.startOf('month').format('YYYY-MM-DD');
+        const defaultEndDate = now.endOf('month').format('YYYY-MM-DD');
+
+        const queryParams = {
+            start_date: c.req.query('start_date') || defaultStartDate,
+            end_date: c.req.query('end_date') || defaultEndDate
+        };
+
+        // Validate date format
+        if (!dayjs(queryParams.start_date, 'YYYY-MM-DD', true).isValid() ||
+            !dayjs(queryParams.end_date, 'YYYY-MM-DD', true).isValid()) {
+            return c.json<ApiResponse>({
+                success: false,
+                message: 'Invalid date format. Please use YYYY-MM-DD'
+            }, 400);
+        }
+
+        // Fetch birthdays within date range
+        const [birthdayResults] = await connection.query<mysql.RowDataPacket[]>(`
+            SELECT 
+                u.id,
+                u.firstName,
+                u.lastName,
+                u.email,
+                u.jobTitle,
+                u.dob,
+                DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) as birthday_this_year,
+                YEAR(CURDATE()) - YEAR(u.dob) - (DATE_FORMAT(CURDATE(), '%m%d') < DATE_FORMAT(u.dob, '%m%d')) as current_age
+            FROM users u
+            WHERE u.dob IS NOT NULL
+            AND (u.isActive IS NULL OR u.isActive = 1)
+            AND (
+                -- Birthday falls within the requested date range this year
+                DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) BETWEEN ? AND ?
+                OR
+                -- Handle year boundary cases (e.g., Dec to Jan)
+                (YEAR(?) < YEAR(?) AND 
+                 (DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) >= ? OR
+                  DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) <= ?))
+            )
+            ORDER BY DATE_FORMAT(u.dob, '%m-%d'), u.firstName
+        `, [
+            queryParams.start_date, // For YEAR() calculation
+            queryParams.start_date, // For YEAR() calculation in range check
+            queryParams.start_date,
+            queryParams.end_date,
+            queryParams.start_date, // For year boundary check
+            queryParams.end_date,   // For year boundary check
+            queryParams.start_date, // For year boundary check
+            queryParams.start_date, // For >= comparison
+            queryParams.end_date,   // For year boundary check
+            queryParams.end_date    // For <= comparison
+        ]);
+
+        // Transform birthday data
+        const birthdays: Birthday[] = birthdayResults.map(user => {
+            const birthdayThisYear = dayjs(user.birthday_this_year);
+            const age = user.current_age + 1; // Age they'll turn on birthday
+            const isToday = birthdayThisYear.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+
+            return {
+                id: `birthday-${user.id}`,
+                userId: user.id,
+                name: `${user.firstName} ${user.lastName}`,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                jobTitle: user.jobTitle || '',
+                profilePicture: user.profilePicture,
+                dob: dayjs(user.dob).format('YYYY-MM-DD'),
+                birthdayDate: birthdayThisYear.format('YYYY-MM-DD'),
+                age: age,
+                isToday: isToday
+            };
+        });
+
+        return c.json<ApiResponse<{ birthdays: Birthday[], total: number }>>({
+            success: true,
+            message: 'Birthdays retrieved successfully',
+            data: {
+                birthdays,
+                total: birthdays.length
+            }
+        }, 200);
+
+    } catch (error) {
+        console.error('Get birthdays error:', error);
+        return c.json<ApiResponse>({
+            success: false,
+            message: 'Failed to retrieve birthdays'
+        }, 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// // GET /leave-balance - Get leave balance (placeholder)
+// app.get('/leave-calendar', async (c: Context): Promise<Response> => {
+//     let connection: mysql.Connection | null = null;
+//     try {
+//         connection = await DatabaseService.createConnection();
+
+//         // Get current date in UTC
+//         const now = dayjs.utc();
+
+//         // Set default date range (current month)
+//         const defaultStartDate = now.startOf('month').format('YYYY-MM-DD');
+//         const defaultEndDate = now.endOf('month').format('YYYY-MM-DD');
+
+//         // Get query parameters
+//         const queryParams = {
+//             start_date: c.req.query('start_date') || defaultStartDate,
+//             end_date: c.req.query('end_date') || defaultEndDate
+//         };
+
+//         // Validate dates
+//         if (!dayjs(queryParams.start_date, 'YYYY-MM-DD', true).isValid() ||
+//             !dayjs(queryParams.end_date, 'YYYY-MM-DD', true).isValid()) {
+//             return c.json<ApiResponse>({
+//                 success: false,
+//                 message: 'Invalid date format. Use YYYY-MM-DD'
+//             }, 400);
+//         }
+
+//         if (dayjs(queryParams.start_date).isAfter(dayjs(queryParams.end_date))) {
+//             return c.json<ApiResponse>({
+//                 success: false,
+//                 message: 'Start date cannot be after end date'
+//             }, 400);
+//         }
+
+//         // Fetch approved leave requests
+//         const [leaveCalendar] = await connection.query<mysql.RowDataPacket[]>(`
+//             SELECT 
+//                 lr.id, 
+//                 lr.start_date, 
+//                 lr.end_date, 
+//                 lr.leave_type, 
+//                 lr.leave_length, 
+//                 lr.duration,
+//                 u.firstName, 
+//                 u.lastName, 
+//                 u.email, 
+//                 u.jobTitle,
+//                 m.firstName as managerFirstName, 
+//                 m.lastName as managerLastName
+//             FROM leave_requests lr
+//             JOIN users u ON lr.uid = u.id
+//             LEFT JOIN users m ON lr.approved_by = m.id
+//             WHERE lr.start_date <= ? 
+//               AND lr.end_date >= ? 
+//               AND lr.status = "approved"
+//             ORDER BY lr.start_date ASC
+//         `, [queryParams.end_date, queryParams.start_date]);
+
+//         // Get public holidays
+//         let publicHolidays: PublicHoliday[] = [];
+//         try {
+//             const holidayDates = await getPublicHolidayDatesUsingGoogleCalendarAPIAsync(
+//                 new Date(queryParams.start_date),
+//                 new Date(queryParams.end_date)
+//             );
+
+//             publicHolidays = holidayDates.map(holiday => ({
+//                 date: dayjs(holiday.date).format('YYYY-MM-DD'),
+//                 name: holiday.name || 'Public Holiday',
+//                 dayOfWeek: dayjs(holiday.date).format('dddd')
+//             }));
+//         } catch (error) {
+//             console.error('Failed to fetch public holidays:', error);
+//             // Optionally add a warning to the response if needed
+//         }
+
+//         return c.json<ApiResponse<LeaveCalendarResponse>>({
+//             success: true,
+//             message: 'Leave calendar retrieved successfully',
+//             data: {
+//                 dateRange: {
+//                     startDate: queryParams.start_date,
+//                     endDate: queryParams.end_date
+//                 },
+//                 leaveRequests: leaveCalendar,
+//                 publicHolidays: publicHolidays
+//             }
+//         }, 200);
+
+//     } catch (error) {
+//         console.error('Get leave calendar error:', error);
+
+//         return c.json<ApiResponse>({
+//             success: false,
+//             message: 'Failed to retrieve leave calendar'
+//         }, 500);
+//     } finally {
+//         if (connection) await connection.end();
+//     }
+// });
 
 // GET /leave-stats/personal - Get personal leave statistics
 app.get('/leave-stats/personal', async (c: Context): Promise<Response> => {

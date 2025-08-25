@@ -589,24 +589,24 @@ export function generateManagementPlainTextVersion(
     const emailConfig = getEmailConfiguration();
 
     return `
-LEAVE MANAGEMENT NOTIFICATION${emailConfig.environment === 'dev' ? ' (DEVELOPMENT)' : ''}
+        LEAVE MANAGEMENT NOTIFICATION${emailConfig.environment === 'dev' ? ' (DEVELOPMENT)' : ''}
 
-Employee: ${employeeName}
-Email: ${employeeEmail}
-Status: ${status.toUpperCase()}
+        Employee: ${employeeName}
+        Email: ${employeeEmail}
+        Status: ${status.toUpperCase()}
 
-Details:
-${body}
+        Details:
+        ${body}
 
-${getStatusMessage(status)}
+        ${getStatusMessage(status)}
 
-Please review this leave request in the Disruptor Leave Management System.
+        Please review this leave request in the Disruptor Leave Management System.
 
----
-This is an automated notification from the Disruptor Leave Management System.
-Environment: ${emailConfig.environment.toUpperCase()}
-© ${new Date().getFullYear()} Disruptor. All rights reserved.
-`.trim();
+        ---
+        This is an automated notification from the Disruptor Leave Management System.
+        Environment: ${emailConfig.environment.toUpperCase()}
+        © ${new Date().getFullYear()} Disruptor. All rights reserved.
+        `.trim();
 }
 
 /**

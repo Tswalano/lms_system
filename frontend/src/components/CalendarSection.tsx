@@ -31,6 +31,31 @@ interface LeaveEvent extends Event {
     };
 }
 
+interface BirthdayEvent extends Event {
+    id: string;
+    title: string;
+    start: Date;
+    end: Date;
+    allDay: boolean;
+    resource: {
+        userId: number;
+        name: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        jobTitle: string;
+        profilePicture?: string;
+        age: number;
+        isToday: boolean;
+        type: 'birthday';
+        color: string;
+        bgColor: string;
+        avatar: string;
+    };
+}
+
+type CalendarEvent = LeaveEvent | BirthdayEvent;
+
 interface LeaveRequest {
     id: number;
     start_date: string;
@@ -46,6 +71,21 @@ interface LeaveRequest {
     role: string;
     jobTitle: string;
     employeeName: string;
+}
+
+interface Birthday {
+    id: string;
+    userId: number;
+    name: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    jobTitle: string;
+    profilePicture?: string;
+    dateOfBirth: string;
+    birthdayDate: string;
+    age: number;
+    isToday: boolean;
 }
 
 interface PublicHoliday {
@@ -64,15 +104,16 @@ interface ApiResponse {
         };
         leaveRequests: LeaveRequest[];
         publicHolidays: PublicHoliday[];
+        birthdays: Birthday[];
     };
 }
 
 const CalendarSection = () => {
-    const [selectedLeave, setSelectedLeave] = useState<LeaveEvent | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [, setShowMoreEvents] = useState<{ events: LeaveEvent[], date: Date, slot: Date } | null>(null);
-    const { authFetch } = useAuth()
+    const [, setShowMoreEvents] = useState<{ events: CalendarEvent[], date: Date, slot: Date } | null>(null);
+    const { authFetch, user } = useAuth()
     const { theme } = useTheme();
 
     // Calculate date range for current month
@@ -80,12 +121,12 @@ const CalendarSection = () => {
     const endOfMonth = moment(currentDate).endOf('month').format('YYYY-MM-DD');
 
     // Fetch function for React Query
-    const fetchLeaveData = async (startDate: string, endDate: string): Promise<ApiResponse> => {
+    const fetchCalendarData = async (startDate: string, endDate: string): Promise<ApiResponse> => {
         const params = new URLSearchParams();
         params.append('start_date', startDate);
         params.append('end_date', endDate);
 
-        const response = await authFetch(`/leave/leave-calendar?${params.toString()}`, {
+        const response = await authFetch(`/leave/leave-calendar-with-birthdays?${params.toString()}`, {
             method: 'GET',
         });
 
@@ -96,7 +137,7 @@ const CalendarSection = () => {
         const apiData: ApiResponse = await response.json();
 
         if (!apiData.success) {
-            throw new Error(apiData.message || 'Failed to fetch leave data');
+            throw new Error(apiData.message || 'Failed to fetch calendar data');
         }
 
         return apiData;
@@ -112,7 +153,7 @@ const CalendarSection = () => {
         isFetching
     } = useQuery({
         queryKey: ['leaveCalendar', startOfMonth, endOfMonth],
-        queryFn: () => fetchLeaveData(startOfMonth, endOfMonth),
+        queryFn: () => fetchCalendarData(startOfMonth, endOfMonth),
         staleTime: 5 * 60 * 1000,
         gcTime: 10 * 60 * 1000,
         retry: 3,
@@ -130,7 +171,6 @@ const CalendarSection = () => {
             { color: 'text-purple-600', bgColor: 'bg-purple-100' },
             { color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
             { color: 'text-indigo-600', bgColor: 'bg-indigo-100' },
-            { color: 'text-pink-600', bgColor: 'bg-pink-100' },
             { color: 'text-yellow-600', bgColor: 'bg-yellow-100' },
             { color: 'text-orange-600', bgColor: 'bg-orange-100' },
             { color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
@@ -153,13 +193,15 @@ const CalendarSection = () => {
         str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
     // Convert API data to calendar events with deduplication
-    const convertApiDataToEvents = (apiData: ApiResponse): LeaveEvent[] => {
-        // Create a Map to track unique events by ID to prevent duplicates
-        const uniqueEvents = new Map<number, LeaveEvent>();
+    const convertApiDataToEvents = (apiData: ApiResponse): CalendarEvent[] => {
+        const events: CalendarEvent[] = [];
+
+        // Convert leave requests to events
+        const uniqueLeaveEvents = new Map<number, LeaveEvent>();
 
         apiData.data.leaveRequests.forEach((request) => {
             // Skip if we've already processed this request ID
-            if (uniqueEvents.has(request.id)) {
+            if (uniqueLeaveEvents.has(request.id)) {
                 return;
             }
 
@@ -171,6 +213,7 @@ const CalendarSection = () => {
             // Handle dates
             const startDate = new Date(request.start_date);
             const endDate = new Date(request.end_date);
+            endDate.setDate(endDate.getDate() + 1);
 
             const event: LeaveEvent = {
                 id: request.id,
@@ -192,14 +235,47 @@ const CalendarSection = () => {
                 }
             };
 
-            uniqueEvents.set(request.id, event);
+            uniqueLeaveEvents.set(request.id, event);
         });
 
-        return Array.from(uniqueEvents.values());
+        events.push(...Array.from(uniqueLeaveEvents.values()));
+
+        // Convert birthdays to events
+        apiData.data.birthdays.forEach((birthday) => {
+            const birthdayDate = new Date(birthday.birthdayDate);
+            const avatar = getAvatar(birthday.firstName.toUpperCase(), birthday.lastName.toUpperCase());
+
+            const birthdayEvent: BirthdayEvent = {
+                id: birthday.id,
+                title: `🎂 ${birthday.name} (${birthday.age})`,
+                start: birthdayDate,
+                end: birthdayDate,
+                allDay: true,
+                resource: {
+                    userId: birthday.userId,
+                    name: birthday.name,
+                    firstName: birthday.firstName,
+                    lastName: birthday.lastName,
+                    email: birthday.email,
+                    jobTitle: birthday.jobTitle,
+                    profilePicture: birthday.profilePicture,
+                    age: birthday.age,
+                    isToday: birthday.isToday,
+                    type: 'birthday',
+                    color: 'text-pink-600',
+                    bgColor: 'bg-pink-100',
+                    avatar: avatar
+                }
+            };
+
+            events.push(birthdayEvent);
+        });
+
+        return events;
     };
 
     // Derived data
-    const leaveEvents = apiData ? convertApiDataToEvents(apiData) : [];
+    const allEvents = apiData ? convertApiDataToEvents(apiData) : [];
     const publicHolidays = apiData?.data.publicHolidays || [];
 
     // Check if a date is a public holiday
@@ -215,13 +291,13 @@ const CalendarSection = () => {
         return holiday ? toTitleCase(holiday.name) : '';
     };
 
-    const handleSelectEvent = (event: LeaveEvent) => {
-        setSelectedLeave(event);
+    const handleSelectEvent = (event: CalendarEvent) => {
+        setSelectedEvent(event);
         setIsDialogOpen(true);
     };
 
     // Handle "show more" popup
-    const handleShowMore = (events: LeaveEvent[], date: Date) => {
+    const handleShowMore = (events: CalendarEvent[], date: Date) => {
         setShowMoreEvents({ events, date, slot: date });
     };
 
@@ -229,10 +305,37 @@ const CalendarSection = () => {
         setCurrentDate(newDate);
     };
 
-    const eventStyleGetter = (event: LeaveEvent) => {
+    const eventStyleGetter = (event: CalendarEvent) => {
         const resource = event.resource;
         const isDarkMode = document.documentElement.classList.contains('dark');
 
+        // Special styling for birthdays
+        if ('type' in resource && resource.type === 'birthday') {
+            const isToday = true; //resource.isToday;
+            return {
+                style: {
+                    backgroundColor: isToday ? '#fce7f3' : '#fdf2f8',
+                    border: isToday ? '3px solid #ec4899' : '2px solid #f472b6',
+                    borderRadius: '8px',
+                    color: isDarkMode ? '#1f2937' : '#be185d',
+                    padding: '4px 8px',
+                    margin: '1px',
+                    fontWeight: '600',
+                    fontSize: '11px',
+                    boxShadow: isToday ? '0 4px 12px rgba(236, 72, 153, 0.3)' : '0 2px 8px rgba(244, 114, 182, 0.2)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    minHeight: '24px',
+                    overflow: 'hidden',
+                    animation: isToday ? 'birthday-glow 2s ease-in-out infinite alternate' : 'none'
+                }
+            };
+        }
+
+        // Original leave event styling
         const colorMap: { [key: string]: { bg: string; border: string; text: string; darkText: string } } = {
             'bg-red-100': { bg: '#fef2f2', border: '#f87171', text: '#dc2626', darkText: '#1f2937' },
             'bg-orange-100': { bg: '#fff7ed', border: '#fb923c', text: '#ea580c', darkText: '#1f2937' },
@@ -305,13 +408,29 @@ const CalendarSection = () => {
     };
 
     // Custom event component to show avatar and name
-    const EventComponent = ({ event }: { event: LeaveEvent }) => {
-        const duration = event.resource.duration;
+    const EventComponent = ({ event }: { event: CalendarEvent }) => {
+        const resource = event.resource;
 
+        // Birthday event component
+        if ('type' in resource && resource.type === 'birthday') {
+            return (
+                <div className="flex items-center gap-1 w-full">
+                    <span className="text-sm flex-shrink-0">
+                        🎂
+                    </span>
+                    <span className="text-xs font-medium truncate">
+                        {resource.name}
+                    </span>
+                </div>
+            );
+        }
+
+        // Leave event component
+        const duration = (resource as LeaveEvent['resource']).duration;
         return (
             <div className="flex items-center gap-1 w-full">
                 <span className="text-sm flex-shrink-0">
-                    {event.resource.avatar}
+                    {resource.avatar}
                 </span>
                 <span className="text-xs font-medium truncate">
                     {event.title}
@@ -379,6 +498,11 @@ const CalendarSection = () => {
         </div>
     );
 
+    // Type guard functions
+    const isBirthdayEvent = (event: CalendarEvent): event is BirthdayEvent => {
+        return 'type' in event.resource && event.resource.type === 'birthday';
+    };
+
     return (
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
             <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-slate-700">
@@ -399,10 +523,9 @@ const CalendarSection = () => {
                             <div className="w-3 h-3 bg-yellow-100 border-2 border-orange-400 rounded"></div>
                             <span className="text-gray-600 dark:text-gray-400">Public Holiday</span>
                         </div>
-                        {/* Birthdays */}
                         <div className="flex items-center gap-1">
                             <div className="w-3 h-3 bg-pink-100 border border-pink-300 rounded"></div>
-                            <span className="text-gray-600 dark:text-gray-400">Birthdays</span>
+                            <span className="text-gray-600 dark:text-gray-400">Birthday</span>
                         </div>
                     </div>
                 </div>
@@ -447,10 +570,9 @@ const CalendarSection = () => {
                             </div>
                         )}
 
-
                         <Calendar
                             localizer={localizer}
-                            events={leaveEvents}
+                            events={allEvents}
                             startAccessor="start"
                             endAccessor="end"
                             onSelectEvent={handleSelectEvent}
@@ -482,30 +604,59 @@ const CalendarSection = () => {
                 )}
             </div>
 
-            {/* Enhanced Custom Modal */}
-            {isDialogOpen && selectedLeave && (
+            {/* Enhanced Custom Modal for both leave and birthday events */}
+            {isDialogOpen && selectedEvent && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
                     <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden transform animate-in zoom-in-95 duration-300 border border-gray-200/50 dark:border-slate-600/50">
-                        {/* Header with subtle background */}
-                        <div className="relative p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
+                        {/* Header with conditional styling for birthdays */}
+                        <div className={`relative p-6 border-b border-gray-200/50 dark:border-slate-600/50 ${isBirthdayEvent(selectedEvent)
+                            ? 'bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20'
+                            : 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600'
+                            }`}>
                             <div className="relative flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="relative">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-800 dark:from-gray-400 dark:to-gray-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg transform hover:scale-105 transition-transform duration-300">
-                                            {selectedLeave.resource.avatar}
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg transform hover:scale-105 transition-transform duration-300 ${isBirthdayEvent(selectedEvent)
+                                            ? 'bg-gradient-to-br from-pink-500 to-pink-700'
+                                            : 'bg-gradient-to-br from-gray-600 to-gray-800 dark:from-gray-400 dark:to-gray-600'
+                                            }`}>
+                                            {isBirthdayEvent(selectedEvent) ? '🎂' : selectedEvent.resource.avatar}
                                         </div>
+                                        {isBirthdayEvent(selectedEvent) && selectedEvent.resource.isToday && (
+                                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
+                                                <span className="text-xs">✨</span>
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                                            {selectedLeave.resource.name}
+                                            {selectedEvent.resource.name}
                                         </h3>
                                         <div className="flex items-center gap-2">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                                                {selectedLeave.resource.type}
-                                            </span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                {selectedLeave.resource.duration} day{selectedLeave.resource.duration > 1 ? 's' : ''} - {selectedLeave.allDay ? 'Full Day' : 'Half Day'}
-                                            </span>
+                                            {isBirthdayEvent(selectedEvent) ? (
+                                                <>
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">
+                                                        🎉 Birthday
+                                                    </span>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                        Turning {selectedEvent.resource.age}
+                                                    </span>
+                                                    {selectedEvent.resource.isToday && (
+                                                        <span className="text-xs font-bold text-pink-600 dark:text-pink-400 animate-pulse">
+                                                            Today! 🎈
+                                                        </span>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                                                        {(selectedEvent as LeaveEvent).resource.type}
+                                                    </span>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                        {(selectedEvent as LeaveEvent).resource.duration} day{(selectedEvent as LeaveEvent).resource.duration > 1 ? 's' : ''} - {selectedEvent.allDay ? 'Full Day' : 'Half Day'}
+                                                    </span>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -518,58 +669,103 @@ const CalendarSection = () => {
                             </div>
                         </div>
 
-                        {/* Content with enhanced styling */}
                         <div className="p-6 space-y-5 bg-gradient-to-b from-gray-50/30 to-white dark:from-slate-800/30 dark:to-slate-800">
-                            {/* Approved By */}
-                            <div className="bg-white dark:bg-slate-700/50 rounded-2xl p-4 border border-gray-100 dark:border-slate-600/30 hover:shadow-md transition-shadow duration-200">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-500/20 rounded-lg flex items-center justify-center">
-                                        <span className="text-blue-600 dark:text-blue-300 text-lg">👤</span>
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Approved By</p>
-                                        <p className="text-sm text-gray-800 dark:text-gray-200 font-semibold">
-                                            {selectedLeave.resource.approvedBy || 'Pending'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Start and End Date */}
-                            <div className="bg-white dark:bg-slate-700/50 rounded-2xl p-4 border border-gray-100 dark:border-slate-600/30 hover:shadow-md transition-shadow duration-200">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-green-100 dark:bg-green-500/20 rounded-lg flex items-center justify-center">
-                                        <span className="text-green-600 dark:text-green-300 text-lg">🗓️</span>
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Duration</p>
-                                        <p className="text-sm text-gray-800 dark:text-gray-200 font-semibold">
-                                            {moment(selectedLeave.start).format('MMM DD, YYYY')} - {moment(selectedLeave.end).format('MMM DD, YYYY')}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Description Card (if exists) */}
-                            {selectedLeave.resource.description && (
-                                <div className="bg-gray-50 dark:bg-slate-700/30 rounded-2xl p-4 border border-gray-200 dark:border-slate-600/30">
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-10 h-10 bg-gray-100 dark:bg-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                                            <span className="text-gray-600 dark:text-gray-300 text-sm font-semibold">📝</span>
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Description</p>
-                                            <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{selectedLeave.resource.description}</p>
+                            {isBirthdayEvent(selectedEvent) ? (
+                                // Birthday event details
+                                <>
+                                    <div className="bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-900/10 dark:to-purple-900/10 rounded-2xl p-4 border border-pink-200 dark:border-pink-800/30">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-pink-200 dark:bg-pink-600/30 rounded-lg flex items-center justify-center">
+                                                <span className="text-pink-600 dark:text-pink-300 text-lg">🎈</span>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-xs font-medium text-pink-600 dark:text-pink-400 uppercase tracking-wide">Birthday Message</p>
+                                                {user && String(user.id) === String(selectedEvent.resource.userId) ? (
+                                                    <p className="text-sm text-pink-800 dark:text-pink-200 font-semibold">
+                                                        {selectedEvent.resource.isToday
+                                                            ? `🎉 Happy Birthdayyy ${selectedEvent.resource.firstName}, Wishing you a fantastic day!`
+                                                            : `It's Your Birthday ${selectedEvent.resource.firstName} on ${moment(selectedEvent.start).format('MMMM Do')}`
+                                                        }
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                                                        {selectedEvent.resource.isToday
+                                                            ? `🎉 Happy Birthday ${selectedEvent.resource.firstName}! Wishing a fantastic day!`
+                                                            : `🎂 ${selectedEvent.resource.firstName} turns ${selectedEvent.resource.age} on ${moment(selectedEvent.start).format('MMMM Do')}`
+                                                        }
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                </>
+                            ) : (
+                                // Leave event details (existing)
+                                <>
+                                    <div className="bg-white dark:bg-slate-700/50 rounded-2xl p-4 border border-gray-100 dark:border-slate-600/30 hover:shadow-md transition-shadow duration-200">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                                <span className="text-blue-600 dark:text-blue-300 text-lg">👤</span>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Approved By</p>
+                                                <p className="text-sm text-gray-800 dark:text-gray-200 font-semibold">
+                                                    {selectedEvent.resource.approvedBy || 'Pending'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white dark:bg-slate-700/50 rounded-2xl p-4 border border-gray-100 dark:border-slate-600/30 hover:shadow-md transition-shadow duration-200">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 bg-green-100 dark:bg-green-500/20 rounded-lg flex items-center justify-center">
+                                                <span className="text-green-600 dark:text-green-300 text-lg">🗓️</span>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Duration</p>
+                                                <p className="text-sm text-gray-800 dark:text-gray-200 font-semibold">
+                                                    {moment(selectedEvent.start).format('MMM DD, YYYY')} - {moment(selectedEvent.end).format('MMM DD, YYYY')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Description Card (if exists) */}
+                                    {selectedEvent.resource.description && (
+                                        <div className="bg-gray-50 dark:bg-slate-700/30 rounded-2xl p-4 border border-gray-200 dark:border-slate-600/30">
+                                            <div className="flex items-start gap-3">
+                                                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                    <span className="text-gray-600 dark:text-gray-300 text-sm font-semibold">📝</span>
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Description</p>
+                                                    <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{selectedEvent.resource.description}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
 
                         {/* Footer with action buttons */}
                         <div className="p-4 bg-gray-50 dark:bg-slate-700/30 border-t border-gray-100 dark:border-slate-600/30">
                             <div className="flex gap-2">
-                                <button onClick={() => setIsDialogOpen(false)} className="flex-1 bg-gray-800 hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-white font-medium py-2.5 px-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl">
+                                {isBirthdayEvent(selectedEvent) && (
+                                    <button
+                                        onClick={() => {
+                                            // Could implement send birthday message functionality
+                                            console.log('Send birthday message to:', selectedEvent.resource.email);
+                                        }}
+                                        className="flex-1 bg-pink-500 hover:bg-pink-600 text-white font-medium py-2.5 px-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl mr-2"
+                                    >
+                                        🎉 Send Wishes
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setIsDialogOpen(false)}
+                                    className="flex-1 bg-gray-800 hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-white font-medium py-2.5 px-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                                >
                                     Close
                                 </button>
                             </div>
@@ -580,6 +776,12 @@ const CalendarSection = () => {
 
             <style>
                 {`
+                /* Birthday glow animation */
+                @keyframes birthday-glow {
+                    0% { box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3); }
+                    100% { box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5); }
+                }
+
                 /* Increased calendar height and day block sizes - Conservative approach */
                 .rbc-calendar {
                     min-height: 500px;

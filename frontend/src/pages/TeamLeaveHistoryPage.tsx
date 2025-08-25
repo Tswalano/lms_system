@@ -15,6 +15,7 @@ interface User {
     role: string;
     dob: string | null;
     gender: string;
+    department: string | null;
     phoneNumber: string;
     createdAt: string;
     updatedAt: string;
@@ -578,7 +579,7 @@ const TeamListLeaveHistoryPage = () => {
                             )}
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
                             {filteredUsers.map((user) => (
                                 <div
                                     key={user.id}
@@ -597,7 +598,7 @@ const TeamListLeaveHistoryPage = () => {
                                                 </h3>
                                                 <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 mb-2">
                                                     <Briefcase className="w-3 h-3 flex-shrink-0" />
-                                                    <p className="text-sm font-medium truncate">{user.jobTitle}</p>
+                                                    <p className="text-sm font-medium truncate">{user.jobTitle} - {user.department ?? 'Unknown Department'}</p>
                                                 </div>
                                             </div>
                                         </div>
