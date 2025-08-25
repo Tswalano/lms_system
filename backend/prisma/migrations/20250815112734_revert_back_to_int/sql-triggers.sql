@@ -113,7 +113,11 @@ BEGIN
         VALUES (
             NEW.uid,                       -- notify the employee
             NEW.approved_by,               -- approver (could be NULL if system)
-            IF(NEW.status = 'approved', 'rejected', 'cancelled'),
+            CASE 
+                WHEN NEW.status = 'approved' THEN 'approved'
+                WHEN NEW.status = 'rejected' THEN 'rejected'
+                ELSE 'cancelled'
+            END,
             'leave_management',
             CONCAT('Leave Request ', UPPER(NEW.status)),
             CONCAT('Your leave request from ',
@@ -124,8 +128,8 @@ BEGIN
             'leave_request',
             NOW(),
             NOW()
-        );
-    END IF;
+        )$$
+    END IF$$
 END$$
 
 DELIMITER;
