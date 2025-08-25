@@ -94,3 +94,27 @@ GROUP BY
 ORDER BY signature_percentage ASC;
 
 Select * from notifications;
+
+
+-- TODO Suggest this:
+CREATE TRIGGER before_document_update
+BEFORE UPDATE ON documents
+FOR EACH ROW
+BEGIN
+    INSERT INTO document_versions (
+        document_id, name, content, version_type, version_date
+    ) VALUES (
+        OLD.id, OLD.name, OLD.content, 'updated', NOW()
+    );
+END;
+
+CREATE TRIGGER before_document_delete
+BEFORE DELETE ON documents
+FOR EACH ROW
+BEGIN
+    INSERT INTO document_versions (
+        document_id, name, content, version_type, version_date
+    ) VALUES (
+        OLD.id, OLD.name, OLD.content, 'deleted', NOW()
+    );
+END;
