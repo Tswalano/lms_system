@@ -26,7 +26,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import DocumentViewer from '@/components/DocumentViewer';
 import { toast } from 'sonner';
-import { formatDate } from '@/lib/helper';
+import { dateToNextYear, formatDate } from '@/lib/helper';
 
 // Interface for API Response
 interface ApiResponse {
@@ -629,7 +629,7 @@ const EmployeeDocumentsPage: FC = () => {
                                         Category
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Cycle
+                                        Next Signature Due
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                         Status
@@ -665,7 +665,7 @@ const EmployeeDocumentsPage: FC = () => {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className="text-sm text-gray-900 dark:text-white">
-                                                    Monthly
+                                                    {dateToNextYear(doc.signedDate)}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
@@ -696,7 +696,7 @@ const EmployeeDocumentsPage: FC = () => {
                                                     <button
                                                         onClick={() => handleViewDocument(doc)}
                                                         disabled={documentViewMutation.isPending && selectedDocument?.id === doc.id}
-                                                        className="p-2 text-gray-400 hover:text-cyan-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        className="p-2 text-cyan-400 hover:text-cyan-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                         title="View Document"
                                                     >
                                                         {documentViewMutation.isPending && selectedDocument?.id === doc.id ? (
@@ -707,7 +707,7 @@ const EmployeeDocumentsPage: FC = () => {
                                                     </button>
                                                     <button
                                                         onClick={() => handleDownloadDocument(doc)}
-                                                        className="p-2 text-gray-400 hover:text-green-500 transition-colors"
+                                                        className="p-2 text-green-400 hover:text-green-500 transition-colors"
                                                         title="Download"
                                                     >
                                                         <Download className="w-4 h-4" />
