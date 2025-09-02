@@ -39,14 +39,6 @@ interface AddDocumentModalProps {
     isLoading?: boolean;
 }
 
-const renewalFrequencies = [
-    { id: 1, name: 'Weekly' },
-    { id: 2, name: 'Monthly' },
-    { id: 3, name: 'Quarterly' },
-    { id: 4, name: 'Bi-Annually' },
-    { id: 6, name: 'Never', className: 'text-gray-400 dark:text-gray-500' }
-];
-
 const AddDocumentModal: React.FC<AddDocumentModalProps> = ({
     isOpen,
     onClose,
@@ -138,31 +130,6 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({
                             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-lg"
                             placeholder="Enter document name"
                         />
-                    </div>
-
-                    <div>
-                        <Label htmlFor="renewal-frequency" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                            Renewal Frequency
-                        </Label>
-                        <Select
-                            value={documentData.expiryFrequency}
-                            onValueChange={(value) => setDocumentData(prev => ({ ...prev, expiryFrequency: value }))}
-                        >
-                            <SelectTrigger id='renewal-frequency' className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600">
-                                <SelectValue placeholder="Select renewal frequency" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
-                                {renewalFrequencies.map((renewal) => (
-                                    <SelectItem
-                                        className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
-                                        key={renewal.id}
-                                        value={renewal.name}
-                                    >
-                                        {renewal.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
                     </div>
 
                     <div>

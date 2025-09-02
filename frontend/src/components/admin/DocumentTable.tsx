@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Eye, Edit3, Download, Trash2 } from 'lucide-react';
+import { FileText, Eye, Edit3, Trash2 } from 'lucide-react';
 
 interface DocumentType {
     id: number;
@@ -43,7 +43,6 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     title,
     onView,
     onEdit,
-    onDownload,
     onDelete
 }) => {
     if (documents.length === 0) {
@@ -146,28 +145,21 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                                     <div className="flex items-center justify-end gap-2">
                                         <button
                                             onClick={() => onView(doc)}
-                                            className="text-gray-500 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+                                            className="text-cyan-500 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
                                             title="View Document"
                                         >
                                             <Eye className="w-5 h-5" />
                                         </button>
                                         <button
                                             onClick={() => onEdit(doc)}
-                                            className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                            className="text-green-500 hover:text-green-600 dark:hover:text-green-400 transition-colors"
                                             title="Edit Document"
                                         >
                                             <Edit3 className="w-5 h-5" />
                                         </button>
                                         <button
-                                            onClick={() => onDownload(doc)}
-                                            className="text-gray-500 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                                            title="Download Document"
-                                        >
-                                            <Download className="w-5 h-5" />
-                                        </button>
-                                        <button
                                             onClick={() => onDelete(doc.id)}
-                                            className="text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                                            className="text-red-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                                             title="Delete Document"
                                         >
                                             <Trash2 className="w-5 h-5" />

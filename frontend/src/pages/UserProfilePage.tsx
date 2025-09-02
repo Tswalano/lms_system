@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Mail, Phone, Lock, Edit2, Save, X, Eye, EyeOff, Camera, Loader2, Calendar as CalendarIcon, Users2, Info } from 'lucide-react';
+import { User, Mail, Phone, Lock, Edit2, Save, X, Eye, EyeOff, Camera, Loader2, Calendar as CalendarIcon, Users2, Info, Clock } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover';
 import { cn } from '@/lib/utils';
-import { formatDate } from '@/lib/helper';
+import { formatDate, timeAgo } from '@/lib/helper';
 
 interface LeaveData {
     leave_type: string;
@@ -25,6 +25,7 @@ interface UserPayload {
     jobTitle: string;
     dob: string | null;
     gender: string;
+    department: string;
     phoneNumber: string;
     createdAt: string;
     updatedAt: string;
@@ -322,13 +323,12 @@ const UserProfilePage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Profile Card */}
                 <div className="lg:col-span-1 space-y-6">
+                    {/* Profile Card */}
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6">
                         <div className="text-center">
                             <div className="relative inline-block mb-4">
-                                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                                    <span className="text-white font-bold text-2xl">
-                                        {getInitials(profileData.firstName, profileData.lastName)}
-                                    </span>
+                                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-2xl font-bold text-white">
+                                    {getInitials(profileData.firstName, profileData.lastName)}
                                 </div>
                                 {isEditing && (
                                     <button className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center transition-colors">
@@ -339,9 +339,9 @@ const UserProfilePage: React.FC = () => {
                             <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-1">
                                 {profileData.firstName} {profileData.lastName}
                             </h3>
-                            <p className="text-gray-600 dark:text-gray-400 mb-3">{profileData.jobTitle}</p>
+                            <p className="text-gray-600 dark:text-gray-400 mb-2">{profileData.jobTitle}</p>
                             <Badge className={getRoleBadgeColor(userData.role)}>
-                                {userData.role.charAt(0).toUpperCase() + userData.role.slice(1)}
+                                {userData.role.charAt(0).toUpperCase() + userData.role.slice(1)} - {userData.department || 'Not assigned'}
                             </Badge>
                         </div>
                     </div>
@@ -355,7 +355,10 @@ const UserProfilePage: React.FC = () => {
                             </h4>
                             <div className="space-y-3">
                                 {userData.leaveData.map((leave, index) => (
-                                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                                    <div
+                                        key={index}
+                                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-lg"
+                                    >
                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                             {leave.leave_type}
                                         </span>
@@ -368,6 +371,7 @@ const UserProfilePage: React.FC = () => {
                         </div>
                     )}
                 </div>
+
 
                 {/* Profile Details */}
                 <div className="lg:col-span-2 space-y-6">
@@ -578,21 +582,54 @@ const UserProfilePage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Account Info */}
-                        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-600">
-                            <h5 className="text-md font-semibold text-gray-800 dark:text-gray-200 mb-4">Account Information</h5>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Account Created
-                                    </label>
-                                    <p className="text-gray-900 dark:text-gray-100 py-2">{formatDate(userData.createdAt)}</p>
+                        {/* Account Info - Redesigned */}
+                        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-slate-600">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                                    <Users2 className="w-5 h-5 text-white" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Last Updated
-                                    </label>
-                                    <p className="text-gray-900 dark:text-gray-100 py-2">{formatDate(userData.updatedAt)}</p>
+                                    <h5 className="text-lg font-bold text-gray-800 dark:text-gray-200">Account Information</h5>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">Your account details and organizational information</p>
+                                </div>
+                            </div>
+
+                            {/* Account Info Cards Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Account Created Card */}
+                                <div className="rounded-xl p-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-blue-500/10 dark:bg-blue-400/20 rounded-lg flex items-center justify-center">
+                                            <CalendarIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Account Created</p>
+                                            <p className="text-base font-bold text-blue-900 dark:text-blue-100 mt-1">
+                                                {formatDate(userData.createdAt)}
+                                            </p>
+                                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                                {timeAgo(userData.createdAt)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Last Updated Card */}
+                                <div className="rounded-xl p-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-blue-500/10 dark:bg-blue-400/20 rounded-lg flex items-center justify-center">
+                                            <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Last Updated</p>
+                                            <p className="text-base font-bold text-blue-900 dark:text-blue-100 mt-1">
+                                                {formatDate(userData.updatedAt)}
+                                            </p>
+                                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                                {timeAgo(userData.updatedAt)}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -439,7 +439,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     {/* Subtitle */}
                     <p className="text-sm lg:text-lg text-gray-600 dark:text-gray-300 mt-3 lg:mt-4 font-medium">
                         {user && user.dob === new Date().getFullYear().toString() ? `🎉 Happy Birthday ${user?.firstName} ${user?.lastName}! Wishing a fantastic day!`
-                            : 'Welcome back to Disraptor Hub!'}
+                            : 'Welcome back to Disraptor LMS Hub!'}
                     </p>
                 </div>
             </div>

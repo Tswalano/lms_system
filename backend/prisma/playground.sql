@@ -95,7 +95,6 @@ ORDER BY signature_percentage ASC;
 
 Select * from notifications;
 
-
 -- TODO Suggest this:
 CREATE TRIGGER before_document_update
 BEFORE UPDATE ON documents
@@ -118,3 +117,7 @@ BEGIN
         OLD.id, OLD.name, OLD.content, 'deleted', NOW()
     );
 END;
+
+SELECT u.*, d.name as department, d.description
+FROM users u
+    JOIN departments d ON u.departmentId = d.id

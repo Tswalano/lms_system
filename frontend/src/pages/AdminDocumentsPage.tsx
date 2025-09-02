@@ -8,6 +8,7 @@ import type { User } from "../contexts/AuthContext";
 import { createAvatar } from '@/lib/helper';
 import DocumentViewModal from '@/components/admin/DocumentViewModal';
 import AddDocumentModal from '@/components/admin/AddDocumentModal';
+import EditDocumentModal from '@/components/admin/EditDocumentModal'; // Import the new modal
 import DocumentTable from '@/components/admin/DocumentTable';
 import FolderManager from '@/components/admin/FolderManager';
 import ConfirmationModal from '@/components/ConfirmationModal';
@@ -94,6 +95,16 @@ interface NewDocumentState {
     status: 'active' | 'draft' | 'archived';
 }
 
+interface EditDocumentState {
+    name: string;
+    folder: string;
+    expiryFrequency: string;
+    file?: File | null;
+    url?: string | null;
+    status: 'active' | 'draft' | 'archived';
+    keepExistingFile: boolean;
+}
+
 interface NewFolderState {
     name: string;
     departmentId: number;
@@ -107,11 +118,13 @@ const AdminDocumentsPage: FC = () => {
     // Component state
     const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
     const [showAddDocumentModal, setShowAddDocumentModal] = useState<boolean>(false);
+    const [showEditDocumentModal, setShowEditDocumentModal] = useState<boolean>(false); // Add edit modal state
     const [showCreateFolderModal, setShowCreateFolderModal] = useState<boolean>(false);
     const [showViewModal, setShowViewModal] = useState<boolean>(false);
     const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
     const [selectedDocument, setSelectedDocument] = useState<DocumentType | null>(null);
     const [documentToDelete, setDocumentToDelete] = useState<DocumentType | null>(null);
+    const [documentToEdit, setDocumentToEdit] = useState<DocumentType | null>(null); // Add edit document state
 
     // Local state for folders, documents, and departments
     const [folders, setFolders] = useState<FolderType[]>([]);
@@ -322,6 +335,67 @@ const AdminDocumentsPage: FC = () => {
         onError: (error: Error) => {
             toast.error("Error adding document", {
                 description: error.message || "Failed to add document. Please try again.",
+            });
+        }
+    });
+
+    // Add edit document mutation
+    const editDocumentMutation = useMutation({
+        mutationFn: async ({ documentId, documentPayload }: { documentId: number, documentPayload: any }) => {
+            const response = await authFetch(`/admin-docs/${documentId}`, {
+                method: 'PUT',
+                body: JSON.stringify(documentPayload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (responsePayload, { documentId, documentPayload }) => {
+            // Update the document in the local state
+            const selectedFolderObj = folders.find(f => f.id.toString() === documentPayload.folder.toString());
+            const folderName = selectedFolderObj ? selectedFolderObj.name : 'Unknown Folder';
+
+            setAllDocuments(prev => prev.map(doc => {
+                if (doc.id === documentId) {
+                    return {
+                        ...doc,
+                        name: documentPayload.name,
+                        status: documentPayload.status,
+                        folder: folderName,
+                        category: folderName,
+                        size: documentPayload.size || doc.size,
+                        fileUrl: documentPayload.fileUrl || documentPayload.finalUrl || doc.fileUrl,
+                    };
+                }
+                return doc;
+            }));
+
+            // Update folder counts if folder changed
+            setFolders(prev => prev.map(folder => {
+                const folderDocuments = allDocuments.filter(doc =>
+                    doc.id === documentId ? folderName === folder.name : doc.folder === folder.name
+                );
+                return {
+                    ...folder,
+                    fileCount: folderDocuments.length,
+                    totalSize: calculateTotalSize(folderDocuments)
+                };
+            }));
+
+            setShowEditDocumentModal(false);
+            setDocumentToEdit(null);
+
+            toast.success("Document updated successfully!", {
+                description: `Document "${documentPayload.name}" has been updated.`,
+            });
+        },
+        onError: (error: Error) => {
+            toast.error("Error updating document", {
+                description: error.message || "Failed to update document. Please try again.",
             });
         }
     });
@@ -549,6 +623,72 @@ const AdminDocumentsPage: FC = () => {
         }
     };
 
+    // Add edit document handler
+    const handleEditDocument = async (documentId: number, documentData: EditDocumentState): Promise<void> => {
+        // Validation
+        if (!documentData.name.trim() || !documentData.folder) {
+            toast.error("Validation Error", {
+                description: "Document name and folder are required.",
+            });
+            return;
+        }
+
+        // Check file/URL logic
+        const hasFile = !!documentData.file;
+        const hasUrl = !!documentData.url?.trim();
+        const keepExisting = documentData.keepExistingFile;
+
+        if (!hasFile && !hasUrl && !keepExisting) {
+            toast.error("Validation Error", {
+                description: "Please either keep the existing file, upload a new file, or provide a URL.",
+            });
+            return;
+        }
+
+        if ((hasFile && hasUrl) || (hasFile && keepExisting) || (hasUrl && keepExisting)) {
+            toast.error("Validation Error", {
+                description: "Please select only one option: keep existing, upload file, or provide URL.",
+            });
+            return;
+        }
+
+        // Validate URL format if URL is provided
+        if (hasUrl && !isValidUrl(documentData.url!)) {
+            toast.error("Validation Error", {
+                description: "Please enter a valid URL (must start with http:// or https://).",
+            });
+            return;
+        }
+
+        try {
+            const documentPayload: any = {
+                name: documentData.name,
+                folder: documentData.folder,
+                status: documentData.status,
+                keepExistingFile: keepExisting
+            };
+
+            if (hasUrl) {
+                documentPayload.fileUrl = documentData.url;
+                documentPayload.size = 'External Link';
+                documentPayload.mimeType = 'text/html';
+                documentPayload.fileBase64 = null;
+            } else if (hasFile) {
+                const fileBase64 = await getDocumentBase64(documentData.file!);
+                documentPayload.size = `${Math.round(documentData.file!.size / 1024)} KB`;
+                documentPayload.mimeType = documentData.file!.type || 'application/octet-stream';
+                documentPayload.fileBase64 = fileBase64 ? fileBase64.split(",")[1] : null;
+            }
+
+            editDocumentMutation.mutate({ documentId, documentPayload });
+        } catch (error) {
+            console.error('Error processing document update:', error);
+            toast.error("Error updating document", {
+                description: "Failed to process the document update. Please try again.",
+            });
+        }
+    };
+
     const handleViewDocument = (doc: DocumentType): void => {
         setSelectedDocument(doc);
         setShowViewModal(true);
@@ -566,10 +706,10 @@ const AdminDocumentsPage: FC = () => {
         console.log(`Opening ${doc.name} in a new tab...`);
     };
 
-    const handleEditDocument = (doc: DocumentType): void => {
-        // For now, we'll just show the view modal
-        // You can implement a separate EditDocumentModal later
-        handleViewDocument(doc);
+    // Update the edit handler to open the edit modal
+    const handleEditDocumentClick = (doc: DocumentType): void => {
+        setDocumentToEdit(doc);
+        setShowEditDocumentModal(true);
     };
 
     const handleDeleteDocument = (docId: number): void => {
@@ -664,7 +804,7 @@ const AdminDocumentsPage: FC = () => {
                         documents={filteredDocuments}
                         title={documentTableTitle}
                         onView={handleViewDocument}
-                        onEdit={handleEditDocument}
+                        onEdit={handleEditDocumentClick} // Use the new handler
                         onDownload={handleDownloadDocument}
                         onDelete={handleDeleteDocument}
                     />
@@ -678,6 +818,19 @@ const AdminDocumentsPage: FC = () => {
                 onSubmit={handleAddDocument}
                 folders={folders}
                 isLoading={createDocumentMutation.isPending}
+            />
+
+            {/* Edit Document Modal */}
+            <EditDocumentModal
+                isOpen={showEditDocumentModal}
+                onClose={() => {
+                    setShowEditDocumentModal(false);
+                    setDocumentToEdit(null);
+                }}
+                onSubmit={handleEditDocument}
+                folders={folders}
+                document={documentToEdit}
+                isLoading={editDocumentMutation.isPending}
             />
 
             {/* Create Folder Modal */}

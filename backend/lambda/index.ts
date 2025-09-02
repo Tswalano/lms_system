@@ -63,7 +63,7 @@ app.route('/test', testRoutes);
 app.get('/', (c) => {
     return c.json({
         message: 'Welcome to the Leave Management System API',
-        service: 'Leave Management System API',
+        service: 'Disraptor LMS API',
         timestamp: new Date().toISOString(),
         version: '1.0.0'
     });
@@ -89,7 +89,7 @@ app.get('/health', async (c) => {
 
         return c.json({
             status: 'healthy',
-            service: 'Leave Management System API',
+            service: 'Disraptor LMS API',
             timestamp: new Date().toISOString(),
             version: '1.0.0',
             database: 'connected'
@@ -100,7 +100,7 @@ app.get('/health', async (c) => {
         if (error.code === 'ER_ACCESS_DENIED_ERROR') {
             return c.json({
                 status: 'unhealthy',
-                service: 'Leave Management System API',
+                service: 'Disraptor LMS API',
                 timestamp: new Date().toISOString(),
                 version: '1.0.0',
                 database: 'disconnected',
@@ -109,7 +109,7 @@ app.get('/health', async (c) => {
         }
         return c.json({
             status: 'unhealthy',
-            service: 'Leave Management System API',
+            service: 'Disraptor LMS API',
             timestamp: new Date().toISOString(),
             version: '1.0.0',
             database: 'disconnected',
