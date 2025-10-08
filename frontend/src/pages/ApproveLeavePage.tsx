@@ -54,7 +54,7 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, employeeName, leaveTy
 
     useEffect(() => {
         setComment(
-            action === 'approve' || action === 'Approved'
+            action.toLocaleLowerCase() === 'approve' || action.toLocaleLowerCase() === 'Approved'
                 ? `Leave request created by ${employeeName} for ${leaveType} has been approved. `
                 : `Leave request created by ${employeeName} for ${leaveType} has been rejected. `
         );
