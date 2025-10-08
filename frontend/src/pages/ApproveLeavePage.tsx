@@ -43,7 +43,7 @@ interface CommentModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (comment: string) => void;
-    action: 'approve' | 'reject';
+    action: 'Approved' | 'Rejected' | 'approve' | 'reject';
     employeeName: string;
     leaveType: string;
     isSubmitting: boolean;
@@ -54,11 +54,11 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, employeeName, leaveTy
 
     useEffect(() => {
         setComment(
-            action === 'approve'
-                ? 'Leave approved. Enjoy your time off!'
-                : 'Leave request has been reviewed and rejected. Please contact your manager for more information.'
+            action === 'approve' || action === 'Approved'
+                ? `Leave request created by ${employeeName} for ${leaveType} has been approved. `
+                : `Leave request created by ${employeeName} for ${leaveType} has been rejected. `
         );
-    }, [action]);
+    }, [action, employeeName, leaveType]);
 
     const handleSubmit = () => {
         onSubmit(comment);
