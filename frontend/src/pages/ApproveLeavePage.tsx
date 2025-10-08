@@ -251,9 +251,13 @@ const ApproveLeavePage = () => {
             queryClient.invalidateQueries({ queryKey: ['teamAvailability'] });
             queryClient.invalidateQueries({ queryKey: ['leaveCalendar'] });
 
-            toast(`Leave ${variables.action === 'approve' ? 'Approved' : 'Rejected'}`, {
-                description: `The leave request has been ${variables.action === 'approve' ? 'approved' : 'rejected'} successfully.`,
+            const isApproved = variables.action.toLowerCase() === 'approve' || variables.action.toLowerCase() === 'approved';
+            const status = isApproved ? 'Approved' : 'Rejected';
+
+            toast(`Leave ${status}`, {
+                description: `The leave request has been ${status.toLowerCase()} successfully.`,
             });
+
 
             setIsModalOpen(false);
             setSelectedRequest(null);
