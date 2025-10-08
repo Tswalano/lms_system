@@ -54,11 +54,11 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, employeeName, leaveTy
 
     useEffect(() => {
         setComment(
-            action.toLocaleLowerCase() === 'approve' || action.toLocaleLowerCase() === 'Approved'
-                ? `Leave request created by ${employeeName} for ${leaveType} has been approved. `
-                : `Leave request created by ${employeeName} for ${leaveType} has been rejected. `
+            action === 'approve'
+                ? 'Leave approved. Enjoy your time off!'
+                : 'Leave request has been reviewed and rejected. Please contact your manager for more information.'
         );
-    }, [action, employeeName, leaveType]);
+    }, [action]);
 
     const handleSubmit = () => {
         onSubmit(comment);
