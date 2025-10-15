@@ -8,23 +8,23 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: "Deployment environment"
         required: true
-        default: 'prod'
+        default: "prod"
         type: choice
         options:
           - dev
           - prod
       action:
-        description: 'Deploy or Destroy'
+        description: "Deploy or Destroy"
         required: true
-        default: 'deploy'
+        default: "deploy"
         type: choice
         options:
           - deploy
           - destroy
   release:
-    types: [published]
+    types: [ published ]
 
 jobs:
   detect-changes:
@@ -43,7 +43,7 @@ jobs:
           FRONTEND=false
           BACKEND=false
           BRANCH=${GITHUB_REF##*/}
-          
+
           # Handle case where there's no previous commit (first push)
           if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ] || [ -z "${{ github.event.before }}" ]; then
             echo "First push detected, checking all files"
@@ -55,10 +55,10 @@ jobs:
               git diff --name-only HEAD~1 HEAD > changes.txt 2>/dev/null || git ls-tree -r --name-only HEAD > changes.txt
             fi
           fi
-          
+
           echo "Changed files:"
           cat changes.txt
-          
+
           if grep -q "^frontend/" changes.txt; then 
             FRONTEND=true
             echo "Frontend changes detected"
@@ -67,14 +67,14 @@ jobs:
             BACKEND=true
             echo "Backend changes detected"
           fi
-          
+
           echo "frontend=$FRONTEND" >> $GITHUB_OUTPUT
           echo "backend=$BACKEND" >> $GITHUB_OUTPUT
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
           echo "Frontend: $FRONTEND, Backend: $BACKEND, Branch: $BRANCH"
-    
+
   semantic-release:
-    needs: [detect-changes]
+    needs: [ detect-changes ]
     if: |
       github.event_name == 'push' && 
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') &&
@@ -91,7 +91,7 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
       - uses: actions/setup-node@v3
         with:
-          node-version: '20.9.0'
+          node-version: "20.9.0"
       - run: npm ci
       - name: Run semantic-release
         id: semantic
@@ -99,11 +99,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           echo "Running semantic-release on branch: ${GITHUB_REF##*/}"
-          
+
           # Run semantic-release and capture output
           npx semantic-release --dry-run=false > semantic-output.log 2>&1 || true
           cat semantic-output.log
-          
+
           # Check if a release was published
           if grep -q "Published release" semantic-output.log; then
             echo "new-release-published=true" >> $GITHUB_OUTPUT
@@ -131,7 +131,7 @@ jobs:
           fi
 
   frontend-deploy:
-    needs: [detect-changes, semantic-release]
+    needs: [ detect-changes, semantic-release ]
     if: |
       always() && 
       (
@@ -154,7 +154,7 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
       - uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
+          node-version: "18.x"
       - run: npm ci
       - name: Set version environment variable
         id: set-version
@@ -201,6 +201,7 @@ jobs:
             ENV="prod"
           fi
 
+
           echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "environment=$ENV" >> $GITHUB_OUTPUT
@@ -242,8 +243,10 @@ jobs:
             --paths "/*"
 
   backend:
-    needs: [frontend-deploy, detect-changes]
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.backend == 'true' || github.event_name == 'release'
+    needs: [ frontend-deploy, detect-changes ]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action ==
+      'deploy' || needs.detect-changes.outputs.backend == 'true' ||
+      github.event_name == 'release'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -252,7 +255,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
+          node-version: "18.x"
       - run: npm ci
       - run: npm run build
       - uses: aws-actions/configure-aws-credentials@v2
@@ -296,7 +299,8 @@ jobs:
           CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
 
   backend-destroy:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action ==
+      'destroy'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -305,7 +309,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
+          node-version: "18.x"
       - uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
