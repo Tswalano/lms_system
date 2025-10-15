@@ -67,8 +67,8 @@ export class LmsBackendStack extends cdk.Stack {
     // OPTION 4: Use existing Cognito User Pool
     // ============================================================================
     const USE_EXISTING_COGNITO = true; // Set to true to use existing Cognito
-    const EXISTING_USER_POOL_ID = 'af-south-1_LKNPAJXNY'; // Replace with your User Pool ID
-    const EXISTING_USER_POOL_CLIENT_ID = '4np61q0imo823k3k3l6f60a3av'; // Replace with your User Pool Client ID
+    const EXISTING_USER_POOL_ID = 'af-south-1_iBzfiYzEq'; // Replace with your User Pool ID
+    const EXISTING_USER_POOL_CLIENT_ID = '3nuq2c8cb797sum625oul46820'; // Replace with your User Pool Client ID
 
     // VPC Configuration
     let vpc: ec2.IVpc;
