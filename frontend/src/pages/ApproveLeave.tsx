@@ -516,7 +516,7 @@ const ApproveLeave = () => {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {processedRequests.slice(0, 10).map((request) => (
+                                        {processedRequests.map((request) => (
                                             <TableRow key={request.id} className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50">
                                                 <TableCell>
                                                     <div>
