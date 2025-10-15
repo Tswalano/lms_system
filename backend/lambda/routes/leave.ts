@@ -39,7 +39,6 @@ import utc from 'dayjs/plugin/utc';
 import isBetween from 'dayjs/plugin/isBetween';
 import { sender, senderManagement } from '../email/emailMiddleware';
 import { EmailNotificationDetails } from '../email/notificationHandler';
-import { get } from 'http';
 dayjs.extend(utc);
 dayjs.extend(isBetween);
 
@@ -601,9 +600,6 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
         connection = await DatabaseService.createConnection();
 
         const currentYear = new Date().getFullYear();
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
 
         const queryParams: LeaveQueryParams = {
             leave_type: c.req.query('leave_type'),
@@ -613,23 +609,15 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
         };
 
         const page = parseInt(queryParams.page || '1');
-        const limit = Math.min(100, parseInt(queryParams.limit || '20'));
+        const limit = Math.min(100, parseInt(queryParams.limit || '30'));
         const offset = (page - 1) * limit;
 
         const conditions: string[] = [];
         const params: any[] = [];
 
-        // Core status + date logic - Updated to check:
-        // - Pending requests from current year
-        // - Approved/Rejected requests from last 30 days
-        const statusFilter = `
-            (
-                (lr.status = 'pending' AND YEAR(lr.start_date) = ?) OR
-                ((lr.status = 'approved' OR lr.status = 'rejected') AND lr.start_date >= ?)
-            )
-        `;
-        conditions.push(statusFilter);
-        params.push(currentYear, thirtyDaysAgoStr);
+        // Filter by current year only
+        conditions.push('YEAR(lr.createdAt) = ?');
+        params.push(currentYear);
 
         // Apply leave_type if present
         if (queryParams.leave_type) {
@@ -642,10 +630,6 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
             conditions.push('(CONCAT(u.firstName, " ", u.lastName) LIKE ? OR u.email LIKE ?)');
             params.push(`%${queryParams.search}%`, `%${queryParams.search}%`);
         }
-
-        // Add year filter for createdAt
-        conditions.push('YEAR(lr.createdAt) = ?');
-        params.push(currentYear);
 
         const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -667,9 +651,7 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
             LEFT JOIN users u ON lr.uid = u.id
             LEFT JOIN users m ON lr.approved_by = m.id
             ${whereClause}
-            ORDER BY 
-                CASE lr.status WHEN 'pending' THEN 1 WHEN 'approved' THEN 2 WHEN 'rejected' THEN 3 ELSE 4 END,
-                lr.createdAt DESC
+            ORDER BY lr.createdAt DESC
             LIMIT ? OFFSET ?
         `, [...params, limit, offset]);
 
