@@ -135,13 +135,14 @@ const ApplyLeave = () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
+        // Warn if backdated leave
         if (startDate < today) {
-            toast.error("Invalid Start Date", {
-                description: "Start date cannot be in the past."
+            toast.warning("Backdated Leave Application", {
+                description: "You are applying for leave that starts in the past.",
             });
-            return;
         }
 
+        // Ensure valid date order
         if (formData.leaveLength === 'full_day' && endDate < startDate) {
             toast.error("Invalid Date Range", {
                 description: "End date cannot be before start date."
@@ -152,6 +153,7 @@ const ApplyLeave = () => {
         // Submit the application
         submitApplication(formData);
     };
+
 
     const clearForm = () => {
         setFormData({
@@ -287,7 +289,7 @@ const ApplyLeave = () => {
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
-                                    <Calendar
+                                    {/* <Calendar
                                         mode="single"
                                         selected={startDate}
                                         onSelect={(date) => {
@@ -306,6 +308,21 @@ const ApplyLeave = () => {
                                             const compareToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                                             return compareDate < compareToday;
                                         }}
+                                        className="bg-white dark:bg-slate-800"
+                                    /> */}
+                                    <Calendar
+                                        mode="single"
+                                        selected={startDate}
+                                        onSelect={(date) => {
+                                            if (date) {
+                                                const dateString = formatDateToLocal(date);
+                                                setFormData({ ...formData, startDate: dateString });
+                                                if (formData.leaveLength === "half_day") {
+                                                    setFormData((prev) => ({ ...prev, endDate: dateString }));
+                                                }
+                                            }
+                                        }}
+                                        initialFocus
                                         className="bg-white dark:bg-slate-800"
                                     />
                                 </PopoverContent>
@@ -337,7 +354,7 @@ const ApplyLeave = () => {
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
-                                    <Calendar
+                                    {/* <Calendar
                                         mode="single"
                                         selected={endDate}
                                         onSelect={(date) => {
@@ -352,6 +369,23 @@ const ApplyLeave = () => {
                                             const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
                                             const compareToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                                             return compareDate < compareToday;
+                                        }}
+                                        className="bg-white dark:bg-slate-800"
+                                    /> */}
+                                    <Calendar
+                                        mode="single"
+                                        selected={endDate}
+                                        onSelect={(date) => {
+                                            if (date) {
+                                                const dateString = formatDateToLocal(date);
+                                                setFormData({ ...formData, endDate: dateString });
+                                            }
+                                        }}
+                                        initialFocus
+                                        disabled={(date) => {
+                                            if (!formData.startDate) return false; // allow all if start date not picked
+                                            const start = new Date(formData.startDate);
+                                            return date < start;
                                         }}
                                         className="bg-white dark:bg-slate-800"
                                     />
