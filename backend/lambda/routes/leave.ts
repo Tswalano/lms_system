@@ -128,7 +128,10 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
 
         const startDate = new Date(leave_start);
         const endDate = new Date(leave_end);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
+        // Validate logical ordering
         if (startDate > endDate) {
             return c.json<ApiResponse>({
                 success: false,
@@ -136,13 +139,13 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
             }, 400);
         }
 
-        if (startDate < new Date()) {
-            return c.json<ApiResponse>({
-                success: false,
-                message: 'Start date cannot be in the past'
-            }, 400);
+        // Allow backdated applications, but flag them
+        const isBackdated = startDate < today;
+        if (isBackdated) {
+            console.log(`Backdated leave application detected from ${fullName}: ${formatDate(startDate)} - ${formatDate(endDate)}`);
         }
 
+        // Calculate number of days
         let numDays = 0;
         let excludedDetails: ExcludedDaysDetails = { weekends: 0, holidays: [], totalExcluded: 0 };
 
@@ -159,7 +162,6 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
                 }, 400);
             }
 
-            // For half-day leaves, we still need to check if it's a public holiday
             const holidays = await getPublicHolidayDatesUsingGoogleCalendarAPIAsync(startDate, startDate);
             if (holidays.length > 0) {
                 return c.json<ApiResponse>({
@@ -169,7 +171,11 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
             }
         }
 
+        // Add backdated context to system notes
         let system_notes = `A total of ${numDays} leave day${numDays === 1 ? "" : "s"} will be deducted from your balance.`;
+        if (isBackdated) {
+            system_notes += " (This is a backdated leave request)";
+        }
         if (leave_length === "full_day" && excludedDetails.totalExcluded > 0) {
             system_notes += ` Excluded: ${excludedDetails.weekends} weekend(s)`;
             if (excludedDetails.holidays.length > 0) {
@@ -178,15 +184,15 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
         }
 
         const createdAt = formatDateTime();
-
         connection = await DatabaseService.createConnection();
 
+        // Insert record (add `is_backdated` column if available)
         const [result] = await connection.query<mysql.ResultSetHeader>(`
-                INSERT INTO leave_requests (
-                    uid, leave_type, status, duration, start_date, end_date, system_notes, feedback,
-                    document, leave_length, leave_comment, createdAt, updatedAt
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [
+            INSERT INTO leave_requests (
+                uid, leave_type, status, duration, start_date, end_date, system_notes, feedback,
+                document, leave_length, leave_comment, createdAt, updatedAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
             uid,
             leave_type,
             "pending",
@@ -198,109 +204,73 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
             "no supporting document",
             leave_length,
             leave_comment,
+            // isBackdated ? 1 : 0, // 1 = true, 0 = false
             createdAt,
             createdAt
         ]);
 
-        // Track email results
+        // Send notifications
         const emailResults = {
             employee: { success: false, error: null as string | null },
             management: { success: false, error: null as string | null }
         };
 
-        // 1. Send email notification to EMPLOYEE
-        console.log("=== Sending Employee Notification ===");
         try {
-
             const employeeEmailBody = `Your <strong>${leave_type}</strong> request has been successfully submitted and is pending approval.`;
-
-            await sender(
-                recipientEmail,
-                firstName,
-                employeeEmailBody,
-                `Leave Request Submitted - ${leave_type}`,
-                "pending"
-            );
-
+            await sender(recipientEmail, firstName, employeeEmailBody, `Leave Request Submitted - ${leave_type}`, "pending");
             emailResults.employee.success = true;
-            console.log("✅ Employee notification email sent successfully to:", recipientEmail);
         } catch (emailError) {
             emailResults.employee.error = (emailError as Error).message;
-            console.error("❌ Failed to send employee notification email:", emailError);
         }
 
-        // 2. Send email notification to MANAGEMENT
-        console.log("=== Sending Management Notification ===");
         try {
             const managementEmailBody = `${leave_comment}.
                 <br><br>
                 <i>System Notes: ${system_notes}</i>`;
 
             await senderManagement(
-                fullName,                               // employeeName
-                recipientEmail,                         // employeeEmail  
-                managementEmailBody,                    // body
-                `New Leave Request - ${leave_type}`,    // subject
-                "pending",                              // status
-                leave_type,                             // leaveType
-                formatDate(startDate),                     // startDate
-                formatDate(endDate),                       // endDate
-                `${numDays} day${numDays === 1 ? '' : 's'} (${leave_length})` // duration
+                fullName,
+                recipientEmail,
+                managementEmailBody,
+                `New Leave Request - ${leave_type}`,
+                "pending",
+                leave_type,
+                formatDate(startDate),
+                formatDate(endDate),
+                `${numDays} day${numDays === 1 ? '' : 's'} (${leave_length})`
             );
 
             emailResults.management.success = true;
-            console.log("✅ Management notification email sent successfully");
         } catch (emailError) {
             emailResults.management.error = (emailError as Error).message;
-            console.error("❌ Failed to send management notification email:", emailError);
         }
 
-        // Log email summary
-        console.log("=== Email Notification Summary ===");
-        console.log(`Employee notification: ${emailResults.employee.success ? 'SUCCESS' : 'FAILED'}`);
-        console.log(`Management notification: ${emailResults.management.success ? 'SUCCESS' : 'FAILED'}`);
-
-        if (emailResults.employee.error) {
-            console.log(`Employee email error: ${emailResults.employee.error}`);
-        }
-        if (emailResults.management.error) {
-            console.log(`Management email error: ${emailResults.management.error}`);
-        }
-
-        // Prepare response with email status
-        const emailNotificationStatus = {
-            employee: emailResults.employee.success,
-            management: emailResults.management.success,
-            errors: {
-                employee: emailResults.employee.error,
-                management: emailResults.management.error
-            }
-        };
-
+        // Response
         return c.json<ApiResponse>({
             success: true,
             message: 'Leave request submitted successfully',
             data: {
                 leaveId: result.insertId,
                 duration: numDays,
-                system_notes: system_notes,
+                system_notes,
+                is_backdated: isBackdated,
                 status: "pending",
-                emailNotifications: emailNotificationStatus
+                emailNotifications: emailResults
             }
         }, 200);
 
     } catch (error) {
-        console.error('Apply leave error:', error);
+        console.error("Apply leave error:", error);
 
         if (error instanceof z.ZodError) {
             return c.json<ApiResponse>({
                 success: false,
-                message: 'Invalid request data',
+                message: "Invalid request data",
                 errors: error.errors
             }, 400);
         }
 
-        if (error instanceof Error && error.message.includes('token')) {
+        if (error instanceof Error && error.message.includes("token")) {
             return c.json<ApiResponse>({
                 success: false,
                 message: error.message
@@ -309,12 +279,13 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
 
         return c.json<ApiResponse>({
             success: false,
-            message: 'Failed to submit leave request'
+            message: "Failed to submit leave request"
         }, 500);
     } finally {
         if (connection) await connection.end();
     }
 });
+
 
 // GET /leave-history - Get user's leave history
 app.get('/leave-history', async (c: Context): Promise<Response> => {
