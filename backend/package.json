@@ -9,6 +9,7 @@
     "cdk": "cdk",
     "clean": "rm -f lambda/*.js lambda/*.js.map lambda/*.d.ts ",
     "build": "tsc && npm run copy-lambda",
+    "dev": "ts-node lambda/dev.ts",
     "copy-lambda": "cp -r lambda/*.js lambda/*.json dist/lambda/ || true"
   },
   "devDependencies": {

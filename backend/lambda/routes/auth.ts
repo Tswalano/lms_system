@@ -20,6 +20,19 @@ const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
 const client = new CognitoIdentityProviderClient({});
 
 const initiateAuth = async ({ username, password }: { username: string; password: string }) => {
+
+    if (!username || !password || !COGNITO_CLIENT_ID) {
+        return {
+            success: false,
+            statusCode: 400,
+            data: {
+                message: "Missing username, password, or client ID",
+                code: "InvalidRequestError",
+                error: true,
+            },
+        };
+    }
+
     try {
 
         const command = new InitiateAuthCommand({
