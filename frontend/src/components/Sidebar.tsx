@@ -32,6 +32,21 @@ const Sidebar: React.FC<SidebarProps> = ({
         }
     }, [setIsCollapsed]);
 
+    // In your Sidebar component, add this useEffect:
+    useEffect(() => {
+        if (isCollapsed) {
+            document.body.classList.add('sidebar-collapsed');
+            document.body.classList.remove('sidebar-expanded');
+        } else {
+            document.body.classList.add('sidebar-expanded');
+            document.body.classList.remove('sidebar-collapsed');
+        }
+
+        return () => {
+            document.body.classList.remove('sidebar-collapsed', 'sidebar-expanded');
+        };
+    }, [isCollapsed]);
+
     const employeeMenuItems = [
         { id: "dashboard", label: "Dashboard", icon: Home, path: "/" },
         { id: "apply", label: "Apply For Leave", icon: FileText, path: "/apply-leave" },

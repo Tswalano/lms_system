@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
     Calendar,
-    ChevronDown,
     Clock,
     Filter,
     FolderKanban,
@@ -10,10 +9,8 @@ import {
     MoreHorizontal,
     Plus,
     Search,
-    SlidersHorizontal,
     Tag,
     User,
-    Users,
     X,
 } from "lucide-react";
 
@@ -840,7 +837,7 @@ const ProjectManagement = () => {
 
             {/* Add Task Modal */}
             {showTaskModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 lg:pl-72">
                     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-slate-700 p-6">
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add New Task</h3>
