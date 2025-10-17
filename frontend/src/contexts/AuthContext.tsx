@@ -98,8 +98,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Sync with the backend API base URL for development and production
 // const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-export const API_BASE_URL: string = 'https://xrdpcrhluc.execute-api.af-south-1.amazonaws.com/dev';
-// export const API_BASE_URL: string = 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
+// export const API_BASE_URL: string = 'https://xrdpcrhluc.execute-api.af-south-1.amazonaws.com/dev';
+export const API_BASE_URL: string = 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
 
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
