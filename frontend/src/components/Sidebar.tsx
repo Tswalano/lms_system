@@ -341,7 +341,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     {(!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) && (
                         <div className="mt-4 px-3 py-2 text-xs text-center">
                             <span className="text-slate-500 dark:text-slate-400 font-medium">
-                                v{import.meta.env.VITE_VERSION || '1.0.0'}
+                                {import.meta.env.VITE_VERSION || '1.0.0'}
                             </span>
                         </div>
                     )}
