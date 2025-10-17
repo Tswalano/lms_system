@@ -829,6 +829,155 @@ app.post('/leave/:id/upload-document', async (c: Context): Promise<Response> => 
     }
 });
 
+// PUT /:id/cancel - Cancel approved leave request
+app.put('/:id/cancel', async (c: Context): Promise<Response> => {
+    let connection: mysql.Connection | null = null;
+    try {
+        const managerId = getUserId(c);
+        const leaveId = c.req.param('id');
+        const managerEmail = getDecodedToken(c).email;
+        const managerFirstName = getDecodedToken(c).given_name || getDecodedToken(c).name || 'Manager';
+        const managerLastName = getDecodedToken(c).family_name || '';
+        const managerFullName = `${managerFirstName} ${managerLastName}`.trim();
+
+        connection = await DatabaseService.createConnection();
+
+        // Check if leave request exists and is approved
+        const [existingLeave] = await connection.query<mysql.RowDataPacket[]>(`
+            SELECT lr.*, u.firstName, u.lastName, u.email 
+            FROM leave_requests lr
+            LEFT JOIN users u ON lr.uid = u.id
+            WHERE lr.id = ? AND lr.status = "approved"
+        `, [leaveId]);
+
+        if (!existingLeave || existingLeave.length === 0) {
+            return c.json<ApiResponse>({
+                success: false,
+                message: 'Leave request not found or is not approved'
+            }, 404);
+        }
+
+        const leaveRequest = existingLeave[0] as LeaveRequestWithUser;
+        const cancelledAt = new Date().toISOString();
+        const cancellationFeedback = `This approved leave has been cancelled by ${managerFullName} on ${formatDate(cancelledAt)}.`;
+
+        // Start transaction
+        await connection.beginTransaction();
+
+        try {
+            // Update leave request status to cancelled
+            await connection.query<mysql.ResultSetHeader>(`
+                UPDATE leave_requests 
+                SET status = 'cancelled', 
+                    approved_by = ?, 
+                    feedback = CONCAT(COALESCE(feedback, ''), '\n\n', ?), 
+                    approved_at = ?, 
+                    updatedAt = ?
+                WHERE id = ?
+            `, [managerId, cancellationFeedback, cancelledAt, cancelledAt, leaveId]);
+
+            // Log the cancellation action
+            await connection.query<mysql.ResultSetHeader>(`
+                INSERT INTO leave_action_log (leave_id, manager_id, action, previous_status, new_status, timestamp)
+                VALUES (?, ?, ?, ?, ?, NOW())
+            `, [leaveId, managerId, 'cancel', 'approved', 'cancelled']);
+
+            await connection.commit();
+
+            // Send email notification to employee
+            const employeeEmailBody = `Your approved leave request for <strong>${leaveRequest.leave_type}</strong> from ${formatDate(leaveRequest.start_date)} to ${formatDate(leaveRequest.end_date)} has been <strong>cancelled</strong> by management.
+            <br><br>
+            <strong>Duration:</strong> ${leaveRequest.duration} day${parseFloat(leaveRequest.duration) !== 1 ? 's' : ''} (${leaveRequest.leave_length === 'half_day' ? 'Half Day' : 'Full Day'})
+            <br><br>
+            <strong>Cancelled By:</strong> ${managerFullName}
+            <br>
+            <strong>Cancelled On:</strong> ${formatDate(cancelledAt)}
+            <br><br>
+            If you have any questions about this cancellation, please contact your manager or HR department.`;
+
+            try {
+                await sender(
+                    leaveRequest.email,
+                    `${leaveRequest.firstName} ${leaveRequest.lastName}`,
+                    employeeEmailBody,
+                    `Leave Cancelled - ${leaveRequest.leave_type}`,
+                    'rejected' // Using 'rejected' status for styling in email template
+                );
+            } catch (emailError) {
+                console.error('Failed to send cancellation email to employee:', emailError);
+                // Don't fail the request if email fails
+            }
+
+            // Send notification to management
+            const managementEmailBody = `An approved leave request has been cancelled.
+            <br><br>
+            <strong>Employee:</strong> ${leaveRequest.firstName} ${leaveRequest.lastName} (${leaveRequest.email})
+            <br>
+            <strong>Leave Type:</strong> ${leaveRequest.leave_type}
+            <br>
+            <strong>Duration:</strong> ${formatDate(leaveRequest.start_date)} to ${formatDate(leaveRequest.end_date)}
+            <br>
+            <strong>Days:</strong> ${leaveRequest.duration} day${parseFloat(leaveRequest.duration) !== 1 ? 's' : ''} (${leaveRequest.leave_length === 'half_day' ? 'Half Day' : 'Full Day'})
+            <br>
+            <strong>Cancelled By:</strong> ${managerFullName}
+            <br>
+            <strong>Cancelled On:</strong> ${formatDate(cancelledAt)}`;
+
+            try {
+                await senderManagement(
+                    managerFullName,
+                    managerEmail,
+                    managementEmailBody,
+                    `Leave Cancelled - ${leaveRequest.leave_type}`,
+                    'rejected',
+                    leaveRequest.leave_type,
+                    formatDate(leaveRequest.start_date),
+                    formatDate(leaveRequest.end_date),
+                    `${leaveRequest.duration} day${parseFloat(leaveRequest.duration) !== 1 ? 's' : ''} (${leaveRequest.leave_length})`
+                );
+            } catch (emailError) {
+                console.error('Failed to send cancellation notification to management:', emailError);
+                // Don't fail the request if email fails
+            }
+
+            return c.json<ApiResponse>({
+                success: true,
+                message: 'Leave request cancelled successfully',
+                data: {
+                    leaveId: parseInt(leaveId),
+                    action: 'cancel',
+                    status: 'cancelled',
+                    cancelledAt: cancelledAt,
+                    cancelledBy: managerFullName,
+                    employeeNotified: true,
+                    managementNotified: true
+                }
+            }, 200);
+
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        }
+
+    } catch (error) {
+        console.error('Cancel leave error:', error);
+
+        if (error instanceof Error && error.message.includes("token")) {
+            return c.json<ApiResponse>({
+                success: false,
+                message: error.message
+            }, 401);
+        }
+
+        return c.json<ApiResponse>({
+            success: false,
+            message: 'Failed to cancel leave request'
+        }, 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
 // GET /leave/:id - Get leave request by ID
 app.get('/leave/:id', async (c: Context): Promise<Response> => {
     let connection: mysql.Connection | null = null;

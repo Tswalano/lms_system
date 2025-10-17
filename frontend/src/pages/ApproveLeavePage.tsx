@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Clock, Eye, RefreshCw, AlertCircle, Loader2, X, MessageSquare, Users, User } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Eye, RefreshCw, AlertCircle, Loader2, X, MessageSquare, Users, User, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -71,7 +71,7 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, employeeName, leaveTy
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 lg:pl-72">
             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full border border-gray-200/50 dark:border-slate-600/50">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-200/50 dark:border-slate-600/50">
@@ -172,6 +172,8 @@ const ApproveLeavePage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedLeaveDetails, setSelectedLeaveDetails] = useState<LeaveRequest | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+    const [leaveToCancel, setLeaveToCancel] = useState<LeaveRequest | null>(null);
 
     const queryClient = useQueryClient();
     const token: string | null = localStorage.getItem('authToken');
@@ -269,6 +271,52 @@ const ApproveLeavePage = () => {
         },
     });
 
+    // Mutation for canceling approved leave
+    const cancelLeaveMutation = useMutation({
+        mutationFn: async (requestId: number) => {
+            if (!token) throw new Error('Unauthorized');
+
+            const response = await authFetch(`/leave/${requestId}/cancel`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.message || 'Failed to cancel leave request');
+            }
+
+            return result;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['leaveApprovalRequests'] });
+            queryClient.invalidateQueries({ queryKey: ['teamAvailability'] });
+            queryClient.invalidateQueries({ queryKey: ['leaveCalendar'] });
+
+            toast.success('Leave Cancelled', {
+                description: 'The approved leave has been cancelled successfully.',
+            });
+
+            setShowCancelConfirm(false);
+            setLeaveToCancel(null);
+            setIsDetailsModalOpen(false);
+            setSelectedLeaveDetails(null);
+        },
+        onError: (error) => {
+            toast.error('Cancellation Failed', {
+                description: error instanceof Error ? error.message : 'Failed to cancel leave',
+            });
+        },
+    });
+
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['leaveApprovalRequests'] });
     };
@@ -292,6 +340,16 @@ const ApproveLeavePage = () => {
     const openDetailsModal = (request: LeaveRequest) => {
         setSelectedLeaveDetails(request);
         setIsDetailsModalOpen(true);
+    };
+
+    const handleCancelLeave = (request: LeaveRequest) => {
+        setLeaveToCancel(request);
+        setShowCancelConfirm(true);
+    };
+
+    const confirmCancelLeave = () => {
+        if (!leaveToCancel) return;
+        cancelLeaveMutation.mutate(leaveToCancel.id);
     };
 
     const getStatusColor = (status: string) => {
@@ -583,9 +641,87 @@ const ApproveLeavePage = () => {
                 isSubmitting={processLeaveMutation.isPending}
             />
 
+            {/* Cancel Confirmation Modal */}
+            {showCancelConfirm && leaveToCancel && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 lg:pl-72">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full border border-gray-200/50 dark:border-slate-600/50">
+                        {/* Header */}
+                        <div className="p-6 border-b border-gray-200/50 dark:border-slate-600/50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
+                                    <Ban className="w-5 h-5 text-red-600 dark:text-red-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
+                                        Cancel Approved Leave
+                                    </h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        This action cannot be undone
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6">
+                            <p className="text-gray-700 dark:text-gray-300">
+                                Are you sure you want to cancel the approved leave for{' '}
+                                <span className="font-semibold">
+                                    {leaveToCancel.firstName} {leaveToCancel.lastName}
+                                </span>
+                                ?
+                            </p>
+                            <div className="mt-4 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    <strong>Leave Type:</strong> {leaveToCancel.leave_type}
+                                </p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    <strong>Duration:</strong> {formatDate(leaveToCancel.start_date)} -{' '}
+                                    {formatDate(leaveToCancel.end_date)}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 border-t border-gray-200/50 dark:border-slate-600/50">
+                            <div className="flex gap-3">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setShowCancelConfirm(false);
+                                        setLeaveToCancel(null);
+                                    }}
+                                    className="flex-1"
+                                    disabled={cancelLeaveMutation.isPending}
+                                >
+                                    No, Keep It
+                                </Button>
+                                <Button
+                                    onClick={confirmCancelLeave}
+                                    className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                                    disabled={cancelLeaveMutation.isPending}
+                                >
+                                    {cancelLeaveMutation.isPending ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                            Cancelling...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Ban className="w-4 h-4 mr-2" />
+                                            Yes, Cancel Leave
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Leave Details Modal */}
             {isDetailsModalOpen && selectedLeaveDetails && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 lg:pl-72">
                     <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-600/50">
                         {/* Header */}
                         <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
@@ -613,7 +749,7 @@ const ApproveLeavePage = () => {
                         </div>
 
                         {/* Content */}
-                        <div className="p-6 space-y-6">
+                        <div className="p-6 space-y-6 max-h-[calc(90vh-200px)] overflow-y-auto">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-4">
                                     <div>
@@ -688,7 +824,7 @@ const ApproveLeavePage = () => {
                         {/* Footer */}
                         <div className="p-6 bg-gray-50 dark:bg-slate-700/30 border-t border-gray-100 dark:border-slate-600/30">
                             <div className="flex gap-3">
-                                {selectedLeaveDetails.status === 'pending' && (
+                                {selectedLeaveDetails.status === 'pending' ? (
                                     <>
                                         <Button
                                             onClick={() => {

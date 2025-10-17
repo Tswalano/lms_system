@@ -385,7 +385,10 @@ const ApplyLeavePage = () => {
                                         disabled={(date) => {
                                             if (!formData.startDate) return false; // allow all if start date not picked
                                             const start = new Date(formData.startDate);
-                                            return date < start;
+                                            start.setHours(0, 0, 0, 0);
+                                            const compareDate = new Date(date);
+                                            compareDate.setHours(0, 0, 0, 0);
+                                            return compareDate < start; // This allows same date, only prevents dates BEFORE start
                                         }}
                                         className="bg-white dark:bg-slate-800"
                                     />
