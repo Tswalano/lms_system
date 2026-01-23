@@ -107,7 +107,7 @@ const ManageEmployees = () => {
             }
 
             const response = await authFetch('/users/update-user', {
-                method: 'PUT',
+                method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
