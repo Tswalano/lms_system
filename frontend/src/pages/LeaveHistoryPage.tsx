@@ -1,19 +1,18 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Clock, Download, Eye, RefreshCw, AlertCircle, X, CheckCircle, XCircle, AlertTriangle, Loader2, Edit, Calendar as CalendarIcon, Ban } from "lucide-react";
+import {
+    Clock, RefreshCw, AlertCircle, X, CheckCircle, XCircle, AlertTriangle,
+    Loader2, Edit, Ban, CalendarDays, Tag, ChevronDown, ChevronUp, MessageSquare
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import moment from "moment";
 
 interface LeaveApplicationData {
     leaveType: string;
@@ -43,378 +42,197 @@ interface ApiResponse {
     data: LeaveRecord[];
 }
 
+const STATUS_CONFIG: Record<string, { icon: React.ReactNode; pill: string; border: string; label: string }> = {
+    approved: {
+        icon: <CheckCircle className="w-4 h-4" />,
+        pill: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
+        border: 'border-l-emerald-500 dark:border-l-emerald-400',
+        label: 'Approved',
+    },
+    pending: {
+        icon: <AlertTriangle className="w-4 h-4" />,
+        pill: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
+        border: 'border-l-amber-400 dark:border-l-amber-300',
+        label: 'Pending',
+    },
+    rejected: {
+        icon: <XCircle className="w-4 h-4" />,
+        pill: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800',
+        border: 'border-l-rose-500 dark:border-l-rose-400',
+        label: 'Rejected',
+    },
+    cancelled: {
+        icon: <Ban className="w-4 h-4" />,
+        pill: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700',
+        border: 'border-l-gray-400 dark:border-l-gray-300',
+        label: 'Cancelled',
+    },
+};
+
+const getStatus = (s: string) => STATUS_CONFIG[s.toLowerCase()] ?? STATUS_CONFIG.pending;
+
+const FILTER_TABS = [
+    { key: 'all', label: 'All' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'rejected', label: 'Rejected' },
+    { key: 'cancelled', label: 'Cancelled' },
+] as const;
+
 const LeaveHistoryPage = () => {
-    const { authFetch } = useAuth()
+    const { authFetch } = useAuth();
     const [filter, setFilter] = useState<'all' | 'approved' | 'pending' | 'rejected' | 'cancelled'>('all');
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [expandedId, setExpandedId] = useState<number | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [selectedLeave, setSelectedLeave] = useState<LeaveRecord | null>(null);
     const [cancelReason, setCancelReason] = useState('');
     const [editFormData, setEditFormData] = useState<LeaveApplicationData>({
-        leaveType: '',
-        startDate: '',
-        endDate: '',
-        reason: '',
-        leaveLength: 'full_day'
+        leaveType: '', startDate: '', endDate: '', reason: '', leaveLength: 'full_day'
     });
     const queryClient = useQueryClient();
-    const token: string | null = localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken');
 
-    const fetchLeaveHistory = async (): Promise<LeaveRecord[]> => {
-        if (!token) {
-            throw new Error('Unauthorized');
-        }
+    const today = (() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    })();
 
-        const response = await authFetch('/leave/leave-history', {
-            method: 'GET',
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result: ApiResponse = await response.json();
-
-        if (!result.success) {
-            throw new Error(result.message || 'Failed to fetch leave history');
-        }
-
-        return result.data;
-    };
-
-    const {
-        data: leaveHistory = [],
-        isLoading,
-        error,
-        refetch,
-        isFetching
-    } = useQuery({
-        queryKey: ['leaveHistory'],
-        queryFn: fetchLeaveHistory,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        retry: 2,
-    });
-
-    // Effect to handle leave length changes in edit form
     useEffect(() => {
         if (editFormData.leaveLength === 'half_day' && editFormData.startDate) {
-            setEditFormData(prev => ({
-                ...prev,
-                endDate: editFormData.startDate
-            }));
+            setEditFormData(prev => ({ ...prev, endDate: prev.startDate }));
         }
     }, [editFormData.leaveLength, editFormData.startDate]);
 
-    // Helper function for date formatting without timezone issues
-    const formatDateToLocal = (date: Date): string => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
-
-    // API function to update leave application
-    const updateLeaveApplication = async (leaveId: number, data: LeaveApplicationData): Promise<ApiResponse> => {
-        const payload = {
-            leave_type: data.leaveType,
-            leave_start: data.startDate,
-            leave_end: data.endDate,
-            leave_comment: data.reason,
-            leave_length: data.leaveLength
-        };
-
-        const response = await authFetch(`/leave/${leaveId}`, {
-            method: 'PUT',
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-        }
-
+    const fetchLeaveHistory = async (): Promise<LeaveRecord[]> => {
+        if (!token) throw new Error('Unauthorized');
+        const response = await authFetch('/leave/leave-history', { method: 'GET' });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const result: ApiResponse = await response.json();
-
-        if (!result.success) {
-            throw new Error(result.message || 'Failed to update leave application');
-        }
-
-        return result;
+        if (!result.success) throw new Error(result.message || 'Failed to fetch leave history');
+        return result.data;
     };
 
-    // API function to cancel leave application
-    const cancelLeaveApplication = async (leaveId: number, reason: string): Promise<ApiResponse> => {
-        const payload = {
-            cancellation_reason: reason
-        };
-
-        const response = await authFetch(`/leave/${leaveId}/cancel`, {
-            method: 'PATCH',
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-        }
-
-        const result: ApiResponse = await response.json();
-
-        if (!result.success) {
-            throw new Error(result.message || 'Failed to cancel leave application');
-        }
-
-        return result;
-    };
-
-    // React Query mutation for updating leave application
-    const {
-        mutate: updateApplication,
-        isPending: isUpdating
-    } = useMutation({
-        mutationFn: ({ leaveId, data }: { leaveId: number; data: LeaveApplicationData }) =>
-            updateLeaveApplication(leaveId, data),
-        onSuccess: (data) => {
-            toast.success("Leave Application Updated", {
-                description: data.message || "Your leave request has been updated successfully.",
-            });
-
-            // Close edit modal
-            setIsEditModalOpen(false);
-            setSelectedLeave(null);
-
-            // Reset form data
-            setEditFormData({
-                leaveType: '',
-                startDate: '',
-                endDate: '',
-                reason: '',
-                leaveLength: 'full_day'
-            });
-
-            // Invalidate and refetch leave history
-            queryClient.invalidateQueries({ queryKey: ['leaveHistory'] });
-        },
-        onError: (error) => {
-            toast.error("Update Failed", {
-                description: error instanceof Error ? error.message : "Failed to update leave application. Please try again.",
-            });
-        }
+    const { data: leaveHistory = [], isLoading, error, refetch, isFetching } = useQuery({
+        queryKey: ['leaveHistory'],
+        queryFn: fetchLeaveHistory,
+        staleTime: 5 * 60 * 1000,
+        retry: 2,
     });
 
-    // React Query mutation for cancelling leave application
-    const {
-        mutate: cancelApplication,
-        isPending: isCancelling
-    } = useMutation({
-        mutationFn: ({ leaveId, reason }: { leaveId: number; reason: string }) =>
-            cancelLeaveApplication(leaveId, reason),
+    const { mutate: updateApplication, isPending: isUpdating } = useMutation({
+        mutationFn: ({ leaveId, data }: { leaveId: number; data: LeaveApplicationData }) =>
+            authFetch(`/leave/${leaveId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    leave_type: data.leaveType, leave_start: data.startDate,
+                    leave_end: data.endDate, leave_comment: data.reason, leave_length: data.leaveLength
+                })
+            }).then(async r => {
+                const json = await r.json().catch(() => ({}));
+                if (!r.ok || !json.success) throw new Error(json.message || 'Failed to update');
+                return json as ApiResponse;
+            }),
         onSuccess: (data) => {
-            toast.success("Leave Application Cancelled", {
-                description: data.message || "Your leave request has been cancelled successfully.",
-            });
+            toast.success("Leave Updated", { description: data.message || "Leave request updated." });
+            setIsEditModalOpen(false);
+            setSelectedLeave(null);
+            queryClient.invalidateQueries({ queryKey: ['leaveHistory'] });
+        },
+        onError: (e) => toast.error("Update Failed", { description: e instanceof Error ? e.message : 'Try again.' }),
+    });
 
-            // Close cancel modal
+    const { mutate: cancelApplication, isPending: isCancelling } = useMutation({
+        mutationFn: ({ leaveId, reason }: { leaveId: number; reason: string }) =>
+            authFetch(`/leave/${leaveId}/cancel`, {
+                method: 'PATCH',
+                body: JSON.stringify({ feedback: reason })
+            }).then(async r => {
+                const json = await r.json().catch(() => ({}));
+                if (!r.ok || !json.success) throw new Error(json.message || 'Failed to cancel');
+                return json as ApiResponse;
+            }),
+        onSuccess: (data) => {
+            toast.success("Leave Cancelled", { description: data.message || "Leave request cancelled." });
             setIsCancelModalOpen(false);
             setSelectedLeave(null);
             setCancelReason('');
-
-            // Invalidate and refetch leave history
             queryClient.invalidateQueries({ queryKey: ['leaveHistory'] });
         },
-        onError: (error) => {
-            console.error("Cancellation Error:", error);
-            toast.error("Cancellation Failed", {
-                description: error instanceof Error ? error.message : "Failed to cancel leave application. Please try again.",
-            });
-        }
+        onError: (e) => toast.error("Cancellation Failed", { description: e instanceof Error ? e.message : 'Try again.' }),
     });
 
-    const handleRefresh = () => {
-        queryClient.invalidateQueries({ queryKey: ['leaveHistory'] });
-    };
+    const canEdit = (l: LeaveRecord) => l.status.toLowerCase() === 'pending';
+    const canCancel = (l: LeaveRecord) => l.status.toLowerCase() === 'pending';
 
-    const openLeaveDetails = (leave: LeaveRecord) => {
-        setSelectedLeave(leave);
-        setIsDialogOpen(true);
-    };
-
-    const handleEditLeave = (leave: LeaveRecord) => {
-        setSelectedLeave(leave);
+    const openEdit = (l: LeaveRecord) => {
+        setSelectedLeave(l);
         setEditFormData({
-            leaveType: leave.leave_type,
-            startDate: leave.start_date,
-            endDate: leave.end_date,
-            reason: leave.leave_comment,
-            leaveLength: leave.leave_length === 'half_day' ? 'half_day' : 'full_day'
+            leaveType: l.leave_type,
+            startDate: moment(l.start_date).format('YYYY-MM-DD'),
+            endDate: moment(l.end_date).format('YYYY-MM-DD'),
+            reason: l.leave_comment,
+            leaveLength: l.leave_length
         });
         setIsEditModalOpen(true);
     };
 
-    const handleCancelLeave = (leave: LeaveRecord) => {
-        setSelectedLeave(leave);
+    const openCancel = (l: LeaveRecord) => {
+        setSelectedLeave(l);
         setCancelReason('');
         setIsCancelModalOpen(true);
     };
 
     const handleUpdateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-
         if (!selectedLeave) return;
-
-        // Basic validation
         if (!editFormData.leaveType || !editFormData.startDate || !editFormData.endDate || !editFormData.reason) {
-            toast.error("Missing Required Fields", {
-                description: "Please fill in all required fields.",
-            });
+            toast.error("Missing fields", { description: "Please fill in all required fields." });
             return;
         }
-
-        // Date validation
-        const startDate = new Date(editFormData.startDate);
-        const endDate = new Date(editFormData.endDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        if (startDate < today) {
-            toast.error("Invalid Start Date", {
-                description: "Start date cannot be in the past."
-            });
+        const start = moment(editFormData.startDate), end = moment(editFormData.endDate);
+        if (start.isBefore(moment(), 'day')) {
+            toast.error("Invalid date", { description: "Start date cannot be in the past." });
             return;
         }
-
-        if (editFormData.leaveLength === 'full_day' && endDate < startDate) {
-            toast.error("Invalid Date Range", {
-                description: "End date cannot be before start date."
-            });
+        if (editFormData.leaveLength === 'full_day' && end.isBefore(start, 'day')) {
+            toast.error("Invalid range", { description: "End date cannot be before start date." });
             return;
         }
-
-        // Submit the update
         updateApplication({ leaveId: selectedLeave.id, data: editFormData });
     };
 
     const handleCancelSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-
-        if (!selectedLeave) return;
-
-        if (!cancelReason.trim()) {
-            toast.error("Cancellation Reason Required", {
-                description: "Please provide a reason for cancelling this leave request.",
-            });
+        if (!selectedLeave || !cancelReason.trim()) {
+            toast.error("Reason required", { description: "Please provide a reason for cancellation." });
             return;
         }
-
-        // Submit the cancellation
         cancelApplication({ leaveId: selectedLeave.id, reason: cancelReason });
     };
 
-    const canEditLeave = (leave: LeaveRecord): boolean => {
-        // Only allow editing of pending leaves
-        return leave.status.toLowerCase() === 'pending';
-    };
-
-    const canCancelLeave = (leave: LeaveRecord): boolean => {
-        // Allow cancelling pending and approved leaves
-        return ['pending'].includes(leave.status.toLowerCase());
-    };
-
-    const getStatusColor = (status: string) => {
-        const statusLower = status.toLowerCase();
-        switch (statusLower) {
-            case 'approved':
-                return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-green-200 dark:hover:bg-green-800';
-            case 'pending':
-                return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-yellow-200 dark:hover:bg-yellow-800';
-            case 'rejected':
-                return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-red-200 dark:hover:bg-red-800';
-            case 'cancelled':
-                return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-red-200 dark:hover:bg-red-800';
-            default:
-                return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 px-3 py-1 rounded-full text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600';
-        }
-    };
-
-    const getStatusIcon = (status: string) => {
-        const statusLower = status.toLowerCase();
-        switch (statusLower) {
-            case 'approved': return <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />;
-            case 'pending': return <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />;
-            case 'rejected': return <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />;
-            case 'cancelled': return <Ban className="w-5 h-5 text-red-600 dark:text-red-400" />;
-            default: return <Clock className="w-5 h-5 text-gray-600 dark:text-gray-400" />;
-        }
-    };
-
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
-    };
-
-    const getStatusCount = (status: string) => {
-        if (status === 'all') return leaveHistory.length;
-        return leaveHistory.filter(r => r.status.toLowerCase() === status).length;
-    };
-
-    const filteredHistory = leaveHistory.filter(record => {
-        if (filter === 'all') return true;
-        return record.status.toLowerCase() === filter;
-    });
+    const getCount = (key: string) => key === 'all' ? leaveHistory.length : leaveHistory.filter(r => r.status.toLowerCase() === key).length;
+    const filtered = leaveHistory.filter(r => filter === 'all' || r.status.toLowerCase() === filter);
 
     if (!token) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950 flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
                     <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                    <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">Unauthorized</h1>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">Unauthorized</h2>
                     <p className="text-gray-600 dark:text-gray-400">Please log in to view your leave history.</p>
                 </div>
             </div>
         );
     }
 
-    const getStatusStyles = (status: string) => {
-        const statusLower = status.toLowerCase();
-        switch (statusLower) {
-            case 'approved':
-                return {
-                    icon: <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />,
-                    bgGradient: "from-green-100 to-green-200 dark:from-green-800 dark:to-green-900",
-                };
-            case 'pending':
-                return {
-                    icon: <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />,
-                    bgGradient: "from-yellow-100 to-yellow-200 dark:from-yellow-800 dark:to-yellow-900",
-                };
-            case 'rejected':
-                return {
-                    icon: <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />,
-                    bgGradient: "from-red-100 to-red-200 dark:from-red-800 dark:to-red-900",
-                };
-            case 'cancelled':
-                return {
-                    icon: <Ban className="w-5 h-5 text-red-600 dark:text-red-400" />,
-                    bgGradient: "from-red-100 to-red-200 dark:from-red-800 dark:to-red-900",
-                };
-            default:
-                return {
-                    icon: <Clock className="w-5 h-5 text-gray-600 dark:text-gray-400" />,
-                    bgGradient: "from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900",
-                };
-        }
-    };
-
     return (
         <div>
-            <div className=" mb-8">
+            {/* Header */}
+            <div className="mb-8">
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
                             <Clock className="w-5 h-5 text-white" />
                         </div>
                         <div>
@@ -422,501 +240,263 @@ const LeaveHistoryPage = () => {
                             <p className="text-gray-600 dark:text-gray-400">Track your leave applications and status</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <Button
-                            onClick={handleRefresh}
-                            variant="outline"
-                            className="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200"
-                            disabled={isFetching}
-                        >
-                            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </Button>
-                        <Button className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
-                            <Download className="w-4 h-4" />
-                            Export History
-                        </Button>
-                    </div>
+                    <Button
+                        onClick={() => queryClient.invalidateQueries({ queryKey: ['leaveHistory'] })}
+                        variant="outline"
+                        className="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600"
+                        disabled={isFetching}
+                    >
+                        <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </Button>
                 </div>
 
-                <div className="flex gap-2 mb-6">
-                    {[
-                        { key: 'all', label: 'All' },
-                        { key: 'approved', label: 'Approved' },
-                        { key: 'pending', label: 'Pending' },
-                        { key: 'rejected', label: 'Rejected' },
-                        { key: 'cancelled', label: 'Cancelled' }
-                    ].map(({ key, label }) => (
-                        <Button
+                {/* Filter tabs */}
+                <div className="flex flex-wrap gap-2">
+                    {FILTER_TABS.map(({ key, label }) => (
+                        <button
                             key={key}
                             onClick={() => setFilter(key as typeof filter)}
-                            variant='ghost'
-                            className={`${filter === key ? 'bg-cyan-600 text-white' : 'text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-300'} hover:bg-cyan-500 hover:text-white flex items-center gap-2`}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                                filter === key
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700'
+                            )}
                         >
                             {label}
-                            <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
-                                {getStatusCount(key)}
+                            <span className={cn(
+                                "px-1.5 py-0.5 rounded-full text-xs font-bold",
+                                filter === key ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300'
+                            )}>
+                                {getCount(key)}
                             </span>
-                        </Button>
+                        </button>
                     ))}
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-64">
-                        <div className="text-center">
-                            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
-                            <p className="text-gray-600 dark:text-gray-400">Loading leave history...</p>
-                        </div>
+            {/* Content */}
+            {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-center">
+                        <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+                        <p className="text-gray-600 dark:text-gray-400">Loading leave history...</p>
                     </div>
-                ) : error ? (
-                    <div className="flex items-center justify-center h-64">
-                        <div className="text-center">
-                            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                            <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">Error loading leave history</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                {error instanceof Error ? error.message : 'Something went wrong'}
-                            </p>
-                            <Button
-                                onClick={() => refetch()}
-                                className="bg-blue-500 hover:bg-blue-600 text-white"
+                </div>
+            ) : error ? (
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-center">
+                        <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                        <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">Error loading leave history</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{error instanceof Error ? error.message : 'Something went wrong'}</p>
+                        <Button onClick={() => refetch()} className="bg-blue-500 hover:bg-blue-600 text-white">Try Again</Button>
+                    </div>
+                </div>
+            ) : filtered.length === 0 ? (
+                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 flex items-center justify-center h-64">
+                    <div className="text-center">
+                        <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                        <p className="font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {filter === 'all' ? 'No leave history found' : `No ${filter} requests`}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {filter === 'all' ? 'Your leave requests will appear here.' : 'Try a different filter.'}
+                        </p>
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {filtered.map((record) => {
+                        const status = getStatus(record.status);
+                        const isExpanded = expandedId === record.id;
+                        return (
+                            <div
+                                key={record.id}
+                                className={cn(
+                                    "bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow",
+                                    "border-l-4",
+                                    status.border
+                                )}
                             >
-                                Try Again
-                            </Button>
-                        </div>
-                    </div>
-                ) : filteredHistory.length === 0 ? (
-                    <div className="flex items-center justify-center h-64">
-                        <div className="text-center">
-                            <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                            <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">
-                                {filter === 'all' ? 'No leave history found' : `No ${filter} leave requests found`}
-                            </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {filter === 'all'
-                                    ? 'Your leave requests will appear here once you submit them.'
-                                    : `Try changing the filter to see other leave requests.`
-                                }
-                            </p>
-                        </div>
-                    </div>
-                ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="border-gray-100 dark:border-slate-700">
-                                <TableHead className="text-gray-700 dark:text-gray-300">Leave Type</TableHead>
-                                <TableHead className="text-gray-700 dark:text-gray-300">Duration</TableHead>
-                                <TableHead className="text-gray-700 dark:text-gray-300">Days</TableHead>
-                                <TableHead className="text-gray-700 dark:text-gray-300">Status</TableHead>
-                                <TableHead className="text-gray-700 dark:text-gray-300">Applied Date</TableHead>
-                                <TableHead className="text-gray-700 dark:text-gray-300 text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredHistory.map((record) => (
-                                <TableRow
-                                    key={record.id}
-                                    className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
-                                >
-                                    <TableCell className="font-medium text-gray-800 dark:text-gray-200">
-                                        <div className="flex items-center gap-2">
-                                            {getStatusIcon(record.status)}
-                                            {record.leave_type}
+
+                                <div className="p-5">
+                                    <div className="flex items-start justify-between gap-4">
+                                        {/* Left: type + dates */}
+                                        <div className="flex items-start gap-4 min-w-0">
+                                            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-gray-600 dark:text-gray-300">
+                                                <CalendarDays className="w-5 h-5" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                                    <span className="font-semibold text-gray-800 dark:text-gray-100">{record.leave_type}</span>
+                                                    <span className={cn("inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border", status.pill)}>
+                                                        {status.icon}
+                                                        {status.label}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 flex-wrap">
+                                                    <span className="flex items-center gap-1">
+                                                        <Tag className="w-3 h-3" />
+                                                        {record.leave_length === 'half_day' ? 'Half Day' : 'Full Day'}
+                                                    </span>
+                                                    <span>·</span>
+                                                    <span>{moment(record.start_date).format('MMM D')} — {moment(record.end_date).format('MMM D, YYYY')}</span>
+                                                    <span>·</span>
+                                                    <span className="font-medium text-gray-700 dark:text-gray-200">
+                                                        {record.duration} day{record.duration > 1 ? 's' : ''}
+                                                        {record.leave_length === 'half_day' ? ' (Half)' : ''}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                                    Applied {moment(record.createdAt).format('MMM D, YYYY')}
+                                                </p>
+                                            </div>
                                         </div>
-                                    </TableCell>
-                                    <TableCell className="text-gray-600 dark:text-gray-400">
-                                        {formatDate(record.start_date)} - {formatDate(record.end_date)}
-                                    </TableCell>
-                                    <TableCell className="text-gray-600 dark:text-gray-400">
-                                        {`${record.duration} day${record.duration > 1 ? 's' : ''}${record.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge className={getStatusColor(record.status)}>
-                                            {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-gray-600 dark:text-gray-400">
-                                        {formatDate(record.createdAt)}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex justify-end items-center gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/50 dark:text-blue-400 dark:hover:text-blue-300"
-                                                onClick={() => openLeaveDetails(record)}
-                                            >
-                                                <Eye className="w-4 h-4" /> View
-                                            </Button>
-                                            {canEditLeave(record) && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/50 dark:text-blue-400 dark:hover:text-blue-300"
-                                                    onClick={() => handleEditLeave(record)}
-                                                    title="Edit Leave Application"
+
+                                        {/* Right: actions */}
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                            {canEdit(record) && (
+                                                <button
+                                                    onClick={() => openEdit(record)}
+                                                    className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 transition-colors"
+                                                    title="Edit"
                                                 >
                                                     <Edit className="w-4 h-4" />
-                                                </Button>
+                                                </button>
                                             )}
-                                            {canCancelLeave(record) && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/50 dark:text-red-400 dark:hover:text-red-300"
-                                                    onClick={() => handleCancelLeave(record)}
-                                                    title="Cancel Leave Application"
+                                            {canCancel(record) && (
+                                                <button
+                                                    onClick={() => openCancel(record)}
+                                                    className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20 transition-colors"
+                                                    title="Cancel"
                                                 >
                                                     <Ban className="w-4 h-4" />
-                                                </Button>
+                                                </button>
                                             )}
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                )}
-            </div>
-
-            {/* Leave Details Modal */}
-            {isDialogOpen && selectedLeave && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 lg:pl-72">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-600/50">
-                        {/* Header */}
-                        <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br ${getStatusStyles(selectedLeave.status).bgGradient}`}>
-                                        {getStatusStyles(selectedLeave.status).icon}
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
-                                            {selectedLeave.leave_type} Leave
-                                        </h3>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            Application #{selectedLeave.id}
-                                        </p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => setIsDialogOpen(false)}
-                                    className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-all duration-200"
-                                >
-                                    <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Content */}
-                        <div className="p-6 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Start Date</label>
-                                        <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                                            {formatDate(selectedLeave.start_date)}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">End Date</label>
-                                        <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                                            {formatDate(selectedLeave.end_date)}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Duration</label>
-                                        <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                                            {selectedLeave.duration} day{selectedLeave.duration > 1 ? 's' : ''} {selectedLeave.leave_length === 'half_day' ? '(Half Day)' : ''}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
-                                        <div className="mt-1">
-                                            <Badge className={getStatusColor(selectedLeave.status)}>
-                                                {selectedLeave.status.charAt(0).toUpperCase() + selectedLeave.status.slice(1)}
-                                            </Badge>
+                                            <button
+                                                onClick={() => setExpandedId(isExpanded ? null : record.id)}
+                                                className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                                            >
+                                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                            </button>
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Applied Date</label>
-                                        <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                                            {formatDate(selectedLeave.createdAt)}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</label>
-                                        <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                                            {formatDate(selectedLeave.updatedAt)}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
 
-                            {selectedLeave.leave_comment && (
-                                <div>
-                                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Comment</label>
-                                    <div className="mt-2 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                                        <p className="text-gray-700 dark:text-gray-300">{selectedLeave.leave_comment}</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Display feedback (cancellation or manager) if it exists */}
-                            {selectedLeave.feedback && (
-                                <div>
-                                    {selectedLeave.status.toLowerCase() === 'cancelled' ? (
-                                        // Display for a canceled leave
-                                        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                                            <h3 className="text-sm font-semibold text-red-800 dark:text-red-300">Cancellation Reason</h3>
-                                            <p className="mt-2 text-red-700 dark:text-red-300">{selectedLeave.feedback}</p>
-                                        </div>
-                                    ) : (
-                                        // Display for manager feedback (for approved or rejected leaves)
-                                        <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                                            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Manager Feedback</h3>
-                                            <p className="mt-2 text-gray-700 dark:text-gray-300">{selectedLeave.feedback}</p>
+                                    {/* Expanded details */}
+                                    {isExpanded && (
+                                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 space-y-3">
+                                            {record.leave_comment && (
+                                                <div className="rounded-xl bg-gray-50 dark:bg-slate-700/50 p-4">
+                                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center gap-1 mb-2">
+                                                        <MessageSquare className="w-3 h-3" /> Your Reason
+                                                    </p>
+                                                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{record.leave_comment}</p>
+                                                </div>
+                                            )}
+                                            {record.feedback && (
+                                                <div className={cn("rounded-xl p-4 border", ['cancelled', 'rejected'].includes(record.status.toLowerCase())
+                                                    ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800'
+                                                    : 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'
+                                                )}>
+                                                    <p className={cn("text-xs font-medium uppercase tracking-wide mb-2", ['cancelled', 'rejected'].includes(record.status.toLowerCase())
+                                                        ? 'text-rose-600 dark:text-rose-400'
+                                                        : 'text-blue-600 dark:text-blue-400'
+                                                    )}>
+                                                        {record.status.toLowerCase() === 'cancelled' ? 'Cancellation Reason' : record.status.toLowerCase() === 'rejected' ? 'Rejection Reason' : 'Manager Feedback'}
+                                                    </p>
+                                                    <p className={cn("text-sm leading-relaxed", ['cancelled', 'rejected'].includes(record.status.toLowerCase())
+                                                        ? 'text-rose-800 dark:text-rose-200'
+                                                        : 'text-blue-800 dark:text-blue-200'
+                                                    )}>{record.feedback}</p>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Footer */}
-                        <div className="p-6 bg-gray-50 dark:bg-slate-700/30 border-t border-gray-100 dark:border-slate-600/30">
-                            <div className="flex gap-3">
-                                {canEditLeave(selectedLeave) && (
-                                    <Button
-                                        onClick={() => handleEditLeave(selectedLeave)}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
-                                    >
-                                        <Edit className="w-4 h-4" />
-                                        Edit Application
-                                    </Button>
-                                )}
-                                <Button
-                                    onClick={() => setIsDialogOpen(false)}
-                                    variant="outline"
-                                    className="flex-1 bg-gray-800 hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-white"
-                                >
-                                    Close
-                                </Button>
                             </div>
-                        </div>
-                    </div>
+                        );
+                    })}
                 </div>
             )}
 
-            {/* Edit Leave Modal */}
+            {/* Edit Modal */}
             {isEditModalOpen && selectedLeave && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 lg:pl-72">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200/50 dark:border-slate-600/50">
-                        {/* Header */}
-                        <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border-b border-gray-200/50 dark:border-slate-600/50">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-600/50">
+                        <div className="p-6 border-b border-gray-200/50 dark:border-slate-600/50 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100 dark:from-slate-700 dark:via-slate-800 dark:to-slate-900">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
                                         <Edit className="w-5 h-5 text-white" />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
-                                            Edit Leave Application
-                                        </h3>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            Application #{selectedLeave.id}
-                                        </p>
+                                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Edit Leave Application</h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">Application #{selectedLeave.id}</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => setIsEditModalOpen(false)}
-                                    className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-all duration-200"
-                                    disabled={isUpdating}
-                                >
+                                <button onClick={() => setIsEditModalOpen(false)} className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700 transition-all" disabled={isUpdating}>
                                     <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Form Content */}
-                        <div className="p-6">
+                        <div className="p-6 overflow-y-auto max-h-[calc(90vh-100px)]">
                             <form onSubmit={handleUpdateSubmit} className="space-y-6">
-                                <div className="space-y-2">
-                                    <Label htmlFor="editLeaveType" className="text-gray-700 dark:text-gray-300">Leave Type *</Label>
-                                    <Select
-                                        value={editFormData.leaveType}
-                                        onValueChange={(value) => setEditFormData({ ...editFormData, leaveType: value })}
-                                        disabled={isUpdating}
-                                    >
-                                        <SelectTrigger className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600">
-                                            <SelectValue placeholder="Select leave type" />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600">
-                                            <SelectItem value="Annual Leave">Annual Leave</SelectItem>
-                                            <SelectItem value="Sick Leave">Sick Leave</SelectItem>
-                                            <SelectItem value="Paternity Leave">Paternity Leave</SelectItem>
-                                            <SelectItem value="Family Responsibility">Family Responsibility</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2 md:col-span-2">
+                                        <Label className="text-gray-700 dark:text-gray-300">Leave Type *</Label>
+                                        <Select value={editFormData.leaveType} onValueChange={(v) => setEditFormData(p => ({ ...p, leaveType: v }))} disabled={isUpdating}>
+                                            <SelectTrigger className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600"><SelectValue placeholder="Select leave type" /></SelectTrigger>
+                                            <SelectContent className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                                <SelectItem value="Annual Leave">Annual Leave</SelectItem>
+                                                <SelectItem value="Sick Leave">Sick Leave</SelectItem>
+                                                <SelectItem value="Paternity Leave">Paternity Leave</SelectItem>
+                                                <SelectItem value="Family Responsibility">Family Responsibility</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
 
-                                <div className="space-y-4">
-                                    <Label className="text-gray-700 dark:text-gray-300">Leave Length *</Label>
-                                    <RadioGroup
-                                        value={editFormData.leaveLength}
-                                        onValueChange={(value: 'half_day' | 'full_day') => setEditFormData({ ...editFormData, leaveLength: value })}
-                                        className="flex gap-6"
-                                        disabled={isUpdating}
-                                    >
-                                        <div className="flex items-center space-x-2">
-                                            <RadioGroupItem value="full_day" id="edit_full_day" />
-                                            <Label htmlFor="edit_full_day">Full Day</Label>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <RadioGroupItem value="half_day" id="edit_half_day" />
-                                            <Label htmlFor="edit_half_day">Half Day</Label>
-                                        </div>
-                                    </RadioGroup>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <Label className="text-gray-700 dark:text-gray-300">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                                                    <CalendarIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                    <div className="space-y-3 md:col-span-2">
+                                        <Label className="text-gray-700 dark:text-gray-300">Leave Length *</Label>
+                                        <RadioGroup value={editFormData.leaveLength} onValueChange={(v: 'half_day' | 'full_day') => setEditFormData(p => ({ ...p, leaveLength: v }))} className="flex flex-col sm:flex-row gap-3" disabled={isUpdating}>
+                                            {(['full_day', 'half_day'] as const).map((v) => (
+                                                <div key={v} className={cn("flex items-center space-x-2 rounded-xl border px-4 py-3 flex-1 cursor-pointer transition-colors",
+                                                    editFormData.leaveLength === v ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600' : 'border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50')}>
+                                                    <RadioGroupItem value={v} id={`edit_${v}`} />
+                                                    <Label htmlFor={`edit_${v}`} className="cursor-pointer">{v === 'full_day' ? 'Full Day' : 'Half Day'}</Label>
                                                 </div>
-                                                <span>Start Date *</span>
-                                            </div>
-                                        </Label>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant={"outline"}
-                                                    className={cn(
-                                                        "w-full justify-start text-left font-normal bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600",
-                                                        !editFormData.startDate && "text-muted-foreground"
-                                                    )}
-                                                    disabled={isUpdating}
-                                                >
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {editFormData.startDate ? format(new Date(editFormData.startDate), "PPP") : <span>Pick a date</span>}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
-                                                <Calendar
-                                                    mode="single"
-                                                    className="bg-white dark:bg-slate-800"
-                                                    selected={editFormData.startDate ? new Date(editFormData.startDate) : undefined}
-                                                    onSelect={(date) => {
-                                                        if (date) {
-                                                            const dateString = formatDateToLocal(date);
-                                                            setEditFormData({ ...editFormData, startDate: dateString });
-                                                            if (editFormData.leaveLength === 'half_day') {
-                                                                setEditFormData(prev => ({ ...prev, endDate: dateString }));
-                                                            }
-                                                        }
-                                                    }}
-                                                    initialFocus
-                                                    disabled={(date) => {
-                                                        const today = new Date();
-                                                        const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-                                                        const compareToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                                                        return compareDate < compareToday;
-                                                    }}
-                                                />
-                                            </PopoverContent>
-                                        </Popover>
+                                            ))}
+                                        </RadioGroup>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label className="text-gray-700 dark:text-gray-300">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                                                    <CalendarIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                                                </div>
-                                                <span>{editFormData.leaveLength === 'half_day' ? 'Date' : 'End Date *'}</span>
-                                            </div>
-                                        </Label>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant={"outline"}
-                                                    className={cn(
-                                                        "w-full justify-start text-left font-normal bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600",
-                                                        !editFormData.endDate && "text-muted-foreground"
-                                                    )}
-                                                    disabled={isUpdating || editFormData.leaveLength === 'half_day'}
-                                                >
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {editFormData.endDate ? format(new Date(editFormData.endDate), "PPP") : <span>Pick a date</span>}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
-                                                <Calendar
-                                                    mode="single"
-                                                    className="bg-white dark:bg-slate-800"
-                                                    selected={editFormData.endDate ? new Date(editFormData.endDate) : undefined}
-                                                    onSelect={(date) => {
-                                                        if (date && editFormData.leaveLength === 'full_day') {
-                                                            setEditFormData({ ...editFormData, endDate: formatDateToLocal(date) });
-                                                        }
-                                                    }}
-                                                    initialFocus
-                                                    disabled={(date) => {
-                                                        if (editFormData.leaveLength === 'full_day' && editFormData.startDate) {
-                                                            const startDateObj = new Date(editFormData.startDate);
-                                                            const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-                                                            const compareStart = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
-                                                            return compareDate < compareStart;
-                                                        }
-                                                        return false;
-                                                    }}
-                                                />
-                                            </PopoverContent>
-                                        </Popover>
+                                        <Label className="text-gray-700 dark:text-gray-300">Start Date *</Label>
+                                        <input type="date" value={editFormData.startDate} min={today}
+                                            onChange={(e) => setEditFormData(p => ({ ...p, startDate: e.target.value, endDate: p.leaveLength === 'half_day' ? e.target.value : (p.endDate < e.target.value ? e.target.value : p.endDate) }))}
+                                            className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 px-4 py-3 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                            disabled={isUpdating} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-gray-700 dark:text-gray-300">End Date *</Label>
+                                        <input type="date" value={editFormData.endDate} min={editFormData.startDate || today}
+                                            onChange={(e) => setEditFormData(p => ({ ...p, endDate: e.target.value }))}
+                                            className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 px-4 py-3 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60"
+                                            disabled={isUpdating || editFormData.leaveLength === 'half_day'} />
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="editReason" className="text-gray-700 dark:text-gray-300">Reason for Leave *</Label>
-                                    <Textarea
-                                        id="editReason"
-                                        placeholder="Please provide a detailed reason for your leave request..."
-                                        value={editFormData.reason}
-                                        onChange={(e) => setEditFormData({ ...editFormData, reason: e.target.value })}
-                                        className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600 min-h-[120px]"
-                                        disabled={isUpdating}
-                                    />
+                                    <Label className="text-gray-700 dark:text-gray-300">Reason for Leave *</Label>
+                                    <Textarea value={editFormData.reason} onChange={(e) => setEditFormData(p => ({ ...p, reason: e.target.value }))}
+                                        placeholder="Please provide a detailed reason..." className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600 min-h-[100px]" disabled={isUpdating} />
                                 </div>
 
-                                <div className="flex gap-4 pt-4">
-                                    <Button
-                                        type="submit"
-                                        className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-8"
-                                        disabled={isUpdating}
-                                    >
-                                        {isUpdating ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                Updating...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Edit className="w-4 h-4" />
-                                                Update Application
-                                            </>
-                                        )}
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isUpdating}>
+                                        {isUpdating ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Updating...</> : 'Update Application'}
                                     </Button>
-                                    <Button
-                                        type="button"
-                                        onClick={() => setIsEditModalOpen(false)}
-                                        variant="outline"
-                                        className="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200"
-                                        disabled={isUpdating}
-                                    >
+                                    <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)} className="bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600" disabled={isUpdating}>
                                         Cancel
                                     </Button>
                                 </div>
@@ -926,98 +506,52 @@ const LeaveHistoryPage = () => {
                 </div>
             )}
 
-            {/* Cancel Leave Modal */}
+            {/* Cancel Modal */}
             {isCancelModalOpen && selectedLeave && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full border border-gray-200/50 dark:border-slate-600/50">
-                        {/* Header */}
-                        <div className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 border-b border-gray-200/50 dark:border-slate-600/50">
+                        <div className="p-6 border-b border-gray-200/50 dark:border-slate-600/50 bg-gradient-to-br from-rose-50 to-red-100 dark:from-slate-700 dark:to-slate-900">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center">
+                                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center shadow-lg">
                                         <Ban className="w-5 h-5 text-white" />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
-                                            Cancel Leave Request
-                                        </h3>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            Application #{selectedLeave.id}
-                                        </p>
+                                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Cancel Leave</h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">Application #{selectedLeave.id}</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => setIsCancelModalOpen(false)}
-                                    className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-all duration-200"
-                                    disabled={isCancelling}
-                                >
+                                <button onClick={() => setIsCancelModalOpen(false)} className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700 transition-all" disabled={isCancelling}>
                                     <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Content */}
                         <div className="p-6">
-                            <div className="mb-6">
-                                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                                    <div className="flex items-start gap-3">
-                                        <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-                                        <div>
-                                            <h4 className="font-medium text-yellow-800 dark:text-yellow-200">
-                                                Are you sure you want to cancel this leave request?
-                                            </h4>
-                                            <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                                                {selectedLeave.leave_type} from {formatDate(selectedLeave.start_date)} to {formatDate(selectedLeave.end_date)}
-                                            </p>
-                                            <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-2">
-                                                This action cannot be undone. You'll need to submit a new request if you change your mind.
-                                            </p>
-                                        </div>
+                            <div className="rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 p-4 mb-5">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                                            {selectedLeave.leave_type} · {moment(selectedLeave.start_date).format('MMM D')} — {moment(selectedLeave.end_date).format('MMM D, YYYY')}
+                                        </p>
+                                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">This action cannot be undone.</p>
                                     </div>
                                 </div>
                             </div>
 
                             <form onSubmit={handleCancelSubmit} className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="cancelReason" className="text-gray-700 dark:text-gray-300">
-                                        Reason for Cancellation *
-                                    </Label>
-                                    <Textarea
-                                        id="cancelReason"
-                                        placeholder="Please explain why you're cancelling this leave request..."
-                                        value={cancelReason}
-                                        onChange={(e) => setCancelReason(e.target.value)}
-                                        className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600 min-h-[100px]"
-                                        disabled={isCancelling}
-                                        required
-                                    />
+                                    <Label className="text-gray-700 dark:text-gray-300">Reason for Cancellation *</Label>
+                                    <Textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
+                                        placeholder="Why are you cancelling this leave request?" className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600 min-h-[100px]"
+                                        disabled={isCancelling} required />
                                 </div>
-
-                                <div className="flex gap-3 pt-4">
-                                    <Button
-                                        type="submit"
-                                        className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2 px-6"
-                                        disabled={isCancelling || !cancelReason.trim()}
-                                    >
-                                        {isCancelling ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                Cancelling...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Ban className="w-4 h-4" />
-                                                Cancel Request
-                                            </>
-                                        )}
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <Button type="submit" className="bg-rose-600 hover:bg-rose-700 text-white" disabled={isCancelling || !cancelReason.trim()}>
+                                        {isCancelling ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Cancelling...</> : 'Cancel Request'}
                                     </Button>
-                                    <Button
-                                        type="button"
-                                        onClick={() => setIsCancelModalOpen(false)}
-                                        variant="outline"
-                                        className="flex-1 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 transition-colors duration-200"
-                                        disabled={isCancelling}
-                                    >
+                                    <Button type="button" variant="outline" onClick={() => setIsCancelModalOpen(false)} className="flex-1 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600" disabled={isCancelling}>
                                         Keep Request
                                     </Button>
                                 </div>

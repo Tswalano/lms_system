@@ -161,7 +161,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         }
     };
 
-    const sidebarWidth = isCollapsed ? 'w-20' : 'w-72';
+    const isDesktopCollapsed = isCollapsed && isLgUp;
 
     return (
         <>
@@ -191,7 +191,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             {/* Sidebar */}
             <div className={cn(
                 "fixed left-0 top-0 h-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-r border-gray-200/50 dark:border-slate-700/50 shadow-xl z-50 transition-all duration-300 ease-out flex flex-col",
-                `lg:${sidebarWidth}`,
+                isCollapsed ? "lg:w-20" : "lg:w-72",
                 "w-72",
                 "lg:translate-x-0",
                 isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
@@ -200,7 +200,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex-shrink-0 p-6 border-b border-gray-100/50 dark:border-slate-700/50">
                     <div className="flex items-center justify-between">
                         <Link to="/" className="flex items-center" onClick={handleMenuItemClick}>
-                            {!isCollapsed || !isLgUp ? (
+                            {!isDesktopCollapsed ? (
                                 <img
                                     src='https://disraptor.co.za/wp-content/uploads/2023/05/AWS_Disraptor_Brand-Guidelines_V_031-1.svg'
                                     alt="Disruptor Logo"
@@ -216,42 +216,46 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 </div>
                             )}
                         </Link>
-
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={toggleCollapse}
-                            className="hidden lg:flex items-center justify-center w-10 h-10 p-2 rounded-xl bg-gray-100/80 dark:bg-slate-800/80 border border-gray-200/50 dark:border-slate-700/50 hover:bg-gray-200/80 dark:hover:bg-slate-700/80 hover:scale-105 transition-all duration-200"
-                        >
-                            <div className="relative w-4 h-4">
-                                <ChevronsLeft className={cn(
-                                    "w-4 h-4 text-gray-600 dark:text-gray-400 absolute inset-0 transition-all duration-300",
-                                    isCollapsed ? "rotate-180 opacity-0" : "rotate-0 opacity-100"
-                                )} />
-                                <ChevronsRight className={cn(
-                                    "w-4 h-4 text-gray-600 dark:text-gray-400 absolute inset-0 transition-all duration-300",
-                                    isCollapsed ? "rotate-0 opacity-100" : "rotate-180 opacity-0"
-                                )} />
-                            </div>
-                        </Button>
                     </div>
                 </div>
 
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleCollapse}
+                    className={cn(
+                        "hidden lg:flex absolute top-6 -right-4 z-10 items-center justify-center w-9 h-9 p-0 rounded-full bg-white dark:bg-slate-800 border border-gray-200/80 dark:border-slate-700 shadow-lg hover:bg-gray-100 dark:hover:bg-slate-700 hover:scale-105 transition-all duration-200",
+                        isDesktopCollapsed && "top-7"
+                    )}
+                    aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                >
+                    <div className="relative w-4 h-4">
+                        <ChevronsLeft className={cn(
+                            "w-4 h-4 text-gray-600 dark:text-gray-400 absolute inset-0 transition-all duration-300",
+                            isCollapsed ? "rotate-180 opacity-0" : "rotate-0 opacity-100"
+                        )} />
+                        <ChevronsRight className={cn(
+                            "w-4 h-4 text-gray-600 dark:text-gray-400 absolute inset-0 transition-all duration-300",
+                            isCollapsed ? "rotate-0 opacity-100" : "rotate-180 opacity-0"
+                        )} />
+                    </div>
+                </Button>
+
                 {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-none scrollbar-none scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
+                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
                     {/* User Profile */}
-                    <div className={cn("p-4", isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "" : "")}>
+                    <div className="p-4">
                         <Link
                             to="/profile"
                             onClick={handleMenuItemClick}
                             className={cn(
                                 "flex items-center gap-3 mb-6 p-3 rounded-xl transition-all duration-200 group cursor-pointer",
                                 isActive('/profile')
-                                    ? isCollapsed ? "" : "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 border border-green-500 shadow-lg shadow-cyan-500/25"
-                                    : isCollapsed && window.matchMedia('(min-width: 1024px)').matches
+                                    ? isDesktopCollapsed ? "" : "bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 border border-green-500 shadow-lg shadow-cyan-500/25"
+                                    : isDesktopCollapsed
                                         ? "bg-transparent border-transparent hover:bg-transparent"
                                         : "bg-gradient-to-r from-blue-50 via-cyan-50 to-green-50 dark:from-blue-900/20 dark:via-cyan-900/20 dark:to-green-900/20 border border-cyan-200 dark:border-cyan-800 hover:from-blue-100 hover:via-cyan-100 hover:to-green-100 dark:hover:from-blue-900/30 dark:hover:via-cyan-900/30 dark:hover:to-green-900/30",
-                                isCollapsed && window.matchMedia('(min-width: 1024px)').matches ? "justify-center" : ""
+                                isDesktopCollapsed ? "justify-center" : ""
                             )}
                             title={isCollapsed ? `${user?.firstName} ${user?.lastName}` : undefined}
                         >
@@ -271,7 +275,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                             </div>
 
 
-                            {(!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) && (
+                            {!isDesktopCollapsed && (
                                 <div className="flex-1 min-w-0">
                                     <p className={cn(
                                         "font-semibold",
@@ -295,7 +299,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                         {/* Menu Sections */}
                         <nav className="space-y-2">
-                            {isCollapsed && isLgUp ? (
+                            {isDesktopCollapsed ? (
                                 // Collapsed view: Show only menu items without sections
                                 <div className="space-y-1">
                                     {menuSections.flatMap(section => section.items).map((item) => (
@@ -409,10 +413,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {/* Footer */}
                 <div className={cn(
                     "flex-shrink-0 p-4 border-t border-gray-100/50 dark:border-slate-700/50 space-y-3",
-                    isCollapsed && isLgUp ? "px-2" : ""
+                    isDesktopCollapsed ? "px-2" : ""
                 )}>
                     {/* Theme Toggle */}
-                    {isCollapsed && isLgUp ? (
+                    {isDesktopCollapsed ? (
                         <button
                             onClick={toggleTheme}
                             className="w-12 h-12 mx-auto flex items-center justify-center rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-800 dark:to-slate-700 shadow-lg border border-gray-200 dark:border-slate-600 hover:shadow-xl hover:scale-105 transition-all duration-300"
@@ -465,7 +469,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     )}
 
                     {/* Logout Button */}
-                    {isCollapsed && isLgUp ? (
+                    {isDesktopCollapsed ? (
                         <button
                             onClick={logout}
                             title="Sign Out"
@@ -486,7 +490,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     )}
 
                     {/* Version */}
-                    {(!isCollapsed || !isLgUp) && (
+                    {!isDesktopCollapsed && (
                         <div className="text-center py-2">
                             <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">
                                 v{import.meta.env.VITE_VERSION || '1.0.0'}

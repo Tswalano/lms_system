@@ -72,21 +72,21 @@ const LeaveBalanceCards = () => {
                 </div>
             )} */}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {leaveData.map((leave, index) => (
                     <div
                         key={index}
-                        className={`bg-gradient-to-br ${leave.bgGradient} p-6 rounded-2xl border border-white/20 dark:border-gray-700/20 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 group cursor-pointer`}
+                        className={`bg-gradient-to-br ${leave.bgGradient} px-5 py-4 rounded-2xl border border-white/20 dark:border-gray-700/20 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 group cursor-pointer flex items-center gap-4`}
                     >
-                        <div className="flex items-center justify-between mb-4">
-                            <div
-                                className={`w-12 h-12 bg-gradient-to-br ${leave.gradient} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200`}
-                            >
-                                <leave.icon className="w-6 h-6 text-white" />
-                            </div>
+                        <div
+                            className={`w-14 h-14 flex-shrink-0 bg-gradient-to-br ${leave.gradient} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200`}
+                        >
+                            <leave.icon className="w-7 h-7 text-white" />
                         </div>
-                        <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">{leave.title}</h3>
-                        <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{leave.days}</p>
+                        <div className="min-w-0">
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide truncate">{leave.title}</p>
+                            <p className="text-2xl font-bold text-gray-800 dark:text-gray-100 leading-tight">{leave.count}</p>
+                        </div>
                     </div>
                 ))}
             </div>

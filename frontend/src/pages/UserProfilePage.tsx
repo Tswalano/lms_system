@@ -273,7 +273,7 @@ const UserProfilePage: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="px-16 max-w-7xl mx-auto">
+            <div className="max-w-5xl mx-auto">
                 <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12">
                     <div className="text-center">
                         <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
@@ -286,7 +286,7 @@ const UserProfilePage: React.FC = () => {
 
     if (!userData) {
         return (
-            <div className="px-16 max-w-7xl mx-auto">
+            <div className="max-w-5xl mx-auto">
                 <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12 text-center">
                     <p className="text-gray-600 dark:text-gray-400">Failed to load profile data.</p>
                     <Button onClick={fetchUserData} className="mt-4">
@@ -298,7 +298,7 @@ const UserProfilePage: React.FC = () => {
     }
 
     return (
-        <div className="px-16 max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-between">
                 <div className="mb-8 flex items-center gap-3">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">

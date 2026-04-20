@@ -172,58 +172,22 @@ const NotificationCenterPage: React.FC = () => {
         }
     };
 
-    // Fixed: Returns proper styling classes for notification borders
-    // const getNotificationStyles = (type: string, isRead: number | string | boolean): string => {
-    //     // Debug logging
-    //     console.log('getNotificationStyles called with:', { type, isRead, typeOfIsRead: typeof isRead });
-
-    //     // Handle different formats of isRead (number, string, boolean)
-    //     const isReadNormalized = isRead === 1 || isRead === "1" || isRead === true || isRead === "true";
-
-    //     // If notification is read, no border or background
-    //     if (isReadNormalized) {
-    //         console.log('Notification is read, returning empty styles');
-    //         return '';
-    //     }
-
-    //     // If notification is unread, add left border and subtle background based on type
-    //     console.log('Notification is unread, applying styles for type:', type);
-    //     const typeNormalized = type?.toLowerCase() || '';
-
-    //     switch (typeNormalized) {
-    //         case 'error':
-    //         case 'urgent':
-    //             return 'border-l-4 border-l-red-500 bg-red-50/30 dark:bg-red-900/5';
-    //         case 'warning':
-    //             return 'border-l-4 border-l-yellow-500 bg-yellow-50/30 dark:bg-yellow-900/5';
-    //         case 'success':
-    //             return 'border-l-4 border-l-green-500 bg-green-50/30 dark:bg-green-900/5';
-    //         case 'info':
-    //             return 'border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-900/5';
-    //         case 'action_required':
-    //             return 'border-l-4 border-l-purple-500 bg-purple-50/30 dark:bg-purple-900/5';
-    //         default:
-    //             console.log('Using default blue styling for type:', type);
-    //             return 'border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-900/5';
-    //     }
-    // };
-
-    // const getTypeStyles = (type: string): string => {
-    //     switch (type) {
-    //         case "error":
-    //             return "border-l-4 border-l-red-500 dark:border-l-red-400 bg-red-50/50 dark:bg-red-900/20";
-    //         case "warning":
-    //             return "border-l-4 border-l-orange-500 dark:border-l-orange-400 bg-orange-50/50 dark:bg-orange-900/20";
-    //         case "info":
-    //             return "border-l-4 border-l-blue-500 dark:border-l-blue-400 bg-blue-50/50 dark:bg-blue-900/20";
-    //         case "success":
-    //             return "border-l-4 border-l-green-500 dark:border-l-green-400 bg-green-50/50 dark:bg-green-900/20";
-    //         case "urgent":
-    //             return "border-l-4 border-l-red-600 dark:border-l-red-500 bg-red-100/50 dark:bg-red-900/30";
-    //         default:
-    //             return "border-l-4 border-l-blue-500 dark:border-l-blue-400 bg-blue-50/50 dark:bg-blue-900/20";
-    //     }
-    // };
+    const getTypeStyles = (type: string): string => {
+        switch (type) {
+            case 'success':
+                return 'border-l-4 border-l-emerald-500 dark:border-l-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10';
+            case 'warning':
+                return 'border-l-4 border-l-amber-500 dark:border-l-amber-400 bg-amber-50/50 dark:bg-amber-900/10';
+            case 'error':
+                return 'border-l-4 border-l-red-500 dark:border-l-red-400 bg-red-50/50 dark:bg-red-900/10';
+            case 'info':
+                return 'border-l-4 border-l-blue-500 dark:border-l-blue-400 bg-blue-50/50 dark:bg-blue-900/10';
+            case 'action_required':
+                return 'border-l-4 border-l-purple-500 dark:border-l-purple-400 bg-purple-50/50 dark:bg-purple-900/10';
+            default:
+                return 'border-l-4 border-l-blue-500 dark:border-l-blue-400 bg-blue-50/50 dark:bg-blue-900/10';
+        }
+    };
 
 
 
@@ -599,7 +563,7 @@ const NotificationCenterPage: React.FC = () => {
 
                             return (
                                 <div key={notification.id}
-                                    className={`group flex gap-4 border-b border-gray-200 dark:border-gray-700 transition-colors duration-200 ${isUnread ? 'border-l-4 border-l-orange-500 dark:border-l-orange-400 bg-orange-50/50 dark:bg-orange-900/20' : ''}`}>
+                                    className={`group flex gap-4 border-b border-gray-200 dark:border-gray-700 transition-colors duration-200 ${isUnread ? getTypeStyles(notification.type) : ''}`}>
                                     <div className="p-4 flex gap-3 w-full">
                                         <div className="flex gap-4">
                                             {/* Checkbox */}

@@ -312,8 +312,6 @@ app.get('/on-leave', async (c) => {
         // Get current date for status determination
         const currentDate = new Date().toISOString().split('T')[0];
 
-        console.log('Debug - Query params:', { startDate, endDate, currentDate });
-
         // Validate parameters exist
         if (!startDate || !endDate) {
             return c.json(ResponseService.error(
@@ -359,11 +357,7 @@ app.get('/on-leave', async (c) => {
             ORDER BY u.firstName, u.lastName, lr.start_date
         `;
 
-        console.log('Debug - Executing query');
-
         const [rows] = await connection.execute(query);
-
-        console.log('Debug - Total rows returned:', (rows as any[]).length);
 
         // Group users and their leave data
         const userMap = new Map<string, {
@@ -406,8 +400,6 @@ app.get('/on-leave', async (c) => {
                 });
             }
         }
-
-        console.log('Debug - Unique users processed:', userMap.size);
 
         // Build team member output
         const teamMembers = Array.from(userMap.values()).map(({ user, allLeaves }) => {
@@ -504,13 +496,6 @@ app.get('/on-leave', async (c) => {
                 pastLeaves: pastLeaves.slice(0, 5) // Limit to recent 5 past leaves
             };
 
-            console.log(`Debug - User ${user.id} (${fullName}): ${member.status}`,
-                primaryLeave ? {
-                    leaveType: member.leaveType,
-                    dates: member.leaveDates,
-                    overlappingDays: member.overlappingDays
-                } : 'Available');
-
             return member;
         });
 
@@ -523,16 +508,6 @@ app.get('/on-leave', async (c) => {
         const onLeaveInPeriod = teamMembers.filter(m =>
             m.status === 'on-leave' || (m.status === 'upcoming-leave' && m.overlappingDays > 0)
         ).length;
-
-        console.log('Debug - Final Summary:', {
-            totalUsers: teamMembers.length,
-            currentlyOnLeave: onLeaveCount,
-            available: availableCount,
-            upcomingLeave: upcomingLeaveCount,
-            onLeaveInQueryPeriod: onLeaveInPeriod,
-            queryRange: `${startDate} to ${endDate}`,
-            currentDate: currentDate
-        });
 
         const response = ResponseService.success("Leave status fetched successfully", {
             teamMembers,
@@ -755,9 +730,9 @@ app.post('/add-user', async (c) => {
                 firstName,
                 lastName,
                 role,
-                jobTitle: jobTitle || '', 
+                jobTitle: jobTitle || '',
                 phoneNumber: '+27000000000',
-                dob: '0000-01-01',   
+                dob: '0000-01-01',
                 gender: '-'
             };
 
