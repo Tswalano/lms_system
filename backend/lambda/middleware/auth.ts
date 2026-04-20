@@ -46,37 +46,29 @@ export const getToken = (c: any): string | null => {
 };
 
 // Simple token validation (decode only, no signature verification)
-export const validateToken = (token: string): DecodedToken => {
+export const validateToken = (token: string): DecodedToken | null => {
     try {
         const decoded = jwt.decode(token) as DecodedToken;
 
-        if (!decoded) {
-            throw new Error("Invalid token: could not decode");
-        }
+        if (!decoded) return null;
 
-        // Check if token is expired
         const now = Math.floor(Date.now() / 1000);
         if (decoded.exp && decoded.exp < now) {
-            throw new Error("Token expired");
+            console.warn("Token expired");
+            return null;
         }
 
-        // Validate required fields
-        if (!decoded['sub']) {
-            throw new Error("Invalid token structure: missing 'sub'");
-        }
-
-        // Check if token is for access OR id (both are valid for authentication)
-        if (decoded.token_use !== 'access' && decoded.token_use !== 'id') {
-            throw new Error("Invalid token: not an access or id token");
-        }
+        if (!decoded['sub']) return null;
+        if (decoded.token_use !== 'access' && decoded.token_use !== 'id') return null;
 
         return decoded;
 
     } catch (error) {
         console.error('Token validation error:', error);
-        throw new Error("Unauthorized: Invalid token");
+        return null;
     }
 };
+
 
 // Type-safe function to get decoded token from context
 export const getDecodedToken = (c: Context): DecodedToken => {
