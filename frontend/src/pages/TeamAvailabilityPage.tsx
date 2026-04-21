@@ -758,9 +758,9 @@ const TeamAvailabilityPage = () => {
                                             </TableCell>
                                             <TableCell className="px-6 py-4 whitespace-nowrap text-right">
                                                 <Button
-                                                    variant="ghost"
+                                                    variant="outline"
                                                     size="sm"
-                                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/50 dark:text-blue-400 dark:hover:text-blue-300"
+                                                    className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40"
                                                     onClick={() => openMemberDetails(member.id)}
                                                 >
                                                     {expandedRow === member.id ? (

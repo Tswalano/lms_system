@@ -101,6 +101,27 @@ interface ModalProps {
     children: React.ReactNode;
 }
 
+const BORDER_LEFT_MAP: Record<string, string> = {
+    'bg-blue-500': 'border-l-blue-500',
+    'bg-red-500': 'border-l-red-500',
+    'bg-green-500': 'border-l-green-500',
+    'bg-purple-500': 'border-l-purple-500',
+    'bg-yellow-500': 'border-l-yellow-500',
+    'bg-pink-500': 'border-l-pink-500',
+    'bg-indigo-500': 'border-l-indigo-500',
+    'bg-cyan-500': 'border-l-cyan-500',
+    'bg-orange-500': 'border-l-orange-500',
+    'bg-teal-500': 'border-l-teal-500',
+    'bg-gray-500': 'border-l-gray-500',
+    'bg-emerald-500': 'border-l-emerald-500',
+    'bg-violet-500': 'border-l-violet-500',
+    'bg-rose-500': 'border-l-rose-500',
+    'bg-amber-500': 'border-l-amber-500',
+    'bg-lime-500': 'border-l-lime-500',
+    'bg-sky-500': 'border-l-sky-500',
+    'bg-fuchsia-500': 'border-l-fuchsia-500',
+};
+
 const EmployeeDocumentsPage: FC = () => {
     const { authFetch, user } = useAuth();
     const queryClient = useQueryClient();
@@ -206,7 +227,7 @@ const EmployeeDocumentsPage: FC = () => {
 
             return result;
         },
-        onSuccess: (data, variables) => {
+        onSuccess: (_data, variables) => {
             // Update local state to reflect the signed document
             setAllDocuments(prev => prev.map(doc =>
                 doc.id === variables.documentId
@@ -274,7 +295,7 @@ const EmployeeDocumentsPage: FC = () => {
 
             return result;
         },
-        onSuccess: (data, variables) => {
+        onSuccess: (_data, variables) => {
             // Update local state to reflect the viewed document
             setAllDocuments(prev => prev.map(doc =>
                 doc.id === variables.documentId && doc.status === 'pending'
@@ -581,8 +602,8 @@ const EmployeeDocumentsPage: FC = () => {
                             <div
                                 key={category.id}
                                 onClick={() => handleCategoryClick(category.id)}
-                                className={`bg-white dark:bg-gray-800 rounded-xl border-2 p-4 hover:shadow-lg transition-all duration-200 cursor-pointer group ${selectedCategory === category.id
-                                    ? 'border-cyan-500 dark:border-cyan-400 bg-cyan-50 dark:bg-cyan-900/20'
+                                className={`bg-white dark:bg-gray-800 rounded-xl border border-l-4 p-4 hover:shadow-lg transition-all duration-200 cursor-pointer group ${BORDER_LEFT_MAP[category.color] ?? 'border-l-blue-500'} ${selectedCategory === category.id
+                                    ? 'border-cyan-200 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-900/20'
                                     : 'border-gray-200 dark:border-gray-700'
                                     }`}
                             >
@@ -696,7 +717,7 @@ const EmployeeDocumentsPage: FC = () => {
                                                     <button
                                                         onClick={() => handleViewDocument(doc)}
                                                         disabled={documentViewMutation.isPending && selectedDocument?.id === doc.id}
-                                                        className="p-2 text-cyan-400 hover:text-cyan-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        className="p-1.5 rounded-lg border border-cyan-200 text-cyan-600 bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-900/20 dark:border-cyan-800 dark:text-cyan-400 dark:hover:bg-cyan-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                         title="View Document"
                                                     >
                                                         {documentViewMutation.isPending && selectedDocument?.id === doc.id ? (
@@ -707,7 +728,7 @@ const EmployeeDocumentsPage: FC = () => {
                                                     </button>
                                                     <button
                                                         onClick={() => handleDownloadDocument(doc)}
-                                                        className="p-2 text-green-400 hover:text-green-500 transition-colors"
+                                                        className="p-1.5 rounded-lg border border-green-200 text-green-600 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/40 transition-colors"
                                                         title="Download"
                                                     >
                                                         <Download className="w-4 h-4" />
@@ -715,7 +736,7 @@ const EmployeeDocumentsPage: FC = () => {
                                                     {(doc.status === 'pending' || doc.status === 'viewed' || doc.status === 'overdue') && (
                                                         <button
                                                             onClick={() => handleSignDocument(doc)}
-                                                            className="p-2 text-blue-500 hover:text-blue-600 transition-colors"
+                                                            className="p-1.5 rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
                                                             title="Sign Document"
                                                         >
                                                             <PenTool className="w-4 h-4" />

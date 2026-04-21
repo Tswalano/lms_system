@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils"
 
 interface LeaveRequest {
     id: number;
@@ -95,13 +96,15 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, employeeName, leaveTy
                                 </p>
                             </div>
                         </div>
-                        <button
+                        <Button
                             onClick={onClose}
+                            variant="ghost"
+                            size="icon"
                             className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                             disabled={isSubmitting}
                         >
                             <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
@@ -134,11 +137,12 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, employeeName, leaveTy
                             Clear
                         </Button>
                         <Button
+                            variant="outline"
                             onClick={handleSubmit}
                             className={`flex-1 ${action === 'approve'
-                                ? 'bg-green-600 hover:bg-green-700'
-                                : 'bg-red-600 hover:bg-red-700'
-                                } text-white`}
+                                ? 'border-green-200 text-green-600 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/40'
+                                : 'border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40'
+                                }`}
                             disabled={isSubmitting}
                         >
                             {isSubmitting ? (
@@ -351,6 +355,8 @@ const ApproveLeavePage = () => {
         cancelLeaveMutation.mutate(leaveToCancel.id);
     };
 
+    const isFutureLeave = (r: LeaveRequest) => new Date(r.start_date) > new Date(new Date().toDateString());
+
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800';
@@ -517,27 +523,29 @@ const ApproveLeavePage = () => {
                                                 <div className="flex items-center gap-2 flex-shrink-0">
                                                     <Button
                                                         size="sm"
+                                                        variant="outline"
                                                         onClick={() => openApprovalModal(request, 'approve')}
-                                                        className="bg-green-600 hover:bg-green-700 text-white"
+                                                        className="border-green-200 text-green-600 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/40"
                                                         disabled={processLeaveMutation.isPending}
                                                     >
                                                         <CheckCircle className="w-4 h-4 mr-1" /> Approve
                                                     </Button>
                                                     <Button
                                                         size="sm"
-                                                        variant="destructive"
+                                                        variant="outline"
                                                         onClick={() => openApprovalModal(request, 'reject')}
+                                                        className="border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40"
                                                         disabled={processLeaveMutation.isPending}
                                                     >
                                                         <XCircle className="w-4 h-4 mr-1" /> Reject
                                                     </Button>
                                                     <Button
                                                         size="sm"
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         onClick={() => openDetailsModal(request)}
-                                                        className="text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                                                        className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40"
                                                     >
-                                                        <Eye className="w-4 h-4" />
+                                                        <Eye className="w-4 h-4" /> View
                                                     </Button>
                                                 </div>
                                             </div>
@@ -598,14 +606,33 @@ const ApproveLeavePage = () => {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 flex-shrink-0"
-                                                        onClick={() => openDetailsModal(request)}
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                    </Button>
+                                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                                        {(() => {
+                                                            const cancelActive = request.status === 'approved' && isFutureLeave(request);
+                                                            return (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => { if (cancelActive) handleCancelLeave(request); }}
+                                                                    disabled={cancelLeaveMutation.isPending || !cancelActive}
+                                                                    className={cancelActive
+                                                                        ? "border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40"
+                                                                        : "border-gray-200 text-gray-400 bg-gray-50 dark:bg-gray-800/20 dark:border-gray-700 dark:text-gray-500 cursor-not-allowed"
+                                                                    }
+                                                                >
+                                                                    <Ban className="w-4 h-4 mr-1" /> Cancel
+                                                                </Button>
+                                                            );
+                                                        })()}
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => openDetailsModal(request)}
+                                                            className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40"
+                                                        >
+                                                            <Eye className="w-4 h-4" /> View
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -731,12 +758,14 @@ const ApproveLeavePage = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <button
+                                <Button
                                     onClick={() => setIsDetailsModalOpen(false)}
+                                    variant="ghost"
+                                    size="icon"
                                     className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-colors"
                                 >
                                     <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
@@ -819,36 +848,40 @@ const ApproveLeavePage = () => {
                                 {selectedLeaveDetails.status === 'pending' ? (
                                     <>
                                         <Button
+                                            variant="outline"
                                             onClick={() => {
                                                 setIsDetailsModalOpen(false);
                                                 openApprovalModal(selectedLeaveDetails, 'approve');
                                             }}
-                                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                            className="flex-1 border-green-200 text-green-600 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/40"
                                         >
                                             <CheckCircle className="w-4 h-4 mr-2" />
                                             Approve
                                         </Button>
                                         <Button
+                                            variant="outline"
                                             onClick={() => {
                                                 setIsDetailsModalOpen(false);
                                                 openApprovalModal(selectedLeaveDetails, 'reject');
                                             }}
-                                            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                                            className="flex-1 border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40"
                                         >
                                             <XCircle className="w-4 h-4 mr-2" />
                                             Reject
                                         </Button>
                                     </>
                                 ) : null}
-                                <button
+                                <Button
                                     onClick={() => setIsDetailsModalOpen(false)}
-                                    className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${selectedLeaveDetails.status === 'pending'
-                                        ? 'flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-300 dark:border-slate-700'
-                                        : 'w-full bg-slate-700 hover:bg-slate-800 dark:bg-slate-500 dark:hover:bg-slate-400 text-white'
-                                        }`}
+                                    className={cn(`px-4 py-2 rounded-lg font-medium transition-colors duration-200`,
+                                        selectedLeaveDetails.status === 'pending'
+                                            ? 'flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-300 dark:border-slate-700'
+                                            : 'w-full bg-slate-700 hover:bg-slate-800 dark:bg-slate-500 dark:hover:bg-slate-400 text-white'
+                                    )}
+                                    variant={selectedLeaveDetails.status === 'pending' ? "outline" : "default"}
                                 >
                                     Close
-                                </button>
+                                </Button>
 
                             </div>
                         </div>

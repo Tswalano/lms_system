@@ -758,14 +758,14 @@ const AdminDocumentsPage: FC = () => {
                     <div className="flex flex-wrap items-center gap-3">
                         <button
                             onClick={() => setShowCreateFolderModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/20 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800/40 transition-colors"
                         >
                             <FolderPlus className="w-4 h-4" />
                             New Folder
                         </button>
                         <button
                             onClick={() => setShowAddDocumentModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                             New Document

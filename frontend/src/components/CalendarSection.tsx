@@ -189,8 +189,8 @@ const CalendarDateCellWrapperComponent = ({
                 isSelectedPreview && "calendar-date-cell-selected",
                 isPastDate && "calendar-date-cell-disabled"
             )}
-            onMouseDown={() => { if (!isPastDate) onCellMouseDown(normalizedValue.toDate()); }}
-            onMouseEnter={() => { if (!isPastDate) onCellMouseEnter(normalizedValue.toDate()); }}
+            onMouseDown={() => onCellMouseDown(normalizedValue.toDate())}
+            onMouseEnter={() => onCellMouseEnter(normalizedValue.toDate())}
         >
             {children}
         </div>
@@ -461,14 +461,6 @@ const CalendarSection = () => {
 
         const normalizedStart = moment(start).startOf('day').toDate();
         const normalizedEnd = moment(end).subtract(1, 'day').startOf('day').toDate();
-        const today = moment().startOf('day');
-
-        if (moment(normalizedStart).isBefore(today, 'day')) {
-            toast.warning("Past dates can't be selected", {
-                description: "Choose today or a future date range for a leave request."
-            });
-            return;
-        }
 
         openApplyLeaveModal(normalizedStart, normalizedEnd);
     };
@@ -748,7 +740,7 @@ const CalendarSection = () => {
                     border: isDarkMode ? '1px solid #334155' : '1px solid #e5e7eb',
                     color: isDarkMode ? '#64748b' : '#9ca3af',
                     opacity: 0.7,
-                    cursor: 'not-allowed',
+                    cursor: 'pointer',
                     position: 'relative'
                 } as React.CSSProperties
             };
@@ -1204,14 +1196,14 @@ const CalendarSection = () => {
                                             onValueChange={(value: 'half_day' | 'full_day') => setLeaveFormData((prev) => ({ ...prev, leaveLength: value }))}
                                             className="flex flex-col sm:flex-row gap-4"
                                         >
-                                            <div className="flex items-center space-x-2 rounded-xl border border-gray-200 dark:border-slate-600 px-4 py-3 bg-gray-50 dark:bg-slate-700/50">
+                                            <Label htmlFor="calendar_full_day" className={cn("flex items-center space-x-2 rounded-xl border px-4 py-3 flex-1 cursor-pointer transition-colors", leaveFormData.leaveLength === 'full_day' ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600' : 'border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50')}>
                                                 <RadioGroupItem value="full_day" id="calendar_full_day" />
-                                                <Label htmlFor="calendar_full_day">Full Day</Label>
-                                            </div>
-                                            <div className="flex items-center space-x-2 rounded-xl border border-gray-200 dark:border-slate-600 px-4 py-3 bg-gray-50 dark:bg-slate-700/50">
+                                                <span>Full Day</span>
+                                            </Label>
+                                            <Label htmlFor="calendar_half_day" className={cn("flex items-center space-x-2 rounded-xl border px-4 py-3 flex-1 cursor-pointer transition-colors", leaveFormData.leaveLength === 'half_day' ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600' : 'border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50')}>
                                                 <RadioGroupItem value="half_day" id="calendar_half_day" />
-                                                <Label htmlFor="calendar_half_day">Half Day</Label>
-                                            </div>
+                                                <span>Half Day</span>
+                                            </Label>
                                         </RadioGroup>
                                     </div>
 
@@ -1220,7 +1212,6 @@ const CalendarSection = () => {
                                         <input
                                             type="date"
                                             value={leaveFormData.startDate}
-                                            min={formatDateToLocal(new Date())}
                                             onChange={(e) => setLeaveFormData((prev) => ({
                                                 ...prev,
                                                 startDate: e.target.value,
@@ -1245,6 +1236,16 @@ const CalendarSection = () => {
                                         />
                                     </div>
                                 </div>
+
+                                {leaveFormData.startDate && moment(leaveFormData.startDate).isBefore(moment(), 'day') && (
+                                    <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 flex items-start gap-3">
+                                        <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Backdated Leave Application</p>
+                                            <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">You are applying for leave starting in the past. Make sure this is intentional.</p>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {selectedSlotRange && (
                                     <div className="rounded-2xl border border-cyan-200/70 dark:border-cyan-800/70 bg-cyan-50/60 dark:bg-cyan-950/20 p-4">
@@ -1412,7 +1413,7 @@ const CalendarSection = () => {
                 }
 
                 .calendar-date-cell-disabled {
-                    cursor: not-allowed;
+                    cursor: pointer;
                 }
 
                 .rbc-day-bg:hover {
@@ -1426,7 +1427,7 @@ const CalendarSection = () => {
                 }
 
                 .past-date-cell {
-                    cursor: not-allowed !important;
+                    cursor: pointer !important;
                 }
 
                 .past-date-cell:hover {

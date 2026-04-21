@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
-import { CalendarRange, Loader2 } from "lucide-react";
+import { CalendarRange, Loader2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -116,10 +116,6 @@ const ApplyLeavePage = () => {
         const endDate = moment(formData.endDate).startOf('day');
         const todayM = moment().startOf('day');
 
-        if (startDate.isBefore(todayM, 'day')) {
-            toast.warning("Backdated Leave Application", { description: "You are applying for leave that starts in the past." });
-        }
-
         if (formData.leaveLength === 'full_day' && endDate.isBefore(startDate, 'day')) {
             toast.error("Invalid Date Range", { description: "End date cannot be before start date." });
             return;
@@ -210,24 +206,24 @@ const ApplyLeavePage = () => {
                                     className="flex flex-col sm:flex-row gap-4"
                                     disabled={isPending}
                                 >
-                                    <div className={cn(
+                                    <Label htmlFor="apply_full_day" className={cn(
                                         "flex items-center space-x-2 rounded-xl border px-4 py-3 flex-1 cursor-pointer transition-colors",
                                         formData.leaveLength === 'full_day'
                                             ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600'
                                             : 'border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50'
                                     )}>
                                         <RadioGroupItem value="full_day" id="apply_full_day" />
-                                        <Label htmlFor="apply_full_day" className="cursor-pointer">Full Day</Label>
-                                    </div>
-                                    <div className={cn(
+                                        <span>Full Day</span>
+                                    </Label>
+                                    <Label htmlFor="apply_half_day" className={cn(
                                         "flex items-center space-x-2 rounded-xl border px-4 py-3 flex-1 cursor-pointer transition-colors",
                                         formData.leaveLength === 'half_day'
                                             ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600'
                                             : 'border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50'
                                     )}>
                                         <RadioGroupItem value="half_day" id="apply_half_day" />
-                                        <Label htmlFor="apply_half_day" className="cursor-pointer">Half Day</Label>
-                                    </div>
+                                        <span>Half Day</span>
+                                    </Label>
                                 </RadioGroup>
                             </div>
 
@@ -237,7 +233,6 @@ const ApplyLeavePage = () => {
                                 <input
                                     type="date"
                                     value={formData.startDate}
-                                    min={today}
                                     onChange={(e) => setFormData(prev => ({
                                         ...prev,
                                         startDate: e.target.value,
@@ -256,13 +251,24 @@ const ApplyLeavePage = () => {
                                 <input
                                     type="date"
                                     value={formData.endDate}
-                                    min={formData.startDate || today}
+                                    min={formData.startDate}
                                     onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
                                     className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 px-4 py-3 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60"
                                     disabled={isPending || formData.leaveLength === 'half_day'}
                                 />
                             </div>
                         </div>
+
+                        {/* Past-date warning */}
+                        {formData.startDate && moment(formData.startDate).isBefore(moment(), 'day') && (
+                            <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 flex items-start gap-3">
+                                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Backdated Leave Application</p>
+                                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">You are applying for leave starting in the past. Make sure this is intentional.</p>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Reason */}
                         <div className="space-y-2">

@@ -709,21 +709,21 @@ const ManageEmployeesPage = () => {
                                             <TableCell className="px-6 py-4 whitespace-nowrap text-right">
                                                 <div className="inline-flex items-center gap-2">
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
-                                                        className="group text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                                                        className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
                                                         onClick={() => handleOpenEditEmployeeDialog(employee)}
                                                     >
-                                                        <Edit className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
+                                                        <Edit className="w-4 h-4 mr-1" />
                                                         <span className="text-sm font-medium">Edit</span>
                                                     </Button>
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
-                                                        className="group text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40 transition-colors"
+                                                        className="border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
                                                         onClick={() => handleOpenDeleteEmployeeDialog(employee)}
                                                     >
-                                                        <UserMinus className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
+                                                        <UserMinus className="w-4 h-4 mr-1" />
                                                         <span className="text-sm font-medium">Delete</span>
                                                     </Button>
                                                 </div>
@@ -820,22 +820,22 @@ const ManageEmployeesPage = () => {
                                             <TableCell className="px-6 py-4 whitespace-nowrap text-right">
                                                 <div className="inline-flex items-center gap-2">
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
-                                                        className="group text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                                                        className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
                                                         onClick={() => handleOpenEditDepartmentDialog(department)}
                                                     >
-                                                        <Edit className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
+                                                        <Edit className="w-4 h-4 mr-1" />
                                                         <span className="text-sm font-medium">Edit</span>
                                                     </Button>
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
-                                                        className="group text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40 transition-colors"
+                                                        className="border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
                                                         onClick={() => handleOpenDeleteDepartmentDialog(department)}
                                                         disabled={employees.filter(emp => emp.departmentId === department.id).length > 0}
                                                     >
-                                                        <Trash2 className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
+                                                        <Trash2 className="w-4 h-4 mr-1" />
                                                         <span className="text-sm font-medium">Delete</span>
                                                     </Button>
                                                 </div>

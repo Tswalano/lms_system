@@ -158,12 +158,14 @@ const LeaveHistoryPage = () => {
             setSelectedLeave(null);
             setCancelReason('');
             queryClient.invalidateQueries({ queryKey: ['leaveHistory'] });
+            queryClient.invalidateQueries({ queryKey: ['teamAvailability'] });
         },
         onError: (e) => toast.error("Cancellation Failed", { description: e instanceof Error ? e.message : 'Try again.' }),
     });
 
     const canEdit = (l: LeaveRecord) => l.status.toLowerCase() === 'pending';
-    const canCancel = (l: LeaveRecord) => l.status.toLowerCase() === 'pending';
+    const isFutureLeave = (l: LeaveRecord) => moment(l.start_date).isAfter(moment(), 'day');
+    const isCancelEnabled = (l: LeaveRecord) => ['pending', 'approved'].includes(l.status.toLowerCase()) && isFutureLeave(l);
 
     const openEdit = (l: LeaveRecord) => {
         setSelectedLeave(l);
@@ -254,9 +256,10 @@ const LeaveHistoryPage = () => {
                 {/* Filter tabs */}
                 <div className="flex flex-wrap gap-2">
                     {FILTER_TABS.map(({ key, label }) => (
-                        <button
+                        <Button
                             key={key}
                             onClick={() => setFilter(key as typeof filter)}
+                            variant={filter === key ? "default" : "outline"}
                             className={cn(
                                 "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all",
                                 filter === key
@@ -271,7 +274,7 @@ const LeaveHistoryPage = () => {
                             )}>
                                 {getCount(key)}
                             </span>
-                        </button>
+                        </Button>
                     ))}
                 </div>
             </div>
@@ -355,31 +358,48 @@ const LeaveHistoryPage = () => {
                                         </div>
 
                                         {/* Right: actions */}
-                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                        <div className="flex items-center gap-2 flex-shrink-0">
                                             {canEdit(record) && (
-                                                <button
+                                                <Button
                                                     onClick={() => openEdit(record)}
-                                                    className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 transition-colors"
-                                                    title="Edit"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
                                                 >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
+                                                    <Edit className="w-4 h-4 mr-1" />
+                                                    Edit
+                                                </Button>
                                             )}
-                                            {canCancel(record) && (
-                                                <button
-                                                    onClick={() => openCancel(record)}
-                                                    className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20 transition-colors"
-                                                    title="Cancel"
+
+                                            <Button
+                                                    onClick={() => { if (isCancelEnabled(record)) openCancel(record); }}
+                                                    size="sm"
+                                                    variant="outline"
+                                                    disabled={!isCancelEnabled(record)}
+                                                    className={isCancelEnabled(record)
+                                                        ? "border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/40 transition-colors"
+                                                        : "border-gray-200 text-gray-400 bg-gray-50 dark:bg-gray-800/20 dark:border-gray-700 dark:text-gray-500 cursor-not-allowed transition-colors"
+                                                    }
                                                 >
-                                                    <Ban className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                            <button
+                                                    <Ban className="w-4 h-4 mr-1" />
+                                                    Cancel
+                                                </Button>
+
+                                            {/* Divider for visual separation */}
+                                            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" />
+
+                                            <Button
                                                 onClick={() => setExpandedId(isExpanded ? null : record.id)}
-                                                className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-700"
                                             >
-                                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                            </button>
+                                                {isExpanded ? (
+                                                    <ChevronUp className="w-4 h-4" />
+                                                ) : (
+                                                    <ChevronDown className="w-4 h-4" />
+                                                )}
+                                            </Button>
                                         </div>
                                     </div>
 
@@ -435,9 +455,9 @@ const LeaveHistoryPage = () => {
                                         <p className="text-sm text-gray-600 dark:text-gray-400">Application #{selectedLeave.id}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setIsEditModalOpen(false)} className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700 transition-all" disabled={isUpdating}>
+                                <Button onClick={() => setIsEditModalOpen(false)} variant="ghost" size="icon" className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700 transition-all" disabled={isUpdating}>
                                     <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
@@ -461,11 +481,11 @@ const LeaveHistoryPage = () => {
                                         <Label className="text-gray-700 dark:text-gray-300">Leave Length *</Label>
                                         <RadioGroup value={editFormData.leaveLength} onValueChange={(v: 'half_day' | 'full_day') => setEditFormData(p => ({ ...p, leaveLength: v }))} className="flex flex-col sm:flex-row gap-3" disabled={isUpdating}>
                                             {(['full_day', 'half_day'] as const).map((v) => (
-                                                <div key={v} className={cn("flex items-center space-x-2 rounded-xl border px-4 py-3 flex-1 cursor-pointer transition-colors",
+                                                <Label key={v} htmlFor={`edit_${v}`} className={cn("flex items-center space-x-2 rounded-xl border px-4 py-3 flex-1 cursor-pointer transition-colors",
                                                     editFormData.leaveLength === v ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600' : 'border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50')}>
                                                     <RadioGroupItem value={v} id={`edit_${v}`} />
-                                                    <Label htmlFor={`edit_${v}`} className="cursor-pointer">{v === 'full_day' ? 'Full Day' : 'Half Day'}</Label>
-                                                </div>
+                                                    <span>{v === 'full_day' ? 'Full Day' : 'Half Day'}</span>
+                                                </Label>
                                             ))}
                                         </RadioGroup>
                                     </div>
@@ -521,9 +541,9 @@ const LeaveHistoryPage = () => {
                                         <p className="text-sm text-gray-600 dark:text-gray-400">Application #{selectedLeave.id}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setIsCancelModalOpen(false)} className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700 transition-all" disabled={isCancelling}>
+                                <Button onClick={() => setIsCancelModalOpen(false)} variant="ghost" size="icon" className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700 transition-all" disabled={isCancelling}>
                                     <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
