@@ -417,38 +417,50 @@ const ApproveLeavePage = () => {
 
                 {/* Statistics */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700 border-l-4 border-l-yellow-500 dark:border-l-yellow-400">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
-                                <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Pending Requests</p>
-                                <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{pendingRequests.length}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700 border-l-4 border-l-green-500 dark:border-l-green-400">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Recently Approved</p>
-                                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                    {processedRequests.filter(r => r.status === 'approved').length}
-                                </p>
+                    <div className="group relative bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 border-l-yellow-500 dark:border-l-yellow-400 hover:shadow-lg hover:bg-yellow-50/30 dark:hover:bg-yellow-900/10 hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default">
+                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-yellow-500/10 group-hover:scale-[2] group-hover:bg-yellow-500/20 transition-all duration-500" />
+                        <div className="p-5 relative">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Pending Requests</p>
+                                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{pendingRequests.length}</p>
+                                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">awaiting review</p>
+                                </div>
+                                <div className="w-11 h-11 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                    <Clock className="w-5 h-5 text-white" />
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700 border-l-4 border-l-blue-500 dark:border-l-blue-400">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                                <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <div className="group relative bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 border-l-green-500 dark:border-l-green-400 hover:shadow-lg hover:bg-green-50/30 dark:hover:bg-green-900/10 hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default">
+                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-green-500/10 group-hover:scale-[2] group-hover:bg-green-500/20 transition-all duration-500" />
+                        <div className="p-5 relative">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Recently Approved</p>
+                                    <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                                        {processedRequests.filter(r => r.status === 'approved').length}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">leave approved</p>
+                                </div>
+                                <div className="w-11 h-11 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                    <CheckCircle className="w-5 h-5 text-white" />
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Total Requests</p>
-                                <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{requests.length}</p>
+                        </div>
+                    </div>
+                    <div className="group relative bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 border-l-blue-500 dark:border-l-blue-400 hover:shadow-lg hover:bg-blue-50/30 dark:hover:bg-blue-900/10 hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default">
+                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-blue-500/10 group-hover:scale-[2] group-hover:bg-blue-500/20 transition-all duration-500" />
+                        <div className="p-5 relative">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Total Requests</p>
+                                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{requests.length}</p>
+                                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">all employees</p>
+                                </div>
+                                <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                    <Users className="w-5 h-5 text-white" />
+                                </div>
                             </div>
                         </div>
                     </div>
