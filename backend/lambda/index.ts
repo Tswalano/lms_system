@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { handle } from 'hono/aws-lambda';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { auth } from './routes/auth';
 import { users } from './routes/user';
 import adminDocs from './routes/adminDoc';
@@ -21,6 +22,7 @@ app.use(
     cors({
         origin: [
             'http://localhost:5173',
+            'http://localhost:3001',
             'https://d2m4zkv512jna9.cloudfront.net', // Dev/Staging FE URL (Clodfront)
             'd1eqa63aq0eyfn.cloudfront.net', // Production FE URL (Cloudfront)
             'https://lms.disraptor-internal.net'
@@ -127,6 +129,15 @@ app.get('/ping', (c) =>
         timestamp: new Date().toISOString()
     })
 );
+
+// Serve built API docs at /docs (production only)
+if (process.env.NODE_ENV !== 'development') {
+    app.use('/docs/*', serveStatic({
+        root: '../api-docs/dist',
+        rewriteRequestPath: (path) => path.replace(/^\/docs/, '') || '/index.html',
+    }));
+    app.get('/docs', (c) => c.redirect('/docs/'));
+}
 
 // 404 handler
 app.notFound((c) => {

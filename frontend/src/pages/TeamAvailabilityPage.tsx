@@ -167,16 +167,38 @@ const TeamAvailabilityPage = () => {
         return true;
     };
 
+    const STATUS_SORT_ORDER: Record<string, number> = {
+        'on-leave': 0,
+        'upcoming-leave': 1,
+        'available': 2,
+    };
+
+    const getNextLeaveDate = (member: TeamMember): number => {
+        if (member.status === 'on-leave' && member.startDate) {
+            return new Date(member.startDate).getTime();
+        }
+        if (member.upcomingLeaves && member.upcomingLeaves.length > 0) {
+            return new Date(member.upcomingLeaves[0].startDate).getTime();
+        }
+        return Infinity;
+    };
+
     // Filter team members based on search and status
-    const filteredMembers = teamMembers.filter(member => {
-        const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            member.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const filteredMembers = teamMembers
+        .filter(member => {
+            const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                member.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-        const matchesStatus = filter === "all" || member.status === filter;
-        const matchesDateRange = isWithinDateRange(member);
+            const matchesStatus = filter === "all" || member.status === filter;
+            const matchesDateRange = isWithinDateRange(member);
 
-        return matchesSearch && matchesStatus && matchesDateRange;
-    });
+            return matchesSearch && matchesStatus && matchesDateRange;
+        })
+        .sort((a, b) => {
+            const statusDiff = (STATUS_SORT_ORDER[a.status] ?? 3) - (STATUS_SORT_ORDER[b.status] ?? 3);
+            if (statusDiff !== 0) return statusDiff;
+            return getNextLeaveDate(a) - getNextLeaveDate(b);
+        });
 
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['teamAvailability'] });

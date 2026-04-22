@@ -57,4 +57,5 @@ cdk.out
 
 # claude
 .claude
+*.claude
 .claude/*

@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, momentLocalizer, type Event } from 'react-big-calendar';
 import moment from 'moment';
-import { X, Loader2, AlertCircle, CalendarRange, Sparkles } from "lucide-react";
+import { X, Loader2, AlertCircle, CalendarRange } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -156,8 +156,8 @@ const CalendarDragContext = createContext<CalendarDragContextValue>({
     selectedSlotRange: null,
     hoveredDate: null,
     dragAnchorDate: null,
-    onCellMouseDown: () => {},
-    onCellMouseEnter: () => {},
+    onCellMouseDown: () => { },
+    onCellMouseEnter: () => { },
 });
 
 const CalendarDateCellWrapperComponent = ({
@@ -861,15 +861,14 @@ const CalendarSection = () => {
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
             <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-slate-700">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div className="flex items-center gap-2 sm:gap-4">
-                                <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-200">
-                                    Team Calendar
-                                </h2>
-                                <div className="hidden md:flex items-center gap-2 rounded-full border border-cyan-200 dark:border-cyan-800 bg-cyan-50/80 dark:bg-cyan-950/30 px-3 py-1.5 text-xs font-medium text-cyan-700 dark:text-cyan-300">
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    Drag across days to apply for leave
-                                </div>
-                            </div>
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-200">
+                            Team Calendar
+                        </h2>
+                        <div className="hidden md:flex items-center gap-2 rounded-full border border-cyan-200 dark:border-cyan-800 bg-cyan-50/80 dark:bg-cyan-950/30 px-3 py-1.5 text-xs font-medium text-cyan-700 dark:text-cyan-300">
+                            Drag across days to apply for leave
+                        </div>
+                    </div>
 
                     {/* Legend */}
                     <div className="flex items-center gap-4 text-xs">
@@ -1244,17 +1243,6 @@ const CalendarSection = () => {
                                             <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Backdated Leave Application</p>
                                             <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">You are applying for leave starting in the past. Make sure this is intentional.</p>
                                         </div>
-                                    </div>
-                                )}
-
-                                {selectedSlotRange && (
-                                    <div className="rounded-2xl border border-cyan-200/70 dark:border-cyan-800/70 bg-cyan-50/60 dark:bg-cyan-950/20 p-4">
-                                        <p className="text-sm font-medium text-cyan-800 dark:text-cyan-200">
-                                            Drag selection captured
-                                        </p>
-                                        <p className="text-sm text-cyan-700 dark:text-cyan-300 mt-1">
-                                            {moment(selectedSlotRange.start).format('dddd, MMM D')} to {moment(selectedSlotRange.end).format('dddd, MMM D')}
-                                        </p>
                                     </div>
                                 )}
 
