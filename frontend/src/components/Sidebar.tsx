@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Moon, Sun, History, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, ChevronsDown, Calendar, Settings, Building2 } from "lucide-react";
+import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Moon, Sun, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, ChevronsDown, Calendar, Settings } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -58,6 +58,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: "team", label: "Team Calendar", icon: Calendar, path: "/team-availability" },
                 { id: "apply", label: "Apply for Leave", icon: FileText, path: "/apply-leave" },
                 { id: "history", label: "My Leave Requests", icon: Clock, path: "/leave-history" },
+                { id: "employee-docs", label: "Employee Handbook", icon: FileCheck2, path: "/employee-document" },
             ]
         },
         ...(userRole === 'admin' ? [{
@@ -65,25 +66,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             label: 'Administration',
             icon: Settings,
             items: [
-                { id: "team-history", label: "Team Directory", icon: History, path: "/team-leave-history" },
                 { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave" },
-                // TODO: query the leave request data to get the count of un-approved leave requests and add t to the badge 
-                // { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave", badge: "3" },
-                // { id: "performance", label: "Performance Reviews", icon: ChartSpline, path: "/performance" },
                 { id: "manage", label: "Manage Employees", icon: Users, path: "/manage-employees" },
+                { id: "admin-docs", label: "Admin Documents", icon: ArchiveRestore, path: "/admin-document" },
             ]
         }] : []),
-        ...(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? [{
-            id: 'company-resources',
-            label: 'Resources',
-            icon: Building2,
-            items: [
-                ...(userRole === 'admin' ? [
-                    { id: "admin-docs", label: "Admin Documents", icon: ArchiveRestore, path: "/admin-document" }
-                ] : []),
-                { id: "employee-docs", label: "Employee Handbook", icon: FileCheck2, path: "/employee-document" },
-            ]
-        }] : [])
     ].filter(section => section.items.length > 0);
 
     // Load collapse state from localStorage on component mount

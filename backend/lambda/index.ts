@@ -3,10 +3,10 @@ import { handle } from 'hono/aws-lambda';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { auth } from './routes/auth';
-import { users } from './routes/user';
+import { authApp } from './routes/auth';
+import { userApp } from './routes/user';
 import adminDocs from './routes/adminDoc';
-import { leave } from './routes/leave';
+import { leaveApp } from './routes/leave';
 import { authMiddleware } from './middleware/auth';
 import testRoutes from './routes/dummy';
 import userDoc from './routes/userDoc';
@@ -35,7 +35,7 @@ app.use(
     })
 );
 
-app.route('/auth', auth);
+app.route('/auth', authApp);
 // Protected routes - require authentication
 app.use('/users/*', authMiddleware());
 app.use('/leave/*', authMiddleware());
@@ -46,8 +46,8 @@ app.use('/admin-docs/*', authMiddleware());
 // app.use('/user-docs/*', authMiddleware());
 
 // Apply routes
-app.route('/users', users);
-app.route('/leave', leave);
+app.route('/users', userApp);
+app.route('/leave', leaveApp);
 
 // Document Management
 app.route('/user-docs', userDoc);

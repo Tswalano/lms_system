@@ -749,12 +749,6 @@ const managementEmailTemplate = (data: ManagementTemplateData): string => {
                 </div>` : ''}
             </div>
 
-            ${status.toLowerCase() === 'pending' ? `
-            <div class="action-required">
-                <h4>🔔 Action Required</h4>
-                <p>This leave request requires management approval. Please review and take appropriate action.</p>
-            </div>` : ''}
-
             <div class="message-body">
                 ${status.toLowerCase() === 'approved' ?
             'The employee has been notified that their leave request has been approved. Please ensure proper handover procedures are followed.' :

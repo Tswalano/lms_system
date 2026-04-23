@@ -25,6 +25,15 @@ export interface LeaveEventIds {
 }
 
 async function getAzureCredentials(): Promise<AzureCredentials> {
+    // Local dev: read directly from env vars to skip Secrets Manager
+    if (process.env.AZURE_TENANT_ID && process.env.AZURE_CLIENT_ID && process.env.AZURE_CLIENT_SECRET) {
+        return {
+            tenantId: process.env.AZURE_TENANT_ID,
+            clientId: process.env.AZURE_CLIENT_ID,
+            clientSecret: process.env.AZURE_CLIENT_SECRET,
+        };
+    }
+
     const secretName = process.env.AZURE_CALENDAR_SECRET_NAME;
     if (!secretName) throw new Error("AZURE_CALENDAR_SECRET_NAME env var not set");
 
