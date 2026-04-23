@@ -19,7 +19,6 @@ import {
     ArchiveX,
     Loader2,
     MoreHorizontal,
-    User,
     X
 } from 'lucide-react';
 import { toCamelCase } from '@/lib/helper';
@@ -153,6 +152,26 @@ const NotificationCenterPage: React.FC = () => {
         return filtered;
     }, [notifications, searchQuery, selectedFilter, sortBy, priorityOrder]);
 
+    const getTypeRingColor = (type: string): string => {
+        switch (type) {
+            case 'success': return 'ring-emerald-500/30 bg-emerald-500/10';
+            case 'warning': return 'ring-amber-500/30 bg-amber-500/10';
+            case 'error': return 'ring-rose-500/30 bg-rose-500/10';
+            case 'info': return 'ring-sky-500/30 bg-sky-500/10';
+            case 'action_required': return 'ring-violet-500/30 bg-violet-500/10';
+            default: return 'ring-slate-500/30 bg-slate-500/10';
+        }
+    };
+
+    const getPriorityBadgeStyles = (priority: string): string => {
+        switch (priority) {
+            case 'urgent': return 'bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/30';
+            case 'high': return 'bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30';
+            case 'normal': return 'bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/30';
+            default: return 'bg-slate-500/15 text-slate-400 ring-1 ring-slate-500/30';
+        }
+    };
+
     // Fixed: Returns JSX element for notification icon
     const getNotificationIcon = (type: string): JSX.Element => {
         const iconClass = "h-4 w-4";
@@ -172,38 +191,19 @@ const NotificationCenterPage: React.FC = () => {
         }
     };
 
-    const getTypeStyles = (type: string): string => {
-        switch (type) {
-            case 'success':
-                return 'border-l-4 border-l-emerald-500 dark:border-l-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10';
-            case 'warning':
-                return 'border-l-4 border-l-amber-500 dark:border-l-amber-400 bg-amber-50/50 dark:bg-amber-900/10';
-            case 'error':
-                return 'border-l-4 border-l-red-500 dark:border-l-red-400 bg-red-50/50 dark:bg-red-900/10';
-            case 'info':
-                return 'border-l-4 border-l-blue-500 dark:border-l-blue-400 bg-blue-50/50 dark:bg-blue-900/10';
-            case 'action_required':
-                return 'border-l-4 border-l-purple-500 dark:border-l-purple-400 bg-purple-50/50 dark:bg-purple-900/10';
-            default:
-                return 'border-l-4 border-l-blue-500 dark:border-l-blue-400 bg-blue-50/50 dark:bg-blue-900/10';
-        }
-    };
-
-
-
     // Fixed: Separate function for priority badge colors
-    const getPriorityBadgeStyles = (priority: string): string => {
-        switch (priority) {
-            case 'urgent':
-                return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-800';
-            case 'high':
-                return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 ring-1 ring-orange-200 dark:ring-orange-800';
-            case 'normal':
-                return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-800';
-            default:
-                return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300 ring-1 ring-gray-200 dark:ring-gray-800';
-        }
-    };
+    // const getPriorityBadgeStyles = (priority: string): string => {
+    //     switch (priority) {
+    //         case 'urgent':
+    //             return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-800';
+    //         case 'high':
+    //             return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 ring-1 ring-orange-200 dark:ring-orange-800';
+    //         case 'normal':
+    //             return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-800';
+    //         default:
+    //             return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300 ring-1 ring-gray-200 dark:ring-gray-800';
+    //     }
+    // };
 
     const formatTime = (dateString: string): string => {
         const date = new Date(dateString);
@@ -338,19 +338,64 @@ const NotificationCenterPage: React.FC = () => {
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { label: 'Total', value: stats.total, icon: Inbox, color: 'text-gray-600' },
-                    { label: 'Unread', value: stats.unread, icon: Bell, color: 'text-blue-600' },
-                    { label: 'Urgent', value: stats.urgent, icon: AlertTriangle, color: 'text-red-600' },
-                    { label: 'Archived', value: stats.archived, icon: ArchiveX, color: 'text-gray-500' }
+                    {
+                        label: 'Total',
+                        value: stats.total,
+                        icon: Inbox,
+                        gradient: 'from-slate-500 to-gray-600',
+                        borderColor: 'border-l-slate-500 dark:border-l-slate-400',
+                        hoverBg: 'hover:bg-slate-50/30 dark:hover:bg-slate-900/10',
+                        orbColor: 'bg-slate-500/10 group-hover:bg-slate-500/20',
+                        subLabel: 'all notifications'
+                    },
+                    {
+                        label: 'Unread',
+                        value: stats.unread,
+                        icon: Bell,
+                        gradient: 'from-blue-500 to-cyan-500',
+                        borderColor: 'border-l-blue-500 dark:border-l-blue-400',
+                        hoverBg: 'hover:bg-blue-50/30 dark:hover:bg-blue-900/10',
+                        orbColor: 'bg-blue-500/10 group-hover:bg-blue-500/20',
+                        subLabel: 'need attention'
+                    },
+                    {
+                        label: 'Urgent',
+                        value: stats.urgent,
+                        icon: AlertTriangle,
+                        gradient: 'from-red-500 to-rose-500',
+                        borderColor: 'border-l-red-500 dark:border-l-red-400',
+                        hoverBg: 'hover:bg-red-50/30 dark:hover:bg-red-900/10',
+                        orbColor: 'bg-red-500/10 group-hover:bg-red-500/20',
+                        subLabel: 'high priority'
+                    },
+                    {
+                        label: 'Archived',
+                        value: stats.archived,
+                        icon: ArchiveX,
+                        gradient: 'from-gray-400 to-slate-500',
+                        borderColor: 'border-l-gray-400 dark:border-l-gray-500',
+                        hoverBg: 'hover:bg-gray-50/30 dark:hover:bg-gray-900/10',
+                        orbColor: 'bg-gray-500/10 group-hover:bg-gray-500/20',
+                        subLabel: 'stored away'
+                    }
                 ].map((stat, index) => (
-                    <div key={index} className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center gap-3">
-                            <stat.icon className={`w-4 h-4 ${stat.color}`} />
-                            <div>
-                                <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                                    {countsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : Number(stat.value) || 0}
-                                </p>
-                                <p className="text-xs text-gray-600 dark:text-gray-400">{stat.label}</p>
+                    <div
+                        key={index}
+                        className={`group relative bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 ${stat.borderColor} ${stat.hoverBg} hover:shadow-lg hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default`}
+                    >
+                        <div className={`absolute -top-6 -right-6 w-24 h-24 rounded-full ${stat.orbColor} transition-all duration-500 group-hover:scale-[2]`} />
+                        <div className="p-5 relative">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">{stat.label}</p>
+                                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                                        {countsLoading ? <Loader2 className="w-5 h-5 animate-spin mt-1" /> : Number(stat.value) || 0}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{stat.subLabel}</p>
+                                </div>
+                                <div className={`w-11 h-11 bg-gradient-to-br ${stat.gradient} rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300`}>
+                                    <stat.icon className="w-5 h-5 text-white" />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -414,280 +459,197 @@ const NotificationCenterPage: React.FC = () => {
             </div>
 
             {/* Notifications List */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                {/* List Header with Select All */}
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+
+                {/* Header */}
                 {filteredNotifications.length > 0 && (
-                    <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-700">
+                    <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-800">
                         <div className="flex items-center justify-between">
+
                             <div className="flex items-center gap-3">
-                                {/* Master Checkbox */}
-                                <div className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedNotifications.size === filteredNotifications.length && filteredNotifications.length > 0}
-                                        onChange={handleSelectAll}
-                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                    />
-                                </div>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedNotifications.size === filteredNotifications.length && filteredNotifications.length > 0}
+                                    onChange={handleSelectAll}
+                                    className="w-3.5 h-3.5 rounded accent-sky-500 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                                />
 
-                                {/* Selection Info */}
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                        {selectedNotifications.size > 0 ? (
-                                            <span className="text-blue-600 dark:text-blue-400">
-                                                {selectedNotifications.size} selected
-                                            </span>
-                                        ) : (
-                                            `${filteredNotifications.length} notifications`
-                                        )}
-                                    </span>
-
-                                    {selectedNotifications.size > 0 && (
-                                        <button
-                                            onClick={() => setSelectedNotifications(new Set())}
-                                            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 underline"
-                                        >
-                                            Clear selection
-                                        </button>
+                                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                                    {selectedNotifications.size > 0 ? (
+                                        <span className="text-sky-600 dark:text-sky-400">
+                                            {selectedNotifications.size} selected
+                                        </span>
+                                    ) : (
+                                        `${filteredNotifications.length} notifications`
                                     )}
-                                </div>
+                                </span>
+
+                                {selectedNotifications.size > 0 && (
+                                    <button
+                                        onClick={() => setSelectedNotifications(new Set())}
+                                        className="text-[11px] text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline underline-offset-2"
+                                    >
+                                        Clear
+                                    </button>
+                                )}
                             </div>
 
-                            {/* Action Buttons */}
-                            <div className="flex items-center gap-2">
+                            {/* Actions */}
+                            <div className="flex items-center gap-1">
                                 {selectedNotifications.size > 0 ? (
-                                    // Bulk Actions
-                                    <div className="flex items-center gap-1">
+                                    <>
                                         <button
                                             onClick={() => Array.from(selectedNotifications).forEach(id => markAsRead.mutate(id))}
                                             disabled={isMutating}
-                                            className="p-2 text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors disabled:opacity-50"
                                             title="Mark selected as read"
-                                        >
-                                            <Check className="w-4 h-4" />
+                                            className="p-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10">
+                                            <Check className="w-3.5 h-3.5" />
                                         </button>
                                         <button
                                             onClick={() => Array.from(selectedNotifications).forEach(id => archiveNotification.mutate(id))}
                                             disabled={isMutating}
-                                            className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors disabled:opacity-50"
                                             title="Archive selected"
-                                        >
-                                            <Archive className="w-4 h-4" />
+                                            className="p-1.5 rounded-lg text-sky-600 dark:text-sky-400 hover:bg-sky-500/10">
+                                            <Archive className="w-3.5 h-3.5" />
                                         </button>
                                         <button
                                             onClick={() => Array.from(selectedNotifications).forEach(id => deleteNotification.mutate(id))}
                                             disabled={isMutating}
-                                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
                                             title="Delete selected"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
+                                            className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-500/10">
+                                            <Trash2 className="w-3.5 h-3.5" />
                                         </button>
-                                    </div>
+                                    </>
                                 ) : (
-                                    // Global Actions
-                                    <div className="flex items-center gap-1">
+                                    <>
                                         <button
                                             onClick={handleMarkAllRead}
                                             disabled={isMutating || filteredNotifications.every((n: any) => n.isRead === 1)}
-                                            className="px-3 py-1.5 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            {isMutating ? (
-                                                <div className="flex items-center gap-2">
-                                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                                    <span>Marking...</span>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-2">
-                                                    <CheckCircle className="w-3 h-3" />
-                                                    <span>Mark all read</span>
-                                                </div>
-                                            )}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-500/10 hover:bg-sky-200 dark:hover:bg-sky-500/20 rounded-lg ring-1 ring-sky-200 dark:ring-sky-500/20">
+                                            <CheckCircle className="w-3 h-3" />
+                                            Mark all read
                                         </button>
 
-                                        <button
-                                            onClick={() => refetchNotifications()}
-                                            disabled={isLoading}
-                                            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
-                                            title="Refresh notifications"
-                                        >
-                                            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                                        <button className="p-1.5 text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                                            <RefreshCw className="w-3.5 h-3.5" />
                                         </button>
-                                    </div>
+                                    </>
                                 )}
                             </div>
                         </div>
-
-                        {/* Selection Summary Bar */}
-                        {selectedNotifications.size > 0 && (
-                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
-                                        <span>
-                                            Actions will be applied to {selectedNotifications.size} notification{selectedNotifications.size !== 1 ? 's' : ''}
-                                        </span>
-                                    </div>
-                                    <button
-                                        onClick={handleSelectAll}
-                                        className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
-                                    >
-                                        {selectedNotifications.size === filteredNotifications.length ? 'Deselect all' : 'Select all'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
 
-                {/* Notification Items */}
-                {isLoading && filteredNotifications.length === 0 ? (
-                    <div className="p-8 text-center">
-                        <Loader2 className="w-6 h-6 mx-auto mb-3 animate-spin text-blue-500" />
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Loading notifications...</p>
-                    </div>
-                ) : filteredNotifications.length === 0 ? (
-                    <div className="p-8 text-center">
-                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                            <Bell className="w-8 h-8 text-gray-400" />
+                {/* Empty / Loading */}
+                {filteredNotifications.length === 0 ? (
+                    <div className="py-16 text-center">
+                        <div className="w-14 h-14 mx-auto mb-4 
+                bg-gray-100 dark:bg-gray-800 
+                ring-1 ring-gray-200 dark:ring-gray-700 
+                rounded-2xl flex items-center justify-center">
+                            <Bell className="w-6 h-6 text-gray-400" />
                         </div>
-                        <h3 className="font-medium text-gray-900 dark:text-white mb-2">
-                            {searchQuery ? 'No matching notifications' : 'All caught up!'}
+
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-200 mb-1">
+                            {searchQuery ? 'No results found' : 'All caught up'}
                         </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {searchQuery ? 'Try adjusting your search terms' : 'No new notifications to show'}
+
+                        <p className="text-xs text-gray-500 dark:text-gray-500">
+                            {searchQuery ? 'Try different search terms' : 'No new notifications'}
                         </p>
                     </div>
                 ) : (
-                    <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
+
+                    <div className="divide-y divide-gray-200 dark:divide-gray-800">
                         {filteredNotifications.map((notification: NotificationType) => {
                             const isUnread = notification.isRead === 0;
 
                             return (
-                                <div key={notification.id}
-                                    className={`group flex gap-4 border-b border-gray-200 dark:border-gray-700 transition-colors duration-200 ${isUnread ? getTypeStyles(notification.type) : ''}`}>
-                                    <div className="p-4 flex gap-3 w-full">
-                                        <div className="flex gap-4">
-                                            {/* Checkbox */}
-                                            <div className="flex items-start pt-1">
-                                                <input
-                                                    type="checkbox"
-                                                    // checked={isSelected}
-                                                    onChange={() => handleSelectNotification(notification.id)}
-                                                    className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors"
-                                                />
-                                            </div>
+                                <div
+                                    key={notification.id}
+                                    className={`group relative flex items-start gap-3 px-4 py-3.5 transition
+                        hover:bg-gray-50 dark:hover:bg-gray-800/50
+                        ${isUnread ? 'bg-sky-50 dark:bg-sky-500/[0.05]' : ''}`}
+                                >
 
-                                            {/* Icon */}
-                                            <div className="flex-shrink-0 pt-1">
-                                                <div className="p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
-                                                    {getNotificationIcon(notification.type)}
-                                                </div>
-                                            </div>
+                                    {/* unread bar */}
+                                    {isUnread && (
+                                        <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-sky-500 rounded-r-full" />
+                                    )}
 
-                                            {/* Content */}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="flex-1 min-w-0">
-                                                        {/* Title, Priority, and Unread Indicator */}
-                                                        <div className="flex items-center gap-3 mb-2">
-                                                            <h4 className={`text-sm font-semibold leading-tight ${(notification.isRead === 0)
-                                                                ? 'text-gray-900 dark:text-white'
-                                                                : 'text-gray-700 dark:text-gray-300'
-                                                                }`}>
-                                                                {notification.title}
-                                                            </h4>
+                                    <input
+                                        checked={selectedNotifications.has(notification.id)}
+                                        onChange={() => handleSelectNotification(notification.id)}
+                                        type="checkbox"
+                                        className="mt-1 w-3.5 h-3.5 rounded accent-sky-500 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                                    />
 
-                                                            {/* Priority Badge */}
-                                                            {notification.priority && (
-                                                                <span className={`
-                                                                    px-2.5 py-1 text-xs font-medium rounded-full
-                                                                    ${getPriorityBadgeStyles(notification.priority)}
-                                                                `}>
-                                                                    {notification.priority}
-                                                                </span>
-                                                            )}
+                                    {/* Icon */}
+                                    <div className={`flex-shrink-0 mt-0.5 w-8 h-8 rounded-xl ring-1 flex items-center justify-center ${getTypeRingColor(notification.type)}`}>
+                                        {getNotificationIcon(notification.type)}
+                                    </div>
 
-                                                            {/* Unread Indicator */}
-                                                            {(notification.isRead === 0) && (
-                                                                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 animate-pulse"></div>
-                                                            )}
-                                                        </div>
+                                    {/* Content */}
+                                    <div className="flex-1 min-w-0">
 
-                                                        {/* Message */}
-                                                        <p className={`text-sm leading-relaxed mb-4 ${(notification.isRead === 0)
-                                                            ? 'text-gray-800 dark:text-gray-200'
-                                                            : 'text-gray-600 dark:text-gray-400'
-                                                            }`}>
-                                                            {notification.message}
-                                                        </p>
+                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                            <h4 className={`text-sm font-semibold ${isUnread ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
+                                                }`}>
+                                                {notification.title}
+                                            </h4>
 
-                                                        {/* Metadata */}
-                                                        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 mb-3">
-                                                            <span className="flex items-center gap-1.5">
-                                                                <Clock className="w-3 h-3" />
-                                                                {formatTime(notification.createdAt)}
-                                                            </span>
-
-                                                            <div className="flex items-center gap-1.5">
-                                                                <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                                                                <span>{notification.category ? toCamelCase(notification.category.replace('_', ' ')) : 'General'}</span>
-                                                            </div>
-
-                                                            {notification.createdBy && (
-                                                                <span className="flex items-center gap-1.5">
-                                                                    <User className="w-3 h-3" />
-                                                                    {typeof notification.createdBy === 'string' ? notification.createdBy : 'Unknown'}
-                                                                </span>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Action Button */}
-                                                        {notification.actionText && (
-                                                            <div className="mt-3">
-                                                                <button className="px-4 py-2 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-lg text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-all duration-200 hover:shadow-sm">
-                                                                    {notification.actionText}
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Action Buttons */}
-                                                    <div className="flex items-start gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                                                        <button
-                                                            onClick={() => handleToggleRead(notification.id, notification.isRead)}
-                                                            disabled={isMutating}
-                                                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
-                                                            title={notification.isRead === 1 ? 'Mark as unread' : 'Mark as read'}
-                                                        >
-                                                            {isMutating ? (
-                                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                            ) : notification.isRead === 1 ? (
-                                                                <EyeOff className="w-4 h-4" />
-                                                            ) : (
-                                                                <Eye className="w-4 h-4" />
-                                                            )}
-                                                        </button>
-
-                                                        <button
-                                                            onClick={() => handleArchive(notification.id)}
-                                                            disabled={isMutating}
-                                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors disabled:opacity-50"
-                                                            title="Archive"
-                                                        >
-                                                            <Archive className="w-4 h-4" />
-                                                        </button>
-
-                                                        <button
-                                                            onClick={() => handleDelete(notification.id)}
-                                                            disabled={isMutating}
-                                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
-                                                            title="Delete"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                            <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-md ${getPriorityBadgeStyles(notification.priority)}`}>
+                                                {notification.priority}
+                                            </span>
                                         </div>
+
+                                        <p className={`text-xs mb-2 ${isUnread ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400'
+                                            }`}>
+                                            {notification.message}
+                                        </p>
+
+                                        <div className="flex items-center gap-3 text-[11px] text-gray-500 dark:text-gray-500">
+                                            <span className="flex items-center gap-1">
+                                                <Clock className="w-2.5 h-2.5" />
+                                                {formatTime(notification.createdAt)}
+                                            </span>
+
+                                            <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
+
+                                            <span>
+                                                {notification.category ? toCamelCase(notification.category.replace('_', ' ')) : 'General'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Hover actions */}
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                                        <button
+                                            onClick={() => handleToggleRead(notification.id, notification.isRead)}
+                                            disabled={isMutating}
+                                            title={notification.isRead === 1 ? 'Mark as unread' : 'Mark as read'}
+                                            className="p-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                                            {isMutating
+                                                ? <Loader2 className="w-3 h-3 animate-spin" />
+                                                : notification.isRead === 1
+                                                    ? <EyeOff className="w-3 h-3" />
+                                                    : <Eye className="w-3 h-3" />
+                                            }
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleArchive(notification.id)}
+                                            disabled={isMutating}
+                                            className="p-1.5 rounded-lg bg-sky-100 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                                            <Archive className="w-3 h-3" />
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleDelete(notification.id)}
+                                            disabled={isMutating}
+                                            className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                                            <Trash2 className="w-3 h-3" />
+                                        </button>
                                     </div>
                                 </div>
                             );

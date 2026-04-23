@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Eye, Edit3, Trash2 } from 'lucide-react';
+import { FileText, Eye, Edit3, Trash2, Download } from 'lucide-react';
 
 interface DocumentType {
     id: number;
@@ -29,6 +29,8 @@ interface DocumentTableProps {
     onDelete: (docId: number) => void;
 }
 
+
+
 const getStatusColor = (status: 'active' | 'draft' | 'archived'): string => {
     switch (status) {
         case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
@@ -43,6 +45,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     title,
     onView,
     onEdit,
+    onDownload,
     onDelete
 }) => {
     if (documents.length === 0) {
@@ -141,28 +144,35 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                                         <span className="text-sm text-gray-900 dark:text-white">{doc.signatureRate}%</span>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <td className="px-6 py-4 whitespace-nowrap text-right">
                                     <div className="flex items-center justify-end gap-2">
                                         <button
                                             onClick={() => onView(doc)}
-                                            className="text-cyan-500 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+                                            className="p-1.5 rounded-lg border border-cyan-200 text-cyan-600 bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-900/20 dark:border-cyan-800 dark:text-cyan-400 dark:hover:bg-cyan-900/40 transition-colors"
                                             title="View Document"
                                         >
-                                            <Eye className="w-5 h-5" />
+                                            <Eye className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => onDownload(doc)}
+                                            className="p-1.5 rounded-lg border border-green-200 text-green-600 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/40 transition-colors"
+                                            title="Download Document"
+                                        >
+                                            <Download className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => onEdit(doc)}
-                                            className="text-green-500 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                                            className="p-1.5 rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
                                             title="Edit Document"
                                         >
-                                            <Edit3 className="w-5 h-5" />
+                                            <Edit3 className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => onDelete(doc.id)}
-                                            className="text-red-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                                            className="p-1.5 rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
                                             title="Delete Document"
                                         >
-                                            <Trash2 className="w-5 h-5" />
+                                            <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
                                 </td>

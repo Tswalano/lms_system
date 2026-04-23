@@ -937,4 +937,4 @@ app.post('/seed-departments', async (c) => {
     }
 });
 
-export { app as users };
+export { app as userApp };

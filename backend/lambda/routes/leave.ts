@@ -553,9 +553,9 @@ app.put('/:id/approve', async (c: Context): Promise<Response> => {
 
             return c.json<ApiResponse>({
                 success: true,
-                message: `Leave request ${action}d successfully`,
+                message: `Leave request ${action} successfully`,
                 data: {
-                    leaveId: parseInt(leaveId),
+                    leaveId: leaveId !== undefined ? parseInt(leaveId) : null,
                     action: action,
                     status: newStatus,
                     processedAt: processedAt,
@@ -794,6 +794,13 @@ app.post('/leave/:id/upload-document', async (c: Context): Promise<Response> => 
         }
 
         // Upload to S3
+        if (!leaveId) {
+            return c.json<ApiResponse>({
+                success: false,
+                message: 'Leave request ID is required'
+            }, 400);
+        }
+
         const s3Key = await uploadToS3(file_data, file_name, file_type, uid.toString(), leaveId);
 
         // Update leave request with document path
@@ -944,7 +951,7 @@ app.put('/:id/cancel', async (c: Context): Promise<Response> => {
                 success: true,
                 message: 'Leave request cancelled successfully',
                 data: {
-                    leaveId: parseInt(leaveId),
+                    leaveId: leaveId !== undefined ? parseInt(leaveId) : null,
                     action: 'cancel',
                     status: 'cancelled',
                     cancelledAt: cancelledAt,
@@ -1750,4 +1757,4 @@ app.patch('/:id/cancel', async (c: Context): Promise<Response> => {
     }
 });
 
-export { app as leave };
+export { app as leaveApp };

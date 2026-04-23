@@ -664,4 +664,4 @@ app.post('/logout', async (c) => {
     }
 });
 
-export { app as auth };
+export { app as authApp };
