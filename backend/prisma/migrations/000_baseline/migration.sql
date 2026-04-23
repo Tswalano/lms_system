@@ -27,7 +27,7 @@ CREATE TABLE `users` (
 
 -- CreateTable
 CREATE TABLE `leave_requests` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
     `uid` VARCHAR(255) NOT NULL,
     `leave_type` VARCHAR(255) NOT NULL,
     `status` ENUM('pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',
@@ -43,6 +43,8 @@ CREATE TABLE `leave_requests` (
     `approved_at` TIMESTAMP(0) NULL,
     `createdAt` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
     `updatedAt` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `outlook_shared_event_id` VARCHAR(512) NULL,
+    `outlook_personal_event_id` VARCHAR(512) NULL,
 
     INDEX `fk_approved_by_user`(`approved_by`),
     INDEX `leave_requests_uid_idx`(`uid`),
@@ -51,8 +53,8 @@ CREATE TABLE `leave_requests` (
 
 -- CreateTable
 CREATE TABLE `leave_action_log` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `leave_id` BIGINT UNSIGNED NOT NULL,
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `leave_id` BIGINT NOT NULL,
     `manager_id` VARCHAR(36) NULL,
     `action` VARCHAR(255) NOT NULL,
     `previous_status` VARCHAR(50) NULL,
@@ -66,21 +68,23 @@ CREATE TABLE `leave_action_log` (
 
 -- CreateTable
 CREATE TABLE `document_categories` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(255) NOT NULL,
     `description` TEXT NULL,
     `color` VARCHAR(50) NULL,
     `createdAt` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
     `updatedAt` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `departmentId` INTEGER NOT NULL,
 
+    INDEX `document_categories_departmentId_idx`(`departmentId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `documents` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(500) NOT NULL,
-    `category_id` BIGINT UNSIGNED NOT NULL,
+    `category_id` BIGINT NOT NULL,
     `file_url` TEXT NOT NULL,
     `file_size` VARCHAR(50) NULL,
     `content` TEXT NULL,
@@ -88,6 +92,7 @@ CREATE TABLE `documents` (
     `created_by` VARCHAR(36) NULL,
     `createdAt` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
     `updatedAt` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `status` ENUM('active', 'archived', 'deleted', 'expire') NOT NULL DEFAULT 'active',
 
     INDEX `documents_category_id_idx`(`category_id`),
     INDEX `documents_created_by_idx`(`created_by`),
@@ -97,7 +102,7 @@ CREATE TABLE `documents` (
 
 -- CreateTable
 CREATE TABLE `document_training_metadata` (
-    `document_id` BIGINT UNSIGNED NOT NULL,
+    `document_id` BIGINT NOT NULL,
     `version` VARCHAR(50) NULL,
     `renewal_frequency` INTEGER NULL,
     `expiry_date` DATETIME(0) NULL,
@@ -114,9 +119,9 @@ CREATE TABLE `document_training_metadata` (
 
 -- CreateTable
 CREATE TABLE `user_document_assignments` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` VARCHAR(36) NOT NULL,
-    `document_id` BIGINT UNSIGNED NOT NULL,
+    `document_id` BIGINT NOT NULL,
     `status` ENUM('pending', 'viewed', 'signed', 'overdue', 'completed') NOT NULL DEFAULT 'pending',
     `due_date` DATETIME(0) NULL,
     `assigned_at` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
@@ -132,12 +137,10 @@ CREATE TABLE `user_document_assignments` (
 
 -- CreateTable
 CREATE TABLE `document_signatures` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` VARCHAR(36) NOT NULL,
-    `document_id` BIGINT UNSIGNED NOT NULL,
+    `document_id` BIGINT NOT NULL,
     `signed_at` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
-    `ip_address` VARCHAR(45) NULL,
-    `user_agent` TEXT NULL,
 
     INDEX `document_signatures_user_id_idx`(`user_id`),
     INDEX `document_signatures_document_id_idx`(`document_id`),
@@ -147,9 +150,9 @@ CREATE TABLE `document_signatures` (
 
 -- CreateTable
 CREATE TABLE `document_views` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` VARCHAR(36) NOT NULL,
-    `document_id` BIGINT UNSIGNED NOT NULL,
+    `document_id` BIGINT NOT NULL,
     `viewed_at` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
     `ip_address` VARCHAR(45) NULL,
     `duration` INTEGER NULL,
@@ -174,7 +177,7 @@ CREATE TABLE `departments` (
 
 -- CreateTable
 CREATE TABLE `user_departments` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` VARCHAR(36) NOT NULL,
     `department_id` INTEGER NOT NULL,
 
@@ -186,7 +189,7 @@ CREATE TABLE `user_departments` (
 
 -- CreateTable
 CREATE TABLE `notifications` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
     `recipientId` VARCHAR(36) NOT NULL,
     `createdById` VARCHAR(36) NULL,
     `type` ENUM('info', 'success', 'warning', 'error', 'reminder', 'action_required') NOT NULL,
@@ -202,9 +205,6 @@ CREATE TABLE `notifications` (
     `isArchived` BOOLEAN NOT NULL DEFAULT false,
     `readAt` TIMESTAMP(0) NULL,
     `priority` ENUM('low', 'normal', 'high', 'urgent') NOT NULL DEFAULT 'normal',
-    `scheduledFor` TIMESTAMP(0) NULL,
-    `expiresAt` TIMESTAMP(0) NULL,
-    `metadata` TEXT NULL,
     `createdAt` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
     `updatedAt` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
 
@@ -214,10 +214,9 @@ CREATE TABLE `notifications` (
     INDEX `notifications_type_idx`(`type`),
     INDEX `notifications_category_idx`(`category`),
     INDEX `notifications_priority_idx`(`priority`),
-    INDEX `notifications_scheduledFor_idx`(`scheduledFor`),
-    INDEX `notifications_expiresAt_idx`(`expiresAt`),
     INDEX `notifications_relatedId_relatedType_idx`(`relatedId`, `relatedType`),
     INDEX `notifications_createdAt_idx`(`createdAt`),
+    INDEX `notifications_createdById_fkey`(`createdById`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -243,6 +242,7 @@ CREATE TABLE `performance_reviews` (
     INDEX `performance_reviews_employeeId_idx`(`employeeId`),
     INDEX `performance_reviews_managerId_idx`(`managerId`),
     INDEX `performance_reviews_status_idx`(`status`),
+    INDEX `performance_reviews_createdById_fkey`(`createdById`),
     UNIQUE INDEX `performance_reviews_employeeId_reviewPeriod_key`(`employeeId`, `reviewPeriod`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -304,10 +304,10 @@ CREATE TABLE `manager_feedback` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
-ALTER TABLE `users` ADD CONSTRAINT `users_managerId_fkey` FOREIGN KEY (`managerId`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `users` ADD CONSTRAINT `users_departmentId_fkey` FOREIGN KEY (`departmentId`) REFERENCES `departments`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `users` ADD CONSTRAINT `users_departmentId_fkey` FOREIGN KEY (`departmentId`) REFERENCES `departments`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `users` ADD CONSTRAINT `users_managerId_fkey` FOREIGN KEY (`managerId`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `leave_requests` ADD CONSTRAINT `fk_approved_by_user` FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE NO ACTION;
@@ -319,6 +319,9 @@ ALTER TABLE `leave_action_log` ADD CONSTRAINT `leave_action_log_leave_id_fkey` F
 ALTER TABLE `leave_action_log` ADD CONSTRAINT `leave_action_log_manager_id_fkey` FOREIGN KEY (`manager_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `document_categories` ADD CONSTRAINT `document_categories_departmentId_fkey` FOREIGN KEY (`departmentId`) REFERENCES `departments`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `documents` ADD CONSTRAINT `documents_category_id_fkey` FOREIGN KEY (`category_id`) REFERENCES `document_categories`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -328,34 +331,37 @@ ALTER TABLE `documents` ADD CONSTRAINT `documents_created_by_fkey` FOREIGN KEY (
 ALTER TABLE `document_training_metadata` ADD CONSTRAINT `document_training_metadata_document_id_fkey` FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `user_document_assignments` ADD CONSTRAINT `user_document_assignments_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `user_document_assignments` ADD CONSTRAINT `user_document_assignments_document_id_fkey` FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `document_signatures` ADD CONSTRAINT `document_signatures_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `user_document_assignments` ADD CONSTRAINT `user_document_assignments_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `document_signatures` ADD CONSTRAINT `document_signatures_document_id_fkey` FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `document_views` ADD CONSTRAINT `document_views_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `document_signatures` ADD CONSTRAINT `document_signatures_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `document_views` ADD CONSTRAINT `document_views_document_id_fkey` FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `user_departments` ADD CONSTRAINT `user_departments_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `document_views` ADD CONSTRAINT `document_views_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `user_departments` ADD CONSTRAINT `user_departments_department_id_fkey` FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `notifications` ADD CONSTRAINT `notifications_recipientId_fkey` FOREIGN KEY (`recipientId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `user_departments` ADD CONSTRAINT `user_departments_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `notifications` ADD CONSTRAINT `notifications_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `notifications` ADD CONSTRAINT `notifications_recipientId_fkey` FOREIGN KEY (`recipientId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `performance_reviews` ADD CONSTRAINT `performance_reviews_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `performance_reviews` ADD CONSTRAINT `performance_reviews_employeeId_fkey` FOREIGN KEY (`employeeId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -364,7 +370,7 @@ ALTER TABLE `performance_reviews` ADD CONSTRAINT `performance_reviews_employeeId
 ALTER TABLE `performance_reviews` ADD CONSTRAINT `performance_reviews_managerId_fkey` FOREIGN KEY (`managerId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `performance_reviews` ADD CONSTRAINT `performance_reviews_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `review_responses` ADD CONSTRAINT `review_responses_employeeId_fkey` FOREIGN KEY (`employeeId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `review_responses` ADD CONSTRAINT `review_responses_performanceReviewId_fkey` FOREIGN KEY (`performanceReviewId`) REFERENCES `performance_reviews`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -373,10 +379,8 @@ ALTER TABLE `review_responses` ADD CONSTRAINT `review_responses_performanceRevie
 ALTER TABLE `review_responses` ADD CONSTRAINT `review_responses_questionId_fkey` FOREIGN KEY (`questionId`) REFERENCES `review_questions`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `review_responses` ADD CONSTRAINT `review_responses_employeeId_fkey` FOREIGN KEY (`employeeId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `manager_feedback` ADD CONSTRAINT `manager_feedback_managerId_fkey` FOREIGN KEY (`managerId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `manager_feedback` ADD CONSTRAINT `manager_feedback_performanceReviewId_fkey` FOREIGN KEY (`performanceReviewId`) REFERENCES `performance_reviews`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
-ALTER TABLE `manager_feedback` ADD CONSTRAINT `manager_feedback_managerId_fkey` FOREIGN KEY (`managerId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

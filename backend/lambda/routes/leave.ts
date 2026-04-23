@@ -39,6 +39,7 @@ import utc from 'dayjs/plugin/utc';
 import isBetween from 'dayjs/plugin/isBetween';
 import { sender, senderManagement } from '../email/emailMiddleware';
 import { EmailNotificationDetails } from '../email/notificationHandler';
+import { createLeaveEvents, deleteLeaveEvents } from '../integrations/outlookCalendar';
 dayjs.extend(utc);
 dayjs.extend(isBetween);
 
@@ -551,6 +552,33 @@ app.put('/:id/approve', async (c: Context): Promise<Response> => {
                 emailDetails.status
             );
 
+            // Create Outlook calendar events when leave is approved (fire-and-forget)
+            if (action === 'approve') {
+                try {
+                    const managerToken = getDecodedToken(c);
+                    const managerName = `${managerToken.given_name || managerToken.name || 'Manager'} ${managerToken.family_name || ''}`.trim();
+                    const { sharedEventId, personalEventId } = await createLeaveEvents({
+                        employeeEmail: leaveRequest.email,
+                        employeeName: `${leaveRequest.firstName} ${leaveRequest.lastName}`,
+                        leaveType: leaveRequest.leave_type,
+                        startDate: leaveRequest.start_date,
+                        endDate: leaveRequest.end_date,
+                        managerName,
+                    });
+                    const calendarConnection = await DatabaseService.createConnection();
+                    try {
+                        await calendarConnection.query(
+                            'UPDATE leave_requests SET outlook_shared_event_id = ?, outlook_personal_event_id = ? WHERE id = ?',
+                            [sharedEventId, personalEventId, leaveId]
+                        );
+                    } finally {
+                        await calendarConnection.end();
+                    }
+                } catch (err) {
+                    console.error('[Outlook] Failed to create calendar events:', err);
+                }
+            }
+
             return c.json<ApiResponse>({
                 success: true,
                 message: `Leave request ${action} successfully`,
@@ -851,7 +879,8 @@ app.put('/:id/cancel', async (c: Context): Promise<Response> => {
 
         // Check if leave request exists and is approved
         const [existingLeave] = await connection.query<mysql.RowDataPacket[]>(`
-            SELECT lr.*, u.firstName, u.lastName, u.email 
+            SELECT lr.*, u.firstName, u.lastName, u.email,
+                   lr.outlook_shared_event_id, lr.outlook_personal_event_id
             FROM leave_requests lr
             LEFT JOIN users u ON lr.uid = u.id
             WHERE lr.id = ? AND lr.status = "approved"
@@ -945,6 +974,16 @@ app.put('/:id/cancel', async (c: Context): Promise<Response> => {
             } catch (emailError) {
                 console.error('Failed to send cancellation notification to management:', emailError);
                 // Don't fail the request if email fails
+            }
+
+            // Delete Outlook calendar events when leave is cancelled (fire-and-forget)
+            try {
+                const { outlook_shared_event_id, outlook_personal_event_id, email } = leaveRequest;
+                if (outlook_shared_event_id || outlook_personal_event_id) {
+                    await deleteLeaveEvents(outlook_shared_event_id ?? null, outlook_personal_event_id ?? null, email);
+                }
+            } catch (err) {
+                console.error('[Outlook] Failed to delete calendar events:', err);
             }
 
             return c.json<ApiResponse>({

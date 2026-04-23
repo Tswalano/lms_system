@@ -21,6 +21,8 @@ export interface LeaveRequest {
     updatedAt: string;
     approved_by?: number;
     approved_at?: string;
+    outlook_shared_event_id?: string | null;
+    outlook_personal_event_id?: string | null;
 }
 
 export interface User {
