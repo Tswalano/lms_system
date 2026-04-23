@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover';
 import { cn } from '@/lib/utils';
-import { formatDate, timeAgo } from '@/lib/helper';
+import { formatDate, timeAgo, getBirthdayDisplayDate } from '@/lib/helper';
 
 interface LeaveData {
     leave_type: string;
@@ -567,8 +567,9 @@ const UserProfilePage: React.FC = () => {
                                 />
                                 <ReadOnlyField
                                     label="Date of Birth"
-                                    value={profileData.dob ? formatDate(profileData.dob) : 'Not provided'}
+                                    value={profileData.dob ? getBirthdayDisplayDate(profileData.dob).date : 'Not provided'}
                                     icon={<CalendarIcon className="w-3.5 h-3.5" />}
+                                    note={profileData.dob ? getBirthdayDisplayDate(profileData.dob).note : undefined}
                                 />
                                 <ReadOnlyField
                                     label="Gender"

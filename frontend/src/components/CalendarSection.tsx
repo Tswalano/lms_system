@@ -54,6 +54,8 @@ interface BirthdayEvent extends Event {
         profilePicture?: string;
         age: number;
         isToday: boolean;
+        isObserved: boolean;
+        observedDate?: string;
         type: 'birthday';
         color: string;
         bgColor: string;
@@ -389,6 +391,14 @@ const CalendarSection = () => {
         apiData.data.birthdays.forEach((birthday) => {
             const birthdayDate = new Date(birthday.birthdayDate);
             const avatar = getAvatar(birthday.firstName.toUpperCase(), birthday.lastName.toUpperCase());
+            const dayOfWeek = birthdayDate.getDay();
+            const isObserved = dayOfWeek === 6; // Saturday
+            let observedDate: string | undefined;
+            if (isObserved) {
+                const friday = new Date(birthdayDate);
+                friday.setDate(friday.getDate() - 1);
+                observedDate = moment(friday).format('MMMM Do');
+            }
 
             const birthdayEvent: BirthdayEvent = {
                 id: birthday.id,
@@ -406,6 +416,8 @@ const CalendarSection = () => {
                     profilePicture: birthday.profilePicture,
                     age: birthday.age,
                     isToday: birthday.isToday,
+                    isObserved,
+                    observedDate,
                     type: 'birthday',
                     color: 'text-pink-600',
                     bgColor: 'bg-pink-100',
@@ -1075,14 +1087,18 @@ const CalendarSection = () => {
                                                     <p className="text-sm text-pink-800 dark:text-pink-200 font-semibold">
                                                         {selectedEvent.resource.isToday
                                                             ? `🎉 Happy Birthdayyy ${selectedEvent.resource.firstName}, Wishing you a fantastic day!`
-                                                            : `It's Your Birthday ${selectedEvent.resource.firstName} on ${moment(selectedEvent.start).format('MMMM Do')}`
+                                                            : selectedEvent.resource.isObserved
+                                                                ? `It's Your Birthday ${selectedEvent.resource.firstName} on ${moment(selectedEvent.start).format('MMMM Do')} (Observed on ${selectedEvent.resource.observedDate} - weekend)`
+                                                                : `It's Your Birthday ${selectedEvent.resource.firstName} on ${moment(selectedEvent.start).format('MMMM Do')}`
                                                         }
                                                     </p>
                                                 ) : (
                                                     <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
                                                         {selectedEvent.resource.isToday
                                                             ? `🎉 Happy Birthday ${selectedEvent.resource.firstName}! Wishing a fantastic day!`
-                                                            : `🎂 ${selectedEvent.resource.firstName} turns ${selectedEvent.resource.age} on ${moment(selectedEvent.start).format('MMMM Do')}`
+                                                            : selectedEvent.resource.isObserved
+                                                                ? `🎂 ${selectedEvent.resource.firstName} turns ${selectedEvent.resource.age} on ${moment(selectedEvent.start).format('MMMM Do')} (Observed on ${selectedEvent.resource.observedDate} - weekend)`
+                                                                : `🎂 ${selectedEvent.resource.firstName} turns ${selectedEvent.resource.age} on ${moment(selectedEvent.start).format('MMMM Do')}`
                                                         }
                                                     </p>
                                                 )}

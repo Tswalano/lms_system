@@ -76,3 +76,25 @@ export function timeAgo(date: string | Date): string {
         return `${months} month${months > 1 ? 's' : ''} ago`;
     }
 }
+
+// Check if birthday falls on Saturday and return observed date message
+export function getBirthdayDisplayDate(dob: string | Date | undefined): { date: string; note: string | undefined } {
+    if (!dob) {
+        return { date: '', note: undefined };
+    }
+
+    const dateObj = typeof dob === 'string' ? new Date(dob) : dob;
+    const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 6 = Saturday
+
+    if (dayOfWeek === 6) {
+        // Saturday - show as Friday (observed)
+        const friday = new Date(dateObj);
+        friday.setDate(friday.getDate() - 1);
+        return {
+            date: formatDate(friday),
+            note: 'Observed on Friday (weekend)'
+        };
+    }
+
+    return { date: formatDate(dateObj), note: undefined };
+}
