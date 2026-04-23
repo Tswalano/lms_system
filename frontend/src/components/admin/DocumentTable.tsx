@@ -1,5 +1,7 @@
 import React from 'react';
 import { FileText, Eye, Edit3, Trash2, Download } from 'lucide-react';
+import { Pagination } from "@/components/ui/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 
 interface DocumentType {
     id: number;
@@ -48,6 +50,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     onDownload,
     onDelete
 }) => {
+    const pagination = usePagination(documents, 10);
+
     if (documents.length === 0) {
         return (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
@@ -101,7 +105,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {documents.map((doc) => (
+                        {pagination.paginatedItems.map((doc) => (
                             <tr key={doc.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center gap-3">
@@ -181,6 +185,14 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     </tbody>
                 </table>
             </div>
+            <Pagination
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                pageSize={pagination.pageSize}
+                totalItems={pagination.totalItems}
+                onPageChange={pagination.setPage}
+                onPageSizeChange={pagination.setPageSize}
+            />
         </div>
     );
 };

@@ -114,7 +114,11 @@ const ApplyLeavePage = () => {
 
         const startDate = moment(formData.startDate).startOf('day');
         const endDate = moment(formData.endDate).startOf('day');
-        const todayM = moment().startOf('day');
+        // const todayM = moment().startOf('day');
+
+        if (startDate.isBefore(today, 'day')) {
+            toast.warning("Backdated Leave Application", { description: "You are applying for leave that starts in the past." });
+        }
 
         if (formData.leaveLength === 'full_day' && endDate.isBefore(startDate, 'day')) {
             toast.error("Invalid Date Range", { description: "End date cannot be before start date." });
@@ -140,7 +144,8 @@ const ApplyLeavePage = () => {
     }
 
     return (
-        <div className="max-w-2xl mx-auto px-4">
+        <div className="max-w-4xl mx-auto space-y-6">
+            {/* // <div className="max-w-2xl mx-auto px-4"> */}
             {/* Page Header */}
             <div className="mb-8">
                 <div className="flex items-center gap-3 mb-2">

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
     Clock, RefreshCw, AlertCircle, X, CheckCircle, XCircle, AlertTriangle,
@@ -215,6 +217,7 @@ const LeaveHistoryPage = () => {
 
     const getCount = (key: string) => key === 'all' ? leaveHistory.length : leaveHistory.filter(r => r.status.toLowerCase() === key).length;
     const filtered = leaveHistory.filter(r => filter === 'all' || r.status.toLowerCase() === filter);
+    const pagination = usePagination(filtered, 10);
 
     if (!token) {
         return (
@@ -229,7 +232,7 @@ const LeaveHistoryPage = () => {
     }
 
     return (
-        <div>
+        <div className="max-w-4xl mx-auto space-y-6">
             {/* Header */}
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-6">
@@ -258,7 +261,7 @@ const LeaveHistoryPage = () => {
                     {FILTER_TABS.map(({ key, label }) => (
                         <Button
                             key={key}
-                            onClick={() => setFilter(key as typeof filter)}
+                            onClick={() => { setFilter(key as typeof filter); pagination.resetPage(); }}
                             variant={filter === key ? "default" : "outline"}
                             className={cn(
                                 "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all",
@@ -310,7 +313,7 @@ const LeaveHistoryPage = () => {
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {filtered.map((record) => {
+                    {pagination.paginatedItems.map((record) => {
                         const status = getStatus(record.status);
                         const isExpanded = expandedId === record.id;
                         return (
@@ -372,18 +375,18 @@ const LeaveHistoryPage = () => {
                                             )}
 
                                             <Button
-                                                    onClick={() => { if (isCancelEnabled(record)) openCancel(record); }}
-                                                    size="sm"
-                                                    variant="outline"
-                                                    disabled={!isCancelEnabled(record)}
-                                                    className={isCancelEnabled(record)
-                                                        ? "border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/40 transition-colors"
-                                                        : "border-gray-200 text-gray-400 bg-gray-50 dark:bg-gray-800/20 dark:border-gray-700 dark:text-gray-500 cursor-not-allowed transition-colors"
-                                                    }
-                                                >
-                                                    <Ban className="w-4 h-4 mr-1" />
-                                                    Cancel
-                                                </Button>
+                                                onClick={() => { if (isCancelEnabled(record)) openCancel(record); }}
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={!isCancelEnabled(record)}
+                                                className={isCancelEnabled(record)
+                                                    ? "border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/40 transition-colors"
+                                                    : "border-gray-200 text-gray-400 bg-gray-50 dark:bg-gray-800/20 dark:border-gray-700 dark:text-gray-500 cursor-not-allowed transition-colors"
+                                                }
+                                            >
+                                                <Ban className="w-4 h-4 mr-1" />
+                                                Cancel
+                                            </Button>
 
                                             {/* Divider for visual separation */}
                                             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" />
@@ -437,6 +440,15 @@ const LeaveHistoryPage = () => {
                             </div>
                         );
                     })}
+                    <Pagination
+                        currentPage={pagination.page}
+                        totalPages={pagination.totalPages}
+                        pageSize={pagination.pageSize}
+                        totalItems={pagination.totalItems}
+                        onPageChange={pagination.setPage}
+                        onPageSizeChange={pagination.setPageSize}
+                        className="mt-2 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700"
+                    />
                 </div>
             )}
 

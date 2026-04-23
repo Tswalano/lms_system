@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useNotifications, useNotificationCounts, useNotificationMutations } from "@/hooks/useNotifications";
 import {
     Bell,
@@ -62,16 +63,16 @@ interface FilterOption {
     icon: React.ComponentType<{ className?: string }>;
 }
 
-type SortOption = 'newest' | 'oldest' | 'priority' | 'starred';
 type FilterType = 'all' | 'unread' | 'read' | 'starred' | 'urgent' | 'high';
 
 const NotificationCenterPage: React.FC = () => {
+    const navigate = useNavigate();
+
     // State
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
     const [selectedNotifications, setSelectedNotifications] = useState<Set<string>>(new Set());
     const [showFilters, setShowFilters] = useState<boolean>(false);
-    const [sortBy,] = useState<SortOption>('newest');
     const [showArchived,] = useState<boolean>(false);
     const [showQuickActions, setShowQuickActions] = useState<boolean>(false);
 
@@ -104,14 +105,11 @@ const NotificationCenterPage: React.FC = () => {
     const countsData = countsResponse?.data;
 
     const counts = {
-        total: Number(countsData?.recentCount) || 0,
+        total: Number(countsData?.totalCount) || 0,
         unread: Number(countsData?.totalUnread) || 0,
         urgent: Number(countsData?.urgentUnread) || 0,
         archived: Number(countsData?.archivedCount) || 0
     };
-
-    // Memoize the priority order to prevent recreating it on every render
-    const priorityOrder = useMemo(() => ({ urgent: 3, high: 2, normal: 1 }), []);
 
     // Filter and search logic - moved to useMemo to prevent infinite re-renders
     const filteredNotifications: NotificationType[] = useMemo(() => {
@@ -129,28 +127,23 @@ const NotificationCenterPage: React.FC = () => {
             }
 
             switch (selectedFilter) {
-                case 'unread': return notification.isRead === 0;
-                case 'read': return notification.isRead === 1;
-                case 'urgent': return notification.priority === 'urgent';
-                case 'high': return notification.priority === 'high';
-                default: return true;
+                case 'unread': if (notification.isRead !== 0) return false; break;
+                case 'read': if (notification.isRead !== 1) return false; break;
+                case 'urgent': if (notification.priority !== 'urgent') return false; break;
+                case 'high': if (notification.priority !== 'high') return false; break;
             }
+
+            return true;
         });
 
+        // Unread first (newest→oldest), then read (newest→oldest)
         filtered.sort((a: Notification, b: Notification) => {
-            switch (sortBy) {
-                case 'oldest':
-                    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-                case 'priority':
-                    return priorityOrder[b.priority] - priorityOrder[a.priority];
-                case 'newest':
-                default:
-                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-            }
+            if (a.isRead !== b.isRead) return a.isRead - b.isRead;
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
 
         return filtered;
-    }, [notifications, searchQuery, selectedFilter, sortBy, priorityOrder]);
+    }, [notifications, searchQuery, selectedFilter]);
 
     const getTypeRingColor = (type: string): string => {
         switch (type) {
@@ -271,6 +264,25 @@ const NotificationCenterPage: React.FC = () => {
             await markAllAsRead.mutateAsync();
         } catch (error) {
             console.error('Failed to mark all as read:', error);
+        }
+    };
+
+    const handleNotificationClick = (notification: NotificationType, e: React.MouseEvent): void => {
+        // Don't intercept clicks on interactive controls inside the row
+        if ((e.target as HTMLElement).closest('button, input')) return;
+
+        // Mark as read on click
+        if (notification.isRead === 0) {
+            markAsRead.mutate(notification.id);
+        }
+
+        // Navigate to actionUrl if present
+        if (notification.actionUrl) {
+            if (notification.actionUrl.startsWith('http')) {
+                window.open(notification.actionUrl, '_blank', 'noopener');
+            } else {
+                navigate(notification.actionUrl);
+            }
         }
     };
 
@@ -440,20 +452,24 @@ const NotificationCenterPage: React.FC = () => {
 
                 {/* Extended Filters */}
                 {showFilters && (
-                    <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-                        {filterOptions.map((filter) => (
-                            <button
-                                key={filter.key}
-                                onClick={() => setSelectedFilter(filter.key as FilterType)}
-                                className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${selectedFilter === filter.key
-                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-                                    }`}
-                            >
-                                <filter.icon className="w-3 h-3" />
-                                {filter.label}
-                            </button>
-                        ))}
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 space-y-3">
+                        {/* Status filter */}
+                        <div className="flex flex-wrap gap-2">
+                            {filterOptions.map((filter) => (
+                                <button
+                                    key={filter.key}
+                                    onClick={() => setSelectedFilter(filter.key as FilterType)}
+                                    className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${selectedFilter === filter.key
+                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                        }`}
+                                >
+                                    <filter.icon className="w-3 h-3" />
+                                    {filter.label}
+                                </button>
+                            ))}
+                        </div>
+
                     </div>
                 )}
             </div>
@@ -563,12 +579,15 @@ const NotificationCenterPage: React.FC = () => {
                     <div className="divide-y divide-gray-200 dark:divide-gray-800">
                         {filteredNotifications.map((notification: NotificationType) => {
                             const isUnread = notification.isRead === 0;
+                            const isClickable = !!notification.actionUrl;
 
                             return (
                                 <div
                                     key={notification.id}
+                                    onClick={(e) => handleNotificationClick(notification, e)}
                                     className={`group relative flex items-start gap-3 px-4 py-3.5 transition
                         hover:bg-gray-50 dark:hover:bg-gray-800/50
+                        ${isClickable ? 'cursor-pointer' : ''}
                         ${isUnread ? 'bg-sky-50 dark:bg-sky-500/[0.05]' : ''}`}
                                 >
 
@@ -593,10 +612,31 @@ const NotificationCenterPage: React.FC = () => {
                                     <div className="flex-1 min-w-0">
 
                                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                            <h4 className={`text-sm font-semibold ${isUnread ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
-                                                }`}>
-                                                {notification.title}
-                                            </h4>
+                                            {notification.actionUrl ? (
+                                                notification.actionUrl.startsWith('http') ? (
+                                                    <a
+                                                        href={notification.actionUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={() => { if (notification.isRead === 0) markAsRead.mutate(notification.id); }}
+                                                        className={`text-sm font-semibold ${isUnread ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
+                                                    >
+                                                        {notification.title}
+                                                    </a>
+                                                ) : (
+                                                    <Link
+                                                        to={notification.actionUrl}
+                                                        onClick={() => { if (notification.isRead === 0) markAsRead.mutate(notification.id); }}
+                                                        className={`text-sm font-semibold ${isUnread ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
+                                                    >
+                                                        {notification.title}
+                                                    </Link>
+                                                )
+                                            ) : (
+                                                <h4 className={`text-sm font-semibold ${isUnread ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                    {notification.title}
+                                                </h4>
+                                            )}
 
                                             <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-md ${getPriorityBadgeStyles(notification.priority)}`}>
                                                 {notification.priority}
@@ -608,7 +648,7 @@ const NotificationCenterPage: React.FC = () => {
                                             {notification.message}
                                         </p>
 
-                                        <div className="flex items-center gap-3 text-[11px] text-gray-500 dark:text-gray-500">
+                                        <div className="flex items-center gap-3 text-[11px] text-gray-500 dark:text-gray-500 flex-wrap">
                                             <span className="flex items-center gap-1">
                                                 <Clock className="w-2.5 h-2.5" />
                                                 {formatTime(notification.createdAt)}
@@ -619,6 +659,15 @@ const NotificationCenterPage: React.FC = () => {
                                             <span>
                                                 {notification.category ? toCamelCase(notification.category.replace('_', ' ')) : 'General'}
                                             </span>
+
+                                            {notification.actionUrl && notification.actionText && (
+                                                <>
+                                                    <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
+                                                    <span className="text-blue-500 dark:text-blue-400 font-medium">
+                                                        {notification.actionText}
+                                                    </span>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
 

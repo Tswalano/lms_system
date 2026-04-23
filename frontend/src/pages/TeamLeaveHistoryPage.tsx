@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Users, Calendar, ArrowLeft, Loader2, AlertCircle, Clock, CheckCircle, XCircle, Search, Mail, Briefcase, History, ChevronUp, ChevronDown, MessageSquare } from "lucide-react";
+import { Pagination } from "@/components/ui/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery } from '@tanstack/react-query';
@@ -200,6 +202,15 @@ const TeamListLeaveHistoryPage = () => {
         user.jobTitle.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const usersPagination = usePagination(filteredUsers, 10);
+    const leavePagination = usePagination(leaveHistory, 10);
+
+    // Reset leave pagination when switching users
+    useEffect(() => {
+        leavePagination.resetPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedUser?.id]);
+
     const getStatusBadge = (status: string) => {
         const statusLower = status.toLowerCase();
         switch (statusLower) {
@@ -327,7 +338,7 @@ const TeamListLeaveHistoryPage = () => {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {leaveHistory.map((leave) => {
+                                {leavePagination.paginatedItems.map((leave) => {
                                     const isExpanded = expandedLeaveId === leave.id;
                                     const leaveBorderColor = getLeaveBorderColor(leave.status);
                                     return (
@@ -474,6 +485,14 @@ const TeamListLeaveHistoryPage = () => {
                                         </div>
                                     );
                                 })}
+                            <Pagination
+                                currentPage={leavePagination.page}
+                                totalPages={leavePagination.totalPages}
+                                pageSize={leavePagination.pageSize}
+                                totalItems={leavePagination.totalItems}
+                                onPageChange={leavePagination.setPage}
+                                onPageSizeChange={leavePagination.setPageSize}
+                            />
                             </div>
                         )}
                     </div>
@@ -502,7 +521,7 @@ const TeamListLeaveHistoryPage = () => {
                             <Input
                                 placeholder="Search team members..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => { setSearchTerm(e.target.value); usersPagination.resetPage(); }}
                                 className="pl-10 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-600 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
                             />
                         </div>
@@ -554,8 +573,9 @@ const TeamListLeaveHistoryPage = () => {
                             )}
                         </div>
                     ) : (
+                        <>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-                            {filteredUsers.map((user) => (
+                            {usersPagination.paginatedItems.map((user) => (
                                 <div
                                     key={user.id}
                                     className={`relative bg-white dark:bg-slate-800 border-l-4 ${getCardAccent(user.id)} rounded-xl shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/20 transition-all duration-300 overflow-hidden group hover:scale-[1.02]`}
@@ -606,6 +626,15 @@ const TeamListLeaveHistoryPage = () => {
                                 </div>
                             ))}
                         </div>
+                        <Pagination
+                            currentPage={usersPagination.page}
+                            totalPages={usersPagination.totalPages}
+                            pageSize={usersPagination.pageSize}
+                            totalItems={usersPagination.totalItems}
+                            onPageChange={usersPagination.setPage}
+                            onPageSizeChange={usersPagination.setPageSize}
+                        />
+                        </>
                     )}
                 </div>
             </div>

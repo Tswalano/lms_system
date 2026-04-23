@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -34,6 +34,7 @@ interface LeaveEvent extends Event {
         email: string;
         jobTitle: string;
         duration: number;
+        status: string;
     };
 }
 
@@ -69,6 +70,7 @@ interface LeaveRequest {
     leave_type: string;
     leave_length: 'half_day' | 'full_day';
     duration: number;
+    status: string;
     firstName: string;
     managerFirstName: string;
     managerLastName: string;
@@ -219,8 +221,12 @@ const CalendarSection = () => {
     const queryClient = useQueryClient();
     const token: string | null = localStorage.getItem('authToken');
     const dragAnchorRef = useRef<Date | null>(null);
+    const publicHolidayDatesRef = useRef<Set<string>>(new Set());
 
     const handleCellMouseDown = useCallback((date: Date) => {
+        const dateStr = moment(date).format('YYYY-MM-DD');
+        // Don't start a drag selection on a public holiday
+        if (publicHolidayDatesRef.current.has(dateStr)) return;
         dragAnchorRef.current = date;
         setDragAnchorDate(date);
         setHoveredDate(date);
@@ -238,8 +244,8 @@ const CalendarSection = () => {
     const startOfMonth = moment(currentDate).startOf('month').format('YYYY-MM-DD');
     const endOfMonth = moment(currentDate).endOf('month').format('YYYY-MM-DD');
 
-    // Fetch function for React Query
-    const fetchCalendarData = async (startDate: string, endDate: string): Promise<ApiResponse> => {
+    // Fetch function — stable reference so prefetch can reuse it
+    const fetchCalendarData = useCallback(async (startDate: string, endDate: string): Promise<ApiResponse> => {
         const params = new URLSearchParams();
         params.append('start_date', startDate);
         params.append('end_date', endDate);
@@ -259,9 +265,9 @@ const CalendarSection = () => {
         }
 
         return apiData;
-    };
+    }, [authFetch]);
 
-    // React Query hook
+    // React Query hook — keepPreviousData shows the current month while the next loads
     const {
         data: apiData,
         isLoading,
@@ -274,11 +280,31 @@ const CalendarSection = () => {
         queryFn: () => fetchCalendarData(startOfMonth, endOfMonth),
         staleTime: 5 * 60 * 1000,
         gcTime: 10 * 60 * 1000,
-        retry: 3,
-        retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+        placeholderData: keepPreviousData,
+        retry: 2,
+        retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 10000),
         refetchOnWindowFocus: false,
-        refetchOnMount: 'always',
+        refetchOnMount: true,
     });
+
+    // Prefetch prev and next months so navigation feels instant
+    useEffect(() => {
+        const prefetch = (start: string, end: string) =>
+            queryClient.prefetchQuery({
+                queryKey: ['leaveCalendar', start, end],
+                queryFn: () => fetchCalendarData(start, end),
+                staleTime: 5 * 60 * 1000,
+            });
+
+        prefetch(
+            moment(currentDate).subtract(1, 'month').startOf('month').format('YYYY-MM-DD'),
+            moment(currentDate).subtract(1, 'month').endOf('month').format('YYYY-MM-DD')
+        );
+        prefetch(
+            moment(currentDate).add(1, 'month').startOf('month').format('YYYY-MM-DD'),
+            moment(currentDate).add(1, 'month').endOf('month').format('YYYY-MM-DD')
+        );
+    }, [currentDate, queryClient, fetchCalendarData]);
 
     // Function to generate random colors for leave events
     const getRandomColor = (id: number) => {
@@ -350,6 +376,7 @@ const CalendarSection = () => {
                     email: request.email,
                     jobTitle: request.jobTitle,
                     duration: request.duration,
+                    status: request.status,
                 }
             };
 
@@ -395,6 +422,9 @@ const CalendarSection = () => {
     // Derived data
     const allEvents = apiData ? convertApiDataToEvents(apiData) : [];
     const publicHolidays = apiData?.data.publicHolidays || [];
+
+    // Keep a ref set of holiday date strings so handleCellMouseDown can check without a closure dep
+    publicHolidayDatesRef.current = new Set(publicHolidays.map(h => h.date));
 
     const formatDateToLocal = (date: Date): string => {
         const year = date.getFullYear();
@@ -596,11 +626,14 @@ const CalendarSection = () => {
             return;
         }
 
-        // Check for overlapping leave requests for the current user
+        // Check for overlapping leave requests for the current user.
+        // Cancelled and rejected requests do not block re-application on the same dates.
         const hasOverlap = allEvents.some((event) => {
             if (isBirthdayEvent(event)) return false;
             const leaveEvent = event as LeaveEvent;
             if (leaveEvent.resource.email !== user?.email) return false;
+            const status = leaveEvent.resource.status;
+            if (status === 'cancelled' || status === 'rejected') return false;
             const eventStart = moment(leaveEvent.start).startOf('day');
             // end was incremented by 1 day in convertApiDataToEvents
             const eventEnd = moment(leaveEvent.end).subtract(1, 'day').startOf('day');
@@ -821,8 +854,7 @@ const CalendarSection = () => {
             <div className="flex items-center gap-2">
                 <button
                     onClick={() => onNavigate('PREV')}
-                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
-                    disabled={isLoading || isFetching}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 >
                     ←
                 </button>
@@ -831,8 +863,7 @@ const CalendarSection = () => {
                 </span>
                 <button
                     onClick={() => onNavigate('NEXT')}
-                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
-                    disabled={isLoading || isFetching}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 >
                     →
                 </button>
@@ -840,12 +871,11 @@ const CalendarSection = () => {
             <div className="flex items-center gap-2">
                 <button
                     onClick={() => onNavigate('TODAY')}
-                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded text-sm font-medium transition-colors disabled:opacity-50"
-                    disabled={isLoading || isFetching}
+                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded text-sm font-medium transition-colors"
                 >
                     Today
                 </button>
-                {(isLoading || isFetching) && (
+                {isFetching && (
                     <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
                 )}
             </div>
@@ -915,8 +945,8 @@ const CalendarSection = () => {
                     </div>
                 ) : (
                     <div className="h-[500px] sm:h-[800px] relative">
-                        {/* Loading overlay */}
-                        {(isLoading || isFetching) && (
+                        {/* Blocking overlay only on initial load — navigation uses keepPreviousData instead */}
+                        {isLoading && (
                             <div className="absolute inset-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
                                 <div className="flex flex-col items-center gap-3">
                                     <Loader2 className="w-8 h-8 animate-spin text-blue-500" />

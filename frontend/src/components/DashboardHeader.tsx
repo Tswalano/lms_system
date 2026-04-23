@@ -2,6 +2,55 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { MonitorOff, Moon, SunDim, Bell, X, Check, Clock, Archive, Trash2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+
+interface Quote { text: string; author: string; }
+
+const QUOTES: Quote[] = [
+    // Life
+    { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+    { text: "In the middle of every difficulty lies opportunity.", author: "Albert Einstein" },
+    { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
+    { text: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill" },
+    { text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
+    { text: "You miss 100% of the shots you don't take.", author: "Wayne Gretzky" },
+    { text: "Whether you think you can or you think you can't, you're right.", author: "Henry Ford" },
+    // Education
+    { text: "Education is the most powerful weapon which you can use to change the world.", author: "Nelson Mandela" },
+    { text: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin" },
+    { text: "Live as if you were to die tomorrow. Learn as if you were to live forever.", author: "Mahatma Gandhi" },
+    { text: "Intelligence plus character — that is the goal of true education.", author: "Martin Luther King Jr." },
+    { text: "The more that you read, the more things you will know.", author: "Dr. Seuss" },
+    { text: "Tell me and I forget. Teach me and I remember. Involve me and I learn.", author: "Benjamin Franklin" },
+    // Engineering & Technology
+    { text: "Scientists study the world as it is; engineers create the world that has never been.", author: "Theodore von Kármán" },
+    { text: "First, solve the problem. Then, write the code.", author: "John Johnson" },
+    { text: "Simplicity is the ultimate sophistication.", author: "Leonardo da Vinci" },
+    { text: "Make everything as simple as possible, but not simpler.", author: "Albert Einstein" },
+    { text: "Programs must be written for people to read, and only incidentally for machines to execute.", author: "Harold Abelson" },
+    { text: "Talk is cheap. Show me the code.", author: "Linus Torvalds" },
+    { text: "Any sufficiently advanced technology is indistinguishable from magic.", author: "Arthur C. Clarke" },
+    { text: "The function of good software is to make the complex appear to be simple.", author: "Grady Booch" },
+    { text: "The engineer has been, and is, a maker of history.", author: "James Kip Finch" },
+];
+
+const QUOTE_TTL_MS = 24 * 60 * 60 * 1000; // refresh after 24 hours
+
+function pickAndStoreQuote(userKey: string): Quote {
+    const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+    localStorage.setItem(`lms_quote_${userKey}`, JSON.stringify({ quote, ts: Date.now() }));
+    return quote;
+}
+
+function getQuoteForUser(userKey: string): Quote {
+    try {
+        const raw = localStorage.getItem(`lms_quote_${userKey}`);
+        if (raw) {
+            const { quote, ts } = JSON.parse(raw);
+            if (Date.now() - ts < QUOTE_TTL_MS) return quote;
+        }
+    } catch { /* ignore parse errors */ }
+    return pickAndStoreQuote(userKey);
+}
 import { useNotifications, useNotificationCounts, useNotificationMutations } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
 
@@ -39,6 +88,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     const [currentTime, setCurrentTime] = useState(new Date());
     const [showNotifications, setShowNotifications] = useState(false);
     const [showActions, setShowActions] = useState<string | null>(null);
+    const [quote, setQuote] = useState<Quote | null>(null);
 
     const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -63,11 +113,18 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     const unreadCount = countsData?.data?.totalUnread || 0;
     const urgentCount = countsData?.data?.urgentUnread || 0;
 
+    // Load persisted quote for this user (refreshes after 24h TTL)
+    useEffect(() => {
+        if (user?.email) {
+            setQuote(getQuoteForUser(user.email));
+        }
+    }, [user?.email]);
+
     // Update time every second
     useEffect(() => {
         const timer = setInterval(() => {
             setCurrentTime(new Date());
-        }, 100);
+        }, 1000);
         return () => clearInterval(timer);
     }, []);
 
@@ -438,11 +495,21 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                         </div>
                     </div>
 
-                    {/* Subtitle */}
-                    <p className="text-sm lg:text-lg text-gray-600 dark:text-gray-300 mt-3 lg:mt-4 font-medium">
-                        {user && user.dob === new Date().getFullYear().toString() ? `🎉 Happy Birthday ${user?.firstName} ${user?.lastName}! Wishing a fantastic day!`
-                            : 'Welcome back to Disraptor LMS Hub!'}
-                    </p>
+                    {/* Subtitle — birthday override or daily quote */}
+                    {user && user.dob === new Date().getFullYear().toString() ? (
+                        <p className="text-sm lg:text-lg text-gray-600 dark:text-gray-300 mt-3 lg:mt-4 font-medium">
+                            🎉 Happy Birthday {user?.firstName} {user?.lastName}! Wishing a fantastic day!
+                        </p>
+                    ) : quote ? (
+                        <div className="mt-3 lg:mt-4 max-w-xl mx-auto">
+                            <p className="text-sm lg:text-base text-gray-600 dark:text-gray-300 italic leading-relaxed">
+                                &ldquo;{quote.text}&rdquo;
+                            </p>
+                            <p className="text-xs lg:text-sm text-gray-400 dark:text-gray-500 mt-1 font-medium tracking-wide">
+                                — {quote.author}
+                            </p>
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </div>

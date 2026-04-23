@@ -616,6 +616,121 @@ app.put('/:id/approve', async (c: Context): Promise<Response> => {
     }
 });
 
+// POST /bulk-action - Approve or reject multiple pending leave requests at once
+app.post('/bulk-action', async (c: Context): Promise<Response> => {
+    try {
+        const managerId = getUserId(c);
+        const managerToken = getDecodedToken(c);
+        const managerName = `${managerToken.given_name || managerToken.name || 'Manager'} ${managerToken.family_name || ''}`.trim();
+
+        const body = await c.req.json();
+        const schema = z.object({
+            leaveIds: z.array(z.number().int().positive()).min(1).max(50),
+            action: z.enum(['approve', 'reject']),
+            feedback: z.string().optional().default(''),
+        });
+        const { leaveIds, action, feedback } = schema.parse(body);
+
+        const newStatus = action === 'approve' ? 'approved' : 'rejected';
+        const processedAt = new Date().toISOString();
+
+        const results: { id: number; success: boolean; error?: string }[] = [];
+
+        for (const leaveId of leaveIds) {
+            let connection: mysql.Connection | null = null;
+            try {
+                connection = await DatabaseService.createConnection();
+
+                const [rows] = await connection.query<mysql.RowDataPacket[]>(`
+                    SELECT lr.*, u.firstName, u.lastName, u.email
+                    FROM leave_requests lr
+                    LEFT JOIN users u ON lr.uid = u.id
+                    WHERE lr.id = ? AND lr.status = "pending"
+                `, [leaveId]);
+
+                if (!rows || rows.length === 0) {
+                    results.push({ id: leaveId, success: false, error: 'Not found or already processed' });
+                    continue;
+                }
+
+                const leaveRequest = rows[0] as LeaveRequestWithUser;
+
+                await connection.beginTransaction();
+                await connection.query(`
+                    UPDATE leave_requests
+                    SET status = ?, approved_by = ?, feedback = ?, approved_at = ?, updatedAt = ?
+                    WHERE id = ?
+                `, [newStatus, managerId, feedback, processedAt, processedAt, leaveId]);
+
+                await connection.query(`
+                    INSERT INTO leave_action_log (leave_id, manager_id, action, previous_status, new_status, timestamp)
+                    VALUES (?, ?, ?, ?, ?, NOW())
+                `, [leaveId, managerId, action, 'pending', newStatus]);
+
+                await connection.commit();
+                await connection.end();
+                connection = null;
+
+                // Fire-and-forget: email + calendar — never block the loop
+                sender(
+                    leaveRequest.email,
+                    `${leaveRequest.firstName} ${leaveRequest.lastName}`,
+                    `Your leave request for <strong>${leaveRequest.leave_type}</strong> from ${formatDate(leaveRequest.start_date)} to ${formatDate(leaveRequest.end_date)} has been <strong>${newStatus}</strong>.<br><br>Feedback: ${feedback}`,
+                    `Leave Request ${newStatus} - ${leaveRequest.leave_type}`,
+                    newStatus as 'approved' | 'rejected'
+                ).catch(err => console.error(`[BulkAction] Email failed for leave ${leaveId}:`, err));
+
+                if (action === 'approve') {
+                    createLeaveEvents({
+                        employeeEmail: leaveRequest.email,
+                        employeeName: `${leaveRequest.firstName} ${leaveRequest.lastName}`,
+                        leaveType: leaveRequest.leave_type,
+                        startDate: leaveRequest.start_date,
+                        endDate: leaveRequest.end_date,
+                        managerName,
+                    }).then(async ({ sharedEventId, personalEventId }) => {
+                        const calConn = await DatabaseService.createConnection();
+                        try {
+                            await calConn.query(
+                                'UPDATE leave_requests SET outlook_shared_event_id = ?, outlook_personal_event_id = ? WHERE id = ?',
+                                [sharedEventId, personalEventId, leaveId]
+                            );
+                        } finally {
+                            await calConn.end();
+                        }
+                    }).catch(err => console.error(`[BulkAction] Outlook calendar failed for leave ${leaveId}:`, err));
+                }
+
+                results.push({ id: leaveId, success: true });
+
+            } catch (err) {
+                if (connection) {
+                    try { await connection.rollback(); } catch (_) {}
+                    try { await connection.end(); } catch (_) {}
+                }
+                console.error(`[BulkAction] Failed to process leave ${leaveId}:`, err);
+                results.push({ id: leaveId, success: false, error: 'Internal error' });
+            }
+        }
+
+        const succeeded = results.filter(r => r.success).length;
+        const failed = results.filter(r => !r.success).length;
+
+        return c.json({
+            success: true,
+            message: `${succeeded} request${succeeded !== 1 ? 's' : ''} ${newStatus}${failed > 0 ? `, ${failed} failed` : ''}`,
+            data: { results, succeeded, failed, action, newStatus },
+        }, 200);
+
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return c.json({ success: false, message: 'Invalid request data' }, 400);
+        }
+        console.error('[BulkAction] Unexpected error:', error);
+        return c.json({ success: false, message: 'Failed to process bulk action' }, 500);
+    }
+});
+
 // GET /all-leave-requests - Get all leave requests (for managers)
 app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
     let connection: mysql.Connection | null = null;
