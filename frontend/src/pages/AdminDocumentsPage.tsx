@@ -400,6 +400,38 @@ const AdminDocumentsPage: FC = () => {
         }
     });
 
+    const sendReminderMutation = useMutation({
+        mutationFn: async (docId: number) => {
+            const response = await authFetch(`/admin-docs/${docId}/send-reminders`, {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (data) => {
+            const { sent, total } = data?.payload ?? {};
+            if (sent === 0 && total === 0) {
+                toast.info("No reminders needed", {
+                    description: "All assigned users have already signed this document.",
+                });
+            } else {
+                toast.success("Reminders sent", {
+                    description: `${sent} of ${total} unsigned user${total !== 1 ? 's' : ''} notified by email.`,
+                });
+            }
+        },
+        onError: (error: Error) => {
+            toast.error("Failed to send reminders", {
+                description: error.message || "An error occurred. Please try again.",
+            });
+        },
+    });
+
     const deleteDocumentMutation = useMutation({
         mutationFn: async (docId: number) => {
             const response = await authFetch(`/admin-docs/${docId}`, {
@@ -712,6 +744,10 @@ const AdminDocumentsPage: FC = () => {
         setShowEditDocumentModal(true);
     };
 
+    const handleSendReminder = (docId: number): void => {
+        sendReminderMutation.mutate(docId);
+    };
+
     const handleDeleteDocument = (docId: number): void => {
         const document = allDocuments.find(doc => doc.id === docId);
         if (document) {
@@ -804,9 +840,10 @@ const AdminDocumentsPage: FC = () => {
                         documents={filteredDocuments}
                         title={documentTableTitle}
                         onView={handleViewDocument}
-                        onEdit={handleEditDocumentClick} // Use the new handler
+                        onEdit={handleEditDocumentClick}
                         onDownload={handleDownloadDocument}
                         onDelete={handleDeleteDocument}
+                        onSendReminder={handleSendReminder}
                     />
                 )}
             </div>

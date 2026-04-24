@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Eye, Edit3, Trash2, Download } from 'lucide-react';
+import { FileText, Eye, Edit3, Trash2, Download, Bell } from 'lucide-react';
 import { Pagination } from "@/components/ui/Pagination";
 import { usePagination } from "@/hooks/usePagination";
 
@@ -29,6 +29,7 @@ interface DocumentTableProps {
     onEdit: (doc: DocumentType) => void;
     onDownload: (doc: DocumentType) => void;
     onDelete: (docId: number) => void;
+    onSendReminder?: (docId: number) => void;
 }
 
 
@@ -48,7 +49,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     onView,
     onEdit,
     onDownload,
-    onDelete
+    onDelete,
+    onSendReminder,
 }) => {
     const pagination = usePagination(documents, 10);
 
@@ -150,6 +152,15 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right">
                                     <div className="flex items-center justify-end gap-2">
+                                        {onSendReminder && doc.signatureRate < 100 && (
+                                            <button
+                                                onClick={() => onSendReminder(doc.id)}
+                                                className="p-1.5 rounded-lg border border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/40 transition-colors"
+                                                title="Send Signing Reminders"
+                                            >
+                                                <Bell className="w-4 h-4" />
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => onView(doc)}
                                             className="p-1.5 rounded-lg border border-cyan-200 text-cyan-600 bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-900/20 dark:border-cyan-800 dark:text-cyan-400 dark:hover:bg-cyan-900/40 transition-colors"

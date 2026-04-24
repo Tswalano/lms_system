@@ -38,6 +38,28 @@ interface ManagementTemplateVariables {
     duration?: string;
 }
 
+interface DocumentReminderData {
+    employeeName: string;
+    documents: Array<{
+        name: string;
+        isMandatory: boolean;
+        dueDate?: string;
+        assignedDate: string;
+    }>;
+    portalUrl: string;
+}
+
+interface DocumentReminderVariables {
+    employeeName: string;
+    documents: Array<{
+        name: string;
+        isMandatory: boolean;
+        dueDate?: string;
+        assignedDate: string;
+    }>;
+    portalUrl: string;
+}
+
 async function renderEmailTemplate(variables: TemplateVariables): Promise<string> {
     console.log("Rendering email template with variables:", variables);
 
@@ -792,18 +814,271 @@ const generateManagementEmail = (templateData: ManagementTemplateData): string =
     return managementEmailTemplate(templateData);
 };
 
+const documentReminderTemplate = (data: DocumentReminderData): string => {
+    const { employeeName, documents, portalUrl } = data;
+
+    const documentsHtml = documents.map(doc => `
+        <div class="document-item">
+            <div class="document-name">
+                ${doc.name}
+                ${doc.isMandatory ? '<span class="mandatory-badge">Mandatory</span>' : ''}
+            </div>
+            <div class="document-meta">
+                ${doc.dueDate
+            ? `<span class="due-date">Due: ${doc.dueDate}</span>`
+            : `<span>Assigned: ${doc.assignedDate}</span>`}
+            </div>
+        </div>
+    `).join('');
+
+    return `<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Signing Reminder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8fafc;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .greeting {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 24px;
+        }
+
+        .reminder-card {
+            background-color: #fef3c7;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .reminder-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .reminder-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 8px;
+        }
+
+        .reminder-text {
+            color: #78350f;
+            font-size: 15px;
+        }
+
+        .document-list {
+            margin: 24px 0;
+        }
+
+        .document-item {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .document-name {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .document-meta {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .mandatory-badge {
+            display: inline-block;
+            background-color: #fee2e2;
+            color: #dc2626;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+
+        .due-date {
+            color: #dc2626;
+            font-weight: 500;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            text-decoration: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 16px;
+        }
+
+        .footer {
+            background-color: #f8fafc;
+            padding: 24px 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .footer p {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .footer a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                border-radius: 0;
+            }
+            
+            .content {
+                padding: 24px 20px;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">📋</div>
+            <h1>Document Signing Reminder</h1>
+            <p>Action Required</p>
+        </div>
+
+        <div class="content">
+            <p class="greeting">Hi ${employeeName},</p>
+
+            <div class="reminder-card">
+                <div class="reminder-icon">⏰</div>
+                <div class="reminder-title">You have pending documents to sign</div>
+                <p class="reminder-text">
+                    This is a friendly reminder that you have document(s) that require your attention. 
+                    Please review and sign them at your earliest convenience.
+                </p>
+            </div>
+
+            <div class="document-list">
+                ${documentsHtml}
+            </div>
+
+            <p style="color: #4b5563; margin-top: 24px;">
+                Please log in to the Employee Portal to review and sign these documents.
+            </p>
+
+            <div style="text-align: center; margin-top: 24px;">
+                <a href="${portalUrl}" class="cta-button">Sign Documents Now</a>
+            </div>
+
+            <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">
+                If you have already signed these documents, please disregard this reminder. 
+                Thank you for your prompt attention to this matter.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>This is an automated message from the Employee Management System.</p>
+            <p>Please do not reply directly to this email.</p>
+        </div>
+    </div>
+</body>
+
+</html>`;
+};
+
+const generateDocumentReminderEmail = (templateData: DocumentReminderData): string => {
+    return documentReminderTemplate(templateData);
+};
+
 export {
     emailTemplate,
     managementEmailTemplate,
+    documentReminderTemplate,
     generateEmail,
     generateManagementEmail,
+    generateDocumentReminderEmail,
     EmailTemplateData,
     ManagementTemplateData,
+    DocumentReminderData,
     renderEmailTemplate,
     renderManagementEmailTemplate,
     createTemplateVariables,
     createManagementTemplateVariables,
     TemplateVariables,
     ManagementTemplateVariables,
+    DocumentReminderVariables,
     LeaveStatus
 };

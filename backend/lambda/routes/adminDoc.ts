@@ -10,6 +10,7 @@ import { extension } from "mime-types";
 import { DatabaseService } from '../helpers/databaseHeler';
 import { ResponseService } from '../models/apiResponse';
 import { DocumentCategoryRow } from "../models/documentCategory";
+import { senderDocumentReminder } from "../email/emailMiddleware";
 
 const adminDocs = new Hono();
 
@@ -954,5 +955,191 @@ adminDocs.put('/categories/:category_id', async (c) => {
 });
 
 
+
+// POST /admin-docs/:document_id/send-reminders
+// Sends document signing reminder emails to unsigned users.
+// Skips users reminded within the last 24 hours and logs every send to document_reminders.
+adminDocs.post('/:document_id/send-reminders', async (c) => {
+    console.log("POST /admin-docs/:document_id/send-reminders");
+
+    let connection;
+
+    try {
+        const { document_id } = c.req.param();
+        const documentId = parseInt(document_id);
+
+        if (isNaN(documentId)) {
+            return c.json(ResponseService.error("InvalidRequest", "Document ID must be a valid number."), 400);
+        }
+
+        connection = await DatabaseService.createConnection();
+
+        // Verify document exists
+        const [docRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT id, name FROM documents WHERE id = ?`,
+            [documentId]
+        );
+
+        if (docRows.length === 0) {
+            return c.json(ResponseService.error("DocumentNotFound", `Document not found: ${documentId}`), 404);
+        }
+
+        const documentName = docRows[0].name as string;
+
+        // Find unsigned users, joining the reminder log to expose last_reminded_at.
+        // The LEFT JOIN on document_reminders picks the most-recent reminder per user.
+        const [unsignedRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT
+                u.id              AS user_id,
+                CONCAT(u.firstName, ' ', u.lastName) AS user_name,
+                u.email,
+                uda.due_date,
+                uda.assigned_at,
+                COALESCE(dtm.is_mandatory, 0) AS is_mandatory,
+                MAX(dr.sent_at)   AS last_reminded_at
+            FROM user_document_assignments uda
+            INNER JOIN users u ON uda.user_id = u.id
+            LEFT  JOIN document_training_metadata dtm ON uda.document_id = dtm.document_id
+            LEFT  JOIN document_signatures ds
+                ON ds.user_id = uda.user_id AND ds.document_id = uda.document_id
+            LEFT  JOIN document_reminders dr
+                ON dr.user_id = uda.user_id AND dr.document_id = uda.document_id
+            WHERE uda.document_id = ?
+              AND ds.id IS NULL
+              AND u.email IS NOT NULL
+              AND u.email != ''
+            GROUP BY u.id, u.firstName, u.lastName, u.email,
+                     uda.due_date, uda.assigned_at, dtm.is_mandatory`,
+            [documentId]
+        );
+
+        if (unsignedRows.length === 0) {
+            return c.json(ResponseService.success(
+                "No unsigned users found — all assigned users have already signed this document.",
+                { sent: 0, failed: 0, skipped: 0, total: 0 }
+            ), 200);
+        }
+
+        const portalUrl = process.env.FRONTEND_URL || 'https://lms.disraptor.co.za/documents';
+        const cooldownMs = 24 * 60 * 60 * 1000; // 24 hours
+        const now = Date.now();
+
+        const eligible   = unsignedRows.filter(row =>
+            !row.last_reminded_at || (now - new Date(row.last_reminded_at).getTime()) >= cooldownMs
+        );
+        const skipped    = unsignedRows.length - eligible.length;
+
+        const results = await Promise.allSettled(
+            eligible.map(async row => {
+                await senderDocumentReminder(row.email as string, {
+                    employeeName: row.user_name as string,
+                    portalUrl,
+                    documents: [{
+                        name: documentName,
+                        isMandatory: Boolean(row.is_mandatory),
+                        dueDate: row.due_date
+                            ? dayjs(row.due_date).format('DD MMM YYYY')
+                            : undefined,
+                        assignedDate: dayjs(row.assigned_at).format('DD MMM YYYY'),
+                    }],
+                });
+
+                // Log the successful send
+                await connection!.execute(
+                    `INSERT INTO document_reminders (user_id, document_id, sent_at) VALUES (?, ?, NOW())`,
+                    [row.user_id, documentId]
+                );
+            })
+        );
+
+        const sent   = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+
+        console.log(`Document reminders: ${sent} sent, ${failed} failed, ${skipped} skipped (24h cooldown)`);
+
+        return c.json(ResponseService.success(
+            `Reminders sent to ${sent} of ${eligible.length} eligible user${eligible.length !== 1 ? 's' : ''}. ${skipped} skipped (reminded within the last 24 hours).`,
+            { sent, failed, skipped, total: unsignedRows.length }
+        ), 200);
+
+    } catch (error: any) {
+        console.error("Error sending document reminders:", error);
+        return c.json(ResponseService.error(
+            "DocumentReminderError",
+            error.message || "Failed to send document reminders."
+        ), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// GET /admin-docs/:document_id/reminders
+// Returns the full reminder history for a document, showing who was reminded and when.
+adminDocs.get('/:document_id/reminders', async (c) => {
+    console.log("GET /admin-docs/:document_id/reminders");
+
+    let connection;
+
+    try {
+        const { document_id } = c.req.param();
+        const documentId = parseInt(document_id);
+
+        if (isNaN(documentId)) {
+            return c.json(ResponseService.error("InvalidRequest", "Document ID must be a valid number."), 400);
+        }
+
+        connection = await DatabaseService.createConnection();
+
+        const [rows] = await connection.execute<RowDataPacket[]>(
+            `SELECT
+                dr.id,
+                dr.sent_at,
+                u.id                                 AS user_id,
+                CONCAT(u.firstName, ' ', u.lastName) AS user_name,
+                u.email,
+                ds.signed_at IS NOT NULL             AS has_since_signed
+            FROM document_reminders dr
+            INNER JOIN users u ON dr.user_id = u.id
+            LEFT  JOIN document_signatures ds
+                ON ds.user_id = dr.user_id AND ds.document_id = dr.document_id
+            WHERE dr.document_id = ?
+            ORDER BY dr.sent_at DESC`,
+            [documentId]
+        );
+
+        // Group into per-user summary
+        const byUser = new Map<string, { userId: string; userName: string; email: string; hasSinceSignedAt: string | null; reminders: string[] }>();
+
+        for (const row of rows) {
+            if (!byUser.has(row.user_id)) {
+                byUser.set(row.user_id, {
+                    userId: row.user_id,
+                    userName: row.user_name,
+                    email: row.email,
+                    hasSinceSignedAt: row.has_since_signed ? row.signed_at : null,
+                    reminders: [],
+                });
+            }
+            byUser.get(row.user_id)!.reminders.push(row.sent_at);
+        }
+
+        return c.json(ResponseService.success(
+            "Reminder history retrieved successfully.",
+            {
+                total: rows.length,
+                users: Array.from(byUser.values()),
+            }
+        ), 200);
+
+    } catch (error: any) {
+        console.error("Error retrieving reminder history:", error);
+        return c.json(ResponseService.error(
+            "ReminderHistoryError",
+            error.message || "Failed to retrieve reminder history."
+        ), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
 
 export default adminDocs;
