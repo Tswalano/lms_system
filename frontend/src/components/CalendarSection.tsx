@@ -338,6 +338,19 @@ const CalendarSection = () => {
     const toTitleCase = (str: string) =>
         str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
+    // Extract the SAST calendar date from an API date string (handles both UTC midnight
+    // and SAST-midnight-encoded-as-UTC that mysql2 may return), then create a local-midnight
+    // Date so react-big-calendar renders it in the correct calendar cell in any browser timezone.
+    const toCalendarDate = (dateStr: string): Date => {
+        const sastDate = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Africa/Johannesburg',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        }).format(new Date(dateStr)); // "YYYY-MM-DD"
+        return new Date(`${sastDate}T00:00:00`); // local midnight (browser timezone)
+    };
+
     // Convert API data to calendar events with deduplication
     const convertApiDataToEvents = (apiData: ApiResponse): CalendarEvent[] => {
         const events: CalendarEvent[] = [];
@@ -356,10 +369,11 @@ const CalendarSection = () => {
             const fullName = `${toTitleCase(request.firstName)} ${toTitleCase(request.lastName)}`;
             const approvedBy = `${toTitleCase(request.managerFirstName)} ${toTitleCase(request.managerLastName)}`;
 
-            // Handle dates
-            const startDate = new Date(request.start_date);
-            const endDate = new Date(request.end_date);
-            endDate.setDate(endDate.getDate() + 1);
+            // Normalise dates to SAST calendar dates at local midnight so react-big-calendar
+            // renders them in the correct cells regardless of browser timezone.
+            const startDate = toCalendarDate(request.start_date);
+            const endDate = toCalendarDate(request.end_date);
+            endDate.setDate(endDate.getDate() + 1); // exclusive end for react-big-calendar
 
             const event: LeaveEvent = {
                 id: request.id,
@@ -392,11 +406,12 @@ const CalendarSection = () => {
             const birthdayDate = new Date(birthday.birthdayDate);
             const avatar = getAvatar(birthday.firstName.toUpperCase(), birthday.lastName.toUpperCase());
             const dayOfWeek = birthdayDate.getDay();
-            const isObserved = dayOfWeek === 6; // Saturday
+            const isObserved = dayOfWeek === 6 || dayOfWeek === 0; // Saturday or Sunday
             let observedDate: string | undefined;
             if (isObserved) {
                 const friday = new Date(birthdayDate);
-                friday.setDate(friday.getDate() - 1);
+                // Saturday → back 1 day; Sunday → back 2 days
+                friday.setDate(friday.getDate() - (dayOfWeek === 6 ? 1 : 2));
                 observedDate = moment(friday).format('MMMM Do');
             }
 

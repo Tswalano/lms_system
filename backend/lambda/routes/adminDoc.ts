@@ -11,6 +11,7 @@ import { DatabaseService } from '../helpers/databaseHeler';
 import { ResponseService } from '../models/apiResponse';
 import { DocumentCategoryRow } from "../models/documentCategory";
 import { senderDocumentReminder } from "../email/emailMiddleware";
+import { getUserId } from '../middleware/auth';
 
 const adminDocs = new Hono();
 
@@ -956,6 +957,159 @@ adminDocs.put('/categories/:category_id', async (c) => {
 
 
 
+// POST /admin-docs/send-bulk-reminders
+// Sends ONE reminder email per unsigned user covering ALL documents created 15+ days ago.
+// Per (user, document) pair: skips if reminded within the last 24 hours.
+adminDocs.post('/send-bulk-reminders', async (c) => {
+    console.log("POST /admin-docs/send-bulk-reminders");
+
+    let connection;
+
+    try {
+        let adminId: string;
+        try { adminId = getUserId(c); } catch { adminId = 'system'; }
+
+        connection = await DatabaseService.createConnection();
+
+        // Find all unsigned assignments for documents created 15+ days ago,
+        // along with the most-recent reminder sent per (user, document).
+        const [rows] = await connection.execute<RowDataPacket[]>(
+            `SELECT
+                u.id              AS user_id,
+                CONCAT(u.firstName, ' ', u.lastName) AS user_name,
+                u.email,
+                d.id              AS document_id,
+                d.name            AS document_name,
+                uda.due_date,
+                uda.assigned_at,
+                COALESCE(dtm.is_mandatory, 0) AS is_mandatory,
+                MAX(dr.sent_at)   AS last_reminded_at
+             FROM user_document_assignments uda
+             INNER JOIN users     u   ON uda.user_id     = u.id
+             INNER JOIN documents d   ON uda.document_id = d.id
+             LEFT  JOIN document_training_metadata dtm ON uda.document_id = dtm.document_id
+             LEFT  JOIN document_signatures ds
+                ON ds.user_id = uda.user_id AND ds.document_id = uda.document_id
+             LEFT  JOIN document_reminders dr
+                ON dr.user_id = uda.user_id AND dr.document_id = uda.document_id
+             WHERE ds.id IS NULL
+               AND u.email   IS NOT NULL
+               AND u.email   != ''
+               AND d.createdAt <= DATE_SUB(NOW(), INTERVAL 15 DAY)
+             GROUP BY u.id, u.firstName, u.lastName, u.email,
+                      d.id, d.name, uda.due_date, uda.assigned_at, dtm.is_mandatory
+             ORDER BY u.id, d.name`
+        );
+
+        if (rows.length === 0) {
+            return c.json(ResponseService.success(
+                "No pending documents older than 15 days found — all assigned users have signed or no eligible documents exist.",
+                { emailsSent: 0, emailsFailed: 0, usersSkipped: 0, totalUsers: 0, totalDocuments: 0 }
+            ), 200);
+        }
+
+        const portalUrl = process.env.FRONTEND_URL || 'https://lms.disraptor.co.za/documents';
+        const cooldownMs = 24 * 60 * 60 * 1000;
+        const now = Date.now();
+
+        // Group rows by user and filter out (user, document) pairs reminded within 24 hours
+        const userMap = new Map<string, {
+            userId: string;
+            userName: string;
+            email: string;
+            docs: Array<{ documentId: number; name: string; isMandatory: boolean; dueDate?: string; assignedDate: string }>;
+        }>();
+
+        let totalSkippedDocs = 0;
+        for (const row of rows) {
+            const isOnCooldown = row.last_reminded_at &&
+                (now - new Date(row.last_reminded_at).getTime()) < cooldownMs;
+            if (isOnCooldown) { totalSkippedDocs++; continue; }
+
+            if (!userMap.has(row.user_id)) {
+                userMap.set(row.user_id, {
+                    userId: row.user_id as string,
+                    userName: row.user_name as string,
+                    email: row.email as string,
+                    docs: [],
+                });
+            }
+            userMap.get(row.user_id)!.docs.push({
+                documentId: row.document_id as number,
+                name: row.document_name as string,
+                isMandatory: Boolean(row.is_mandatory),
+                dueDate: row.due_date ? dayjs(row.due_date).format('DD MMM YYYY') : undefined,
+                assignedDate: dayjs(row.assigned_at).format('DD MMM YYYY'),
+            });
+        }
+
+        const eligibleUsers = [...userMap.values()];
+        let emailsSent = 0;
+        let emailsFailed = 0;
+
+        const results = await Promise.allSettled(
+            eligibleUsers.map(async (u) => {
+                await senderDocumentReminder(u.email, {
+                    employeeName: u.userName,
+                    portalUrl,
+                    documents: u.docs.map(d => ({
+                        name: d.name,
+                        isMandatory: d.isMandatory,
+                        dueDate: d.dueDate,
+                        assignedDate: d.assignedDate,
+                    })),
+                });
+
+                // Log a reminder entry per (user, document) sent
+                for (const doc of u.docs) {
+                    await connection!.execute(
+                        `INSERT INTO document_reminders (user_id, document_id, sent_at) VALUES (?, ?, NOW())`,
+                        [u.userId, doc.documentId]
+                    );
+                }
+
+                // One in-app notification per user listing all documents
+                const docList = u.docs.map(d => `"${d.name}"`).join(', ');
+                const notifId = `not_bulk_${Date.now()}_${String(u.userId).slice(0, 8)}`;
+                await connection!.execute(
+                    `INSERT INTO notifications
+                        (id, recipientId, createdById, type, category, title, message,
+                         actionUrl, actionText, priority, relatedType,
+                         isRead, isArchived, createdAt, updatedAt)
+                     VALUES (?, ?, ?, 'action_required', 'documents', ?, ?, '/documents', 'Sign Now', 'high', 'document', false, false, NOW(), NOW())`,
+                    [
+                        notifId,
+                        u.userId,
+                        adminId,
+                        `Document Signature Reminder`,
+                        `You have ${u.docs.length} pending document${u.docs.length > 1 ? 's' : ''} requiring your signature: ${docList}.`,
+                    ]
+                );
+            })
+        );
+
+        results.forEach(r => r.status === 'fulfilled' ? emailsSent++ : emailsFailed++);
+
+        const totalDocumentsCovered = eligibleUsers.reduce((sum, u) => sum + u.docs.length, 0);
+        console.log(`Bulk reminders: ${emailsSent} emails sent, ${emailsFailed} failed, ${eligibleUsers.length} users, ${totalSkippedDocs} (user,doc) pairs skipped (24h cooldown)`);
+
+        return c.json(ResponseService.success(
+            `Reminders sent to ${emailsSent} of ${eligibleUsers.length} eligible user${eligibleUsers.length !== 1 ? 's' : ''} covering ${totalDocumentsCovered} pending document${totalDocumentsCovered !== 1 ? 's' : ''}.`,
+            { emailsSent, emailsFailed, usersSkipped: eligibleUsers.length - emailsSent, totalUsers: eligibleUsers.length, totalDocuments: totalDocumentsCovered }
+        ), 200);
+
+    } catch (error: any) {
+        console.error("Error sending bulk document reminders:", error);
+        return c.json(ResponseService.error(
+            "BulkReminderError",
+            error.message || "Failed to send bulk document reminders."
+        ), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+
 // POST /admin-docs/:document_id/send-reminders
 // Sends document signing reminder emails to unsigned users.
 // Skips users reminded within the last 24 hours and logs every send to document_reminders.
@@ -985,6 +1139,9 @@ adminDocs.post('/:document_id/send-reminders', async (c) => {
         }
 
         const documentName = docRows[0].name as string;
+
+        let adminId: string;
+        try { adminId = getUserId(c); } catch { adminId = 'system'; }
 
         // Find unsigned users, joining the reminder log to expose last_reminded_at.
         // The LEFT JOIN on document_reminders picks the most-recent reminder per user.
@@ -1048,6 +1205,24 @@ adminDocs.post('/:document_id/send-reminders', async (c) => {
                 await connection!.execute(
                     `INSERT INTO document_reminders (user_id, document_id, sent_at) VALUES (?, ?, NOW())`,
                     [row.user_id, documentId]
+                );
+
+                // Create in-app notification
+                const notifId = `not_${Date.now()}_${String(row.user_id).slice(0, 8)}_doc${documentId}`;
+                await connection!.execute(
+                    `INSERT INTO notifications
+                        (id, recipientId, createdById, type, category, title, message,
+                         actionUrl, actionText, priority, relatedId, relatedType,
+                         isRead, isArchived, createdAt, updatedAt)
+                     VALUES (?, ?, ?, 'action_required', 'documents', ?, ?, '/documents', 'Sign Now', 'high', ?, 'document', false, false, NOW(), NOW())`,
+                    [
+                        notifId,
+                        row.user_id,
+                        adminId,
+                        `Document Signature Reminder`,
+                        `Please sign "${documentName}". Your signature is required.`,
+                        String(documentId),
+                    ]
                 );
             })
         );

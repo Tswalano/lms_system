@@ -305,12 +305,26 @@ app.get('/on-leave', async (c) => {
     const connection = await DatabaseService.createConnection();
 
     try {
-        // Get query params or default to today
-        const startDate = c.req.query('startDate') || c.req.query('start_date') || new Date().toISOString().split('T')[0];
+        // Compute today's date in SAST (Africa/Johannesburg, UTC+2) as a YYYY-MM-DD string.
+        // Using toISOString() would give the UTC date, which is 2h behind SAST and causes
+        // the last day of leave to be missed (e.g. Friday shows as not-on-leave).
+        const SAST_TZ = 'Africa/Johannesburg';
+        const toSastDateStr = (d: Date): string =>
+            new Intl.DateTimeFormat('en-CA', {
+                timeZone: SAST_TZ,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            }).format(d);
+
+        const nowSast = toSastDateStr(new Date());
+
+        // Get query params or default to today (SAST)
+        const startDate = c.req.query('startDate') || c.req.query('start_date') || nowSast;
         const endDate = c.req.query('endDate') || c.req.query('end_date') || startDate;
 
-        // Get current date for status determination
-        const currentDate = new Date().toISOString().split('T')[0];
+        // Current date string in SAST for status determination
+        const currentDate = nowSast;
 
         // Validate parameters exist
         if (!startDate || !endDate) {
@@ -389,12 +403,20 @@ app.get('/on-leave', async (c) => {
                 // Calculate total leave duration
                 const totalDuration = Math.floor((leaveEndDate.getTime() - leaveStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
+                // Extract SAST calendar dates from the raw mysql2 Date objects.
+                // mysql2 may return DATE columns as SAST midnight encoded in UTC
+                // (e.g. "2026-05-01T22:00:00Z" = May 2 00:00 SAST), so comparing
+                // toISOString() dates against a UTC currentDate string will fail on the
+                // last day of leave. Using Intl.DateTimeFormat in SAST gives correct dates.
+                const startDateOnly = toSastDateStr(leaveStartDate);
+                const endDateOnly = toSastDateStr(leaveEndDate);
+
                 userMap.get(userId)!.allLeaves.push({
                     leaveType: row.leave_type,
                     startDate: leaveStartDate.toISOString(),
                     endDate: leaveEndDate.toISOString(),
-                    startDateOnly: row.start_date_only,
-                    endDateOnly: row.end_date_only,
+                    startDateOnly,
+                    endDateOnly,
                     duration: totalDuration,
                     status: row.status
                 });
@@ -406,27 +428,21 @@ app.get('/on-leave', async (c) => {
             const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
             const initials = `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase();
 
-            // Determine current status based on today's date
-            const currentDateObj = new Date(currentDate);
-
+            // All date comparisons use YYYY-MM-DD string ordering (ISO lexicographic = chronological)
             // Find leave that covers current date
-            const currentLeave = allLeaves.find(leave => {
-                const leaveStart = new Date(leave.startDateOnly);
-                const leaveEnd = new Date(leave.endDateOnly);
-                return currentDateObj >= leaveStart && currentDateObj <= leaveEnd;
-            });
+            const currentLeave = allLeaves.find(leave =>
+                currentDate >= leave.startDateOnly && currentDate <= leave.endDateOnly
+            );
 
             // Find upcoming leaves (start after current date)
-            const upcomingLeaves = allLeaves.filter(leave => {
-                const leaveStart = new Date(leave.startDateOnly);
-                return leaveStart > currentDateObj;
-            }).sort((a, b) => new Date(a.startDateOnly).getTime() - new Date(b.startDateOnly).getTime());
+            const upcomingLeaves = allLeaves
+                .filter(leave => leave.startDateOnly > currentDate)
+                .sort((a, b) => a.startDateOnly.localeCompare(b.startDateOnly));
 
             // Find past leaves (ended before current date)
-            const pastLeaves = allLeaves.filter(leave => {
-                const leaveEnd = new Date(leave.endDateOnly);
-                return leaveEnd < currentDateObj;
-            }).sort((a, b) => new Date(b.endDateOnly).getTime() - new Date(a.endDateOnly).getTime());
+            const pastLeaves = allLeaves
+                .filter(leave => leave.endDateOnly < currentDate)
+                .sort((a, b) => b.endDateOnly.localeCompare(a.endDateOnly));
 
             // Determine status
             let status = 'available';
@@ -436,15 +452,10 @@ app.get('/on-leave', async (c) => {
                 status = 'on-leave';
                 primaryLeave = currentLeave;
             } else if (upcomingLeaves.length > 0) {
-                // Check if we need to show upcoming leave info based on query range
-                const queryStartObj = new Date(startDate);
-                const queryEndObj = new Date(endDate);
-
-                const relevantUpcomingLeave = upcomingLeaves.find(leave => {
-                    const leaveStart = new Date(leave.startDateOnly);
-                    const leaveEnd = new Date(leave.endDateOnly);
-                    return (leaveStart <= queryEndObj && leaveEnd >= queryStartObj);
-                });
+                // All date strings are YYYY-MM-DD (lexicographic = chronological)
+                const relevantUpcomingLeave = upcomingLeaves.find(leave =>
+                    leave.startDateOnly <= endDate && leave.endDateOnly >= startDate
+                );
 
                 if (relevantUpcomingLeave) {
                     status = 'upcoming-leave';
@@ -452,21 +463,25 @@ app.get('/on-leave', async (c) => {
                 }
             }
 
-            // Calculate overlapping days with query range if there's a primary leave
+            // Calculate overlapping days using date-only strings (YYYY-MM-DD)
             let overlappingDays = 0;
             if (primaryLeave) {
-                const leaveStart = new Date(primaryLeave.startDateOnly);
-                const leaveEnd = new Date(primaryLeave.endDateOnly);
-                const queryStart = new Date(startDate);
-                const queryEnd = new Date(endDate);
+                const overlapStartStr = primaryLeave.startDateOnly > startDate ? primaryLeave.startDateOnly : startDate;
+                const overlapEndStr = primaryLeave.endDateOnly < endDate ? primaryLeave.endDateOnly : endDate;
 
-                const overlapStart = new Date(Math.max(leaveStart.getTime(), queryStart.getTime()));
-                const overlapEnd = new Date(Math.min(leaveEnd.getTime(), queryEnd.getTime()));
-
-                if (overlapStart <= overlapEnd) {
-                    overlappingDays = Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                if (overlapStartStr <= overlapEndStr) {
+                    const ms = new Date(overlapEndStr).getTime() - new Date(overlapStartStr).getTime();
+                    overlappingDays = Math.floor(ms / (1000 * 60 * 60 * 24)) + 1;
                 }
             }
+
+            const toDisplayDate = (d: Date): string =>
+                new Intl.DateTimeFormat('en-US', {
+                    timeZone: SAST_TZ,
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                }).format(d);
 
             const member = {
                 id: user.id,
@@ -477,15 +492,7 @@ app.get('/on-leave', async (c) => {
                 avatar: initials,
                 leaveType: primaryLeave?.leaveType || null,
                 leaveDates: primaryLeave ?
-                    `${new Date(primaryLeave.startDate).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                    })} - ${new Date(primaryLeave.endDate).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                    })}` : null,
+                    `${toDisplayDate(new Date(primaryLeave.startDate))} - ${toDisplayDate(new Date(primaryLeave.endDate))}` : null,
                 startDate: primaryLeave?.startDate || null,
                 endDate: primaryLeave?.endDate || null,
                 duration: primaryLeave?.duration || null,

@@ -2,6 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { MonitorOff, Moon, SunDim, Bell, X, Check, Clock, Archive, Trash2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 interface Quote { text: string; author: string; }
 
@@ -54,10 +55,8 @@ function getQuoteForUser(userKey: string): Quote {
 import { useNotifications, useNotificationCounts, useNotificationMutations } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
 
-interface DashboardHeaderProps {
-    isCollapsed?: boolean;
-    showSidebar?: boolean;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface DashboardHeaderProps {}
 
 interface NotificationAPI {
     id: string;
@@ -79,16 +78,61 @@ interface NotificationAPI {
     metadata?: any;
 }
 
-const DashboardHeader: React.FC<DashboardHeaderProps> = ({
-    isCollapsed = false,
-    showSidebar = true
-}) => {
+// Returns "YYYY-MM-DD" for a Date using local calendar values
+function localDateStr(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, authFetch } = useAuth();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [showNotifications, setShowNotifications] = useState(false);
     const [showActions, setShowActions] = useState<string | null>(null);
     const [quote, setQuote] = useState<Quote | null>(null);
+
+    // Fetch today's (and observed) birthdays — reuses the same cache key as CalendarSection for this month
+    const today = new Date();
+    const todayDow = today.getDay(); // 0=Sun … 6=Sat
+    // On Friday we look ahead to Sat+Sun so those birthdays are observed today
+    const lookAheadEnd = todayDow === 5
+        ? new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2)
+        : today;
+    const birthdayQueryStart = localDateStr(today);
+    const birthdayQueryEnd = localDateStr(lookAheadEnd);
+
+    const { data: birthdayData } = useQuery({
+        queryKey: ['todayBirthdays', birthdayQueryStart, birthdayQueryEnd],
+        queryFn: async () => {
+            const res = await authFetch(
+                `/leave/leave-calendar-with-birthdays?start_date=${birthdayQueryStart}&end_date=${birthdayQueryEnd}`
+            );
+            if (!res.ok) throw new Error('Failed to fetch birthdays');
+            return res.json();
+        },
+        staleTime: 60 * 60 * 1000, // 1 hour — birthdays don't change intraday
+        gcTime: 2 * 60 * 60 * 1000,
+        refetchOnWindowFocus: false,
+    });
+
+    // Compute isToday on the client so we don't depend on a backend restart
+    const isBirthdayObservedToday = (birthdayDate: string): boolean => {
+        const now = new Date();
+        const bday = new Date(birthdayDate); // "YYYY-MM-DD" → parsed as UTC midnight
+        const nowStr = localDateStr(now);
+        const bdayStr = localDateStr(bday);
+        if (bdayStr === nowStr) return true;
+        const dow = now.getDay(); // 0=Sun … 6=Sat
+        if (dow === 5) {
+            const satStr = localDateStr(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+            const sunStr = localDateStr(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2));
+            if (bdayStr === satStr || bdayStr === sunStr) return true;
+        }
+        return false;
+    };
+
+    const todaysBirthdays: Array<{ userId: string; name: string; firstName: string; birthdayDate: string }> =
+        (birthdayData?.data?.birthdays ?? []).filter((b: any) => isBirthdayObservedToday(b.birthdayDate));
 
     const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -246,16 +290,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         setShowActions(null);
     };
 
-    const getResponsivePadding = () => {
-        if (!showSidebar) {
-            return "px-4 lg:px-8";
-        }
-        if (isCollapsed) {
-            return "px-4 lg:px-8";
-        } else {
-            return "px-4 lg:px-8";
-        }
-    };
+    const getResponsivePadding = () => "px-4 lg:px-8";
 
     const handleNavigation = () => {
         setShowNotifications(false);
@@ -496,10 +531,24 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     </div>
 
                     {/* Subtitle — birthday override or daily quote */}
-                    {user && user.dob === new Date().getFullYear().toString() ? (
-                        <p className="text-sm lg:text-lg text-gray-600 dark:text-gray-300 mt-3 lg:mt-4 font-medium">
-                            🎉 Happy Birthday {user?.firstName} {user?.lastName}! Wishing a fantastic day!
-                        </p>
+                    {todaysBirthdays.length > 0 ? (
+                        <div className="mt-3 lg:mt-4 space-y-1">
+                            {todaysBirthdays.map((b) => {
+                                const isOwnBirthday = String(b.userId) === String(user?.id);
+                                const formattedDate = new Date(b.birthdayDate).toLocaleDateString('en-ZA', {
+                                    weekday: 'long', month: 'long', day: 'numeric'
+                                });
+                                return isOwnBirthday ? (
+                                    <p key={b.userId} className="text-sm lg:text-lg text-pink-600 dark:text-pink-400 font-semibold">
+                                        🎂 Happy Birthday {b.firstName}! Wishing you a fantastic day! 🎉🎉🎉
+                                    </p>
+                                ) : (
+                                    <p key={b.userId} className="text-sm lg:text-base text-gray-600 dark:text-gray-300 font-medium">
+                                        🎂 It's <span className="text-pink-600 dark:text-pink-400 font-semibold">{b.firstName}'s</span> Birthday on {formattedDate} — wish them a happy birthday! 🎉🎉🎉
+                                    </p>
+                                );
+                            })}
+                        </div>
                     ) : quote ? (
                         <div className="mt-3 lg:mt-4 max-w-xl mx-auto">
                             <p className="text-sm lg:text-base text-gray-600 dark:text-gray-300 italic leading-relaxed">

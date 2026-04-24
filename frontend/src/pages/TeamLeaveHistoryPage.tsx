@@ -66,6 +66,13 @@ const TeamListLeaveHistoryPage = () => {
         });
     };
 
+    // Format a leave date (start_date / end_date) in SAST.
+    // mysql2 may return DATE columns as SAST-midnight-encoded-as-UTC (e.g. "2026-05-01T22:00:00Z"
+    // = May 2 SAST). moment(str) in a UTC browser would show May 1. Using utcOffset('+02:00')
+    // gives the correct SAST calendar date in all browser timezones.
+    const formatLeaveDate = (dateStr: string) =>
+        moment.utc(dateStr).utcOffset('+02:00').format('MMM DD, YYYY');
+
     const getUserInitials = (firstName: string, lastName: string) => {
         return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
     };
@@ -372,10 +379,10 @@ const TeamListLeaveHistoryPage = () => {
                                                     <div className="text-sm text-gray-700 dark:text-gray-300">
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <Calendar className="w-4 h-4 text-gray-400" />
-                                                            <span>{moment(leave.start_date).format('MMM DD, YYYY')}</span>
+                                                            <span>{formatLeaveDate(leave.start_date)}</span>
                                                         </div>
                                                         <div className="text-xs text-gray-500 dark:text-gray-400 pl-6">
-                                                            to {moment(leave.end_date).format('MMM DD, YYYY')}
+                                                            to {formatLeaveDate(leave.end_date)}
                                                         </div>
                                                     </div>
 
@@ -446,11 +453,11 @@ const TeamListLeaveHistoryPage = () => {
                                                                     </div>
                                                                     <div className="flex justify-between items-center">
                                                                         <span className="text-sm text-gray-600 dark:text-gray-400">Start Date:</span>
-                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{moment(leave.start_date).format('MMM DD, YYYY')}</span>
+                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatLeaveDate(leave.start_date)}</span>
                                                                     </div>
                                                                     <div className="flex justify-between items-center">
                                                                         <span className="text-sm text-gray-600 dark:text-gray-400">End Date:</span>
-                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{moment(leave.end_date).format('MMM DD, YYYY')}</span>
+                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatLeaveDate(leave.end_date)}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>

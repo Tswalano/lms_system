@@ -45,9 +45,8 @@ interface DocumentViewModalProps {
     showViewModal: boolean;
     setShowViewModal: (show: boolean) => void;
     selectedDocument: Document | null;
-    // handleDownloadDocument: (doc: Document) => void;
-    // handleEditDocument: (doc: Document) => void;
-    // folders: Folder[];
+    onSendReminder?: (docId: number) => void;
+    isReminderLoading?: boolean;
 }
 
 
@@ -74,9 +73,8 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
     showViewModal,
     setShowViewModal,
     selectedDocument,
-    // handleDownloadDocument,
-    // handleEditDocument,
-    // folders
+    onSendReminder,
+    isReminderLoading = false,
 }) => {
     const { authFetch } = useAuth();
     const [signatureStatus, setSignatureStatus] = useState<SignatureStatus | null>(null);
@@ -311,9 +309,17 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
                 {/* Footer Actions */}
                 <div className="border-t border-gray-200 dark:border-gray-700 p-6 bg-gray-50 dark:bg-gray-800/50">
                     <div className="flex gap-3">
-                        <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl hover:from-emerald-600 hover:to-green-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl">
-                            <Clock10 className="w-4 h-4" />
-                            Send Reminder
+                        <button
+                            onClick={() => selectedDocument && onSendReminder?.(selectedDocument.id)}
+                            disabled={isReminderLoading || !onSendReminder}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl hover:from-emerald-600 hover:to-green-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {isReminderLoading ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <Clock10 className="w-4 h-4" />
+                            )}
+                            {isReminderLoading ? 'Sending...' : 'Send Reminder'}
                         </button>
                         <button
                             onClick={() => {

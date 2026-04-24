@@ -1469,10 +1469,20 @@ app.get('/leave-calendar-with-birthdays', async (c: Context): Promise<Response> 
         ]);
 
         // Transform birthday data
+        const today = dayjs();
+        const todayDayOfWeek = today.day(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
         const birthdays: Birthday[] = birthdayResults.map(user => {
             const birthdayThisYear = dayjs(user.birthday_this_year);
             const age = user.current_age + 1; // Age they'll turn on birthday
-            const isToday = birthdayThisYear.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+            const birthdayDayOfWeek = birthdayThisYear.day();
+
+            // Observe weekend birthdays on the preceding Friday
+            const isTodayBirthday = birthdayThisYear.format('YYYY-MM-DD') === today.format('YYYY-MM-DD');
+            const isFridayObserved = todayDayOfWeek === 5 && (
+                (birthdayDayOfWeek === 6 && birthdayThisYear.isSame(today.add(1, 'day'), 'day')) || // Sat → Fri
+                (birthdayDayOfWeek === 0 && birthdayThisYear.isSame(today.add(2, 'day'), 'day'))    // Sun → Fri
+            );
+            const isToday = isTodayBirthday || isFridayObserved;
 
             return {
                 id: `birthday-${user.id}`,
@@ -1596,10 +1606,19 @@ app.get('/birthdays', async (c: Context): Promise<Response> => {
         ]);
 
         // Transform birthday data
+        const today2 = dayjs();
+        const todayDow2 = today2.day();
         const birthdays: Birthday[] = birthdayResults.map(user => {
             const birthdayThisYear = dayjs(user.birthday_this_year);
             const age = user.current_age + 1; // Age they'll turn on birthday
-            const isToday = birthdayThisYear.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+            const birthdayDow = birthdayThisYear.day();
+
+            const isTodayBirthday = birthdayThisYear.format('YYYY-MM-DD') === today2.format('YYYY-MM-DD');
+            const isFridayObserved = todayDow2 === 5 && (
+                (birthdayDow === 6 && birthdayThisYear.isSame(today2.add(1, 'day'), 'day')) ||
+                (birthdayDow === 0 && birthdayThisYear.isSame(today2.add(2, 'day'), 'day'))
+            );
+            const isToday = isTodayBirthday || isFridayObserved;
 
             return {
                 id: `birthday-${user.id}`,

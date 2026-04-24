@@ -82,12 +82,22 @@ function buildEventPayload(
     endDate: string | Date,
     managerName: string
 ): object {
-    // MS Graph all-day events use exclusive end dates (end = last day + 1 day)
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setDate(end.getDate() + 1);
+    // Extract the calendar date in SAST regardless of how the timestamp arrives
+    // (mysql2 may return dates as UTC midnight or SAST midnight depending on server config)
+    const toSastDateStr = (d: Date): string =>
+        new Intl.DateTimeFormat('en-CA', {
+            timeZone: TIMEZONE,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        }).format(d);
 
-    const fmt = (d: Date) => `${d.toISOString().split("T")[0]}T00:00:00`;
+    const startStr = toSastDateStr(new Date(startDate));
+
+    // MS Graph all-day events use exclusive end dates (end = last actual day + 1)
+    const endSastStr = toSastDateStr(new Date(endDate));
+    const [eYear, eMonth, eDay] = endSastStr.split('-').map(Number);
+    const endStr = toSastDateStr(new Date(eYear, eMonth - 1, eDay + 1));
 
     return {
         subject: `${employeeName} - ${leaveType}`,
@@ -95,8 +105,8 @@ function buildEventPayload(
         showAs: "oof",
         sensitivity: "normal",
         attendees: [],
-        start: { dateTime: fmt(start), timeZone: TIMEZONE },
-        end: { dateTime: fmt(end), timeZone: TIMEZONE },
+        start: { dateTime: `${startStr}T00:00:00`, timeZone: TIMEZONE },
+        end: { dateTime: `${endStr}T00:00:00`, timeZone: TIMEZONE },
         body: {
             contentType: "text",
             content: `${leaveType} — approved by ${managerName}`,

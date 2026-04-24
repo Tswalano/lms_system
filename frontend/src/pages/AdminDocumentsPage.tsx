@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, type FC } from 'react';
-import { Plus, FileBadge, FolderPlus } from 'lucide-react';
+import { Plus, FileBadge, FolderPlus, BellRing, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -126,10 +126,9 @@ const AdminDocumentsPage: FC = () => {
     const [documentToDelete, setDocumentToDelete] = useState<DocumentType | null>(null);
     const [documentToEdit, setDocumentToEdit] = useState<DocumentType | null>(null); // Add edit document state
 
-    // Local state for folders, documents, and departments
+    // Local state for folders and documents (mutated by mutations)
     const [folders, setFolders] = useState<FolderType[]>([]);
     const [allDocuments, setAllDocuments] = useState<DocumentType[]>([]);
-    const [departments, setDepartments] = useState<Department[]>([]);
 
     // URL validation function
     const isValidUrl = (url: string): boolean => {
@@ -219,11 +218,6 @@ const AdminDocumentsPage: FC = () => {
         }
     }, [documentsData]);
 
-    useEffect(() => {
-        if (departmentsData) {
-            setDepartments(departmentsData);
-        }
-    }, [departmentsData]);
 
     // Folder mutations
     const createFolderMutation = useMutation({
@@ -427,6 +421,38 @@ const AdminDocumentsPage: FC = () => {
         },
         onError: (error: Error) => {
             toast.error("Failed to send reminders", {
+                description: error.message || "An error occurred. Please try again.",
+            });
+        },
+    });
+
+    const sendBulkRemindersMutation = useMutation({
+        mutationFn: async () => {
+            const response = await authFetch('/admin-docs/send-bulk-reminders', {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (data) => {
+            const { emailsSent, totalUsers, totalDocuments } = data?.payload ?? {};
+            if (totalUsers === 0) {
+                toast.info("No reminders needed", {
+                    description: "No documents older than 15 days have unsigned assignments, or all eligible users were reminded recently.",
+                });
+            } else {
+                toast.success("Bulk reminders sent", {
+                    description: `${emailsSent} of ${totalUsers} user${totalUsers !== 1 ? 's' : ''} notified covering ${totalDocuments} pending document${totalDocuments !== 1 ? 's' : ''}.`,
+                });
+            }
+        },
+        onError: (error: Error) => {
+            toast.error("Failed to send bulk reminders", {
                 description: error.message || "An error occurred. Please try again.",
             });
         },
@@ -814,7 +840,7 @@ const AdminDocumentsPage: FC = () => {
                 {/* Folder Manager Component */}
                 <FolderManager
                     folders={folders}
-                    departments={departments}
+                    departments={departmentsData}
                     selectedFolder={selectedFolder}
                     onFolderClick={handleFolderClick}
                     onFolderSelect={setSelectedFolder}
@@ -875,7 +901,7 @@ const AdminDocumentsPage: FC = () => {
                 isOpen={showCreateFolderModal}
                 onClose={() => setShowCreateFolderModal(false)}
                 onSubmit={handleCreateFolder}
-                departments={departments}
+                departments={departmentsData}
                 isLoading={createFolderMutation.isPending}
                 title="Add New Folder"
                 submitText="Add Folder"
@@ -886,6 +912,8 @@ const AdminDocumentsPage: FC = () => {
                 showViewModal={showViewModal}
                 setShowViewModal={setShowViewModal}
                 selectedDocument={selectedDocument}
+                onSendReminder={handleSendReminder}
+                isReminderLoading={sendReminderMutation.isPending}
             />
 
             {/* Delete Document Confirmation Modal */}
