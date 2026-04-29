@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Search, RefreshCw, AlertCircle, Loader2, Users, UserCheck, UserX, Calendar as CalendarIcon, UserSearch, ChevronDown, ChevronRight, Clock, CheckCircle } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -263,7 +263,7 @@ const TeamAvailabilityPage = () => {
                     text: 'text-amber-800 dark:text-amber-200',
                     icon: <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />,
                     label: 'Upcoming Leave',
-                    description: daysUntil ? `Going on leave in ${daysUntil} day${daysUntil > 1 ? 's' : ''}` : 'Leave scheduled',
+                    description: daysUntil ? `Going on leave for ${daysUntil} day${daysUntil > 1 ? 's' : ''}` : 'Leave scheduled',
                     priority: 'medium'
                 };
             }
@@ -716,7 +716,7 @@ const TeamAvailabilityPage = () => {
                                 const upcomingSummary = getUpcomingLeavesSummary(member);
 
                                 return (
-                                    <>
+                                    <React.Fragment key={member.id}>
                                         <TableRow
                                             key={member.id}
                                             className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
@@ -809,8 +809,8 @@ const TeamAvailabilityPage = () => {
                                                     <div className={cn(
                                                         "border-l-4 px-6 py-6",
                                                         member.status === 'available' ? 'border-l-emerald-400 dark:border-l-emerald-300 bg-emerald-50/40 dark:bg-emerald-900/5' :
-                                                        member.status === 'on-leave' ? 'border-l-red-400 dark:border-l-red-300 bg-red-50/40 dark:bg-red-900/5' :
-                                                        'border-l-amber-400 dark:border-l-amber-300 bg-amber-50/40 dark:bg-amber-900/5'
+                                                            member.status === 'on-leave' ? 'border-l-red-400 dark:border-l-red-300 bg-red-50/40 dark:bg-red-900/5' :
+                                                                'border-l-amber-400 dark:border-l-amber-300 bg-amber-50/40 dark:bg-amber-900/5'
                                                     )}>
                                                         {/* Member header inside expanded row */}
                                                         <div className="flex items-center gap-3 mb-5 pb-4 border-b border-gray-200/60 dark:border-slate-700/60">
@@ -824,8 +824,8 @@ const TeamAvailabilityPage = () => {
                                                             <div className={cn(
                                                                 "ml-auto px-3 py-1 rounded-full text-xs font-medium",
                                                                 member.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
-                                                                member.status === 'on-leave' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                                                                'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                                                                    member.status === 'on-leave' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                                                                        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
                                                             )}>
                                                                 {member.status === 'available' ? 'Available' : member.status === 'on-leave' ? 'On Leave' : 'Upcoming Leave'}
                                                             </div>
@@ -957,8 +957,8 @@ const TeamAvailabilityPage = () => {
                                                                             <div className={cn(
                                                                                 "h-1",
                                                                                 leave.status === 'approved' ? 'bg-gradient-to-r from-emerald-500 to-green-500' :
-                                                                                leave.status === 'pending' ? 'bg-gradient-to-r from-amber-400 to-yellow-400' :
-                                                                                'bg-gradient-to-r from-red-400 to-rose-400'
+                                                                                    leave.status === 'pending' ? 'bg-gradient-to-r from-amber-400 to-yellow-400' :
+                                                                                        'bg-gradient-to-r from-red-400 to-rose-400'
                                                                             )} />
                                                                             <div className="p-4">
                                                                                 <div className="flex items-start justify-between mb-3">
@@ -971,8 +971,8 @@ const TeamAvailabilityPage = () => {
                                                                                     <Badge className={cn(
                                                                                         "text-xs",
                                                                                         leave.status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
-                                                                                        leave.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
-                                                                                        'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                                                                            leave.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                                                                                                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
                                                                                     )}>
                                                                                         {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
                                                                                     </Badge>
@@ -1004,7 +1004,7 @@ const TeamAvailabilityPage = () => {
                                                 </TableCell>
                                             </TableRow>
                                         )}
-                                    </>
+                                    </React.Fragment >
                                 );
                             })}
                         </TableBody>

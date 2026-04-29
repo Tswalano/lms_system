@@ -11,7 +11,6 @@
 --   triggers. Safe to re-run — every trigger is dropped first.
 -- ================================================
 
-
 -- ================================================
 -- SECTION 1: LEAVE MANAGEMENT
 -- ================================================
@@ -40,7 +39,7 @@ BEGIN
         'New Leave Request Submitted',
         CONCAT(
             'A new ', NEW.leave_type, ' request has been submitted by ',
-            NEW.firstName, ' ', NEW.lastName, ' from ',
+            emp.firstName, ' ', emp.lastName, ' from ',
             DATE_FORMAT(NEW.start_date, '%d %b %Y'), ' to ',
             DATE_FORMAT(NEW.end_date, '%d %b %Y'), '.'
         ),
@@ -52,12 +51,12 @@ BEGIN
         NOW(),
         NOW()
     FROM users u
+    JOIN users emp ON emp.id = NEW.uid   -- ✅ FIX HERE
     WHERE u.roleType = 'admin'
       AND u.id <> NEW.uid;
 END$$
 
-DELIMITER ;
-
+DELIMITER;
 
 -- --------------------------------------------------
 -- T2: Leave status changed → notify employee or admins
@@ -183,7 +182,7 @@ BEGIN
             'leave_management',
             'Leave Request Withdrawn',
             CONCAT(
-                NEW.firstName, ' ', NEW.lastName, ' withdrew their ',
+                emp.firstName, ' ', emp.lastName, ' withdrew their ',
                 NEW.leave_type, ' request from ',
                 DATE_FORMAT(NEW.start_date, '%d %b %Y'), ' to ',
                 DATE_FORMAT(NEW.end_date, '%d %b %Y'), '.'
@@ -200,8 +199,7 @@ BEGIN
 
 END$$
 
-DELIMITER ;
-
+DELIMITER;
 
 -- ================================================
 -- SECTION 2: DOCUMENT MANAGEMENT
@@ -246,8 +244,7 @@ BEGIN
     WHERE d.id = NEW.document_id;
 END$$
 
-DELIMITER ;
-
+DELIMITER;
 
 -- --------------------------------------------------
 -- T4: New document uploaded → auto-assign to all users in the same department
@@ -268,8 +265,7 @@ BEGIN
     WHERE ud.department_id = dc.departmentId;
 END$$
 
-DELIMITER ;
-
+DELIMITER;
 
 -- --------------------------------------------------
 -- T5: User acknowledges / completes a document
@@ -312,8 +308,7 @@ BEGIN
     END IF;
 END$$
 
-DELIMITER ;
-
+DELIMITER;
 
 -- ================================================
 -- SECTION 3: PERFORMANCE REVIEWS
