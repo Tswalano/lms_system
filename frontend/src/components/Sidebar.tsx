@@ -58,10 +58,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: "dashboard", label: "Dashboard", icon: Home, path: "/" },
                 { id: "team", label: "Team Calendar", icon: Calendar, path: "/team-availability" },
                 { id: "apply", label: "Apply for Leave", icon: FileText, path: "/apply-leave" },
-                { id: "history", label: "My Leave Requests", icon: Clock, path: "/leave-history" },
+                { id: "history", label: "Leave Requests", icon: Clock, path: "/leave-history" },
                 ...(features.employeeDocuments ? [
                     { id: "employee-docs", label: "Employee Handbook", icon: FileCheck2, path: "/employee-document" },
-                    { id: "performance", label: "My Performance Review", icon: Sparkles, path: "/performance-review" }
+                    { id: "performance", label: "Performance Review", icon: Sparkles, path: "/performance-review" }
                 ] : []),
             ]
         },
@@ -73,7 +73,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave" },
                 { id: "manage", label: "Manage Employees", icon: Users, path: "/manage-employees" },
                 ...(features.adminDocuments ? [
-                    { id: "performance-admin", label: "Performance Reviews", icon: ClipboardCheck, path: "/performance-review-admin" },
+                    { id: "performance-admin", label: "Manage Reviews", icon: ClipboardCheck, path: "/performance-review-admin" },
                     { id: "admin-docs", label: "Admin Documents", icon: ArchiveRestore, path: "/admin-document" }
                 ] : []),
             ]

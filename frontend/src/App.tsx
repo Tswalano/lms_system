@@ -22,6 +22,11 @@ import DashboardLayout from "./components/DashboardLayout";
 import AdminDocumentsPage from "./pages/AdminDocumentsPage";
 import EmployeeDocumentsPage from "./pages/EmployeeDocumentsPage";
 // Import Performance Review Components
+import PerformanceReviewAdmin from "./pages/PerformanceReviewAdmin";
+import PerformanceReviewEmployee from "./pages/PerformanceReviewEmployee";
+import PerformanceReviewPeerPage from "./pages/PerformanceReviewPeerPage";
+import PerformanceReviewSubmissionsPage from "./pages/PerformanceReviewSubmissionsPage";
+// end of Performance Review imports
 import NotificationCenterPage from "./pages/NotificationCenterPage";
 import SupportPage from "./pages/SupportPage";
 import features from "./config/features";
@@ -122,7 +127,26 @@ const App: React.FC = () => (
               } />
 
               {/* Performance Review Routes */}
-
+              <Route path="/performance-review" element={
+                <ProtectedRoute allowedRoles={['user', 'admin']}>
+                  <PerformanceReviewEmployee />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance-review/peer/:employeeId" element={
+                <ProtectedRoute allowedRoles={['user', 'admin']}>
+                  <PerformanceReviewPeerPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance-review-admin" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <PerformanceReviewAdmin />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance-review-admin/submissions/:employeeId" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <PerformanceReviewSubmissionsPage />
+                </ProtectedRoute>
+              } />
               {/* End of Performance Review Routes */}
 
               {/* Notification Center */}
