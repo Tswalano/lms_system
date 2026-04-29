@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RatingScale from "@/components/RatingScale";
+import StatsCard from "@/components/ui/StatsCard";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
@@ -57,11 +58,11 @@ const getCardAccent = (id: string) => {
     return CARD_ACCENTS[Math.abs(hash) % CARD_ACCENTS.length];
 };
 
-const shellCardClass = "rounded-3xl border border-gray-200/70 bg-white/95 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-sm dark:border-slate-700/70 dark:bg-slate-900/95";
+const shellCardClass = "rounded-2xl border border-gray-200/70 bg-white/95 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-sm dark:border-slate-700/70 dark:bg-slate-900/95";
 const softPanelClass = "rounded-2xl border border-gray-200/80 bg-gray-50/80 shadow-sm dark:border-slate-700/80 dark:bg-slate-800/70";
 const appTextareaClass = "min-h-[88px] rounded-2xl border-gray-200 bg-white/95 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-0 dark:border-slate-600 dark:bg-slate-900/90 dark:text-slate-100 dark:placeholder:text-slate-500";
-const appOutlineButtonClass = "rounded-2xl border-gray-200 bg-white/90 text-gray-700 shadow-sm hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200 dark:hover:bg-slate-700";
-const appPrimaryButtonClass = "rounded-2xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 text-white shadow-sm hover:from-cyan-700 hover:via-blue-700 hover:to-indigo-700";
+const appOutlineButtonClass = "rounded-lg border-gray-200 bg-white/90 text-gray-700 shadow-sm hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200 dark:hover:bg-slate-700";
+const appPrimaryButtonClass = "rounded-lg bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 text-white shadow-sm hover:from-cyan-700 hover:via-blue-700 hover:to-indigo-700";
 
 const PerformanceReviewAdmin = () => {
     const navigate = useNavigate();
@@ -133,10 +134,10 @@ const PerformanceReviewAdmin = () => {
 
                 {/* Stat Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-                    <StatCard label="Employees in cycle" value={stats.total} tone="blue" icon={<Users className="w-5 h-5" />} />
-                    <StatCard label="Peers nominated" value={`${stats.nominated}/${stats.total}`} tone="gray" icon={<UserCheck className="w-5 h-5" />} />
-                    <StatCard label="Manager reviews submitted" value={`${stats.submitted}/${stats.total}`} tone="emerald" icon={<CheckCircle2 className="w-5 h-5" />} />
-                    <StatCard label="Avg final score" value={stats.avg == null ? "—" : stats.avg.toFixed(1)} tone="amber" icon={<Sparkles className="w-5 h-5" />} />
+                    <StatsCard label="Employees in cycle" value={stats.total} subtitle="in this cycle" tone="blue" icon={<Users className="w-5 h-5" />} />
+                    <StatsCard label="Peers nominated" value={`${stats.nominated}/${stats.total}`} subtitle="nominations complete" tone="violet" icon={<UserCheck className="w-5 h-5" />} />
+                    <StatsCard label="Manager reviews submitted" value={`${stats.submitted}/${stats.total}`} subtitle="appraisals done" tone="emerald" icon={<CheckCircle2 className="w-5 h-5" />} />
+                    <StatsCard label="Avg final score" value={stats.avg == null ? "—" : stats.avg.toFixed(1)} subtitle="across all employees" tone="amber" icon={<Sparkles className="w-5 h-5" />} />
                 </div>
             </div>
 
@@ -313,7 +314,7 @@ const PerformanceReviewAdmin = () => {
 
             {/* Nominate peers modal */}
             <Dialog open={!!nominateCycle} onOpenChange={(o) => !o && setNominateFor(null)}>
-                <DialogContent className="max-w-lg rounded-[28px] border border-gray-200/70 bg-white/95 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)] dark:border-slate-700/70 dark:bg-slate-900/95">
+                <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto rounded-[28px] border border-gray-200/70 bg-white/95 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)] dark:border-slate-700/70 dark:bg-slate-900/95">
                     {nominateCycle && nominateEmployee && (
                         <>
                             <DialogHeader className="border-b border-gray-200/70 px-6 py-5 dark:border-slate-700/70">
@@ -380,60 +381,78 @@ const PerformanceReviewAdmin = () => {
 
             {/* // Create Cycle Dialog */}
             <Dialog open={createCycleOpen} onOpenChange={setCreateCycleOpen}>
-                <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                        <DialogTitle>Create New Review Cycle</DialogTitle>
-                        <DialogDescription>
-                            Enter a name for the new performance review cycle. This will initialize cycles for all employees.
+                <DialogContent className="max-w-lg overflow-hidden rounded-[28px] border border-gray-200/70 bg-white/95 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)] dark:border-slate-700/70 dark:bg-slate-900/95">
+
+                    {/* Header */}
+                    <DialogHeader className="border-b border-gray-200/70 px-6 py-5 dark:border-slate-700/70">
+                        <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                            Create New Review Cycle
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Set up a new performance cycle for all employees.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <label htmlFor="cycleName" className="text-sm font-medium">Cycle Name</label>
+
+                    {/* Body */}
+                    <div className="px-6 py-6 space-y-5">
+
+                        <div className="space-y-2">
+                            <label
+                                htmlFor="cycleName"
+                                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                            >
+                                Cycle Name
+                            </label>
+
                             <input
                                 id="cycleName"
                                 type="text"
                                 placeholder="e.g., 2027 Cycle"
                                 value={newCycleName}
                                 onChange={(e) => setNewCycleName(e.target.value)}
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="
+                        w-full h-11 rounded-xl
+                        border border-gray-200
+                        bg-white/90
+                        px-3 text-sm
+                        shadow-sm
+                        transition-all
+                        placeholder:text-gray-400
+                        focus:outline-none
+                        focus:ring-2 focus:ring-cyan-500/70
+                        focus:border-cyan-400
+                        dark:border-slate-600
+                        dark:bg-slate-800/90
+                        dark:text-gray-100
+                        dark:placeholder:text-slate-500
+                    "
                             />
                         </div>
+
                     </div>
-                    <div className="flex justify-end gap-3">
-                        <Button variant="outline" onClick={() => setCreateCycleOpen(false)}>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-end gap-3 border-t border-gray-200/70 px-6 py-4 dark:border-slate-700/70">
+
+                        <Button
+                            variant="outline"
+                            onClick={() => setCreateCycleOpen(false)}
+                            className="rounded-xl border-gray-200 bg-white/90 text-gray-700 shadow-sm hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800/90 dark:text-gray-200 dark:hover:bg-slate-700"
+                        >
                             Cancel
                         </Button>
-                        <Button onClick={handleCreateCycle} className={appPrimaryButtonClass}>
+
+                        <Button
+                            onClick={handleCreateCycle}
+                            className="rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 text-white shadow-sm hover:from-cyan-700 hover:via-blue-700 hover:to-indigo-700"
+                        >
                             Create Cycle
                         </Button>
+
                     </div>
+
                 </DialogContent>
             </Dialog>
-        </div>
-    );
-};
-
-const STAT_TONE_CLASSES = {
-    blue: { gradient: "from-blue-500 to-blue-600", bg: "bg-blue-50 dark:bg-blue-900/10", border: "border-l-blue-400 dark:border-l-blue-300" },
-    gray: { gradient: "from-gray-500 to-gray-600", bg: "bg-gray-50 dark:bg-gray-900/10", border: "border-l-gray-400 dark:border-l-gray-300" },
-    emerald: { gradient: "from-emerald-500 to-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/10", border: "border-l-emerald-400 dark:border-l-emerald-300" },
-    amber: { gradient: "from-amber-500 to-amber-600", bg: "bg-amber-50 dark:bg-amber-900/10", border: "border-l-amber-400 dark:border-l-amber-300" },
-};
-
-const StatCard = ({ label, value, tone, icon }: { label: string; value: string | number; tone: "blue" | "gray" | "emerald" | "amber"; icon: React.ReactNode }) => {
-    const { gradient, bg, border } = STAT_TONE_CLASSES[tone];
-    return (
-        <div className={`rounded-xl border border-gray-200/70 bg-white/95 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:border-slate-700/70 dark:bg-slate-900/95 border-l-4 ${border} ${bg}`}>
-            <div className="flex items-center justify-between">
-                <div>
-                    <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-medium mb-1">{label}</p>
-                    <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{value}</p>
-                </div>
-                <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${gradient} text-white flex items-center justify-center shadow-sm`}>
-                    {icon}
-                </div>
-            </div>
         </div>
     );
 };

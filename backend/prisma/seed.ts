@@ -471,7 +471,10 @@ async function main() {
         const startDate = randomDate(twoMonthsAgo, twoMonthsFromNow);
         const duration = Math.floor(Math.random() * 10) + 1; // 1-10 days
         const endDate = addDays(startDate, duration - 1);
-        const leaveLength = Math.random() > 0.8 ? 'half_day' : 'full_day';
+        const leaveLength: leave_requests_leave_length =
+            Math.random() > 0.8
+                ? leave_requests_leave_length.half_day
+                : leave_requests_leave_length.full_day;
 
         // Determine status based on date (past requests more likely to be approved/rejected)
         let status: leave_status = 'pending';

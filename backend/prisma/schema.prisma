@@ -9,41 +9,45 @@ datasource db {
 }
 
 model users {
-  id                   String                      @id @default(uuid()) @db.VarChar(36)
-  firstName            String?                     @db.VarChar(255)
-  lastName             String?                     @db.VarChar(255)
-  email                String?                     @unique @db.VarChar(255)
-  role                 String?                     @db.VarChar(255)
-  jobTitle             String?                     @db.VarChar(255)
-  dob                  DateTime?                   @db.Date
-  gender               String?                     @db.VarChar(255)
-  phoneNumber          String?                     @db.VarChar(255)
-  employeeId           String?                     @unique @db.VarChar(50)
-  departmentId         Int?
-  managerId            String?                     @db.VarChar(36)
-  roleType             user_role_type?
-  jobLevel             String?                     @db.VarChar(50)
-  isActive             Boolean                     @default(true)
-  createdAt            DateTime                    @default(now()) @db.DateTime(0)
-  updatedAt            DateTime                    @default(now()) @db.DateTime(0)
-  document_signatures  document_signatures[]
-  document_views       document_views[]
-  created_documents    documents[]                 @relation("DocumentCreator")
-  leave_action_log     leave_action_log[]
-  leave_requests       leave_requests[]
-  managerFeedback      manager_feedback[]
-  createdNotifications notifications[]             @relation("NotificationCreator")
-  notifications        notifications[]             @relation("NotificationRecipient")
-  createdReviews       performance_reviews[]       @relation("ReviewCreator")
-  reviewsAsEmployee    performance_reviews[]       @relation("EmployeeReviews")
-  reviewsAsManager     performance_reviews[]       @relation("ManagerReviews")
-  responses            review_responses[]
-  user_departments     user_departments[]
-  document_assignments user_document_assignments[]
-  document_reminders   document_reminders[]
-  department           departments?                @relation(fields: [departmentId], references: [id])
-  manager              users?                      @relation("UserManager", fields: [managerId], references: [id])
-  directReports        users[]                     @relation("UserManager")
+  id                     String                      @id @default(uuid()) @db.VarChar(36)
+  firstName              String?                     @db.VarChar(255)
+  lastName               String?                     @db.VarChar(255)
+  email                  String?                     @unique @db.VarChar(255)
+  role                   String?                     @db.VarChar(255)
+  jobTitle               String?                     @db.VarChar(255)
+  dob                    DateTime?                   @db.Date
+  gender                 String?                     @db.VarChar(255)
+  phoneNumber            String?                     @db.VarChar(255)
+  employeeId             String?                     @unique @db.VarChar(50)
+  departmentId           Int?
+  managerId              String?                     @db.VarChar(36)
+  roleType               user_role_type?
+  jobLevel               String?                     @db.VarChar(50)
+  isActive               Boolean                     @default(true)
+  createdAt              DateTime                    @default(now()) @db.DateTime(0)
+  updatedAt              DateTime                    @default(now()) @db.DateTime(0)
+  document_signatures    document_signatures[]
+  document_views         document_views[]
+  created_documents      documents[]                 @relation("DocumentCreator")
+  leave_action_log       leave_action_log[]
+  leave_requests         leave_requests[]
+  managerFeedback        manager_feedback[]
+  createdNotifications   notifications[]             @relation("NotificationCreator")
+  notifications          notifications[]             @relation("NotificationRecipient")
+  createdReviews         performance_reviews[]       @relation("ReviewCreator")
+  reviewsAsEmployee      performance_reviews[]       @relation("EmployeeReviews")
+  reviewsAsManager       performance_reviews[]       @relation("ManagerReviews")
+  reviewsAsReviewee      performance_reviews[]       @relation("RevieweeReviews")
+  responses              review_responses[]
+  user_departments       user_departments[]
+  document_assignments   user_document_assignments[]
+  document_reminders     document_reminders[]
+  createdCycles          review_cycles[]             @relation("CycleCreator")
+  assignmentsAsReviewee  peer_review_assignments[]   @relation("PeerReviewee")
+  assignmentsAsReviewer  peer_review_assignments[]   @relation("PeerReviewer")
+  department             departments?                @relation(fields: [departmentId], references: [id])
+  manager                users?                      @relation("UserManager", fields: [managerId], references: [id])
+  directReports          users[]                     @relation("UserManager")
 
   @@index([managerId])
   @@index([departmentId])
@@ -276,11 +280,54 @@ model notifications {
   @@map("notifications")
 }
 
+model review_cycles {
+  id          String               @id @default(uuid()) @db.VarChar(36)
+  name        String               @db.VarChar(100)
+  startDate   DateTime             @db.Date
+  endDate     DateTime             @db.Date
+  status      review_cycle_status  @default(draft)
+  createdById String?              @db.VarChar(36)
+  createdAt   DateTime             @default(now()) @db.Timestamp(0)
+  updatedAt   DateTime             @default(now()) @db.Timestamp(0)
+  creator     users?               @relation("CycleCreator", fields: [createdById], references: [id])
+  reviews     performance_reviews[]
+  assignments peer_review_assignments[]
+
+  @@index([status])
+  @@index([createdById])
+  @@map("review_cycles")
+}
+
+model peer_review_assignments {
+  id                  String                  @id @default(uuid()) @db.VarChar(36)
+  cycleId             String                  @db.VarChar(36)
+  revieweeId          String                  @db.VarChar(36)
+  reviewerId          String                  @db.VarChar(36)
+  status              peer_assignment_status  @default(pending)
+  performanceReviewId String?                 @db.VarChar(36)
+  assignedAt          DateTime                @default(now()) @db.Timestamp(0)
+  completedAt         DateTime?               @db.Timestamp(0)
+  cycle               review_cycles           @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  reviewee            users                   @relation("PeerReviewee", fields: [revieweeId], references: [id])
+  reviewer            users                   @relation("PeerReviewer", fields: [reviewerId], references: [id])
+  performanceReview   performance_reviews?    @relation(fields: [performanceReviewId], references: [id])
+
+  @@unique([cycleId, revieweeId, reviewerId])
+  @@index([cycleId])
+  @@index([revieweeId])
+  @@index([reviewerId])
+  @@index([status])
+  @@map("peer_review_assignments")
+}
+
 model performance_reviews {
   id                       String                    @id @default(uuid()) @db.VarChar(36)
   reviewPeriod             String                    @db.VarChar(100)
+  cycleId                  String?                   @db.VarChar(36)
+  reviewType               performance_review_type   @default(self_review)
   employeeId               String                    @db.VarChar(36)
   managerId                String                    @db.VarChar(36)
+  revieweeId               String?                   @db.VarChar(36)
   createdById              String?                   @db.VarChar(36)
   status                   performance_review_status @default(not_started)
   employeeCompletedAt      DateTime?
@@ -294,53 +341,69 @@ model performance_reviews {
   createdAt                DateTime                  @default(now()) @db.Timestamp(0)
   updatedAt                DateTime                  @default(now()) @db.Timestamp(0)
   managerNotes             manager_feedback[]
+  peerAssignments          peer_review_assignments[]
   creator                  users?                    @relation("ReviewCreator", fields: [createdById], references: [id])
   employee                 users                     @relation("EmployeeReviews", fields: [employeeId], references: [id])
   manager                  users                     @relation("ManagerReviews", fields: [managerId], references: [id])
+  reviewee                 users?                    @relation("RevieweeReviews", fields: [revieweeId], references: [id])
+  cycle                    review_cycles?            @relation(fields: [cycleId], references: [id])
   responses                review_responses[]
 
-  @@unique([employeeId, reviewPeriod])
+  @@unique([employeeId, reviewPeriod, reviewType, revieweeId])
   @@index([employeeId])
   @@index([managerId])
+  @@index([revieweeId])
+  @@index([cycleId])
   @@index([status])
+  @@index([reviewType])
   @@index([createdById], map: "performance_reviews_createdById_fkey")
   @@map("performance_reviews")
 }
 
 model review_questions {
-  id           String             @id @default(uuid()) @db.VarChar(36)
-  category     String             @db.VarChar(100)
-  questionText String             @db.Text
+  id           String               @id @default(uuid()) @db.VarChar(36)
+  category     String               @db.VarChar(100)
+  subcategory  String?              @db.VarChar(100)
+  questionText String               @db.Text
+  guidanceText String?              @db.Text
   questionType question_type
   phase        review_phase
-  displayOrder Int                @default(0)
-  isActive     Boolean            @default(true)
-  createdAt    DateTime           @default(now()) @db.Timestamp(0)
+  reviewType   question_review_type @default(self_review)
+  weight       Decimal?             @db.Decimal(5, 2)
+  displayOrder Int                  @default(0)
+  isActive     Boolean              @default(true)
+  createdAt    DateTime             @default(now()) @db.Timestamp(0)
   responses    review_responses[]
 
   @@index([phase])
+  @@index([reviewType])
   @@index([isActive])
   @@map("review_questions")
 }
 
 model review_responses {
-  id                  String              @id @default(uuid()) @db.VarChar(36)
-  performanceReviewId String              @db.VarChar(36)
-  questionId          String              @db.VarChar(36)
-  employeeId          String              @db.VarChar(36)
-  textResponse        String?             @db.Text
+  id                  String                  @id @default(uuid()) @db.VarChar(36)
+  performanceReviewId String                  @db.VarChar(36)
+  questionId          String                  @db.VarChar(36)
+  employeeId          String                  @db.VarChar(36)
+  reviewerType        response_reviewer_type  @default(self)
+  textResponse        String?                 @db.Text
   ratingResponse      Int?
-  nominationResponse  String?             @db.Text
-  createdAt           DateTime            @default(now()) @db.Timestamp(0)
-  updatedAt           DateTime            @default(now()) @db.Timestamp(0)
-  employee            users               @relation(fields: [employeeId], references: [id])
-  performanceReview   performance_reviews @relation(fields: [performanceReviewId], references: [id], onDelete: Cascade)
-  question            review_questions    @relation(fields: [questionId], references: [id])
+  ratingDecimal       Decimal?                @db.Decimal(3, 2)
+  nominationResponse  String?                 @db.Text
+  overrideRating      Int?
+  overrideNote        String?                 @db.Text
+  createdAt           DateTime                @default(now()) @db.Timestamp(0)
+  updatedAt           DateTime                @default(now()) @db.Timestamp(0)
+  employee            users                   @relation(fields: [employeeId], references: [id])
+  performanceReview   performance_reviews     @relation(fields: [performanceReviewId], references: [id], onDelete: Cascade)
+  question            review_questions        @relation(fields: [questionId], references: [id])
 
   @@unique([performanceReviewId, questionId])
   @@index([performanceReviewId])
   @@index([questionId])
   @@index([employeeId])
+  @@index([reviewerType])
   @@map("review_responses")
 }
 
@@ -355,6 +418,7 @@ model manager_feedback {
   originalRating      Int?
   managerRating       Int?
   questionReference   String?               @db.VarChar(36)
+  overrideNote        String?               @db.Text
   isVisible           Boolean               @default(true)
   createdAt           DateTime              @default(now()) @db.Timestamp(0)
   manager             users                 @relation(fields: [managerId], references: [id])
@@ -409,6 +473,40 @@ enum performance_review_status {
   discussion_completed
   final_review_complete
   acknowledged
+  peer_review_pending
+  peer_reviews_in_progress
+  peer_reviews_complete
+}
+
+enum performance_review_type {
+  self_review
+  peer_review
+  manager_appraisal
+}
+
+enum review_cycle_status {
+  draft
+  active
+  closed
+}
+
+enum peer_assignment_status {
+  pending
+  in_progress
+  completed
+}
+
+enum question_review_type {
+  self_review
+  peer_review
+  manager_appraisal
+  next_steps
+}
+
+enum response_reviewer_type {
+  self
+  peer
+  manager
 }
 
 enum question_type {

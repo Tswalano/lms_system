@@ -90,9 +90,13 @@ The Graph API can also toggle the employee's Outlook **automatic email reply** (
 
 ---
 
-## 3. Performance Reviews
+## 3. Performance Reviews 🚧 In Progress
 
 **Goal:** A structured quarterly review cycle where each engineer completes a self-review, is rated by their manager, and receives anonymous peer feedback from 3 randomly assigned colleagues. HR can see the aggregated scores. Mirrors the existing Excel appraisal format.
+
+> **Frontend: ✅ Complete** — All four pages (`PerformanceReviewAdmin`, `PerformanceReviewEmployee`, `PerformanceReviewPeerPage`, `PerformanceReviewSubmissionsPage`) are built and working against a local in-memory mock store. Weighted scoring, manager overrides, peer aggregation, and the full cycle UI are in place.
+>
+> **Backend integration: 🔲 Pending** — See [`PERFORMANCE_REVIEW_INTEGRATION.md`](./PERFORMANCE_REVIEW_INTEGRATION.md) for the full task breakdown (DB migrations → API routes → frontend rewiring → notifications).
 
 ### 3.1 Review Structure (based on Excel sheets)
 
@@ -259,40 +263,33 @@ For each active employee E:
 
 ---
 
-### 3.5 Frontend
+### 3.5 Frontend ✅ Complete
 
-The existing pages under `frontend/src/pages/performance-review/` were built for the old flow and are **broken**. They need to be rewritten against the new API.
+All pages are built against a mock store. Pending items are **API wiring only** (see `PERFORMANCE_REVIEW_INTEGRATION.md` Phase 4).
 
 #### Routing & navigation
-- 🔲 Add "Performance Reviews" nav item under **Workspace** in `Sidebar.tsx` (visible to all)
-- 🔲 Add "Performance Reviews" nav item under **Administration** in `Sidebar.tsx` (HR/admin view)
-- 🔲 Register routes in `App.tsx`:
-  - `/performance` → employee dashboard
-  - `/performance/self-review/:cycleId` → self-review form
-  - `/performance/peer-review/:assignmentId` → peer review form
-  - `/admin/performance` → HR/admin cycle management
-  - `/admin/performance/:cycleId` → HR summary for a cycle
-  - `/admin/performance/:cycleId/:employeeId` → HR full review for one employee
+- ✅ `Sidebar.tsx` — "Performance Reviews" nav item under Workspace (all users) and Administration (admin)
+- ✅ Routes registered in `App.tsx`:
+  - `/performance-review` → `PerformanceReviewEmployee` (employee dashboard)
+  - `/performance-review/peer/:employeeId` → `PerformanceReviewPeerPage`
+  - `/performance-review-admin` → `PerformanceReviewAdmin` (admin cycle management)
+  - `/performance-review-admin/submissions/:employeeId` → `PerformanceReviewSubmissionsPage`
 
 #### Employee views
-- 🔲 **My Reviews dashboard** — shows current cycle, self-review status, pending peer reviews to complete
-- 🔲 **Self-review form** — renders questions grouped by category with rating sliders (1–5) and text areas; guidance text shown as helper; progress saved on each answer; submit button locks form
-- 🔲 **Peer review form** — same structure as self-review but for the reviewee; shows reviewee's name and role; anonymous (reviewer name not stored on the response visible to reviewee)
+- ✅ **My Reviews dashboard** — current cycle status, self-review progress, assigned peer reviews list
+- ✅ **Self-review form** — all questions grouped by category, 1–5 rating scale, text fields, submit locks form
+- ✅ **Peer review form** — per-reviewee page with feedback + notes fields, submit guards all questions answered
 
-#### Manager views
-- 🔲 **Team review list** — table of direct reports with their review completion status per cycle
-- 🔲 **Employee review detail** — side-by-side view: self-review answers on left, manager appraisal form on right; shows aggregated peer scores section; weighted score calculated live as manager fills ratings
-- 🔲 **Next Steps form** — text fields for Q+A from the Next Steps sheet; attached to the review record
-
-#### HR/Admin views
-- 🔲 **Cycle management page** — create cycle, activate (triggers random assignments), view progress, close cycle
-- 🔲 **HR summary table** — all employees in the cycle, columns: Self Score, Peer Avg Score, Manager Score, Overall Weighted Score; sortable and exportable to CSV
-- 🔲 **HR individual review** — same as manager view but read-only, shows all three review types
+#### Manager / Admin views
+- ✅ **Admin cycle management** — stats cards, employee list with scores, create cycle dialog, nominate peers dialog, manager appraisal dialog
+- ✅ **Submissions review** — tabbed view (Manager / Peers / Self), aggregated peer scores, per-reviewer breakdowns, manager calibration overrides with notes, score pills
 
 #### Shared components
-- 🔲 `RatingInput` — 1–5 star or slider component with the rating scale (1=Needs Improvement … 5=Exceptional)
-- 🔲 `WeightedScoreBar` — visual progress bar showing score against weight (for manager appraisal)
-- 🔲 `ReviewStatusBadge` — shows not started / in progress / completed / missed
+- ✅ `RatingScale` — 1–5 interactive rating component (`frontend/src/components/RatingScale.tsx`)
+- ✅ `StatsCard` — reusable stat card with hover blob animation (`frontend/src/components/ui/StatsCard.tsx`)
+
+#### Pending (API wiring)
+- 🔲 Replace `performanceStore` mock with real API calls — tracked in `PERFORMANCE_REVIEW_INTEGRATION.md` Phase 4
 
 ---
 

@@ -1,762 +1,635 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { Context } from 'hono';
-import mysql from 'mysql2/promise';
 import { getUserId, getDecodedToken } from '../middleware/auth';
-import { DatabaseService } from '../helpers/databaseHeler';
+import { PrismaClient } from '../../lib/generated/prisma';
 
 const app = new Hono();
+const prisma = new PrismaClient();
 
-// ============= INTERFACES =============
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
 
-interface ApiQuestion {
-    id: string;
-    category: string;
-    questionText: string;
-    questionType: 'text' | 'rating' | 'nomination';
-    phase: 'self' | 'peer' | 'nomination';
-    displayOrder: number;
-    isActive: boolean;
+function shuffleArray<T>(arr: T[]): T[] {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
 }
 
-interface ApiTeamMember {
-    id: string;
-    userId: string | null;
-    name: string;
-    role: string;
-    avatar: string;
-    isActive: boolean;
+const WEIGHTS = { manager: 50, peer: 30, self: 20 };
+
+function weightedScore(
+    managerAvg: number | null,
+    peerAvg: number | null,
+    selfAvg: number | null,
+): number | null {
+    let total = 0, weight = 0;
+    if (managerAvg != null) { total += (managerAvg / 5) * 100 * WEIGHTS.manager; weight += WEIGHTS.manager; }
+    if (peerAvg != null)    { total += (peerAvg / 5) * 100 * WEIGHTS.peer;       weight += WEIGHTS.peer; }
+    if (selfAvg != null)    { total += (selfAvg / 5) * 100 * WEIGHTS.self;        weight += WEIGHTS.self; }
+    return weight > 0 ? total / weight : null;
 }
 
-interface ApiReview {
-    id: string;
-    reviewPeriod: string;
-    employeeId: string;
-    managerId: string;
-    status: 'active' | 'in_progress' | 'employee_completed' | 'manager_reviewed' | 'completed';
-    employeeCompletedAt: string | null;
-    managerCompletedAt: string | null;
-    overallRating: number | null;
-    createdAt: string;
-    updatedAt: string;
+function avg(nums: number[]): number | null {
+    if (!nums.length) return null;
+    return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
 
-interface ApiReviewResponse {
-    id: string;
-    questionId: string;
-    textResponse: string | null;
-    ratingResponse: number | null;
-    nominationResponse: string | null;
-    createdAt: string;
-    updatedAt: string;
+function isAdmin(c: Context): boolean {
+    const token = getDecodedToken(c);
+    return token?.['custom:role'] === 'admin';
 }
 
-interface ReviewSession {
-    questions: ApiQuestion[];
-    totalQuestions: number;
-    distribution: {
-        self: number;
-        peer: number;
-        nomination: number;
-    };
-}
+// ─────────────────────────────────────────────
+// Validation schemas
+// ─────────────────────────────────────────────
 
-// Database row interfaces
-interface ReviewRowDB extends mysql.RowDataPacket {
-    id: number;
-    reviewPeriod: string;
-    employeeId: number;
-    managerId: number;
-    status: string;
-    employeeCompletedAt: Date | null;
-    managerCompletedAt: Date | null;
-    overallRating: number | null;
-    createdAt: Date;
-    updatedAt: Date;
-}
+const createCycleSchema = z.object({
+    name: z.string().min(1).max(100),
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
 
-interface QuestionRowDB extends mysql.RowDataPacket {
-    id: number;
-    category: string;
-    questionText: string;
-    questionType: 'text' | 'rating' | 'nomination';
-    phase: 'self' | 'peer' | 'nomination';
-    displayOrder: number;
-    isActive: boolean;
-}
-
-interface TeamMemberRowDB extends mysql.RowDataPacket {
-    id: number;
-    userId: number | null;
-    name: string;
-    role: string;
-    avatar: string;
-    isActive: boolean;
-}
-
-interface ResponseRowDB extends mysql.RowDataPacket {
-    id: number;
-    questionId: number;
-    textResponse: string | null;
-    ratingResponse: number | null;
-    nominationResponse: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-}
-
-// ============= VALIDATION SCHEMAS =============
-
-const submitResponseSchema = z.object({
+const saveResponseSchema = z.object({
     reviewId: z.string(),
     questionId: z.string(),
-    textResponse: z.string().optional(),
-    ratingResponse: z.number().min(1).max(5).optional(),
-    nominationResponse: z.string().optional()
-}).refine((data) => {
-    // At least one response type must be provided
-    return data.textResponse || data.ratingResponse || data.nominationResponse;
-}, {
-    message: "At least one response type must be provided"
+    ratingResponse: z.number().int().min(1).max(5).nullable().optional(),
+    textResponse: z.string().nullable().optional(),
+    nominationResponse: z.string().nullable().optional(),
+    reviewerType: z.enum(['self', 'peer', 'manager']).optional(),
 });
 
-const sessionConfigSchema = z.object({
-    selfQuestions: z.number().min(1).max(30).default(10),
-    peerQuestions: z.number().min(1).max(30).default(8),
-    nominationQuestions: z.number().min(1).max(15).default(7),
-    includeCategories: z.array(z.string()).optional(),
-    excludeCategories: z.array(z.string()).optional()
+const overrideSchema = z.object({
+    cycleId: z.string(),
+    peerOverrides: z.array(z.object({
+        reviewerId: z.string(),
+        questionId: z.string(),
+        value: z.number().int().min(1).max(5).nullable(),
+        overrideNote: z.string().optional(),
+    })).optional(),
+    selfOverrides: z.array(z.object({
+        questionId: z.string(),
+        value: z.number().int().min(1).max(5).nullable(),
+    })).optional(),
+    selfOverrideNote: z.string().optional(),
 });
 
-// ============= HELPER FUNCTIONS =============
+// ─────────────────────────────────────────────
+// CYCLE MANAGEMENT (admin)
+// ─────────────────────────────────────────────
 
-function shuffleArray<T>(array: T[]): T[] {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+// POST /performance/cycles
+app.post('/cycles', async (c: Context): Promise<Response> => {
+    try {
+        if (!isAdmin(c)) return c.json({ success: false, message: 'Forbidden' }, 403);
+        const userId = getUserId(c);
+        const body = await c.req.json();
+        const data = createCycleSchema.parse(body);
+
+        const cycle = await prisma.review_cycles.create({
+            data: {
+                name: data.name,
+                startDate: new Date(data.startDate),
+                endDate: new Date(data.endDate),
+                createdById: userId,
+            },
+        });
+
+        return c.json({ success: true, data: cycle }, 201);
+    } catch (e) {
+        if (e instanceof z.ZodError) return c.json({ success: false, message: 'Validation error', errors: e.errors }, 400);
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to create cycle' }, 500);
     }
-    return shuffled;
-}
+});
 
-function generateQuestionSession(questions: ApiQuestion[], config: {
-    selfQuestions: number;
-    peerQuestions: number;
-    nominationQuestions: number;
-    includeCategories?: string[];
-    excludeCategories?: string[];
-}): ReviewSession {
-    const { selfQuestions, peerQuestions, nominationQuestions, includeCategories, excludeCategories } = config;
+// GET /performance/cycles
+app.get('/cycles', async (c: Context): Promise<Response> => {
+    try {
+        const cycles = await prisma.review_cycles.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: {
+                assignments: { select: { revieweeId: true, status: true } },
+                reviews: { select: { employeeId: true, reviewType: true, status: true, overallRating: true } },
+            },
+        });
 
-    // Filter questions by categories if specified
-    let filteredQuestions = questions;
-    if (includeCategories && includeCategories.length > 0) {
-        filteredQuestions = filteredQuestions.filter(q => includeCategories.includes(q.category));
+        const result = cycles.map((cycle) => {
+            const uniqueEmployees = new Set(cycle.assignments.map((a) => a.revieweeId));
+            const submittedManagerReviews = cycle.reviews.filter(
+                (r) => r.reviewType === 'manager_appraisal' && r.status === 'final_review_complete'
+            );
+            const nominatedCount = new Set(
+                cycle.assignments.filter((a) => a.status !== 'pending').map((a) => a.revieweeId)
+            ).size;
+
+            const ratingVals = submittedManagerReviews
+                .map((r) => r.overallRating ? Number(r.overallRating) : null)
+                .filter((v): v is number => v != null);
+            const avgScore = ratingVals.length ? ratingVals.reduce((a, b) => a + b, 0) / ratingVals.length : null;
+
+            return {
+                id: cycle.id,
+                name: cycle.name,
+                startDate: cycle.startDate,
+                endDate: cycle.endDate,
+                status: cycle.status,
+                createdAt: cycle.createdAt,
+                employeeCount: uniqueEmployees.size,
+                nominatedCount,
+                submittedCount: submittedManagerReviews.length,
+                avgFinalScore: avgScore,
+            };
+        });
+
+        return c.json({ success: true, data: result });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to fetch cycles' }, 500);
     }
-    if (excludeCategories && excludeCategories.length > 0) {
-        filteredQuestions = filteredQuestions.filter(q => !excludeCategories.includes(q.category));
-    }
+});
 
-    // Separate questions by phase
-    const selfQs = shuffleArray(filteredQuestions.filter(q => q.phase === 'self')).slice(0, selfQuestions);
-    const peerQs = shuffleArray(filteredQuestions.filter(q => q.phase === 'peer')).slice(0, peerQuestions);
-    const nominationQs = shuffleArray(filteredQuestions.filter(q => q.phase === 'nomination')).slice(0, nominationQuestions);
+// POST /performance/cycles/:id/activate
+app.post('/cycles/:id/activate', async (c: Context): Promise<Response> => {
+    try {
+        if (!isAdmin(c)) return c.json({ success: false, message: 'Forbidden' }, 403);
+        const cycleId = c.req.param('id') as string;
 
-    const sessionQuestions = [...selfQs, ...peerQs, ...nominationQs];
+        const cycle = await prisma.review_cycles.findUnique({ where: { id: cycleId } });
+        if (!cycle) return c.json({ success: false, message: 'Cycle not found' }, 404);
+        if (cycle.status !== 'draft') return c.json({ success: false, message: 'Only draft cycles can be activated' }, 400);
 
-    return {
-        questions: sessionQuestions,
-        totalQuestions: sessionQuestions.length,
-        distribution: {
-            self: selfQs.length,
-            peer: peerQs.length,
-            nomination: nominationQs.length
+        const employees = await prisma.users.findMany({
+            where: { isActive: true },
+            select: { id: true, managerId: true },
+        });
+
+        const assignments: { cycleId: string; revieweeId: string; reviewerId: string }[] = [];
+
+        for (const emp of employees) {
+            const candidates = employees.filter(
+                (e) => e.id !== emp.id && e.id !== emp.managerId
+            );
+            const peers = shuffleArray(candidates).slice(0, Math.min(3, candidates.length));
+            for (const peer of peers) {
+                assignments.push({ cycleId, revieweeId: emp.id as string, reviewerId: peer.id as string });
+            }
         }
-    };
-}
 
-// ============= API ENDPOINTS =============
+        await prisma.$transaction([
+            prisma.review_cycles.update({ where: { id: cycleId }, data: { status: 'active' } }),
+            prisma.peer_review_assignments.createMany({ data: assignments, skipDuplicates: true }),
+        ]);
 
-// GET /performance-review/current - Get current active review for logged-in user
-app.get('/current', async (c: Context): Promise<Response> => {
-    let connection: mysql.Connection | null = null;
+        return c.json({ success: true, message: `Cycle activated. ${assignments.length} peer assignments created.` });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to activate cycle' }, 500);
+    }
+});
+
+// POST /performance/cycles/:id/close
+app.post('/cycles/:id/close', async (c: Context): Promise<Response> => {
+    try {
+        if (!isAdmin(c)) return c.json({ success: false, message: 'Forbidden' }, 403);
+        const cycleId = c.req.param('id');
+
+        await prisma.review_cycles.update({
+            where: { id: cycleId },
+            data: { status: 'closed' },
+        });
+
+        return c.json({ success: true, message: 'Cycle closed.' });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to close cycle' }, 500);
+    }
+});
+
+// ─────────────────────────────────────────────
+// EMPLOYEE ENDPOINTS
+// ─────────────────────────────────────────────
+
+// GET /performance/my-reviews?cycleId=
+app.get('/my-reviews', async (c: Context): Promise<Response> => {
     try {
         const userId = getUserId(c);
-        connection = await DatabaseService.createConnection();
+        const cycleId = c.req.query('cycleId');
 
-        // Get current active review
-        const [reviewRows] = await connection.query<ReviewRowDB[]>(`
-            SELECT id, reviewPeriod, employeeId, managerId, status, 
-                   employeeCompletedAt, managerReviewCompletedAt, overallRating, 
-                   createdAt, updatedAt
-            FROM performance_reviews 
-            WHERE employeeId = ? AND status IN ('active', 'in_progress', 'employee_completed')
-            ORDER BY createdAt DESC
-            LIMIT 1
-        `, [userId]);
+        const selfReview = await prisma.performance_reviews.findFirst({
+            where: {
+                employeeId: userId,
+                reviewType: 'self_review',
+                ...(cycleId ? { cycleId } : {}),
+            },
+            include: {
+                responses: { include: { question: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
 
-        if (!reviewRows.length) {
-            return c.json({
-                success: true,
-                data: null,
-                message: 'No active review found'
+        const peerAssignments = await prisma.peer_review_assignments.findMany({
+            where: {
+                reviewerId: userId,
+                ...(cycleId ? { cycleId } : {}),
+            },
+            include: {
+                reviewee: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
+                cycle: { select: { id: true, name: true } },
+            },
+        });
+
+        return c.json({
+            success: true,
+            data: {
+                selfReview,
+                peerAssignments: peerAssignments.map((a) => ({
+                    assignmentId: a.id,
+                    cycleId: a.cycleId,
+                    cycleName: a.cycle.name,
+                    status: a.status,
+                    reviewee: {
+                        id: a.reviewee.id,
+                        name: `${a.reviewee.firstName ?? ''} ${a.reviewee.lastName ?? ''}`.trim(),
+                        role: a.reviewee.jobTitle ?? '',
+                    },
+                })),
+            },
+        });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to fetch reviews' }, 500);
+    }
+});
+
+// GET /performance/my-peer-assignments?cycleId=
+app.get('/my-peer-assignments', async (c: Context): Promise<Response> => {
+    try {
+        const userId = getUserId(c);
+        const cycleId = c.req.query('cycleId');
+
+        const assignments = await prisma.peer_review_assignments.findMany({
+            where: { reviewerId: userId, ...(cycleId ? { cycleId } : {}) },
+            include: {
+                reviewee: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
+                cycle: { select: { id: true, name: true } },
+            },
+            orderBy: { assignedAt: 'desc' },
+        });
+
+        return c.json({
+            success: true,
+            data: assignments.map((a) => ({
+                assignmentId: a.id,
+                cycleId: a.cycleId,
+                cycleName: a.cycle.name,
+                status: a.status,
+                reviewee: {
+                    id: a.reviewee.id,
+                    name: `${a.reviewee.firstName ?? ''} ${a.reviewee.lastName ?? ''}`.trim(),
+                    role: a.reviewee.jobTitle ?? '',
+                },
+            })),
+        });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to fetch peer assignments' }, 500);
+    }
+});
+
+// GET /performance/peer-review/:assignmentId
+app.get('/peer-review/:assignmentId', async (c: Context): Promise<Response> => {
+    try {
+        const userId = getUserId(c);
+        const assignmentId = c.req.param('assignmentId');
+
+        const assignment = await prisma.peer_review_assignments.findUnique({
+            where: { id: assignmentId },
+            include: {
+                reviewee: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
+                cycle: { select: { id: true, name: true } },
+                performanceReview: { include: { responses: true } },
+            },
+        });
+
+        if (!assignment) return c.json({ success: false, message: 'Assignment not found' }, 404);
+        if (assignment.reviewerId !== userId) return c.json({ success: false, message: 'Access denied' }, 403);
+
+        const questions = await prisma.review_questions.findMany({
+            where: { reviewType: 'peer_review', isActive: true },
+            orderBy: { displayOrder: 'asc' },
+        });
+
+        return c.json({
+            success: true,
+            data: {
+                assignmentId: assignment.id,
+                status: assignment.status,
+                reviewee: {
+                    id: assignment.reviewee.id,
+                    name: `${assignment.reviewee.firstName ?? ''} ${assignment.reviewee.lastName ?? ''}`.trim(),
+                    role: assignment.reviewee.jobTitle ?? '',
+                },
+                cycle: { id: assignment.cycle.id, name: assignment.cycle.name },
+                questions: questions.map((q) => ({
+                    id: q.id,
+                    category: q.category,
+                    questionText: q.questionText,
+                    guidanceText: q.guidanceText,
+                })),
+                responses: assignment.performanceReview?.responses ?? [],
+            },
+        });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to fetch peer review' }, 500);
+    }
+});
+
+// POST /performance/responses  — upsert a self or peer review response
+app.post('/responses', async (c: Context): Promise<Response> => {
+    try {
+        const userId = getUserId(c);
+        const body = await c.req.json();
+        const data = saveResponseSchema.parse(body);
+
+        // Verify the review belongs to this user
+        const review = await prisma.performance_reviews.findUnique({ where: { id: data.reviewId } });
+        if (!review) return c.json({ success: false, message: 'Review not found' }, 404);
+        if (review.employeeId !== userId) return c.json({ success: false, message: 'Access denied' }, 403);
+
+        const response = await prisma.review_responses.upsert({
+            where: { performanceReviewId_questionId: { performanceReviewId: data.reviewId, questionId: data.questionId } },
+            update: {
+                ratingResponse: data.ratingResponse ?? null,
+                textResponse: data.textResponse ?? null,
+                nominationResponse: data.nominationResponse ?? null,
+                updatedAt: new Date(),
+            },
+            create: {
+                performanceReviewId: data.reviewId,
+                questionId: data.questionId,
+                employeeId: userId,
+                reviewerType: data.reviewerType ?? 'self',
+                ratingResponse: data.ratingResponse ?? null,
+                textResponse: data.textResponse ?? null,
+                nominationResponse: data.nominationResponse ?? null,
+            },
+        });
+
+        // Bump review to in_progress
+        if (review.status === 'not_started') {
+            await prisma.performance_reviews.update({
+                where: { id: data.reviewId },
+                data: { status: 'employee_in_progress' },
             });
         }
 
-        const review = reviewRows[0];
-        const apiReview: ApiReview = {
-            id: review.id.toString(),
-            reviewPeriod: review.reviewPeriod,
-            employeeId: review.employeeId.toString(),
-            managerId: review.managerId.toString(),
-            status: review.status as any,
-            employeeCompletedAt: review.employeeCompletedAt?.toISOString() || null,
-            managerCompletedAt: review.managerCompletedAt?.toISOString() || null,
-            overallRating: review.overallRating,
-            createdAt: review.createdAt.toISOString(),
-            updatedAt: review.updatedAt.toISOString()
-        };
-
-        return c.json({
-            success: true,
-            data: apiReview
-        });
-
-    } catch (error) {
-        console.error('Get current review error:', error);
-        return c.json({
-            success: false,
-            message: 'Failed to fetch current review'
-        }, 500);
-    } finally {
-        if (connection) await connection.end();
+        return c.json({ success: true, data: response });
+    } catch (e) {
+        if (e instanceof z.ZodError) return c.json({ success: false, message: 'Validation error', errors: e.errors }, 400);
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to save response' }, 500);
     }
 });
 
-// POST /performance-review/session - Generate a new question session
-app.post('/session', async (c: Context): Promise<Response> => {
-    let connection: mysql.Connection | null = null;
+// POST /performance/reviews/:id/submit
+app.post('/reviews/:id/submit', async (c: Context): Promise<Response> => {
     try {
         const userId = getUserId(c);
-        const body = await c.req.json();
-        const config = sessionConfigSchema.parse(body);
+        const reviewId = c.req.param('id');
 
-        connection = await DatabaseService.createConnection();
+        const review = await prisma.performance_reviews.findUnique({ where: { id: reviewId } });
+        if (!review) return c.json({ success: false, message: 'Review not found' }, 404);
+        if (review.employeeId !== userId) return c.json({ success: false, message: 'Access denied' }, 403);
 
-        // Get all active questions
-        const [questionRows] = await connection.query<QuestionRowDB[]>(`
-            SELECT id, category, questionText, questionType, phase, displayOrder, isActive
-            FROM review_questions 
-            WHERE isActive = 1
-            ORDER BY phase, displayOrder
-        `);
-
-        const questions: ApiQuestion[] = questionRows.map(q => ({
-            id: q.id.toString(),
-            category: q.category,
-            questionText: q.questionText,
-            questionType: q.questionType,
-            phase: q.phase,
-            displayOrder: q.displayOrder,
-            isActive: q.isActive
-        }));
-
-        const session = generateQuestionSession(questions, config);
-
-        return c.json({
-            success: true,
-            data: session
-        });
-
-    } catch (error) {
-        console.error('Generate session error:', error);
-        if (error instanceof z.ZodError) {
-            return c.json({
-                success: false,
-                message: 'Invalid request parameters',
-                errors: error.errors
-            }, 400);
-        }
-        return c.json({
-            success: false,
-            message: 'Failed to generate question session'
-        }, 500);
-    } finally {
-        if (connection) await connection.end();
-    }
-});
-
-// GET /performance-review/team-members - Get team members for nominations
-app.get('/team-members', async (c: Context): Promise<Response> => {
-    let connection: mysql.Connection | null = null;
-    try {
-        const userId = getUserId(c);
-        connection = await DatabaseService.createConnection();
-
-        // Get active team members excluding the current user
-        const [teamMemberRows] = await connection.query<TeamMemberRowDB[]>(`
-            SELECT tm.id, tm.userId, tm.name, tm.role, tm.avatar, tm.isActive
-            FROM team_members tm
-            WHERE tm.isActive = 1 AND (tm.userId IS NULL OR tm.userId != ?)
-            ORDER BY tm.name
-        `, [userId]);
-
-        const teamMembers: ApiTeamMember[] = teamMemberRows.map(tm => ({
-            id: tm.id.toString(),
-            userId: tm.userId ? tm.userId.toString() : null,
-            name: tm.name,
-            role: tm.role,
-            avatar: tm.avatar,
-            isActive: tm.isActive
-        }));
-
-        return c.json({
-            success: true,
-            data: teamMembers
-        });
-
-    } catch (error) {
-        console.error('Get team members error:', error);
-        return c.json({
-            success: false,
-            message: 'Failed to fetch team members'
-        }, 500);
-    } finally {
-        if (connection) await connection.end();
-    }
-});
-
-// POST /performance-review/response - Submit or update a response
-app.post('/response', async (c: Context): Promise<Response> => {
-    let connection: mysql.Connection | null = null;
-    try {
-        const userId = getUserId(c);
-        const body = await c.req.json();
-        const payload = submitResponseSchema.parse(body);
-        const { reviewId, questionId, textResponse, ratingResponse, nominationResponse } = payload;
-
-        connection = await DatabaseService.createConnection();
-        await connection.beginTransaction();
-
-        // Verify user has access to this review
-        const [reviewCheck] = await connection.query<mysql.RowDataPacket[]>(`
-            SELECT employeeId, status FROM performance_reviews 
-            WHERE id = ? AND employeeId = ?
-        `, [reviewId, userId]);
-
-        if (!reviewCheck.length) {
-            await connection.rollback();
-            return c.json({
-                success: false,
-                message: 'Review not found or access denied'
-            }, 404);
-        }
-
-        const review = reviewCheck[0];
-        if (review.status === 'completed' || review.status === 'manager_reviewed') {
-            await connection.rollback();
-            return c.json({
-                success: false,
-                message: 'Review is already completed and cannot be modified'
-            }, 400);
-        }
-
-        // Verify question exists and is active
-        const [questionCheck] = await connection.query<mysql.RowDataPacket[]>(`
-            SELECT id, questionType, phase FROM review_questions 
-            WHERE id = ? AND isActive = 1
-        `, [questionId]);
-
-        if (!questionCheck.length) {
-            await connection.rollback();
-            return c.json({
-                success: false,
-                message: 'Invalid question ID'
-            }, 400);
-        }
-
-        // Validate response type matches question type
-        const question = questionCheck[0];
-        if (question.questionType === 'text' && !textResponse) {
-            await connection.rollback();
-            return c.json({
-                success: false,
-                message: 'Text response required for this question'
-            }, 400);
-        }
-        if (question.questionType === 'rating' && !ratingResponse) {
-            await connection.rollback();
-            return c.json({
-                success: false,
-                message: 'Rating response required for this question'
-            }, 400);
-        }
-        if (question.questionType === 'nomination' && !nominationResponse) {
-            await connection.rollback();
-            return c.json({
-                success: false,
-                message: 'Nomination response required for this question'
-            }, 400);
-        }
-
-        // Check if response already exists
-        const [existingResponse] = await connection.query<mysql.RowDataPacket[]>(`
-            SELECT id FROM review_responses 
-            WHERE performanceReviewId = ? AND questionId = ?
-        `, [reviewId, questionId]);
-
-        let responseId: string;
-
-        if (existingResponse.length > 0) {
-            // Update existing response
-            await connection.query(`
-                UPDATE review_responses 
-                SET textResponse = ?, ratingResponse = ?, nominationResponse = ?, updatedAt = NOW()
-                WHERE id = ?
-            `, [textResponse || null, ratingResponse || null, nominationResponse || null, existingResponse[0].id]);
-            responseId = existingResponse[0].id.toString();
-        } else {
-            // Insert new response
-            const [insertResult] = await connection.query<mysql.ResultSetHeader>(`
-                INSERT INTO review_responses (performanceReviewId, questionId, textResponse, ratingResponse, nominationResponse, createdAt, updatedAt)
-                VALUES (?, ?, ?, ?, ?, NOW(), NOW())
-            `, [reviewId, questionId, textResponse || null, ratingResponse || null, nominationResponse || null]);
-            responseId = insertResult.insertId.toString();
-        }
-
-        // Update review status to in_progress if it was active
-        if (review.status === 'active') {
-            await connection.query(`
-                UPDATE performance_reviews 
-                SET status = 'in_progress', updatedAt = NOW()
-                WHERE id = ?
-            `, [reviewId]);
-        }
-
-        await connection.commit();
-
-        return c.json({
-            success: true,
-            message: 'Response saved successfully',
+        await prisma.performance_reviews.update({
+            where: { id: reviewId },
             data: {
-                responseId,
-                questionId,
-                reviewId
-            }
-        });
-
-    } catch (error) {
-        if (connection) await connection.rollback();
-        console.error('Submit response error:', error);
-        if (error instanceof z.ZodError) {
-            return c.json({
-                success: false,
-                message: 'Invalid request data',
-                errors: error.errors
-            }, 400);
-        }
-        return c.json({
-            success: false,
-            message: 'Failed to save response'
-        }, 500);
-    } finally {
-        if (connection) await connection.end();
-    }
-});
-
-// GET /performance-review/responses/:reviewId - Get all responses for a review
-app.get('/responses/:reviewId', async (c: Context): Promise<Response> => {
-    let connection: mysql.Connection | null = null;
-    try {
-        const reviewId = c.req.param('reviewId');
-        const userId = getUserId(c);
-
-        connection = await DatabaseService.createConnection();
-
-        // Verify user has access to this review
-        const [reviewCheck] = await connection.query<mysql.RowDataPacket[]>(`
-            SELECT employeeId, managerId FROM performance_reviews 
-            WHERE id = ?
-        `, [reviewId]);
-
-        if (!reviewCheck.length) {
-            return c.json({
-                success: false,
-                message: 'Review not found'
-            }, 404);
-        }
-
-        const review = reviewCheck[0];
-        if (review.employeeId !== userId && review.managerId !== userId) {
-            return c.json({
-                success: false,
-                message: 'Access denied'
-            }, 403);
-        }
-
-        // Get all responses for this review
-        const [responseRows] = await connection.query<ResponseRowDB[]>(`
-            SELECT id, questionId, textResponse, ratingResponse, nominationResponse, createdAt, updatedAt
-            FROM review_responses 
-            WHERE performanceReviewId = ?
-            ORDER BY createdAt
-        `, [reviewId]);
-
-        const responses: ApiReviewResponse[] = responseRows.map(r => ({
-            id: r.id.toString(),
-            questionId: r.questionId.toString(),
-            textResponse: r.textResponse,
-            ratingResponse: r.ratingResponse,
-            nominationResponse: r.nominationResponse,
-            createdAt: r.createdAt.toISOString(),
-            updatedAt: r.updatedAt.toISOString()
-        }));
-
-        return c.json({
-            success: true,
-            data: responses
-        });
-
-    } catch (error) {
-        console.error('Get responses error:', error);
-        return c.json({
-            success: false,
-            message: 'Failed to fetch responses'
-        }, 500);
-    } finally {
-        if (connection) await connection.end();
-    }
-});
-
-// POST /performance-review/:reviewId/complete - Complete the employee portion
-app.post('/:reviewId/complete', async (c: Context): Promise<Response> => {
-    let connection: mysql.Connection | null = null;
-    try {
-        const reviewId = c.req.param('reviewId');
-        const userId = getUserId(c);
-
-        connection = await DatabaseService.createConnection();
-        await connection.beginTransaction();
-
-        // Verify user owns this review
-        const [reviewCheck] = await connection.query<mysql.RowDataPacket[]>(`
-            SELECT employeeId, status, managerId FROM performance_reviews 
-            WHERE id = ?
-        `, [reviewId]);
-
-        if (!reviewCheck.length) {
-            await connection.rollback();
-            return c.json({
-                success: false,
-                message: 'Review not found'
-            }, 404);
-        }
-
-        const review = reviewCheck[0];
-        if (review.employeeId !== userId) {
-            await connection.rollback();
-            return c.json({
-                success: false,
-                message: 'Unauthorized to complete this review'
-            }, 403);
-        }
-
-        if (review.status === 'employee_completed' || review.status === 'completed') {
-            await connection.rollback();
-            return c.json({
-                success: false,
-                message: 'Review is already completed'
-            }, 400);
-        }
-
-        // Check if minimum required questions are answered (at least self and peer phases)
-        const [questionCount] = await connection.query<mysql.RowDataPacket[]>(`
-            SELECT 
-                COUNT(CASE WHEN phase = 'self' THEN 1 END) as selfQuestions,
-                COUNT(CASE WHEN phase = 'peer' THEN 1 END) as peerQuestions,
-                COUNT(CASE WHEN phase = 'nomination' THEN 1 END) as nominationQuestions
-            FROM review_questions 
-            WHERE isActive = 1
-        `);
-
-        const [responseCount] = await connection.query<mysql.RowDataPacket[]>(`
-            SELECT 
-                COUNT(CASE WHEN rq.phase = 'self' THEN 1 END) as selfResponses,
-                COUNT(CASE WHEN rq.phase = 'peer' THEN 1 END) as peerResponses,
-                COUNT(CASE WHEN rq.phase = 'nomination' THEN 1 END) as nominationResponses
-            FROM review_responses rr
-            JOIN review_questions rq ON rr.questionId = rq.id
-            WHERE rr.performanceReviewId = ?
-            AND (rr.textResponse IS NOT NULL OR rr.ratingResponse IS NOT NULL OR rr.nominationResponse IS NOT NULL)
-        `, [reviewId]);
-
-        const questions = questionCount[0];
-        const responses = responseCount[0];
-
-        // Require at least 70% completion for self and peer phases
-        const minSelfResponses = Math.ceil(questions.selfQuestions * 0.7);
-        const minPeerResponses = Math.ceil(questions.peerQuestions * 0.7);
-
-        if (responses.selfResponses < minSelfResponses || responses.peerResponses < minPeerResponses) {
-            await connection.rollback();
-            return c.json({
-                success: false,
-                message: `Minimum completion required: ${minSelfResponses} self-review questions and ${minPeerResponses} peer-review questions. Current: ${responses.selfResponses} self, ${responses.peerResponses} peer.`
-            }, 400);
-        }
-
-        // Update review status to employee_completed
-        await connection.query(`
-            UPDATE performance_reviews 
-            SET status = 'employee_completed', employeeCompletedAt = NOW(), updatedAt = NOW()
-            WHERE id = ?
-        `, [reviewId]);
-
-        await connection.commit();
-
-        return c.json({
-            success: true,
-            message: 'Review completed successfully',
-            data: {
-                reviewId: reviewId,
-                completedAt: new Date().toISOString(),
                 status: 'employee_completed',
-                summary: {
-                    selfResponses: responses.selfResponses,
-                    peerResponses: responses.peerResponses,
-                    nominationResponses: responses.nominationResponses
-                }
-            }
+                employeeCompletedAt: new Date(),
+            },
         });
 
-    } catch (error) {
-        if (connection) await connection.rollback();
-        console.error('Complete review error:', error);
-        return c.json({
-            success: false,
-            message: 'Failed to complete review'
-        }, 500);
-    } finally {
-        if (connection) await connection.end();
+        // If this is a peer review, mark the assignment as completed
+        if (review.reviewType === 'peer_review' && review.revieweeId) {
+            await prisma.peer_review_assignments.updateMany({
+                where: {
+                    performanceReviewId: reviewId,
+                    reviewerId: userId,
+                },
+                data: { status: 'completed', completedAt: new Date() },
+            });
+        }
+
+        return c.json({ success: true, message: 'Review submitted.' });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to submit review' }, 500);
     }
 });
 
-// GET /performance-review/categories - Get available question categories
-app.get('/categories', async (c: Context): Promise<Response> => {
-    let connection: mysql.Connection | null = null;
+// ─────────────────────────────────────────────
+// MANAGER / ADMIN — SUBMISSIONS
+// ─────────────────────────────────────────────
+
+// GET /performance/submissions/:employeeId?cycleId=
+app.get('/submissions/:employeeId', async (c: Context): Promise<Response> => {
     try {
-        connection = await DatabaseService.createConnection();
+        const employeeId = c.req.param('employeeId');
+        const cycleId = c.req.query('cycleId');
 
-        const [categoryRows] = await connection.query<mysql.RowDataPacket[]>(`
-            SELECT DISTINCT category, phase, COUNT(*) as questionCount
-            FROM review_questions 
-            WHERE isActive = 1
-            GROUP BY category, phase
-            ORDER BY phase, category
-        `);
+        const employee = await prisma.users.findUnique({
+            where: { id: employeeId },
+            select: { id: true, firstName: true, lastName: true, jobTitle: true },
+        });
+        if (!employee) return c.json({ success: false, message: 'Employee not found' }, 404);
 
-        const categories = categoryRows.map(row => ({
-            category: row.category,
-            phase: row.phase,
-            questionCount: row.questionCount
-        }));
+        const cycleFilter = cycleId ? { cycleId } : {};
 
-        return c.json({
-            success: true,
-            data: categories
+        // Manager appraisal
+        const managerReview = await prisma.performance_reviews.findFirst({
+            where: { employeeId, reviewType: 'manager_appraisal', ...cycleFilter },
+            include: { responses: { include: { question: true } } },
         });
 
-    } catch (error) {
-        console.error('Get categories error:', error);
-        return c.json({
-            success: false,
-            message: 'Failed to fetch categories'
-        }, 500);
-    } finally {
-        if (connection) await connection.end();
-    }
-});
+        // Self review
+        const selfReview = await prisma.performance_reviews.findFirst({
+            where: { employeeId, reviewType: 'self_review', ...cycleFilter },
+            include: { responses: { include: { question: true } } },
+        });
 
-// GET /performance-review/progress/:reviewId - Get review progress
-app.get('/progress/:reviewId', async (c: Context): Promise<Response> => {
-    let connection: mysql.Connection | null = null;
-    try {
-        const reviewId = c.req.param('reviewId');
-        const userId = getUserId(c);
+        // Peer reviews
+        const assignments = await prisma.peer_review_assignments.findMany({
+            where: { revieweeId: employeeId, ...(cycleId ? { cycleId } : {}) },
+            include: {
+                reviewer: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
+                performanceReview: { include: { responses: { include: { question: true } } } },
+            },
+        });
 
-        connection = await DatabaseService.createConnection();
+        // Score calculations
+        const managerRatings = managerReview?.responses.map((r) => r.ratingResponse).filter((v): v is number => v != null) ?? [];
+        const managerAvg = avg(managerRatings);
 
-        // Verify access
-        const [reviewCheck] = await connection.query<mysql.RowDataPacket[]>(`
-            SELECT employeeId, managerId, status FROM performance_reviews 
-            WHERE id = ?
-        `, [reviewId]);
+        const submittedPeerReviews = assignments.filter((a) => a.status === 'completed' && a.performanceReview);
+        const peerAverages = submittedPeerReviews.map((a) => {
+            const vals = a.performanceReview!.responses.map((r) => r.overrideRating ?? r.ratingResponse).filter((v): v is number => v != null);
+            return avg(vals);
+        }).filter((v): v is number => v != null);
+        const peerAvg = avg(peerAverages);
 
-        if (!reviewCheck.length) {
-            return c.json({
-                success: false,
-                message: 'Review not found'
-            }, 404);
-        }
+        const selfRatings = selfReview?.responses.map((r) => r.ratingResponse).filter((v): v is number => v != null) ?? [];
+        const selfAvg = avg(selfRatings);
 
-        const review = reviewCheck[0];
-        if (review.employeeId !== userId && review.managerId !== userId) {
-            return c.json({
-                success: false,
-                message: 'Access denied'
-            }, 403);
-        }
-
-        // Get progress statistics
-        const [progressStats] = await connection.query<mysql.RowDataPacket[]>(`
-            SELECT 
-                rq.phase,
-                COUNT(rq.id) as totalQuestions,
-                COUNT(rr.id) as answeredQuestions,
-                COUNT(CASE WHEN rr.updatedAt >= DATE_SUB(NOW(), INTERVAL 1 DAY) THEN 1 END) as recentAnswers
-            FROM review_questions rq
-            LEFT JOIN review_responses rr ON rq.id = rr.questionId AND rr.performanceReviewId = ?
-            WHERE rq.isActive = 1
-            GROUP BY rq.phase
-            ORDER BY 
-                CASE rq.phase 
-                    WHEN 'self' THEN 1 
-                    WHEN 'peer' THEN 2 
-                    WHEN 'nomination' THEN 3 
-                END
-        `, [reviewId]);
-
-        const progress = progressStats.map(stat => ({
-            phase: stat.phase,
-            totalQuestions: stat.totalQuestions,
-            answeredQuestions: stat.answeredQuestions,
-            completionPercentage: Math.round((stat.answeredQuestions / stat.totalQuestions) * 100),
-            recentAnswers: stat.recentAnswers
-        }));
-
-        const totalQuestions = progress.reduce((sum, p) => sum + p.totalQuestions, 0);
-        const totalAnswered = progress.reduce((sum, p) => sum + p.answeredQuestions, 0);
-        const overallCompletion = Math.round((totalAnswered / totalQuestions) * 100);
+        const finalScore = weightedScore(managerAvg, peerAvg, selfAvg);
 
         return c.json({
             success: true,
             data: {
-                reviewId,
-                status: review.status,
-                overallCompletion,
-                totalQuestions,
-                totalAnswered,
-                phaseProgress: progress
+                employee: {
+                    id: employee.id,
+                    name: `${employee.firstName ?? ''} ${employee.lastName ?? ''}`.trim(),
+                    role: employee.jobTitle ?? '',
+                },
+                managerReview,
+                selfReview,
+                peerAssignments: assignments.map((a) => ({
+                    assignmentId: a.id,
+                    status: a.status,
+                    reviewer: {
+                        id: a.reviewer.id,
+                        name: `${a.reviewer.firstName ?? ''} ${a.reviewer.lastName ?? ''}`.trim(),
+                        role: a.reviewer.jobTitle ?? '',
+                    },
+                    review: a.performanceReview,
+                })),
+                scores: {
+                    managerScore: managerAvg != null ? (managerAvg / 5) * 100 : null,
+                    peerScore: peerAvg != null ? (peerAvg / 5) * 100 : null,
+                    selfScore: selfAvg != null ? (selfAvg / 5) * 100 : null,
+                    finalScore,
+                },
+            },
+        });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to fetch submissions' }, 500);
+    }
+});
+
+// POST /performance/submissions/:employeeId/override
+app.post('/submissions/:employeeId/override', async (c: Context): Promise<Response> => {
+    try {
+        const employeeId = c.req.param('employeeId');
+        const body = await c.req.json();
+        const data = overrideSchema.parse(body);
+
+        const ops: Promise<unknown>[] = [];
+
+        // Peer overrides — write to review_responses.overrideRating
+        if (data.peerOverrides?.length) {
+            for (const o of data.peerOverrides) {
+                ops.push(
+                    prisma.review_responses.updateMany({
+                        where: {
+                            performanceReview: { employeeId, cycleId: data.cycleId, reviewType: 'peer_review' },
+                            questionId: o.questionId,
+                        },
+                        data: { overrideRating: o.value, overrideNote: o.overrideNote ?? null },
+                    })
+                );
             }
+        }
+
+        // Self overrides
+        if (data.selfOverrides?.length) {
+            for (const o of data.selfOverrides) {
+                ops.push(
+                    prisma.review_responses.updateMany({
+                        where: {
+                            performanceReview: { employeeId, cycleId: data.cycleId, reviewType: 'self_review' },
+                            questionId: o.questionId,
+                        },
+                        data: { overrideRating: o.value },
+                    })
+                );
+            }
+        }
+
+        if (data.selfOverrideNote !== undefined) {
+            ops.push(
+                prisma.performance_reviews.updateMany({
+                    where: { employeeId, cycleId: data.cycleId, reviewType: 'self_review' },
+                    data: { finalSummary: data.selfOverrideNote },
+                })
+            );
+        }
+
+        await Promise.all(ops);
+
+        return c.json({ success: true, message: 'Overrides saved.' });
+    } catch (e) {
+        if (e instanceof z.ZodError) return c.json({ success: false, message: 'Validation error', errors: e.errors }, 400);
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to save overrides' }, 500);
+    }
+});
+
+// GET /performance/admin/summary?cycleId=
+app.get('/admin/summary', async (c: Context): Promise<Response> => {
+    try {
+        if (!isAdmin(c)) return c.json({ success: false, message: 'Forbidden' }, 403);
+        const cycleId = c.req.query('cycleId');
+
+        const employees = await prisma.users.findMany({
+            where: { isActive: true },
+            select: { id: true, firstName: true, lastName: true, jobTitle: true },
         });
 
-    } catch (error) {
-        console.error('Get progress error:', error);
-        return c.json({
-            success: false,
-            message: 'Failed to fetch progress'
-        }, 500);
-    } finally {
-        if (connection) await connection.end();
+        const results = await Promise.all(employees.map(async (emp) => {
+            const [managerReview, selfReview, assignments] = await Promise.all([
+                prisma.performance_reviews.findFirst({
+                    where: { employeeId: emp.id, reviewType: 'manager_appraisal', ...(cycleId ? { cycleId } : {}) },
+                    include: { responses: { select: { ratingResponse: true, overrideRating: true } } },
+                }),
+                prisma.performance_reviews.findFirst({
+                    where: { employeeId: emp.id, reviewType: 'self_review', ...(cycleId ? { cycleId } : {}) },
+                    include: { responses: { select: { ratingResponse: true, overrideRating: true } } },
+                }),
+                prisma.peer_review_assignments.findMany({
+                    where: { revieweeId: emp.id, status: 'completed', ...(cycleId ? { cycleId } : {}) },
+                    include: { performanceReview: { include: { responses: { select: { ratingResponse: true, overrideRating: true } } } } },
+                }),
+            ]);
+
+            const mAvg = avg(managerReview?.responses.map((r) => r.ratingResponse).filter((v): v is number => v != null) ?? []);
+            const sAvg = avg(selfReview?.responses.map((r) => r.ratingResponse).filter((v): v is number => v != null) ?? []);
+            const pAverages = assignments
+                .filter((a) => a.performanceReview)
+                .map((a) => avg(a.performanceReview!.responses.map((r) => r.overrideRating ?? r.ratingResponse).filter((v): v is number => v != null)))
+                .filter((v): v is number => v != null);
+            const pAvg = avg(pAverages);
+
+            return {
+                employee: { id: emp.id, name: `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim(), role: emp.jobTitle ?? '' },
+                managerScore: mAvg != null ? (mAvg / 5) * 100 : null,
+                peerScore: pAvg != null ? (pAvg / 5) * 100 : null,
+                selfScore: sAvg != null ? (sAvg / 5) * 100 : null,
+                finalScore: weightedScore(mAvg, pAvg, sAvg),
+                nominatedPeers: assignments.length,
+                reviewStatus: managerReview?.status ?? 'not_started',
+            };
+        }));
+
+        return c.json({ success: true, data: results });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to fetch admin summary' }, 500);
     }
 });
 
