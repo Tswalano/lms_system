@@ -27,6 +27,8 @@ import { Button } from '@/components/ui/button';
 import DocumentViewer from '@/components/DocumentViewer';
 import { toast } from 'sonner';
 import { dateToNextYear, formatDate } from '@/lib/helper';
+import { Pagination } from '@/components/ui/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 // Interface for API Response
 interface ApiResponse {
@@ -401,6 +403,14 @@ const EmployeeDocumentsPage: FC = () => {
         return matchesSearch && matchesCategory && matchesStatus;
     });
 
+    const docPagination = usePagination(filteredDocuments, 10);
+
+    // Reset to page 1 whenever filters change
+    React.useEffect(() => {
+        docPagination.resetPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchTerm, filterStatus, selectedCategory]);
+
     // Handle category click to filter documents
     const handleCategoryClick = (categoryId: string): void => {
         setSelectedCategory(selectedCategory === categoryId ? null : categoryId);
@@ -664,7 +674,7 @@ const EmployeeDocumentsPage: FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {filteredDocuments.map((doc) => {
+                                {docPagination.paginatedItems.map((doc) => {
                                     const statusConfig = getStatusConfig(doc.status);
                                     const StatusIcon = statusConfig.icon;
 
@@ -777,6 +787,19 @@ const EmployeeDocumentsPage: FC = () => {
                             </div>
                         )}
                     </div>
+
+                    {filteredDocuments.length > 0 && (
+                        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+                            <Pagination
+                                currentPage={docPagination.page}
+                                totalPages={docPagination.totalPages}
+                                pageSize={docPagination.pageSize}
+                                totalItems={docPagination.totalItems}
+                                onPageChange={docPagination.setPage}
+                                onPageSizeChange={docPagination.setPageSize}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 

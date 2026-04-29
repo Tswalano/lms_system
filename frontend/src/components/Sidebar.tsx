@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Moon, Sun, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, Calendar, Settings } from "lucide-react";
+import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Moon, Sun, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, Calendar, Settings, Sparkles, ClipboardCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import features from "@/config/features";
 
 interface SidebarProps {
     isMobileMenuOpen: boolean;
@@ -58,7 +59,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: "team", label: "Team Calendar", icon: Calendar, path: "/team-availability" },
                 { id: "apply", label: "Apply for Leave", icon: FileText, path: "/apply-leave" },
                 { id: "history", label: "My Leave Requests", icon: Clock, path: "/leave-history" },
-                { id: "employee-docs", label: "Employee Handbook", icon: FileCheck2, path: "/employee-document" },
+                ...(features.employeeDocuments ? [
+                    { id: "employee-docs", label: "Employee Handbook", icon: FileCheck2, path: "/employee-document" },
+                    { id: "performance", label: "My Performance Review", icon: Sparkles, path: "/performance-review" }
+                ] : []),
             ]
         },
         ...(userRole === 'admin' ? [{
@@ -68,7 +72,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             items: [
                 { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave" },
                 { id: "manage", label: "Manage Employees", icon: Users, path: "/manage-employees" },
-                { id: "admin-docs", label: "Admin Documents", icon: ArchiveRestore, path: "/admin-document" },
+                ...(features.adminDocuments ? [
+                    { id: "performance-admin", label: "Performance Reviews", icon: ClipboardCheck, path: "/performance-review-admin" },
+                    { id: "admin-docs", label: "Admin Documents", icon: ArchiveRestore, path: "/admin-document" }
+                ] : []),
             ]
         }] : []),
     ].filter(section => section.items.length > 0);

@@ -185,7 +185,7 @@ app.post('/login', async (c) => {
 
         // If authentication is successful, set cookies
         if (authResult.data.payload?.AccessToken) {
-            const tokenToStore = authResult.data.payload.IdToken || authResult.data.payload.AccessToken;
+            const tokenToStore = authResult.data.payload.AccessToken || authResult.data.payload.IdToken;
 
             setCookie(c, 'sessionId', tokenToStore, {
                 path: '/',
@@ -311,8 +311,8 @@ app.get('/verify', async (c) => {
                 const refreshResult = await refreshAccessToken(refreshToken);
 
                 if (refreshResult.success && refreshResult.data?.AccessToken) {
-                    // Store the new token (prefer ID token if available)
-                    const newTokenToStore = refreshResult.data.IdToken || refreshResult.data.AccessToken;
+                    // Store the new token (prefer access token for API auth)
+                    const newTokenToStore = refreshResult.data.AccessToken || refreshResult.data.IdToken || '';
 
                     setCookie(c, 'sessionId', newTokenToStore, {
                         path: '/',
@@ -402,9 +402,9 @@ app.post('/refresh', async (c) => {
             }, 401);
         }
 
-        // Update cookies with new tokens (prefer ID token)
+        // Update cookies with new tokens (prefer access token for API auth)
         if (refreshResult.data?.AccessToken) {
-            const tokenToStore = refreshResult.data.IdToken || refreshResult.data.AccessToken;
+            const tokenToStore = refreshResult.data.AccessToken || refreshResult.data.IdToken || '';
 
             setCookie(c, 'sessionId', tokenToStore, {
                 path: '/',

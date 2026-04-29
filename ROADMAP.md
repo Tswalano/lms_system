@@ -305,6 +305,233 @@ The existing pages under `frontend/src/pages/performance-review/` were built for
 
 ---
 
+---
+
+## 4. Leave Request Automation
+
+**Goal:** Reduce admin overhead by (a) automatically reminding admins when a leave request has been sitting `pending` for more than 7 days, and (b) auto-expiring pending requests whose leave dates have already passed without a decision.
+
+---
+
+### 4.1 Stale-Request Admin Reminders
+
+When a leave request is submitted and not actioned within 7 days, all admin/management users receive an automated email nudge. A 24-hour cooldown per request prevents daily flooding.
+
+#### Database
+- 🔲 Create table `leave_reminder_log`:
+  ```sql
+  CREATE TABLE leave_reminder_log (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    leave_id   INT NOT NULL,
+    sent_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_leave_id (leave_id),
+    FOREIGN KEY (leave_id) REFERENCES leave_requests(id) ON DELETE CASCADE
+  );
+  ```
+  Used to enforce the 24-hour per-request cooldown (same pattern as `document_reminders`).
+
+#### Backend
+- 🔲 Create `backend/lambda/scheduled/leaveReminderScheduler.ts`
+  - EventBridge-triggered, runs Mon–Fri at 8 AM UTC (same cadence as document reminders)
+  - Query: `leave_requests WHERE status = 'pending' AND createdAt < NOW() - INTERVAL 7 DAY`
+  - Join with `leave_reminder_log` to filter out requests reminded in the last 24 hours
+  - Send via `senderManagement()` (already wired to management/admin email addresses in `emailMiddleware.ts`)
+  - After each successful send, insert a row into `leave_reminder_log`
+  - Email body: employee name, leave type, duration, dates, how many days pending, link to approve-leave page
+- 🔲 Register the new Lambda + EventBridge rule in CDK (same pattern as `documentReminderScheduler`)
+
+#### Frontend
+- 🔲 No frontend changes required — admins see the email and click through to the existing `/approve-leave` page
+
+---
+
+### 4.2 Auto-Expiry of Stale Pending Requests
+
+When a leave request is still `pending` after its `start_date` has passed, it is automatically moved to `expired` status. The employee is notified so they know to resubmit if needed.
+
+#### Database
+- 🔲 Add `'expired'` to the `status` column — if `status` is a DB `ENUM`, run:
+  ```sql
+  ALTER TABLE leave_requests
+    MODIFY COLUMN status ENUM('pending','approved','rejected','cancelled','expired') NOT NULL DEFAULT 'pending';
+  ```
+  If it is a plain `VARCHAR`, no migration is needed.
+- 🔲 Update `LeaveStatus` type in `backend/lambda/helpers/leaveHelpers.ts`:
+  ```ts
+  export type LeaveStatus = 'approved' | 'rejected' | 'pending' | 'cancelled' | 'expired';
+  ```
+
+#### Backend
+- 🔲 Add `leaveExpiryHandler` to `leaveReminderScheduler.ts` (or a separate `leaveExpiryScheduler.ts`)
+  - Runs daily (can share the same EventBridge rule as the reminder scheduler)
+  - Query: `leave_requests WHERE status = 'pending' AND start_date < CURDATE()`
+  - For each result:
+    1. `UPDATE leave_requests SET status = 'expired', system_notes = CONCAT(system_notes, ' | Auto-expired: leave dates passed without approval'), updatedAt = NOW() WHERE id = ?`
+    2. `INSERT INTO leave_action_log (leave_id, manager_id, action, previous_status, new_status, timestamp) VALUES (?, NULL, 'auto_expired', 'pending', 'expired', NOW())`
+    3. Email employee via `sender()` — subject "Your leave request has expired", body explaining the request lapsed and they can resubmit
+  - Process requests individually so one failure does not block the rest
+
+#### Frontend
+- 🔲 Add `'expired'` to the status badge/styling in `ApplyLeavePage.tsx` and `LeaveHistoryPage.tsx`
+  - Suggested style: grey badge, label "Expired", icon `ClockX` or `Ban`
+- 🔲 Add `'expired'` to the status filter `<Select>` on `LeaveHistoryPage.tsx` so employees can filter for their expired requests
+
+---
+
+---
+
+## 5. SimplePay Payslip Integration
+
+**Goal:** Employees can view and download their payslips from SimplePay directly inside the LMS. Access is gated behind a one-time OTP sent to their registered email address for each session — since SimplePay uses a single org-level API key, the OTP layer is our own identity gate built inside the LMS backend.
+
+**SimplePay API base URL:** `https://api.payroll.simplepay.cloud/v1/`
+**Auth:** `Authorization: <api_key>` header on every request.
+**Key endpoints used:**
+- `GET /v1/clients/:client_id/employees?include=recent_payslips` — initial employee lookup / sync
+- `GET /v1/employees/:employee_id/payslips` — list payslips for a specific employee
+- `GET /v1/payslips/:payslip_id` — payslip detail (period, gross, net, deductions)
+- `GET /v1/payslips/:payslip_id.pdf` — download PDF (streamed through Lambda, never exposed to the client directly)
+
+**The SimplePay API key never touches the frontend.** All calls are proxied through the LMS Lambda.
+
+---
+
+### 5.1 OTP Flow — How It Works
+
+```
+1. User navigates to /payslips
+2. LMS backend generates a 6-digit OTP
+3. OTP is hashed (SHA-256) and stored in payslip_otp_sessions with a 5-minute expiry
+4. Raw OTP is emailed to the user's registered email via AWS SES (already configured)
+5. User enters OTP in the modal
+6. Backend verifies hash + expiry → marks session as verified (30-minute window)
+7. User can now list and download their payslips for that session
+8. Session expires → OTP gate shown again on next visit
+```
+
+Rate limit: max 3 OTP requests per user per hour (enforced in the route handler using the `payslip_otp_sessions` table).
+
+---
+
+### 5.2 Database
+
+#### New table — `payslip_otp_sessions`
+Stores OTP verification state. The raw OTP is never persisted — only its SHA-256 hash.
+```sql
+CREATE TABLE payslip_otp_sessions (
+  id           INT AUTO_INCREMENT PRIMARY KEY,
+  user_id      VARCHAR(36) NOT NULL,
+  otp_hash     VARCHAR(64) NOT NULL,       -- SHA-256 of the 6-digit OTP
+  expires_at   TIMESTAMP NOT NULL,         -- now + 5 minutes (OTP validity)
+  verified_at  TIMESTAMP NULL,             -- set when OTP is successfully verified
+  session_expires_at TIMESTAMP NULL,       -- now + 30 minutes (post-verify window)
+  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_user_id (user_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+#### Alter `users` — add SimplePay employee ID
+```sql
+ALTER TABLE users
+  ADD COLUMN simplepay_employee_id VARCHAR(50) NULL AFTER id;
+```
+This maps each LMS user to their SimplePay employee record. Populated either:
+- **Auto-sync** (recommended): when the payslips feature is enabled, a one-off Lambda syncs SimplePay employees by email against the `users` table.
+- **Manual**: admin sets `simplepay_employee_id` via the Manage Employees page.
+
+- 🔲 Add `simplepay_employee_id` column to `users` in `schema.prisma`
+- 🔲 Run migration
+- 🔲 Create `payslip_otp_sessions` table in `schema.prisma`
+- 🔲 Run migration
+
+---
+
+### 5.3 Backend
+
+#### New integration — `backend/lambda/integrations/simplePay.ts`
+Wraps all SimplePay API calls. Retrieves the API key from AWS Secrets Manager (same pattern as `outlookCalendar.ts`).
+- 🔲 `getSimplePayApiKey()` — reads `SIMPLEPAY_API_KEY_SECRET_NAME` from env, calls Secrets Manager
+- 🔲 `getEmployeePayslips(simplpayEmployeeId: string)` → `PayslipSummary[]`
+- 🔲 `getPayslipDetail(payslipId: string)` → `PayslipDetail`
+- 🔲 `getPayslipPdfBuffer(payslipId: string)` → `Buffer` (to stream to client)
+- 🔲 `syncEmployeeByEmail(email: string)` → `string | null` (returns SimplePay employee ID or null if no match)
+
+#### New route file — `backend/lambda/routes/payslips.ts` mounted at `/payslips`
+All routes require a valid Cognito JWT (existing `authMiddleware`).
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/payslips/request-otp` | Generate OTP, hash + store in `payslip_otp_sessions`, email to user. Enforce 3/hour rate limit. |
+| `POST` | `/payslips/verify-otp` | Compare hash, check expiry. On success set `verified_at` + `session_expires_at`. Return `{ verified: true }`. |
+| `GET` | `/payslips` | Require verified OTP session. Look up user's `simplepay_employee_id`. Proxy `GET /employees/:id/payslips` to SimplePay. Return list. |
+| `GET` | `/payslips/:id` | Require verified OTP session. Proxy `GET /payslips/:id` to SimplePay. Return detail. |
+| `GET` | `/payslips/:id/pdf` | Require verified OTP session. Proxy `GET /payslips/:id.pdf`, stream the binary back with `Content-Type: application/pdf`. |
+
+- 🔲 Implement all five routes in `payslips.ts`
+- 🔲 Register `/payslips` in `backend/lambda/index.ts`
+- 🔲 Add `SIMPLEPAY_API_KEY_SECRET_NAME` and `SIMPLEPAY_CLIENT_ID` to `backend/.env` and AWS Secrets Manager
+
+#### New email function — OTP email
+`sender()` in `emailMiddleware.ts` is typed to `LeaveStatus` and uses the leave email template. Create a standalone function:
+- 🔲 Add `senderOtp(recipientEmail: string, name: string, otp: string): Promise<void>` to `emailMiddleware.ts`
+  - Simple transactional email — no complex template needed
+  - Subject: `"Your LMS payslip access code"`
+  - Body: `"Your one-time code is: <strong>123456</strong>. It expires in 5 minutes."`
+
+#### Employee sync utility — `backend/lambda/scripts/syncSimplePayEmployees.ts`
+One-off script (run manually or as a Lambda) that matches SimplePay employees to LMS users by email and populates `simplepay_employee_id`.
+- 🔲 `GET /v1/clients/:client_id/employees` → iterate, match by `email` against `users` table, `UPDATE users SET simplepay_employee_id = ? WHERE email = ?`
+- 🔲 Log unmatched SimplePay employees so admin can manually resolve
+
+---
+
+### 5.4 Frontend
+
+#### Feature flag
+- 🔲 Add `VITE_FEATURE_PAYSLIPS=true` to `frontend/.env` (dev)
+- 🔲 Add `VITE_FEATURE_PAYSLIPS=false` to `frontend/.env.production` (disabled in prod until ready)
+- 🔲 Add `payslips` key to `frontend/src/config/features.ts`
+- 🔲 Gate route and sidebar item behind `features.payslips`
+
+#### New page — `frontend/src/pages/PayslipsPage.tsx`
+- 🔲 On mount: check for an active verified OTP session (store `session_expires_at` in `sessionStorage`)
+- 🔲 If no session: show `OtpGateModal` (see below) before rendering anything else
+- 🔲 Payslip list — card or table layout showing: pay period, pay date, gross pay, net pay, download button
+- 🔲 Download button calls `GET /payslips/:id/pdf` and opens the PDF in the existing `DocumentViewer` component
+- 🔲 "Refresh access" button (re-triggers OTP) shown when session is close to expiry
+
+#### New component — `frontend/src/components/OtpGateModal.tsx`
+- 🔲 Step 1 — "Send code" screen: user sees their masked email (`g***@disraptor.co.za`), presses "Send my code" → calls `POST /payslips/request-otp`
+- 🔲 Step 2 — "Enter code" screen: 6-box OTP input (one digit per box, auto-advance), countdown timer showing expiry, "Resend" link (disabled for 60s), Submit button
+- 🔲 On success: store `session_expires_at` in `sessionStorage`, close modal, load payslips
+- 🔲 On failure: show error inline, allow retry up to rate limit
+
+#### Routing & navigation
+- 🔲 Add route `/payslips` in `App.tsx` behind `features.payslips` flag (same pattern as document routes)
+- 🔲 Add "My Payslips" nav item under **Workspace** in `Sidebar.tsx` behind `features.payslips` flag (icon: `Receipt` from lucide-react)
+
+---
+
+### 5.5 Security Considerations
+
+| Risk | Mitigation |
+|---|---|
+| API key exposure | Key stored only in AWS Secrets Manager, read at Lambda cold-start. Never in env vars, never in any response. |
+| Employee spoofing | `simplepay_employee_id` is looked up server-side from the authenticated user's own DB record — never accepted from the client. |
+| OTP brute force | 3 requests/hour rate limit + 5-minute expiry + hash storage (raw OTP never persisted). |
+| Session replay | `session_expires_at` enforced server-side on every payslip request — client-side `sessionStorage` is convenience only. |
+| PDF leakage | PDF is streamed through Lambda with the user's JWT validated. No pre-signed S3 URLs or direct SimplePay URLs are ever sent to the browser. |
+
+---
+
+### 5.6 Admin — Manage Employees Enhancement
+- 🔲 Add "SimplePay ID" column to the Manage Employees table (read-only, shows sync status: linked / unlinked)
+- 🔲 Admin can manually set `simplepay_employee_id` for unmatched employees via an edit field
+- 🔲 "Sync from SimplePay" button triggers the employee sync Lambda
+
+---
+
 ## Summary — Pending DB migrations
 
 | Migration | Urgency |
@@ -315,3 +542,7 @@ The existing pages under `frontend/src/pages/performance-review/` were built for
 | `ALTER TABLE performance_reviews ADD cycle_id, review_type, reviewee_id` | Required for Performance Reviews |
 | `ALTER TABLE review_questions ADD subcategory, weight, review_type, guidance_text` | Required for Performance Reviews |
 | `ALTER TABLE review_responses ADD rating_decimal, reviewer_type` | Required for Performance Reviews |
+| `CREATE TABLE leave_reminder_log` | Required for Leave Automation §4.1 |
+| `ALTER TABLE leave_requests MODIFY status ENUM (add 'expired')` | Required for Leave Automation §4.2 |
+| `CREATE TABLE payslip_otp_sessions` | Required for SimplePay Integration §5.2 |
+| `ALTER TABLE users ADD simplepay_employee_id` | Required for SimplePay Integration §5.2 |

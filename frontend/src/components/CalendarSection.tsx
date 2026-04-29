@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, startTransition, useCallback, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, momentLocalizer, type Event } from 'react-big-calendar';
 import moment from 'moment';
 import { X, Loader2, AlertCircle, CalendarRange } from "lucide-react";
@@ -16,6 +16,12 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { toast } from "sonner";
 
 const localizer = momentLocalizer(moment);
+const sastDateFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Johannesburg',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+});
 
 interface LeaveEvent extends Event {
     id: number;
@@ -342,17 +348,12 @@ const CalendarSection = () => {
     // and SAST-midnight-encoded-as-UTC that mysql2 may return), then create a local-midnight
     // Date so react-big-calendar renders it in the correct calendar cell in any browser timezone.
     const toCalendarDate = (dateStr: string): Date => {
-        const sastDate = new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'Africa/Johannesburg',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-        }).format(new Date(dateStr)); // "YYYY-MM-DD"
+        const sastDate = sastDateFormatter.format(new Date(dateStr)); // "YYYY-MM-DD"
         return new Date(`${sastDate}T00:00:00`); // local midnight (browser timezone)
     };
 
     // Convert API data to calendar events with deduplication
-    const convertApiDataToEvents = (apiData: ApiResponse): CalendarEvent[] => {
+    const convertApiDataToEvents = useCallback((apiData: ApiResponse): CalendarEvent[] => {
         const events: CalendarEvent[] = [];
 
         // Convert leave requests to events
@@ -444,14 +445,27 @@ const CalendarSection = () => {
         });
 
         return events;
-    };
+    }, []);
 
     // Derived data
-    const allEvents = apiData ? convertApiDataToEvents(apiData) : [];
-    const publicHolidays = apiData?.data.publicHolidays || [];
+    const allEvents = useMemo(() => (
+        apiData ? convertApiDataToEvents(apiData) : []
+    ), [apiData, convertApiDataToEvents]);
+    const deferredEvents = useDeferredValue(allEvents);
+    const publicHolidays = useMemo(() => apiData?.data.publicHolidays || [], [apiData]);
+    const publicHolidayDateSet = useMemo(
+        () => new Set(publicHolidays.map((holiday) => holiday.date)),
+        [publicHolidays]
+    );
+    const publicHolidayNameMap = useMemo(
+        () => new Map(publicHolidays.map((holiday) => [holiday.date, toTitleCase(holiday.name)])),
+        [publicHolidays]
+    );
 
     // Keep a ref set of holiday date strings so handleCellMouseDown can check without a closure dep
-    publicHolidayDatesRef.current = new Set(publicHolidays.map(h => h.date));
+    useEffect(() => {
+        publicHolidayDatesRef.current = publicHolidayDateSet;
+    }, [publicHolidayDateSet]);
 
     const formatDateToLocal = (date: Date): string => {
         const year = date.getFullYear();
@@ -469,14 +483,13 @@ const CalendarSection = () => {
     // Check if a date is a public holiday
     const isPublicHoliday = (date: Date) => {
         const dateStr = moment(date).format('YYYY-MM-DD');
-        return publicHolidays.some(holiday => holiday.date === dateStr);
+        return publicHolidayDateSet.has(dateStr);
     };
 
     // Get public holiday name for a date
     const getPublicHolidayName = (date: Date) => {
         const dateStr = moment(date).format('YYYY-MM-DD');
-        const holiday = publicHolidays.find(h => h.date === dateStr);
-        return holiday ? toTitleCase(holiday.name) : '';
+        return publicHolidayNameMap.get(dateStr) || '';
     };
 
     const handleSelectEvent = (event: CalendarEvent) => {
@@ -489,9 +502,26 @@ const CalendarSection = () => {
         setShowMoreEvents({ events, date, slot: date });
     };
 
-    const handleNavigate = (newDate: Date) => {
-        setCurrentDate(newDate);
-    };
+    const handleNavigate = useCallback((newDate: Date) => {
+        setDragPreviewRange(null);
+        setDragAnchorDate(null);
+        setHoveredDate(null);
+        dragAnchorRef.current = null;
+
+        startTransition(() => {
+            setCurrentDate(newDate);
+        });
+    }, []);
+
+    const navigateMonth = useCallback((direction: 'prev' | 'next' | 'today') => {
+        const nextDate = direction === 'today'
+            ? new Date()
+            : moment(currentDate)
+                [direction === 'prev' ? 'subtract' : 'add'](1, 'month')
+                .toDate();
+
+        handleNavigate(nextDate);
+    }, [currentDate, handleNavigate]);
 
     const openApplyLeaveModal = (start: Date, end: Date) => {
         const { start: startDate, end: endDate } = normalizeRange(start, end);
@@ -876,11 +906,12 @@ const CalendarSection = () => {
     };
 
     // Custom toolbar component
-    const CustomToolbar = ({ label, onNavigate }: any) => (
+    const CustomToolbar = ({ label }: { label: string }) => (
         <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
             <div className="flex items-center gap-2">
                 <button
-                    onClick={() => onNavigate('PREV')}
+                    type="button"
+                    onClick={() => navigateMonth('prev')}
                     className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 >
                     ←
@@ -889,7 +920,8 @@ const CalendarSection = () => {
                     {label}
                 </span>
                 <button
-                    onClick={() => onNavigate('NEXT')}
+                    type="button"
+                    onClick={() => navigateMonth('next')}
                     className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 >
                     →
@@ -897,7 +929,8 @@ const CalendarSection = () => {
             </div>
             <div className="flex items-center gap-2">
                 <button
-                    onClick={() => onNavigate('TODAY')}
+                    type="button"
+                    onClick={() => navigateMonth('today')}
                     className="px-3 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded text-sm font-medium transition-colors"
                 >
                     Today
@@ -987,7 +1020,7 @@ const CalendarSection = () => {
                         <CalendarDragContext.Provider value={dragContextValue}>
                             <Calendar
                                 localizer={localizer}
-                                events={allEvents}
+                                events={deferredEvents}
                                 startAccessor="start"
                                 endAccessor="end"
                                 onSelectEvent={handleSelectEvent}
