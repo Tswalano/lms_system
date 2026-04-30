@@ -90,13 +90,11 @@ The Graph API can also toggle the employee's Outlook **automatic email reply** (
 
 ---
 
-## 3. Performance Reviews 🚧 In Progress
+## 3. Performance Reviews ✅ Complete
 
 **Goal:** A structured quarterly review cycle where each engineer completes a self-review, is rated by their manager, and receives anonymous peer feedback from 3 randomly assigned colleagues. HR can see the aggregated scores. Mirrors the existing Excel appraisal format.
 
-> **Frontend: ✅ Complete** — All four pages (`PerformanceReviewAdmin`, `PerformanceReviewEmployee`, `PerformanceReviewPeerPage`, `PerformanceReviewSubmissionsPage`) are built and working against a local in-memory mock store. Weighted scoring, manager overrides, peer aggregation, and the full cycle UI are in place.
->
-> **Backend integration: 🔲 Pending** — See [`PERFORMANCE_REVIEW_INTEGRATION.md`](./PERFORMANCE_REVIEW_INTEGRATION.md) for the full task breakdown (DB migrations → API routes → frontend rewiring → notifications).
+> **All phases complete (1–5).** DB migrations, seed data, backend API routes, frontend pages fully rewired to the real API, mock data removed, and in-app notifications wired. The only outstanding item is a scheduled reminder (3 days before cycle end) which requires an EventBridge/cron job and is tracked separately. See [`PERFORMANCE_REVIEW_INTEGRATION.md`](./PERFORMANCE_REVIEW_INTEGRATION.md).
 
 ### 3.1 Review Structure (based on Excel sheets)
 
@@ -288,17 +286,17 @@ All pages are built against a mock store. Pending items are **API wiring only** 
 - ✅ `RatingScale` — 1–5 interactive rating component (`frontend/src/components/RatingScale.tsx`)
 - ✅ `StatsCard` — reusable stat card with hover blob animation (`frontend/src/components/ui/StatsCard.tsx`)
 
-#### Pending (API wiring)
-- 🔲 Replace `performanceStore` mock with real API calls — tracked in `PERFORMANCE_REVIEW_INTEGRATION.md` Phase 4
+#### API wiring ✅ Complete
+- ✅ All four pages rewired to real API calls — see `PERFORMANCE_REVIEW_INTEGRATION.md` Phases 4.1 and 4.2
 
 ---
 
 ### 3.6 Notifications
-- 🔲 Notify employee when a new review cycle is activated (self-review now open)
-- 🔲 Notify peer reviewers when they are assigned (peer review now open)
-- 🔲 Remind employees 3 days before cycle end date if self-review is incomplete
-- 🔲 Notify manager when all peer reviews for an employee are complete (ready to do manager appraisal)
-- 🔲 Notify employee when manager has completed appraisal (results available)
+- ✅ Notify employee when a new review cycle is activated (self-review now open)
+- ✅ Notify peer reviewers when they are assigned (peer review now open)
+- 🔲 Remind employees 3 days before cycle end date if self-review is incomplete — requires scheduled EventBridge job
+- ✅ Notify manager when all peer reviews for an employee are complete (ready to do manager appraisal)
+- ✅ Notify employee when manager has completed appraisal (results available)
 
 ---
 
@@ -469,13 +467,11 @@ The Graph API can also toggle the employee's Outlook **automatic email reply** (
 
 ---
 
-## 3. Performance Reviews 🚧 In Progress
+## 3. Performance Reviews ✅ Complete
 
 **Goal:** A structured quarterly review cycle where each engineer completes a self-review, is rated by their manager, and receives anonymous peer feedback from 3 randomly assigned colleagues. HR can see the aggregated scores. Mirrors the existing Excel appraisal format.
 
-> **Frontend: ✅ Complete** — All four pages (`PerformanceReviewAdmin`, `PerformanceReviewEmployee`, `PerformanceReviewPeerPage`, `PerformanceReviewSubmissionsPage`) are built and working against a local in-memory mock store. Weighted scoring, manager overrides, peer aggregation, and the full cycle UI are in place.
->
-> **Backend integration: 🔲 Pending** — See [`PERFORMANCE_REVIEW_INTEGRATION.md`](./PERFORMANCE_REVIEW_INTEGRATION.md) for the full task breakdown (DB migrations → API routes → frontend rewiring → notifications).
+> **All phases complete (1–5).** DB migrations, seed data, backend API routes, frontend pages fully rewired to the real API, mock data removed, and in-app notifications wired. The only outstanding item is a scheduled reminder (3 days before cycle end) which requires an EventBridge/cron job and is tracked separately. See [`PERFORMANCE_REVIEW_INTEGRATION.md`](./PERFORMANCE_REVIEW_INTEGRATION.md).
 
 ### 3.1 Review Structure (based on Excel sheets)
 
@@ -667,17 +663,17 @@ All pages are built against a mock store. Pending items are **API wiring only** 
 - ✅ `RatingScale` — 1–5 interactive rating component (`frontend/src/components/RatingScale.tsx`)
 - ✅ `StatsCard` — reusable stat card with hover blob animation (`frontend/src/components/ui/StatsCard.tsx`)
 
-#### Pending (API wiring)
-- 🔲 Replace `performanceStore` mock with real API calls — tracked in `PERFORMANCE_REVIEW_INTEGRATION.md` Phase 4
+#### API wiring ✅ Complete
+- ✅ All four pages rewired to real API calls — see `PERFORMANCE_REVIEW_INTEGRATION.md` Phases 4.1 and 4.2
 
 ---
 
 ### 3.6 Notifications
-- 🔲 Notify employee when a new review cycle is activated (self-review now open)
-- 🔲 Notify peer reviewers when they are assigned (peer review now open)
-- 🔲 Remind employees 3 days before cycle end date if self-review is incomplete
-- 🔲 Notify manager when all peer reviews for an employee are complete (ready to do manager appraisal)
-- 🔲 Notify employee when manager has completed appraisal (results available)
+- ✅ Notify employee when a new review cycle is activated (self-review now open)
+- ✅ Notify peer reviewers when they are assigned (peer review now open)
+- 🔲 Remind employees 3 days before cycle end date if self-review is incomplete — requires scheduled EventBridge job
+- ✅ Notify manager when all peer reviews for an employee are complete (ready to do manager appraisal)
+- ✅ Notify employee when manager has completed appraisal (results available)
 
 ---
 

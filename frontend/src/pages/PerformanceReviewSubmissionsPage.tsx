@@ -1,28 +1,19 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import RatingScale from "@/components/RatingScale";
 import {
-    EMPLOYEES,
-    MANAGER_CATEGORIES,
-    PEER_QUESTIONS,
     RATING_LABELS,
     RATING_TEXT_TONES,
-    REVIEW_PERIODS,
-    SELF_QUESTIONS,
     WEIGHTS,
-    effectiveRatings,
-    finalScore,
-    managerScore,
-    peerScore,
-    performanceStore,
-    selfScore,
-    usePerformanceCycle,
     type RatingValue,
-    type ReviewPeriod,
 } from "@/lib/performanceReview";
-import { ArrowLeft, ArrowRight, ClipboardList, UserCheck } from "lucide-react";
+import {
+    usePerformanceSubmissions,
+    useSaveOverrides,
+} from "@/hooks/usePerformanceReview";
+import { ArrowLeft, ArrowRight, ClipboardList, Loader2, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -42,6 +33,9 @@ const getEmployeeGradient = (id: string) => {
     const hash = id.split("").reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
     return EMPLOYEE_GRADIENTS[Math.abs(hash) % EMPLOYEE_GRADIENTS.length];
 };
+
+const getInitials = (name: string) =>
+    name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
 const OverrideRow = ({
     label,
@@ -95,26 +89,103 @@ const PerformanceReviewSubmissionsPage = () => {
     const navigate = useNavigate();
     const { employeeId } = useParams<{ employeeId: string }>();
     const [searchParams] = useSearchParams();
-    const requestedPeriod = searchParams.get("period");
-    const selectedPeriod: ReviewPeriod = REVIEW_PERIODS.includes(requestedPeriod as ReviewPeriod)
-        ? (requestedPeriod as ReviewPeriod)
-        : "2026 Cycle";
-    const cycle = usePerformanceCycle(employeeId ?? "", selectedPeriod);
-    const employee = employeeId ? EMPLOYEES.find((e) => e.id === employeeId) : null;
+    const cycleId = searchParams.get("cycleId") ?? undefined;
+
+    const { data: submissions, isLoading } = usePerformanceSubmissions(employeeId, cycleId);
+    const saveOverrides = useSaveOverrides();
+
+    const [peerOverrides, setPeerOverrides] = useState<Record<string, Record<string, number | null>>>({});
+    const [peerNotes, setPeerNotes] = useState<Record<string, string>>({});
+    const [selfOverrides, setSelfOverrides] = useState<Record<string, number | null>>({});
+    const [selfNote, setSelfNote] = useState("");
+
+    useEffect(() => {
+        if (!submissions) return;
+        const initPeer: Record<string, Record<string, number | null>> = {};
+        for (const assignment of submissions.peerAssignments) {
+            if (assignment.review) {
+                initPeer[assignment.reviewer.id] = {};
+                for (const resp of assignment.review.responses) {
+                    if (resp.overrideRating != null) {
+                        initPeer[assignment.reviewer.id][resp.questionId] = resp.overrideRating;
+                    }
+                }
+            }
+        }
+        setPeerOverrides(initPeer);
+    }, [submissions]);
+
+    const managerGroups = useMemo(() => {
+        if (!submissions?.managerReview) return [];
+        const groups: Record<string, typeof submissions.managerReview.responses> = {};
+        for (const resp of submissions.managerReview.responses) {
+            if (!groups[resp.question.category]) groups[resp.question.category] = [];
+            groups[resp.question.category].push(resp);
+        }
+        return Object.entries(groups).map(([name, responses]) => ({ name, responses }));
+    }, [submissions]);
+
+    const completedPeers = useMemo(
+        () => (submissions?.peerAssignments ?? []).filter((p) => p.status === "completed" && p.review),
+        [submissions]
+    );
 
     const peerAggregates = useMemo(() => {
-        if (!cycle) return [];
-        return PEER_QUESTIONS.map((q) => {
-            const submitted = cycle.peerReviews.filter((p) => p.submitted);
-            const vals = submitted
-                .map((p) => effectiveRatings(p)[q.id])
-                .filter((v): v is Exclude<RatingValue, null> => v != null);
-            const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-            return { q, avg, count: vals.length };
-        });
-    }, [cycle]);
+        const catMap: Record<string, { sum: number; count: number }> = {};
+        for (const assignment of completedPeers) {
+            for (const resp of assignment.review!.responses) {
+                const val = peerOverrides[assignment.reviewer.id]?.[resp.questionId] ?? resp.overrideRating ?? resp.ratingResponse;
+                if (val != null) {
+                    if (!catMap[resp.question.category]) catMap[resp.question.category] = { sum: 0, count: 0 };
+                    catMap[resp.question.category].sum += val;
+                    catMap[resp.question.category].count += 1;
+                }
+            }
+        }
+        return Object.entries(catMap).map(([category, { sum, count }]) => ({
+            category,
+            avg: count ? sum / count : null,
+            count,
+        }));
+    }, [completedPeers, peerOverrides]);
 
-    if (!cycle || !employee) {
+    const handleSave = async () => {
+        if (!employeeId || !cycleId) return;
+        const peerOvArr: { reviewerId: string; questionId: string; value: number | null; overrideNote?: string }[] = [];
+        for (const [reviewerId, questions] of Object.entries(peerOverrides)) {
+            for (const [questionId, value] of Object.entries(questions)) {
+                peerOvArr.push({ reviewerId, questionId, value, overrideNote: peerNotes[reviewerId] });
+            }
+        }
+        const selfOvArr = Object.entries(selfOverrides).map(([questionId, value]) => ({ questionId, value }));
+        try {
+            await saveOverrides.mutateAsync({
+                employeeId,
+                cycleId,
+                peerOverrides: peerOvArr.length ? peerOvArr : undefined,
+                selfOverrides: selfOvArr.length ? selfOvArr : undefined,
+                selfOverrideNote: selfNote || undefined,
+            });
+            toast.success("Overrides saved");
+        } catch {
+            toast.error("Failed to save overrides");
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center mx-auto">
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Loading submissions…</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!submissions) {
         return (
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6">
                 <div className="flex items-center justify-between gap-4">
@@ -134,43 +205,9 @@ const PerformanceReviewSubmissionsPage = () => {
         );
     }
 
-    const gradient = getEmployeeGradient(employee.id);
-
-    const updatePeerOverride = (reviewerId: string, qid: string, v: RatingValue) =>
-        performanceStore.update(cycle.employeeId, cycle.period, (c) => ({
-            ...c,
-            peerReviews: c.peerReviews.map((p) =>
-                p.reviewerId === reviewerId
-                    ? { ...p, overrides: { ...(p.overrides ?? {}), [qid]: v } }
-                    : p
-            ),
-        }));
-
-    const updatePeerNote = (reviewerId: string, note: string) =>
-        performanceStore.update(cycle.employeeId, cycle.period, (c) => ({
-            ...c,
-            peerReviews: c.peerReviews.map((p) => (p.reviewerId === reviewerId ? { ...p, overrideNote: note } : p)),
-        }));
-
-    const updateSelfOverride = (qid: string, v: RatingValue) =>
-        performanceStore.update(cycle.employeeId, cycle.period, (c) => ({
-            ...c,
-            selfReview: { ...c.selfReview, overrides: { ...(c.selfReview.overrides ?? {}), [qid]: v } },
-        }));
-
-    const updateSelfNote = (note: string) =>
-        performanceStore.update(cycle.employeeId, cycle.period, (c) => ({ ...c, selfReview: { ...c.selfReview, overrideNote: note } }));
-
-    const handleSave = () => {
-        toast.success("Overrides saved", {
-            description: `Manager overrides for ${employee.name} have been saved.`,
-        });
-    };
-
-    const handleSaveAndClose = () => {
-        handleSave();
-        navigate("/performance-review-admin");
-    };
+    const gradient = getEmployeeGradient(submissions.employee.id);
+    const initials = getInitials(submissions.employee.name);
+    const { managerScore, peerScore, selfScore, finalScore } = submissions.scores;
 
     return (
         <div className="space-y-5">
@@ -191,23 +228,23 @@ const PerformanceReviewSubmissionsPage = () => {
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                     <div className="flex items-center gap-4">
                         <div className={`w-14 h-14 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center shadow-lg flex-shrink-0`}>
-                            <span className="text-white font-semibold text-lg">{employee.initials}</span>
+                            <span className="text-white font-semibold text-lg">{initials}</span>
                         </div>
                         <div>
                             <div className="flex items-center gap-2 mb-1">
                                 <UserCheck className="h-4 w-4 text-blue-600" />
-                                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">{employee.name}</h1>
+                                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">{submissions.employee.name}</h1>
                             </div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {employee.role} · {cycle.period} Review Submissions
+                                {submissions.employee.role} · Review Submissions
                             </p>
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                        <ScorePill label={`Manager ${WEIGHTS.manager}%`} value={managerScore(cycle)} />
-                        <ScorePill label={`Peer ${WEIGHTS.peer}%`} value={peerScore(cycle)} />
-                        <ScorePill label={`Self ${WEIGHTS.self}%`} value={selfScore(cycle)} />
-                        <ScorePill label="Final" value={finalScore(cycle)} highlight />
+                        <ScorePill label={`Manager ${WEIGHTS.manager}%`} value={managerScore} />
+                        <ScorePill label={`Peer ${WEIGHTS.peer}%`} value={peerScore} />
+                        <ScorePill label={`Self ${WEIGHTS.self}%`} value={selfScore} />
+                        <ScorePill label="Final" value={finalScore} highlight />
                     </div>
                 </div>
             </div>
@@ -219,7 +256,7 @@ const PerformanceReviewSubmissionsPage = () => {
                     <TabsTrigger value="peer" className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-sm">
                         Peers
                         <span className="ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-400">
-                            {cycle.peerReviews.filter((p) => p.submitted).length}/{cycle.peerReviews.length}
+                            {completedPeers.length}/{submissions.peerAssignments.length}
                         </span>
                     </TabsTrigger>
                     <TabsTrigger value="self" className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-sm">Self</TabsTrigger>
@@ -227,23 +264,21 @@ const PerformanceReviewSubmissionsPage = () => {
 
                 {/* MANAGER TAB */}
                 <TabsContent value="manager" className="space-y-3">
-                    {!cycle.managerReview.submitted ? (
+                    {!submissions.managerReview || submissions.managerReview.status !== "completed" ? (
                         <EmptyState text="Manager appraisal not submitted yet." />
                     ) : (
-                        MANAGER_CATEGORIES.map((cat) => (
-                            <div key={cat.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+                        managerGroups.map((group) => (
+                            <div key={group.name} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
                                 <div className="px-5 py-3 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">{cat.name}</h4>
+                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">{group.name}</h4>
                                 </div>
                                 <div className="divide-y divide-gray-100 dark:divide-slate-700">
-                                    {cat.subs.map((s) => {
-                                        const val = cycle.managerReview.ratings[s.id] ?? null;
-                                        const note = cycle.managerReview.notes[s.id];
+                                    {group.responses.map((resp) => {
+                                        const val = resp.ratingResponse as RatingValue;
                                         return (
-                                            <div key={s.id} className="grid grid-cols-12 gap-4 p-4">
+                                            <div key={resp.questionId} className="grid grid-cols-12 gap-4 p-4">
                                                 <div className="col-span-12 md:col-span-5">
-                                                    <p className="font-medium text-gray-900 dark:text-gray-100">{s.name}</p>
-                                                    {s.description && <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{s.description}</p>}
+                                                    <p className="font-medium text-gray-900 dark:text-gray-100">{resp.question.subcategory ?? resp.question.category}</p>
                                                 </div>
                                                 <div className="col-span-12 md:col-span-3">
                                                     {val ? (
@@ -258,7 +293,7 @@ const PerformanceReviewSubmissionsPage = () => {
                                                     )}
                                                 </div>
                                                 <div className="col-span-12 md:col-span-4 text-sm italic text-gray-600 dark:text-gray-300">
-                                                    {note ? `"${note}"` : <span className="text-gray-400">No notes</span>}
+                                                    {resp.textResponse ? `"${resp.textResponse}"` : <span className="text-gray-400">No notes</span>}
                                                 </div>
                                             </div>
                                         );
@@ -271,44 +306,44 @@ const PerformanceReviewSubmissionsPage = () => {
 
                 {/* PEER TAB */}
                 <TabsContent value="peer" className="space-y-4">
-                    {cycle.peerReviews.length === 0 ? (
-                        <EmptyState text="No peers nominated yet." />
+                    {submissions.peerAssignments.length === 0 ? (
+                        <EmptyState text="No peers assigned yet." />
                     ) : (
                         <>
-                            {/* Aggregated scores */}
-                            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
-                                <div className="px-5 py-3 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">Aggregated peer scores</h4>
-                                </div>
-                                <div className="divide-y divide-gray-100 dark:divide-slate-700">
-                                    {peerAggregates.map(({ q, avg, count }) => (
-                                        <div key={q.id} className="flex items-center justify-between p-4">
-                                            <div>
-                                                <p className="font-medium text-gray-900 dark:text-gray-100">{q.category}</p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{q.question}</p>
+                            {peerAggregates.length > 0 && (
+                                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+                                    <div className="px-5 py-3 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+                                        <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">Aggregated peer scores</h4>
+                                    </div>
+                                    <div className="divide-y divide-gray-100 dark:divide-slate-700">
+                                        {peerAggregates.map(({ category, avg, count }) => (
+                                            <div key={category} className="flex items-center justify-between p-4">
+                                                <div>
+                                                    <p className="font-medium text-gray-900 dark:text-gray-100">{category}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{count} responses</p>
+                                                </div>
+                                                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                                                    {avg == null ? "—" : avg.toFixed(2)}
+                                                </p>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{avg == null ? "—" : avg.toFixed(2)}</p>
-                                                <p className="text-[10px] text-gray-500 dark:text-gray-400">{count} responses</p>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
-                            {/* Individual peer reviews */}
-                            {cycle.peerReviews.map((p) => {
-                                const reviewer = EMPLOYEES.find((e) => e.id === p.reviewerId);
-                                const reviewerGradient = reviewer ? getEmployeeGradient(reviewer.id) : "from-gray-400 to-gray-600";
+                            {submissions.peerAssignments.map((assignment) => {
+                                const { reviewer } = assignment;
+                                const reviewerGradient = getEmployeeGradient(reviewer.id);
+                                const reviewerInitials = getInitials(reviewer.name);
 
-                                if (!p.submitted) {
+                                if (assignment.status !== "completed" || !assignment.review) {
                                     return (
-                                        <div key={p.reviewerId} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-dashed border-gray-300 dark:border-slate-600 p-4 flex items-center gap-3">
+                                        <div key={assignment.assignmentId} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-dashed border-gray-300 dark:border-slate-600 p-4 flex items-center gap-3">
                                             <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${reviewerGradient} text-white flex items-center justify-center text-sm font-semibold flex-shrink-0 opacity-60`}>
-                                                {reviewer?.initials}
+                                                {reviewerInitials}
                                             </div>
                                             <div>
-                                                <p className="font-medium text-gray-700 dark:text-gray-300">{reviewer?.name}</p>
+                                                <p className="font-medium text-gray-700 dark:text-gray-300">{reviewer.name}</p>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">Has not submitted their peer review yet.</p>
                                             </div>
                                         </div>
@@ -316,15 +351,15 @@ const PerformanceReviewSubmissionsPage = () => {
                                 }
 
                                 return (
-                                    <div key={p.reviewerId} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+                                    <div key={assignment.assignmentId} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
                                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
                                             <div className="flex items-center gap-3">
                                                 <div className={`h-9 w-9 rounded-xl bg-gradient-to-br ${reviewerGradient} text-white flex items-center justify-center text-sm font-semibold flex-shrink-0`}>
-                                                    {reviewer?.initials}
+                                                    {reviewerInitials}
                                                 </div>
                                                 <div>
-                                                    <p className="font-semibold text-gray-900 dark:text-gray-100">{reviewer?.name}</p>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{reviewer?.role}</p>
+                                                    <p className="font-semibold text-gray-900 dark:text-gray-100">{reviewer.name}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{reviewer.role}</p>
                                                 </div>
                                             </div>
                                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
@@ -332,22 +367,30 @@ const PerformanceReviewSubmissionsPage = () => {
                                             </span>
                                         </div>
                                         <div className="divide-y divide-gray-100 dark:divide-slate-700">
-                                            {PEER_QUESTIONS.map((q) => (
-                                                <OverrideRow
-                                                    key={q.id}
-                                                    label={q.category}
-                                                    description={q.question}
-                                                    original={p.ratings[q.id] ?? null}
-                                                    override={p.overrides?.[q.id] ?? p.ratings[q.id] ?? null}
-                                                    onOverride={(v) => updatePeerOverride(p.reviewerId, q.id, v)}
-                                                />
-                                            ))}
+                                            {assignment.review.responses.map((resp) => {
+                                                const original = resp.ratingResponse as RatingValue;
+                                                const overrideVal = peerOverrides[reviewer.id]?.[resp.questionId] ?? resp.overrideRating;
+                                                return (
+                                                    <OverrideRow
+                                                        key={resp.questionId}
+                                                        label={resp.question.category}
+                                                        original={original}
+                                                        override={(overrideVal ?? original) as RatingValue}
+                                                        onOverride={(v) =>
+                                                            setPeerOverrides((prev) => ({
+                                                                ...prev,
+                                                                [reviewer.id]: { ...(prev[reviewer.id] ?? {}), [resp.questionId]: v },
+                                                            }))
+                                                        }
+                                                    />
+                                                );
+                                            })}
                                             <div className="p-4">
                                                 <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Manager calibration note</label>
                                                 <Textarea
                                                     placeholder="Why are you adjusting this peer review? (optional)"
-                                                    value={p.overrideNote ?? ""}
-                                                    onChange={(e) => updatePeerNote(p.reviewerId, e.target.value)}
+                                                    value={peerNotes[reviewer.id] ?? ""}
+                                                    onChange={(e) => setPeerNotes((prev) => ({ ...prev, [reviewer.id]: e.target.value }))}
                                                     className="mt-1 min-h-[72px] text-sm rounded-xl border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:ring-blue-500/30 focus-visible:border-blue-400 dark:focus-visible:border-blue-500 resize-none"
                                                 />
                                             </div>
@@ -361,33 +404,42 @@ const PerformanceReviewSubmissionsPage = () => {
 
                 {/* SELF TAB */}
                 <TabsContent value="self" className="space-y-3">
-                    {!cycle.selfReview.submitted && Object.keys(cycle.selfReview.ratings).length === 0 ? (
+                    {!submissions.selfReview ? (
                         <EmptyState text="Employee has not started their self-review yet." />
                     ) : (
                         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
                             <div className="divide-y divide-gray-100 dark:divide-slate-700">
-                                {SELF_QUESTIONS.map((q) => (
-                                    <div key={q.id}>
-                                        <OverrideRow
-                                            label={q.title}
-                                            description={q.prompt}
-                                            original={cycle.selfReview.ratings[q.id] ?? null}
-                                            override={cycle.selfReview.overrides?.[q.id] ?? cycle.selfReview.ratings[q.id] ?? null}
-                                            onOverride={(v) => updateSelfOverride(q.id, v)}
-                                        />
-                                        <div className="grid grid-cols-1 gap-3 px-4 pb-4 md:grid-cols-3">
-                                            <Field label="Examples" value={cycle.selfReview.examples[q.id]} />
-                                            <Field label="Feedback" value={cycle.selfReview.feedback[q.id]} />
-                                            <Field label="Metric" value={cycle.selfReview.metric[q.id]} />
+                                {submissions.selfReview.responses.map((resp) => {
+                                    const original = resp.ratingResponse as RatingValue;
+                                    const override = (selfOverrides[resp.questionId] ?? original) as RatingValue;
+                                    return (
+                                        <div key={resp.questionId}>
+                                            <OverrideRow
+                                                label={resp.question.category}
+                                                description={resp.question.questionText}
+                                                original={original}
+                                                override={override}
+                                                onOverride={(v) =>
+                                                    setSelfOverrides((prev) => ({ ...prev, [resp.questionId]: v }))
+                                                }
+                                            />
+                                            {resp.textResponse && (
+                                                <div className="px-4 pb-4">
+                                                    <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-gray-100 dark:border-slate-600 p-3">
+                                                        <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Written response</p>
+                                                        <p className="mt-0.5 text-sm text-gray-700 dark:text-gray-300">{resp.textResponse}</p>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                                 <div className="p-4">
                                     <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Manager calibration note</label>
                                     <Textarea
                                         placeholder="Why are you adjusting the self-assessment? (optional)"
-                                        value={cycle.selfReview.overrideNote ?? ""}
-                                        onChange={(e) => updateSelfNote(e.target.value)}
+                                        value={selfNote}
+                                        onChange={(e) => setSelfNote(e.target.value)}
                                         className="mt-1 min-h-[72px] text-sm rounded-xl border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:ring-blue-500/30 focus-visible:border-blue-400 dark:focus-visible:border-blue-500 resize-none"
                                     />
                                 </div>
@@ -402,13 +454,15 @@ const PerformanceReviewSubmissionsPage = () => {
                 <Button
                     variant="outline"
                     onClick={handleSave}
+                    disabled={saveOverrides.isPending || !cycleId}
                     className="rounded-xl border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-gray-100"
                 >
-                    Save
+                    {saveOverrides.isPending ? "Saving…" : "Save"}
                 </Button>
                 <Button
-                    onClick={handleSaveAndClose}
-                    className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm"
+                    onClick={async () => { await handleSave(); navigate("/performance-review-admin"); }}
+                    disabled={saveOverrides.isPending || !cycleId}
+                    className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm disabled:opacity-50"
                 >
                     Save & close
                 </Button>
@@ -416,15 +470,6 @@ const PerformanceReviewSubmissionsPage = () => {
         </div>
     );
 };
-
-const Field = ({ label, value }: { label: string; value?: string }) => (
-    <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-gray-100 dark:border-slate-600 p-3">
-        <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="mt-0.5 text-sm text-gray-700 dark:text-gray-300">
-            {value || <span className="italic text-gray-400">Not provided</span>}
-        </p>
-    </div>
-);
 
 const ScorePill = ({ label, value, highlight }: { label: string; value: number | null; highlight?: boolean }) => (
     <div className="flex flex-col items-center min-w-[80px]">

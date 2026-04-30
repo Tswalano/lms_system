@@ -143,7 +143,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             if (response.ok) {
                 const data = await response.json();
-                localStorage.setItem('authToken', data.accessToken || data.idToken);
+                localStorage.setItem('authToken', data.idToken || data.accessToken);
                 localStorage.setItem('accessToken', data.accessToken);
                 localStorage.setItem('refreshToken', data.refreshToken);
                 return {

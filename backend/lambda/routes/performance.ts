@@ -29,8 +29,8 @@ function weightedScore(
 ): number | null {
     let total = 0, weight = 0;
     if (managerAvg != null) { total += (managerAvg / 5) * 100 * WEIGHTS.manager; weight += WEIGHTS.manager; }
-    if (peerAvg != null)    { total += (peerAvg / 5) * 100 * WEIGHTS.peer;       weight += WEIGHTS.peer; }
-    if (selfAvg != null)    { total += (selfAvg / 5) * 100 * WEIGHTS.self;        weight += WEIGHTS.self; }
+    if (peerAvg != null) { total += (peerAvg / 5) * 100 * WEIGHTS.peer; weight += WEIGHTS.peer; }
+    if (selfAvg != null) { total += (selfAvg / 5) * 100 * WEIGHTS.self; weight += WEIGHTS.self; }
     return weight > 0 ? total / weight : null;
 }
 
@@ -39,9 +39,56 @@ function avg(nums: number[]): number | null {
     return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
 
-function isAdmin(c: Context): boolean {
+async function isAdmin(c: Context): Promise<boolean> {
     const token = getDecodedToken(c);
-    return token?.['custom:role'] === 'admin';
+    if (token?.['custom:role'] === 'admin') return true;
+    // Fall back to DB role in case the accessToken was sent instead of idToken
+    // (accessToken does not carry custom Cognito attributes)
+    try {
+        const userId = token?.['custom:userId'];
+        if (!userId) return false;
+        const user = await prisma.users.findUnique({ where: { id: userId }, select: { role: true } });
+        return user?.role === 'admin';
+    } catch {
+        return false;
+    }
+}
+
+// ─────────────────────────────────────────────
+// Notification helper
+// ─────────────────────────────────────────────
+
+async function notify(notifications: {
+    recipientId: string;
+    title: string;
+    message: string;
+    actionUrl?: string;
+    actionText?: string;
+    relatedId?: string;
+    priority?: 'low' | 'normal' | 'high' | 'urgent';
+}[]) {
+    if (!notifications.length) return;
+    try {
+        await prisma.notifications.createMany({
+            data: notifications.map((n) => ({
+                recipientId: n.recipientId,
+                type: 'action_required' as const,
+                category: 'performance_reviews' as const,
+                title: n.title,
+                message: n.message,
+                actionUrl: n.actionUrl ?? '/performance-review',
+                actionText: n.actionText ?? 'View',
+                relatedId: n.relatedId ?? null,
+                relatedType: 'performance_review',
+                priority: (n.priority ?? 'normal') as 'low' | 'normal' | 'high' | 'urgent',
+                isRead: false,
+                isArchived: false,
+            })),
+            skipDuplicates: false,
+        });
+    } catch (err) {
+        console.error('[notify] Failed to create notifications:', err);
+    }
 }
 
 // ─────────────────────────────────────────────
@@ -85,7 +132,9 @@ const overrideSchema = z.object({
 // POST /performance/cycles
 app.post('/cycles', async (c: Context): Promise<Response> => {
     try {
-        if (!isAdmin(c)) return c.json({ success: false, message: 'Forbidden' }, 403);
+        if (!(await isAdmin(c))) {
+            return c.json({ success: false, message: "Forbidden" }, 403);
+        }
         const userId = getUserId(c);
         const body = await c.req.json();
         const data = createCycleSchema.parse(body);
@@ -156,7 +205,9 @@ app.get('/cycles', async (c: Context): Promise<Response> => {
 // POST /performance/cycles/:id/activate
 app.post('/cycles/:id/activate', async (c: Context): Promise<Response> => {
     try {
-        if (!isAdmin(c)) return c.json({ success: false, message: 'Forbidden' }, 403);
+        if (!(await isAdmin(c))) {
+            return c.json({ success: false, message: "Forbidden" }, 403);
+        }
         const cycleId = c.req.param('id') as string;
 
         const cycle = await prisma.review_cycles.findUnique({ where: { id: cycleId } });
@@ -185,6 +236,29 @@ app.post('/cycles/:id/activate', async (c: Context): Promise<Response> => {
             prisma.peer_review_assignments.createMany({ data: assignments, skipDuplicates: true }),
         ]);
 
+        // Notify all employees that their self-review is open (fire-and-forget)
+        void notify(employees.map((emp) => ({
+            recipientId: emp.id as string,
+            title: `Review cycle "${cycle.name}" is now open`,
+            message: `Your self-review for the ${cycle.name} cycle is now open. Please complete it before the cycle closes.`,
+            actionUrl: '/performance-review',
+            actionText: 'Start self-review',
+            relatedId: cycleId,
+            priority: 'high' as const,
+        })));
+
+        // Notify each peer reviewer once (deduplicated by reviewer)
+        const reviewerIds = [...new Set(assignments.map((a) => a.reviewerId))];
+        void notify(reviewerIds.map((reviewerId) => ({
+            recipientId: reviewerId,
+            title: `You have peer reviews to complete for "${cycle.name}"`,
+            message: `You have been assigned peer reviews to complete for the ${cycle.name} cycle. Please complete them before the cycle closes.`,
+            actionUrl: '/performance-review',
+            actionText: 'View peer reviews',
+            relatedId: cycleId,
+            priority: 'normal' as const,
+        })));
+
         return c.json({ success: true, message: `Cycle activated. ${assignments.length} peer assignments created.` });
     } catch (e) {
         console.error(e);
@@ -195,7 +269,9 @@ app.post('/cycles/:id/activate', async (c: Context): Promise<Response> => {
 // POST /performance/cycles/:id/close
 app.post('/cycles/:id/close', async (c: Context): Promise<Response> => {
     try {
-        if (!isAdmin(c)) return c.json({ success: false, message: 'Forbidden' }, 403);
+        if (!(await isAdmin(c))) {
+            return c.json({ success: false, message: "Forbidden" }, 403);
+        }
         const cycleId = c.req.param('id');
 
         await prisma.review_cycles.update({
@@ -418,12 +494,57 @@ app.post('/reviews/:id/submit', async (c: Context): Promise<Response> => {
         // If this is a peer review, mark the assignment as completed
         if (review.reviewType === 'peer_review' && review.revieweeId) {
             await prisma.peer_review_assignments.updateMany({
-                where: {
-                    performanceReviewId: reviewId,
-                    reviewerId: userId,
-                },
+                where: { performanceReviewId: reviewId, reviewerId: userId },
                 data: { status: 'completed', completedAt: new Date() },
             });
+
+            // Check if all peer reviews for this reviewee+cycle are now done
+            if (review.cycleId) {
+                const [total, completed] = await Promise.all([
+                    prisma.peer_review_assignments.count({
+                        where: { revieweeId: review.revieweeId, cycleId: review.cycleId },
+                    }),
+                    prisma.peer_review_assignments.count({
+                        where: { revieweeId: review.revieweeId, cycleId: review.cycleId, status: 'completed' },
+                    }),
+                ]);
+                if (total > 0 && completed >= total) {
+                    const [reviewee, cycle] = await Promise.all([
+                        prisma.users.findUnique({ where: { id: review.revieweeId }, select: { firstName: true, lastName: true, managerId: true } }),
+                        prisma.review_cycles.findUnique({ where: { id: review.cycleId }, select: { name: true } }),
+                    ]);
+                    if (reviewee?.managerId && cycle) {
+                        const name = `${reviewee.firstName ?? ''} ${reviewee.lastName ?? ''}`.trim();
+                        void notify([{
+                            recipientId: reviewee.managerId,
+                            title: `All peer reviews for ${name} are complete`,
+                            message: `All ${total} peer reviews for ${name} in the "${cycle.name}" cycle have been submitted. You can now complete the manager appraisal.`,
+                            actionUrl: `/performance-review-admin`,
+                            actionText: 'View appraisals',
+                            relatedId: review.revieweeId,
+                            priority: 'high' as const,
+                        }]);
+                    }
+                }
+            }
+        }
+
+        // If this is a manager appraisal, notify the employee
+        if (review.reviewType === 'manager_appraisal') {
+            const cycle = review.cycleId
+                ? await prisma.review_cycles.findUnique({ where: { id: review.cycleId }, select: { name: true } })
+                : null;
+            void notify([{
+                recipientId: review.employeeId,
+                title: 'Your manager appraisal has been completed',
+                message: cycle
+                    ? `Your manager has completed your appraisal for the "${cycle.name}" cycle.`
+                    : 'Your manager has completed your appraisal.',
+                actionUrl: '/performance-review',
+                actionText: 'View review',
+                relatedId: reviewId,
+                priority: 'normal' as const,
+            }]);
         }
 
         return c.json({ success: true, message: 'Review submitted.' });
@@ -583,7 +704,11 @@ app.post('/submissions/:employeeId/override', async (c: Context): Promise<Respon
 // GET /performance/admin/summary?cycleId=
 app.get('/admin/summary', async (c: Context): Promise<Response> => {
     try {
-        if (!isAdmin(c)) return c.json({ success: false, message: 'Forbidden' }, 403);
+
+        if (!(await isAdmin(c))) {
+            return c.json({ success: false, message: "Forbidden" }, 403);
+        }
+
         const cycleId = c.req.query('cycleId');
 
         const employees = await prisma.users.findMany({

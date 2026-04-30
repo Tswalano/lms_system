@@ -516,9 +516,7 @@ const CalendarSection = () => {
     const navigateMonth = useCallback((direction: 'prev' | 'next' | 'today') => {
         const nextDate = direction === 'today'
             ? new Date()
-            : moment(currentDate)
-                [direction === 'prev' ? 'subtract' : 'add'](1, 'month')
-                .toDate();
+            : moment(currentDate)[direction === 'prev' ? 'subtract' : 'add'](1, 'month').toDate();
 
         handleNavigate(nextDate);
     }, [currentDate, handleNavigate]);

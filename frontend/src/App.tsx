@@ -132,7 +132,7 @@ const App: React.FC = () => (
                   <PerformanceReviewEmployee />
                 </ProtectedRoute>
               } />
-              <Route path="/performance-review/peer/:employeeId" element={
+              <Route path="/performance-review/peer/:assignmentId" element={
                 <ProtectedRoute allowedRoles={['user', 'admin']}>
                   <PerformanceReviewPeerPage />
                 </ProtectedRoute>

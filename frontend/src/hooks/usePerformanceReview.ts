@@ -28,6 +28,7 @@ export interface PeerAssignmentApi {
 
 export interface PeerReviewDetailApi {
     assignmentId: string;
+    reviewId?: string;
     status: 'pending' | 'in_progress' | 'completed';
     reviewee: { id: string; name: string; role: string };
     cycle: { id: string; name: string };
@@ -125,7 +126,7 @@ export function useAdminPerformanceSummary(cycleId?: string) {
     return useQuery<AdminSummaryItemApi[]>({
         queryKey: ['performance-admin-summary', cycleId],
         queryFn: () => apiFetch(`/performance/admin/summary${cycleId ? `?cycleId=${cycleId}` : ''}`),
-        enabled: !!user,
+        enabled: !!user && user.role === 'admin',
         staleTime: 30_000,
     });
 }
@@ -211,7 +212,7 @@ export function useSaveResponse() {
             textResponse?: string | null;
             reviewerType?: 'self' | 'peer' | 'manager';
         }) => apiFetch('/performance/responses', { method: 'POST', body: JSON.stringify(data) }),
-        onSuccess: (_data, vars) => {
+        onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['my-performance-review'] });
             qc.invalidateQueries({ queryKey: ['peer-review-detail'] });
         },

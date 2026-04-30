@@ -54,15 +54,6 @@ export const validateToken = (token: string): DecodedToken => {
             throw new Error("Invalid token: could not decode");
         }
 
-        // Debug: Log token details
-        console.log('[Auth] Token decoded:', {
-            exp: decoded.exp,
-            iat: decoded.iat,
-            token_use: decoded.token_use,
-            sub: decoded.sub,
-            now: Math.floor(Date.now() / 1000)
-        });
-
         // Check if token is expired
         const now = Math.floor(Date.now() / 1000);
         if (decoded.exp && decoded.exp < now) {
@@ -180,8 +171,6 @@ export const authMiddleware = (options: { fetchCognitoUser?: boolean } = {}) => 
     return async (c: any, next: any) => {
         try {
             const token = getToken(c);
-
-            console.log('[Auth] Token received:', token ? `${token.substring(0, 50)}...` : 'null');
 
             if (!token) {
                 return c.json({
