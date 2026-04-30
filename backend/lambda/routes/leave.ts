@@ -39,7 +39,7 @@ import utc from 'dayjs/plugin/utc';
 import isBetween from 'dayjs/plugin/isBetween';
 import { sender, senderManagement } from '../email/emailMiddleware';
 import { EmailNotificationDetails } from '../email/notificationHandler';
-import { get } from 'http';
+import { createLeaveEvents, deleteLeaveEvents } from '../integrations/outlookCalendar';
 dayjs.extend(utc);
 dayjs.extend(isBetween);
 
@@ -62,6 +62,20 @@ interface PublicHoliday {
     dayOfWeek: string;
 }
 
+interface Birthday {
+    id: string;
+    userId: number;
+    name: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    jobTitle: string;
+    dob: string;
+    birthdayDate: string;
+    age: number;
+    isToday: boolean;
+}
+
 interface LeaveCalendarResponse {
     dateRange: {
         startDate: string;
@@ -69,6 +83,16 @@ interface LeaveCalendarResponse {
     };
     leaveRequests: mysql.RowDataPacket[];
     publicHolidays: PublicHoliday[];
+}
+
+interface LeaveCalendarWithBirthdaysResponse {
+    dateRange: {
+        startDate: string;
+        endDate: string;
+    };
+    leaveRequests: any[];
+    publicHolidays: PublicHoliday[];
+    birthdays: Birthday[];
 }
 
 // Format dates for display
@@ -105,7 +129,10 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
 
         const startDate = new Date(leave_start);
         const endDate = new Date(leave_end);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
+        // Validate logical ordering
         if (startDate > endDate) {
             return c.json<ApiResponse>({
                 success: false,
@@ -113,13 +140,13 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
             }, 400);
         }
 
-        if (startDate < new Date()) {
-            return c.json<ApiResponse>({
-                success: false,
-                message: 'Start date cannot be in the past'
-            }, 400);
+        // Allow backdated applications, but flag them
+        const isBackdated = startDate < today;
+        if (isBackdated) {
+            console.log(`Backdated leave application detected from ${fullName}: ${formatDate(startDate)} - ${formatDate(endDate)}`);
         }
 
+        // Calculate number of days
         let numDays = 0;
         let excludedDetails: ExcludedDaysDetails = { weekends: 0, holidays: [], totalExcluded: 0 };
 
@@ -136,7 +163,6 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
                 }, 400);
             }
 
-            // For half-day leaves, we still need to check if it's a public holiday
             const holidays = await getPublicHolidayDatesUsingGoogleCalendarAPIAsync(startDate, startDate);
             if (holidays.length > 0) {
                 return c.json<ApiResponse>({
@@ -146,7 +172,11 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
             }
         }
 
+        // Add backdated context to system notes
         let system_notes = `A total of ${numDays} leave day${numDays === 1 ? "" : "s"} will be deducted from your balance.`;
+        if (isBackdated) {
+            system_notes += " (This is a backdated leave request)";
+        }
         if (leave_length === "full_day" && excludedDetails.totalExcluded > 0) {
             system_notes += ` Excluded: ${excludedDetails.weekends} weekend(s)`;
             if (excludedDetails.holidays.length > 0) {
@@ -155,15 +185,15 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
         }
 
         const createdAt = formatDateTime();
-
         connection = await DatabaseService.createConnection();
 
+        // Insert record (add `is_backdated` column if available)
         const [result] = await connection.query<mysql.ResultSetHeader>(`
-                INSERT INTO leave_requests (
-                    uid, leave_type, status, duration, start_date, end_date, system_notes, feedback,
-                    document, leave_length, leave_comment, createdAt, updatedAt
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [
+            INSERT INTO leave_requests (
+                uid, leave_type, status, duration, start_date, end_date, system_notes, feedback,
+                document, leave_length, leave_comment, createdAt, updatedAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
             uid,
             leave_type,
             "pending",
@@ -175,109 +205,73 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
             "no supporting document",
             leave_length,
             leave_comment,
+            // isBackdated ? 1 : 0, // 1 = true, 0 = false
             createdAt,
             createdAt
         ]);
 
-        // Track email results
+        // Send notifications
         const emailResults = {
             employee: { success: false, error: null as string | null },
             management: { success: false, error: null as string | null }
         };
 
-        // 1. Send email notification to EMPLOYEE
-        console.log("=== Sending Employee Notification ===");
         try {
-
             const employeeEmailBody = `Your <strong>${leave_type}</strong> request has been successfully submitted and is pending approval.`;
-
-            await sender(
-                recipientEmail,
-                firstName,
-                employeeEmailBody,
-                `Leave Request Submitted - ${leave_type}`,
-                "pending"
-            );
-
+            await sender(recipientEmail, firstName, employeeEmailBody, `Leave Request Submitted - ${leave_type}`, "pending");
             emailResults.employee.success = true;
-            console.log("✅ Employee notification email sent successfully to:", recipientEmail);
         } catch (emailError) {
             emailResults.employee.error = (emailError as Error).message;
-            console.error("❌ Failed to send employee notification email:", emailError);
         }
 
-        // 2. Send email notification to MANAGEMENT
-        console.log("=== Sending Management Notification ===");
         try {
             const managementEmailBody = `${leave_comment}.
                 <br><br>
                 <i>System Notes: ${system_notes}</i>`;
 
             await senderManagement(
-                fullName,                               // employeeName
-                recipientEmail,                         // employeeEmail  
-                managementEmailBody,                    // body
-                `New Leave Request - ${leave_type}`,    // subject
-                "pending",                              // status
-                leave_type,                             // leaveType
-                formatDate(startDate),                     // startDate
-                formatDate(endDate),                       // endDate
-                `${numDays} day${numDays === 1 ? '' : 's'} (${leave_length})` // duration
+                fullName,
+                recipientEmail,
+                managementEmailBody,
+                `New Leave Request - ${leave_type}`,
+                "pending",
+                leave_type,
+                formatDate(startDate),
+                formatDate(endDate),
+                `${numDays} day${numDays === 1 ? '' : 's'} (${leave_length})`
             );
 
             emailResults.management.success = true;
-            console.log("✅ Management notification email sent successfully");
         } catch (emailError) {
             emailResults.management.error = (emailError as Error).message;
-            console.error("❌ Failed to send management notification email:", emailError);
         }
 
-        // Log email summary
-        console.log("=== Email Notification Summary ===");
-        console.log(`Employee notification: ${emailResults.employee.success ? 'SUCCESS' : 'FAILED'}`);
-        console.log(`Management notification: ${emailResults.management.success ? 'SUCCESS' : 'FAILED'}`);
-
-        if (emailResults.employee.error) {
-            console.log(`Employee email error: ${emailResults.employee.error}`);
-        }
-        if (emailResults.management.error) {
-            console.log(`Management email error: ${emailResults.management.error}`);
-        }
-
-        // Prepare response with email status
-        const emailNotificationStatus = {
-            employee: emailResults.employee.success,
-            management: emailResults.management.success,
-            errors: {
-                employee: emailResults.employee.error,
-                management: emailResults.management.error
-            }
-        };
-
+        // Response
         return c.json<ApiResponse>({
             success: true,
             message: 'Leave request submitted successfully',
             data: {
                 leaveId: result.insertId,
                 duration: numDays,
-                system_notes: system_notes,
+                system_notes,
+                is_backdated: isBackdated,
                 status: "pending",
-                emailNotifications: emailNotificationStatus
+                emailNotifications: emailResults
             }
         }, 200);
 
     } catch (error) {
-        console.error('Apply leave error:', error);
+        console.error("Apply leave error:", error);
 
         if (error instanceof z.ZodError) {
             return c.json<ApiResponse>({
                 success: false,
-                message: 'Invalid request data',
+                message: "Invalid request data",
                 errors: error.errors
             }, 400);
         }
 
-        if (error instanceof Error && error.message.includes('token')) {
+        if (error instanceof Error && error.message.includes("token")) {
             return c.json<ApiResponse>({
                 success: false,
                 message: error.message
@@ -286,12 +280,13 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
 
         return c.json<ApiResponse>({
             success: false,
-            message: 'Failed to submit leave request'
+            message: "Failed to submit leave request"
         }, 500);
     } finally {
         if (connection) await connection.end();
     }
 });
+
 
 // GET /leave-history - Get user's leave history
 app.get('/leave-history', async (c: Context): Promise<Response> => {
@@ -557,11 +552,38 @@ app.put('/:id/approve', async (c: Context): Promise<Response> => {
                 emailDetails.status
             );
 
+            // Create Outlook calendar events when leave is approved (fire-and-forget)
+            if (action === 'approve') {
+                try {
+                    const managerToken = getDecodedToken(c);
+                    const managerName = `${managerToken.given_name || managerToken.name || 'Manager'} ${managerToken.family_name || ''}`.trim();
+                    const { sharedEventId, personalEventId } = await createLeaveEvents({
+                        employeeEmail: leaveRequest.email,
+                        employeeName: `${leaveRequest.firstName} ${leaveRequest.lastName}`,
+                        leaveType: leaveRequest.leave_type,
+                        startDate: leaveRequest.start_date,
+                        endDate: leaveRequest.end_date,
+                        managerName,
+                    });
+                    const calendarConnection = await DatabaseService.createConnection();
+                    try {
+                        await calendarConnection.query(
+                            'UPDATE leave_requests SET outlook_shared_event_id = ?, outlook_personal_event_id = ? WHERE id = ?',
+                            [sharedEventId, personalEventId, leaveId]
+                        );
+                    } finally {
+                        await calendarConnection.end();
+                    }
+                } catch (err) {
+                    console.error('[Outlook] Failed to create calendar events:', err);
+                }
+            }
+
             return c.json<ApiResponse>({
                 success: true,
-                message: `Leave request ${action}d successfully`,
+                message: `Leave request ${action} successfully`,
                 data: {
-                    leaveId: parseInt(leaveId),
+                    leaveId: leaveId !== undefined ? parseInt(leaveId) : null,
                     action: action,
                     status: newStatus,
                     processedAt: processedAt,
@@ -594,6 +616,121 @@ app.put('/:id/approve', async (c: Context): Promise<Response> => {
     }
 });
 
+// POST /bulk-action - Approve or reject multiple pending leave requests at once
+app.post('/bulk-action', async (c: Context): Promise<Response> => {
+    try {
+        const managerId = getUserId(c);
+        const managerToken = getDecodedToken(c);
+        const managerName = `${managerToken.given_name || managerToken.name || 'Manager'} ${managerToken.family_name || ''}`.trim();
+
+        const body = await c.req.json();
+        const schema = z.object({
+            leaveIds: z.array(z.number().int().positive()).min(1).max(50),
+            action: z.enum(['approve', 'reject']),
+            feedback: z.string().optional().default(''),
+        });
+        const { leaveIds, action, feedback } = schema.parse(body);
+
+        const newStatus = action === 'approve' ? 'approved' : 'rejected';
+        const processedAt = new Date().toISOString();
+
+        const results: { id: number; success: boolean; error?: string }[] = [];
+
+        for (const leaveId of leaveIds) {
+            let connection: mysql.Connection | null = null;
+            try {
+                connection = await DatabaseService.createConnection();
+
+                const [rows] = await connection.query<mysql.RowDataPacket[]>(`
+                    SELECT lr.*, u.firstName, u.lastName, u.email
+                    FROM leave_requests lr
+                    LEFT JOIN users u ON lr.uid = u.id
+                    WHERE lr.id = ? AND lr.status = "pending"
+                `, [leaveId]);
+
+                if (!rows || rows.length === 0) {
+                    results.push({ id: leaveId, success: false, error: 'Not found or already processed' });
+                    continue;
+                }
+
+                const leaveRequest = rows[0] as LeaveRequestWithUser;
+
+                await connection.beginTransaction();
+                await connection.query(`
+                    UPDATE leave_requests
+                    SET status = ?, approved_by = ?, feedback = ?, approved_at = ?, updatedAt = ?
+                    WHERE id = ?
+                `, [newStatus, managerId, feedback, processedAt, processedAt, leaveId]);
+
+                await connection.query(`
+                    INSERT INTO leave_action_log (leave_id, manager_id, action, previous_status, new_status, timestamp)
+                    VALUES (?, ?, ?, ?, ?, NOW())
+                `, [leaveId, managerId, action, 'pending', newStatus]);
+
+                await connection.commit();
+                await connection.end();
+                connection = null;
+
+                // Fire-and-forget: email + calendar — never block the loop
+                sender(
+                    leaveRequest.email,
+                    `${leaveRequest.firstName} ${leaveRequest.lastName}`,
+                    `Your leave request for <strong>${leaveRequest.leave_type}</strong> from ${formatDate(leaveRequest.start_date)} to ${formatDate(leaveRequest.end_date)} has been <strong>${newStatus}</strong>.<br><br>Feedback: ${feedback}`,
+                    `Leave Request ${newStatus} - ${leaveRequest.leave_type}`,
+                    newStatus as 'approved' | 'rejected'
+                ).catch(err => console.error(`[BulkAction] Email failed for leave ${leaveId}:`, err));
+
+                if (action === 'approve') {
+                    createLeaveEvents({
+                        employeeEmail: leaveRequest.email,
+                        employeeName: `${leaveRequest.firstName} ${leaveRequest.lastName}`,
+                        leaveType: leaveRequest.leave_type,
+                        startDate: leaveRequest.start_date,
+                        endDate: leaveRequest.end_date,
+                        managerName,
+                    }).then(async ({ sharedEventId, personalEventId }) => {
+                        const calConn = await DatabaseService.createConnection();
+                        try {
+                            await calConn.query(
+                                'UPDATE leave_requests SET outlook_shared_event_id = ?, outlook_personal_event_id = ? WHERE id = ?',
+                                [sharedEventId, personalEventId, leaveId]
+                            );
+                        } finally {
+                            await calConn.end();
+                        }
+                    }).catch(err => console.error(`[BulkAction] Outlook calendar failed for leave ${leaveId}:`, err));
+                }
+
+                results.push({ id: leaveId, success: true });
+
+            } catch (err) {
+                if (connection) {
+                    try { await connection.rollback(); } catch (_) {}
+                    try { await connection.end(); } catch (_) {}
+                }
+                console.error(`[BulkAction] Failed to process leave ${leaveId}:`, err);
+                results.push({ id: leaveId, success: false, error: 'Internal error' });
+            }
+        }
+
+        const succeeded = results.filter(r => r.success).length;
+        const failed = results.filter(r => !r.success).length;
+
+        return c.json({
+            success: true,
+            message: `${succeeded} request${succeeded !== 1 ? 's' : ''} ${newStatus}${failed > 0 ? `, ${failed} failed` : ''}`,
+            data: { results, succeeded, failed, action, newStatus },
+        }, 200);
+
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return c.json({ success: false, message: 'Invalid request data' }, 400);
+        }
+        console.error('[BulkAction] Unexpected error:', error);
+        return c.json({ success: false, message: 'Failed to process bulk action' }, 500);
+    }
+});
+
 // GET /all-leave-requests - Get all leave requests (for managers)
 app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
     let connection: mysql.Connection | null = null;
@@ -601,9 +738,6 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
         connection = await DatabaseService.createConnection();
 
         const currentYear = new Date().getFullYear();
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
 
         const queryParams: LeaveQueryParams = {
             leave_type: c.req.query('leave_type'),
@@ -613,23 +747,15 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
         };
 
         const page = parseInt(queryParams.page || '1');
-        const limit = Math.min(100, parseInt(queryParams.limit || '20'));
+        const limit = Math.min(100, parseInt(queryParams.limit || '30'));
         const offset = (page - 1) * limit;
 
         const conditions: string[] = [];
         const params: any[] = [];
 
-        // Core status + date logic - Updated to check:
-        // - Pending requests from current year
-        // - Approved/Rejected requests from last 30 days
-        const statusFilter = `
-            (
-                (lr.status = 'pending' AND YEAR(lr.start_date) = ?) OR
-                ((lr.status = 'approved' OR lr.status = 'rejected') AND lr.start_date >= ?)
-            )
-        `;
-        conditions.push(statusFilter);
-        params.push(currentYear, thirtyDaysAgoStr);
+        // Filter by current year only
+        conditions.push('YEAR(lr.createdAt) = ?');
+        params.push(currentYear);
 
         // Apply leave_type if present
         if (queryParams.leave_type) {
@@ -642,10 +768,6 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
             conditions.push('(CONCAT(u.firstName, " ", u.lastName) LIKE ? OR u.email LIKE ?)');
             params.push(`%${queryParams.search}%`, `%${queryParams.search}%`);
         }
-
-        // Add year filter for createdAt
-        conditions.push('YEAR(lr.createdAt) = ?');
-        params.push(currentYear);
 
         const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -667,9 +789,7 @@ app.get('/all-leave-requests', async (c: Context): Promise<Response> => {
             LEFT JOIN users u ON lr.uid = u.id
             LEFT JOIN users m ON lr.approved_by = m.id
             ${whereClause}
-            ORDER BY 
-                CASE lr.status WHEN 'pending' THEN 1 WHEN 'approved' THEN 2 WHEN 'rejected' THEN 3 ELSE 4 END,
-                lr.createdAt DESC
+            ORDER BY lr.createdAt DESC
             LIMIT ? OFFSET ?
         `, [...params, limit, offset]);
 
@@ -817,6 +937,13 @@ app.post('/leave/:id/upload-document', async (c: Context): Promise<Response> => 
         }
 
         // Upload to S3
+        if (!leaveId) {
+            return c.json<ApiResponse>({
+                success: false,
+                message: 'Leave request ID is required'
+            }, 400);
+        }
+
         const s3Key = await uploadToS3(file_data, file_name, file_type, uid.toString(), leaveId);
 
         // Update leave request with document path
@@ -846,6 +973,166 @@ app.post('/leave/:id/upload-document', async (c: Context): Promise<Response> => 
         return c.json<ApiResponse>({
             success: false,
             message: 'Failed to upload document'
+        }, 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// PUT /:id/cancel - Cancel approved leave request
+app.put('/:id/cancel', async (c: Context): Promise<Response> => {
+    let connection: mysql.Connection | null = null;
+    try {
+        const managerId = getUserId(c);
+        const leaveId = c.req.param('id');
+        const managerEmail = getDecodedToken(c).email;
+        const managerFirstName = getDecodedToken(c).given_name || getDecodedToken(c).name || 'Manager';
+        const managerLastName = getDecodedToken(c).family_name || '';
+        const managerFullName = `${managerFirstName} ${managerLastName}`.trim();
+
+        connection = await DatabaseService.createConnection();
+
+        // Check if leave request exists and is approved
+        const [existingLeave] = await connection.query<mysql.RowDataPacket[]>(`
+            SELECT lr.*, u.firstName, u.lastName, u.email,
+                   lr.outlook_shared_event_id, lr.outlook_personal_event_id
+            FROM leave_requests lr
+            LEFT JOIN users u ON lr.uid = u.id
+            WHERE lr.id = ? AND lr.status = "approved"
+        `, [leaveId]);
+
+        if (!existingLeave || existingLeave.length === 0) {
+            return c.json<ApiResponse>({
+                success: false,
+                message: 'Leave request not found or is not approved'
+            }, 404);
+        }
+
+        const leaveRequest = existingLeave[0] as LeaveRequestWithUser;
+        const cancelledAt = new Date().toISOString();
+        const cancellationFeedback = `This approved leave has been cancelled by ${managerFullName} on ${formatDate(cancelledAt)}.`;
+
+        // Start transaction
+        await connection.beginTransaction();
+
+        try {
+            // Update leave request status to cancelled
+            await connection.query<mysql.ResultSetHeader>(`
+                UPDATE leave_requests 
+                SET status = 'cancelled', 
+                    approved_by = ?, 
+                    feedback = CONCAT(COALESCE(feedback, ''), '\n\n', ?), 
+                    approved_at = ?, 
+                    updatedAt = ?
+                WHERE id = ?
+            `, [managerId, cancellationFeedback, cancelledAt, cancelledAt, leaveId]);
+
+            // Log the cancellation action
+            await connection.query<mysql.ResultSetHeader>(`
+                INSERT INTO leave_action_log (leave_id, manager_id, action, previous_status, new_status, timestamp)
+                VALUES (?, ?, ?, ?, ?, NOW())
+            `, [leaveId, managerId, 'cancel', 'approved', 'cancelled']);
+
+            await connection.commit();
+
+            // Send email notification to employee
+            const employeeEmailBody = `Your approved leave request for <strong>${leaveRequest.leave_type}</strong> from ${formatDate(leaveRequest.start_date)} to ${formatDate(leaveRequest.end_date)} has been <strong>cancelled</strong> by management.
+            <br><br>
+            <strong>Duration:</strong> ${leaveRequest.duration} day${parseFloat(leaveRequest.duration) !== 1 ? 's' : ''} (${leaveRequest.leave_length === 'half_day' ? 'Half Day' : 'Full Day'})
+            <br><br>
+            <strong>Cancelled By:</strong> ${managerFullName}
+            <br>
+            <strong>Cancelled On:</strong> ${formatDate(cancelledAt)}
+            <br><br>
+            If you have any questions about this cancellation, please contact your manager or HR department.`;
+
+            try {
+                await sender(
+                    leaveRequest.email,
+                    `${leaveRequest.firstName} ${leaveRequest.lastName}`,
+                    employeeEmailBody,
+                    `Leave Cancelled - ${leaveRequest.leave_type}`,
+                    'rejected' // Using 'rejected' status for styling in email template
+                );
+            } catch (emailError) {
+                console.error('Failed to send cancellation email to employee:', emailError);
+                // Don't fail the request if email fails
+            }
+
+            // Send notification to management
+            const managementEmailBody = `An approved leave request has been cancelled.
+            <br><br>
+            <strong>Employee:</strong> ${leaveRequest.firstName} ${leaveRequest.lastName} (${leaveRequest.email})
+            <br>
+            <strong>Leave Type:</strong> ${leaveRequest.leave_type}
+            <br>
+            <strong>Duration:</strong> ${formatDate(leaveRequest.start_date)} to ${formatDate(leaveRequest.end_date)}
+            <br>
+            <strong>Days:</strong> ${leaveRequest.duration} day${parseFloat(leaveRequest.duration) !== 1 ? 's' : ''} (${leaveRequest.leave_length === 'half_day' ? 'Half Day' : 'Full Day'})
+            <br>
+            <strong>Cancelled By:</strong> ${managerFullName}
+            <br>
+            <strong>Cancelled On:</strong> ${formatDate(cancelledAt)}`;
+
+            try {
+                await senderManagement(
+                    managerFullName,
+                    managerEmail,
+                    managementEmailBody,
+                    `Leave Cancelled - ${leaveRequest.leave_type}`,
+                    'rejected',
+                    leaveRequest.leave_type,
+                    formatDate(leaveRequest.start_date),
+                    formatDate(leaveRequest.end_date),
+                    `${leaveRequest.duration} day${parseFloat(leaveRequest.duration) !== 1 ? 's' : ''} (${leaveRequest.leave_length})`
+                );
+            } catch (emailError) {
+                console.error('Failed to send cancellation notification to management:', emailError);
+                // Don't fail the request if email fails
+            }
+
+            // Delete Outlook calendar events when leave is cancelled (fire-and-forget)
+            try {
+                const { outlook_shared_event_id, outlook_personal_event_id, email } = leaveRequest;
+                if (outlook_shared_event_id || outlook_personal_event_id) {
+                    await deleteLeaveEvents(outlook_shared_event_id ?? null, outlook_personal_event_id ?? null, email);
+                }
+            } catch (err) {
+                console.error('[Outlook] Failed to delete calendar events:', err);
+            }
+
+            return c.json<ApiResponse>({
+                success: true,
+                message: 'Leave request cancelled successfully',
+                data: {
+                    leaveId: leaveId !== undefined ? parseInt(leaveId) : null,
+                    action: 'cancel',
+                    status: 'cancelled',
+                    cancelledAt: cancelledAt,
+                    cancelledBy: managerFullName,
+                    employeeNotified: true,
+                    managementNotified: true
+                }
+            }, 200);
+
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        }
+
+    } catch (error) {
+        console.error('Cancel leave error:', error);
+
+        if (error instanceof Error && error.message.includes("token")) {
+            return c.json<ApiResponse>({
+                success: false,
+                message: error.message
+            }, 401);
+        }
+
+        return c.json<ApiResponse>({
+            success: false,
+            message: 'Failed to cancel leave request'
         }, 500);
     } finally {
         if (connection) await connection.end();
@@ -1088,34 +1375,31 @@ app.get('/leave-calendar', async (c: Context): Promise<Response> => {
     }
 });
 
-// GET /leave-balance - Get leave balance (placeholder)
-app.get('/leave-calendar', async (c: Context): Promise<Response> => {
+app.get('/leave-calendar-with-birthdays', async (c: Context): Promise<Response> => {
     let connection: mysql.Connection | null = null;
     try {
         connection = await DatabaseService.createConnection();
 
-        // Get current date in UTC
-        const now = dayjs.utc();
-
-        // Set default date range (current month)
+        // Get query parameters with proper date handling
+        const now = dayjs().utc();
         const defaultStartDate = now.startOf('month').format('YYYY-MM-DD');
         const defaultEndDate = now.endOf('month').format('YYYY-MM-DD');
 
-        // Get query parameters
         const queryParams = {
             start_date: c.req.query('start_date') || defaultStartDate,
             end_date: c.req.query('end_date') || defaultEndDate
         };
 
-        // Validate dates
+        // Validate date format
         if (!dayjs(queryParams.start_date, 'YYYY-MM-DD', true).isValid() ||
             !dayjs(queryParams.end_date, 'YYYY-MM-DD', true).isValid()) {
             return c.json<ApiResponse>({
                 success: false,
-                message: 'Invalid date format. Use YYYY-MM-DD'
+                message: 'Invalid date format. Please use YYYY-MM-DD'
             }, 400);
         }
 
+        // Validate date range
         if (dayjs(queryParams.start_date).isAfter(dayjs(queryParams.end_date))) {
             return c.json<ApiResponse>({
                 success: false,
@@ -1123,7 +1407,7 @@ app.get('/leave-calendar', async (c: Context): Promise<Response> => {
             }, 400);
         }
 
-        // Fetch approved leave requests
+        // Fetch approved leave requests within date range
         const [leaveCalendar] = await connection.query<mysql.RowDataPacket[]>(`
             SELECT 
                 lr.id, 
@@ -1147,7 +1431,76 @@ app.get('/leave-calendar', async (c: Context): Promise<Response> => {
             ORDER BY lr.start_date ASC
         `, [queryParams.end_date, queryParams.start_date]);
 
-        // Get public holidays
+        // Fetch birthdays within date range
+        const [birthdayResults] = await connection.query<mysql.RowDataPacket[]>(`
+            SELECT 
+                u.id,
+                u.firstName,
+                u.lastName,
+                u.email,
+                u.jobTitle,
+                u.dob,
+                DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) as birthday_this_year,
+                YEAR(CURDATE()) - YEAR(u.dob) - (DATE_FORMAT(CURDATE(), '%m%d') < DATE_FORMAT(u.dob, '%m%d')) as current_age
+            FROM users u
+            WHERE u.dob IS NOT NULL
+            AND (u.isActive IS NULL OR u.isActive = 1)
+            AND (
+                -- Birthday falls within the requested date range this year
+                DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) BETWEEN ? AND ?
+                OR
+                -- Handle year boundary cases (e.g., Dec to Jan)
+                (YEAR(?) < YEAR(?) AND 
+                 (DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) >= ? OR
+                  DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) <= ?))
+            )
+            ORDER BY DATE_FORMAT(u.dob, '%m-%d'), u.firstName
+        `, [
+            queryParams.start_date, // For YEAR() calculation
+            queryParams.start_date, // For YEAR() calculation in range check
+            queryParams.start_date,
+            queryParams.end_date,
+            queryParams.start_date, // For year boundary check
+            queryParams.end_date,   // For year boundary check
+            queryParams.start_date, // For year boundary check
+            queryParams.start_date, // For >= comparison
+            queryParams.end_date,   // For year boundary check
+            queryParams.end_date    // For <= comparison
+        ]);
+
+        // Transform birthday data
+        const today = dayjs();
+        const todayDayOfWeek = today.day(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
+        const birthdays: Birthday[] = birthdayResults.map(user => {
+            const birthdayThisYear = dayjs(user.birthday_this_year);
+            const age = user.current_age + 1; // Age they'll turn on birthday
+            const birthdayDayOfWeek = birthdayThisYear.day();
+
+            // Observe weekend birthdays on the preceding Friday
+            const isTodayBirthday = birthdayThisYear.format('YYYY-MM-DD') === today.format('YYYY-MM-DD');
+            const isFridayObserved = todayDayOfWeek === 5 && (
+                (birthdayDayOfWeek === 6 && birthdayThisYear.isSame(today.add(1, 'day'), 'day')) || // Sat → Fri
+                (birthdayDayOfWeek === 0 && birthdayThisYear.isSame(today.add(2, 'day'), 'day'))    // Sun → Fri
+            );
+            const isToday = isTodayBirthday || isFridayObserved;
+
+            return {
+                id: `birthday-${user.id}`,
+                userId: user.id,
+                name: `${user.firstName} ${user.lastName}`,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                jobTitle: user.jobTitle || '',
+                profilePicture: user.profilePicture,
+                dob: dayjs(user.dob).format('YYYY-MM-DD'),
+                birthdayDate: birthdayThisYear.format('YYYY-MM-DD'),
+                age: age,
+                isToday: isToday
+            };
+        });
+
+        // Get public holidays using Google Calendar API
         let publicHolidays: PublicHoliday[] = [];
         try {
             const holidayDates = await getPublicHolidayDatesUsingGoogleCalendarAPIAsync(
@@ -1162,33 +1515,248 @@ app.get('/leave-calendar', async (c: Context): Promise<Response> => {
             }));
         } catch (error) {
             console.error('Failed to fetch public holidays:', error);
-            // Optionally add a warning to the response if needed
+            // Continue without holidays rather than failing the entire request
         }
 
-        return c.json<ApiResponse<LeaveCalendarResponse>>({
+        return c.json<ApiResponse<LeaveCalendarWithBirthdaysResponse>>({
             success: true,
-            message: 'Leave calendar retrieved successfully',
+            message: 'Calendar data with birthdays retrieved successfully',
             data: {
                 dateRange: {
                     startDate: queryParams.start_date,
                     endDate: queryParams.end_date
                 },
                 leaveRequests: leaveCalendar,
-                publicHolidays: publicHolidays
+                publicHolidays,
+                birthdays
             }
         }, 200);
 
     } catch (error) {
-        console.error('Get leave calendar error:', error);
-
+        console.error('Get calendar with birthdays error:', error);
         return c.json<ApiResponse>({
             success: false,
-            message: 'Failed to retrieve leave calendar'
+            message: 'Failed to retrieve calendar data with birthdays'
         }, 500);
     } finally {
         if (connection) await connection.end();
     }
 });
+
+// Standalone birthdays endpoint (optional - for birthday-specific queries)
+app.get('/birthdays', async (c: Context): Promise<Response> => {
+    let connection: mysql.Connection | null = null;
+    try {
+        connection = await DatabaseService.createConnection();
+
+        // Get query parameters
+        const now = dayjs().utc();
+        const defaultStartDate = now.startOf('month').format('YYYY-MM-DD');
+        const defaultEndDate = now.endOf('month').format('YYYY-MM-DD');
+
+        const queryParams = {
+            start_date: c.req.query('start_date') || defaultStartDate,
+            end_date: c.req.query('end_date') || defaultEndDate
+        };
+
+        // Validate date format
+        if (!dayjs(queryParams.start_date, 'YYYY-MM-DD', true).isValid() ||
+            !dayjs(queryParams.end_date, 'YYYY-MM-DD', true).isValid()) {
+            return c.json<ApiResponse>({
+                success: false,
+                message: 'Invalid date format. Please use YYYY-MM-DD'
+            }, 400);
+        }
+
+        // Fetch birthdays within date range
+        const [birthdayResults] = await connection.query<mysql.RowDataPacket[]>(`
+            SELECT 
+                u.id,
+                u.firstName,
+                u.lastName,
+                u.email,
+                u.jobTitle,
+                u.dob,
+                DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) as birthday_this_year,
+                YEAR(CURDATE()) - YEAR(u.dob) - (DATE_FORMAT(CURDATE(), '%m%d') < DATE_FORMAT(u.dob, '%m%d')) as current_age
+            FROM users u
+            WHERE u.dob IS NOT NULL
+            AND (u.isActive IS NULL OR u.isActive = 1)
+            AND (
+                -- Birthday falls within the requested date range this year
+                DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) BETWEEN ? AND ?
+                OR
+                -- Handle year boundary cases (e.g., Dec to Jan)
+                (YEAR(?) < YEAR(?) AND 
+                 (DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) >= ? OR
+                  DATE(CONCAT(YEAR(?), '-', DATE_FORMAT(u.dob, '%m-%d'))) <= ?))
+            )
+            ORDER BY DATE_FORMAT(u.dob, '%m-%d'), u.firstName
+        `, [
+            queryParams.start_date, // For YEAR() calculation
+            queryParams.start_date, // For YEAR() calculation in range check
+            queryParams.start_date,
+            queryParams.end_date,
+            queryParams.start_date, // For year boundary check
+            queryParams.end_date,   // For year boundary check
+            queryParams.start_date, // For year boundary check
+            queryParams.start_date, // For >= comparison
+            queryParams.end_date,   // For year boundary check
+            queryParams.end_date    // For <= comparison
+        ]);
+
+        // Transform birthday data
+        const today2 = dayjs();
+        const todayDow2 = today2.day();
+        const birthdays: Birthday[] = birthdayResults.map(user => {
+            const birthdayThisYear = dayjs(user.birthday_this_year);
+            const age = user.current_age + 1; // Age they'll turn on birthday
+            const birthdayDow = birthdayThisYear.day();
+
+            const isTodayBirthday = birthdayThisYear.format('YYYY-MM-DD') === today2.format('YYYY-MM-DD');
+            const isFridayObserved = todayDow2 === 5 && (
+                (birthdayDow === 6 && birthdayThisYear.isSame(today2.add(1, 'day'), 'day')) ||
+                (birthdayDow === 0 && birthdayThisYear.isSame(today2.add(2, 'day'), 'day'))
+            );
+            const isToday = isTodayBirthday || isFridayObserved;
+
+            return {
+                id: `birthday-${user.id}`,
+                userId: user.id,
+                name: `${user.firstName} ${user.lastName}`,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                jobTitle: user.jobTitle || '',
+                profilePicture: user.profilePicture,
+                dob: dayjs(user.dob).format('YYYY-MM-DD'),
+                birthdayDate: birthdayThisYear.format('YYYY-MM-DD'),
+                age: age,
+                isToday: isToday
+            };
+        });
+
+        return c.json<ApiResponse<{ birthdays: Birthday[], total: number }>>({
+            success: true,
+            message: 'Birthdays retrieved successfully',
+            data: {
+                birthdays,
+                total: birthdays.length
+            }
+        }, 200);
+
+    } catch (error) {
+        console.error('Get birthdays error:', error);
+        return c.json<ApiResponse>({
+            success: false,
+            message: 'Failed to retrieve birthdays'
+        }, 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// // GET /leave-balance - Get leave balance (placeholder)
+// app.get('/leave-calendar', async (c: Context): Promise<Response> => {
+//     let connection: mysql.Connection | null = null;
+//     try {
+//         connection = await DatabaseService.createConnection();
+
+//         // Get current date in UTC
+//         const now = dayjs.utc();
+
+//         // Set default date range (current month)
+//         const defaultStartDate = now.startOf('month').format('YYYY-MM-DD');
+//         const defaultEndDate = now.endOf('month').format('YYYY-MM-DD');
+
+//         // Get query parameters
+//         const queryParams = {
+//             start_date: c.req.query('start_date') || defaultStartDate,
+//             end_date: c.req.query('end_date') || defaultEndDate
+//         };
+
+//         // Validate dates
+//         if (!dayjs(queryParams.start_date, 'YYYY-MM-DD', true).isValid() ||
+//             !dayjs(queryParams.end_date, 'YYYY-MM-DD', true).isValid()) {
+//             return c.json<ApiResponse>({
+//                 success: false,
+//                 message: 'Invalid date format. Use YYYY-MM-DD'
+//             }, 400);
+//         }
+
+//         if (dayjs(queryParams.start_date).isAfter(dayjs(queryParams.end_date))) {
+//             return c.json<ApiResponse>({
+//                 success: false,
+//                 message: 'Start date cannot be after end date'
+//             }, 400);
+//         }
+
+//         // Fetch approved leave requests
+//         const [leaveCalendar] = await connection.query<mysql.RowDataPacket[]>(`
+//             SELECT 
+//                 lr.id, 
+//                 lr.start_date, 
+//                 lr.end_date, 
+//                 lr.leave_type, 
+//                 lr.leave_length, 
+//                 lr.duration,
+//                 u.firstName, 
+//                 u.lastName, 
+//                 u.email, 
+//                 u.jobTitle,
+//                 m.firstName as managerFirstName, 
+//                 m.lastName as managerLastName
+//             FROM leave_requests lr
+//             JOIN users u ON lr.uid = u.id
+//             LEFT JOIN users m ON lr.approved_by = m.id
+//             WHERE lr.start_date <= ? 
+//               AND lr.end_date >= ? 
+//               AND lr.status = "approved"
+//             ORDER BY lr.start_date ASC
+//         `, [queryParams.end_date, queryParams.start_date]);
+
+//         // Get public holidays
+//         let publicHolidays: PublicHoliday[] = [];
+//         try {
+//             const holidayDates = await getPublicHolidayDatesUsingGoogleCalendarAPIAsync(
+//                 new Date(queryParams.start_date),
+//                 new Date(queryParams.end_date)
+//             );
+
+//             publicHolidays = holidayDates.map(holiday => ({
+//                 date: dayjs(holiday.date).format('YYYY-MM-DD'),
+//                 name: holiday.name || 'Public Holiday',
+//                 dayOfWeek: dayjs(holiday.date).format('dddd')
+//             }));
+//         } catch (error) {
+//             console.error('Failed to fetch public holidays:', error);
+//             // Optionally add a warning to the response if needed
+//         }
+
+//         return c.json<ApiResponse<LeaveCalendarResponse>>({
+//             success: true,
+//             message: 'Leave calendar retrieved successfully',
+//             data: {
+//                 dateRange: {
+//                     startDate: queryParams.start_date,
+//                     endDate: queryParams.end_date
+//                 },
+//                 leaveRequests: leaveCalendar,
+//                 publicHolidays: publicHolidays
+//             }
+//         }, 200);
+
+//     } catch (error) {
+//         console.error('Get leave calendar error:', error);
+
+//         return c.json<ApiResponse>({
+//             success: false,
+//             message: 'Failed to retrieve leave calendar'
+//         }, 500);
+//     } finally {
+//         if (connection) await connection.end();
+//     }
+// });
 
 // GET /leave-stats/personal - Get personal leave statistics
 app.get('/leave-stats/personal', async (c: Context): Promise<Response> => {
@@ -1362,4 +1930,4 @@ app.patch('/:id/cancel', async (c: Context): Promise<Response> => {
     }
 });
 
-export { app as leave };
+export { app as leaveApp };

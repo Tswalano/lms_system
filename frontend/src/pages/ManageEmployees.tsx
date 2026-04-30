@@ -65,7 +65,12 @@ const ManageEmployees = () => {
         }
 
         const response = await authFetch('/users', {
-            method: 'GET'
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
         });
 
         if (!response.ok) {
@@ -103,6 +108,11 @@ const ManageEmployees = () => {
 
             const response = await authFetch('/users/update-user', {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
                 body: JSON.stringify({
                     id,
                     ...employeeData
@@ -155,6 +165,11 @@ const ManageEmployees = () => {
 
             const response = await authFetch('/users/add-user', {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
                 body: JSON.stringify({
                     firstName: employeeData.firstName,
                     lastName: employeeData.lastName,
@@ -206,6 +221,11 @@ const ManageEmployees = () => {
 
             const response = await authFetch('/users/delete-user', {
                 method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
                 body: JSON.stringify({ id: employeeId, email: selectedEmployee?.email })
             });
 
@@ -350,7 +370,7 @@ const ManageEmployees = () => {
                         </button>
 
                         {isAddDialogOpen && (
-                            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 lg:pl-72">
                                 <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-600/50">
                                     {/* Header */}
                                     <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
@@ -459,7 +479,7 @@ const ManageEmployees = () => {
 
                         {/* Edit Employee Dialog */}
                         {isEditDialogOpen && (
-                            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 lg:pl-72">
                                 <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-600/50">
                                     {/* Header with gradient */}
                                     <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
@@ -673,7 +693,7 @@ const ManageEmployees = () => {
                                 <TableHead className="text-gray-700 dark:text-gray-300">Role</TableHead>
                                 {/* <TableHead className="text-gray-700 dark:text-gray-300">Join Date</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Status</TableHead> */}
-                                <TableHead className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <TableHead className="text-xs font-semibold tracking-wide text-gray-700 dark:text-gray-300 uppercase gap-2">
                                     Actions
                                 </TableHead>
 
@@ -712,7 +732,7 @@ const ManageEmployees = () => {
                                                         active
                                                     </span>
                                                 </TableCell> */}
-                                    <TableCell className="px-6 py-4 whitespace-nowrap text-right">
+                                    <TableCell className="flex items-cente gap-2">
                                         <div className="inline-flex items-center gap-2">
                                             <Button
                                                 variant="ghost"

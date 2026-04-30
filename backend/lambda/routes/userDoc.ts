@@ -291,7 +291,7 @@ userDoc.get('/document-categories', async (c) => {
 // Track document reading progress
 userDoc.post('/document-progress', async (c) => {
     try {
-        const { user_id, document_id, progress_data, time_spent, duration } = await c.req.json();
+        const { user_id, document_id, progress_data, time_spent, duration, status } = await c.req.json();
 
         if (!user_id || !document_id) {
             const response = ResponseService.error(
@@ -304,45 +304,102 @@ userDoc.post('/document-progress', async (c) => {
         const connection = await DatabaseService.createConnection();
 
         try {
-            const ipAddress = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+            // Start transaction
+            await connection.beginTransaction();
 
-            // Update the most recent document view with duration and progress
-            const updateViewSql = `
-                UPDATE document_views 
-                SET duration = GREATEST(COALESCE(duration, 0), ?),
-                    progress_data = ?
+            // --- 1. Document Views ---
+            const checkViewSql = `
+                SELECT id, duration, progress_data 
+                FROM document_views 
                 WHERE user_id = ? AND document_id = ? 
                 ORDER BY viewed_at DESC 
                 LIMIT 1
             `;
 
-            await connection.execute<OkPacket>(updateViewSql, [
-                duration || time_spent || 0,
-                JSON.stringify(progress_data),
+            const [viewRows] = await connection.execute(checkViewSql, [user_id, document_id]) as [any[], any];
+
+            if (viewRows.length === 0) {
+                const insertViewSql = `
+                    INSERT INTO document_views (user_id, document_id, viewed_at, duration, progress_data) 
+                    VALUES (?, ?, NOW(), ?, ?)
+                `;
+                await connection.execute<OkPacket>(insertViewSql, [
+                    user_id,
+                    document_id,
+                    duration || time_spent || 0,
+                    JSON.stringify(progress_data || {})
+                ]);
+            } else {
+                const existingView = viewRows[0];
+                const currentDuration = existingView.duration || 0;
+                const newDuration = Math.max(currentDuration, duration || time_spent || 0);
+
+                const updateViewSql = `
+                    UPDATE document_views 
+                    SET duration = ?,
+                        progress_data = ?,
+                        viewed_at = NOW()
+                    WHERE id = ?
+                `;
+                await connection.execute<OkPacket>(updateViewSql, [
+                    newDuration,
+                    JSON.stringify(progress_data || {}),
+                    existingView.id
+                ]);
+            }
+
+            // --- 2. User Document Assignments ---
+            const updateAssignmentSql = `
+                UPDATE user_document_assignments
+                SET status = ?
+                WHERE user_id = ? AND document_id = ?
+            `;
+            await connection.execute<OkPacket>(updateAssignmentSql, [
+                status || 'viewed', // fallback if not provided
                 user_id,
                 document_id
             ]);
 
+            // Commit transaction
+            await connection.commit();
+
             const response = ResponseService.success(
-                "Document progress saved successfully",
-                { user_id, document_id }
+                "Document progress and assignment status saved successfully",
+                {
+                    user_id,
+                    document_id,
+                    duration: duration || time_spent || 0,
+                    progress_saved: true,
+                    status: status || 'viewed'
+                }
             );
             return c.json(response, 200);
 
+        } catch (dbError) {
+            // Rollback on error
+            await connection.rollback();
+            console.error('Transaction failed in document progress:', dbError);
+            const response = ResponseService.error(
+                "DATABASE_ERROR",
+                "Failed to save document progress and status",
+                dbError
+            );
+            return c.json(response, 500);
         } finally {
             await connection.end();
         }
 
-    } catch (error) {
-        console.error('Save document progress error:', error);
+    } catch (parseError) {
+        console.error('Request parsing error in document progress:', parseError);
         const response = ResponseService.error(
-            "INTERNAL_SERVER_ERROR",
-            "Internal server error",
-            error
+            "INVALID_REQUEST",
+            "Invalid request format",
+            parseError
         );
-        return c.json(response, 500);
+        return c.json(response, 400);
     }
 });
+
 
 // ============================================================================
 // DOCUMENT COMPLETION & ACKNOWLEDGMENT
@@ -368,7 +425,6 @@ userDoc.post('/document-completion', async (c) => {
         const connection = await DatabaseService.createConnection();
 
         try {
-            // Requirement 9: Verify user has viewed the document
             const [viewCheck] = await connection.execute<RowDataPacket[]>(`
                 SELECT id FROM document_views 
                 WHERE user_id = ? AND document_id = ?
@@ -391,20 +447,20 @@ userDoc.post('/document-completion', async (c) => {
                 // Record document signature/acknowledgement
                 const signatureSql = `
                     INSERT INTO document_signatures 
-                    (user_id, document_id, ip_address, user_agent)
-                    VALUES (?, ?, ?, ?)
+                    (user_id, document_id, signed_at)
+                    VALUES (?, ?, NOW())
                     ON DUPLICATE KEY UPDATE 
-                    signed_at = NOW(), ip_address = VALUES(ip_address), user_agent = VALUES(user_agent)
+                        signed_at = NOW()
                 `;
 
                 await connection.execute<OkPacket>(signatureSql, [
-                    user_id, document_id, ipAddress, userAgent
+                    user_id, document_id
                 ]);
 
                 // Update assignment status
                 const updateAssignmentSql = `
                     UPDATE user_document_assignments 
-                    SET status = 'completed', completed_at = NOW()
+                    SET status = 'signed', completed_at = NOW()
                     WHERE user_id = ? AND document_id = ?
                 `;
 
@@ -851,7 +907,7 @@ userDoc.get('/categories-with-documents', async (c) => {
 });
 
 // GET All documents assigned to a user in each category (with relevant fields)
-userDoc.get('/categories-with-documents/:userId', async (c) => {
+userDoc.get('/by-category/:userId', async (c) => {
     const userId = c.req.param('userId');
 
     try {
@@ -860,46 +916,49 @@ userDoc.get('/categories-with-documents/:userId', async (c) => {
         try {
             const selectSql = `
                 SELECT 
-                dc.id AS category_id,
-                dc.name AS category_name,
-                dc.color AS category_color,
-                d.id AS document_id,
-                d.name AS document_name,
-                d.file_url,
-                d.file_size,
-                d.priority,
-                d.createdAt AS document_created_at
+                    dc.id AS category_id,
+                    dc.name AS category_name,
+                    dc.color AS category_color,
+                    d.id AS document_id,
+                    d.name AS document_name,
+                    d.file_url,
+                    d.file_size,
+                    d.priority,
+                    d.createdAt AS document_created_at,
+                    ds.signed_at,
+                    uda.status AS signature_status
                 FROM document_categories dc
                 INNER JOIN documents d 
-                ON dc.id = d.category_id
+                    ON dc.id = d.category_id
                 INNER JOIN user_document_assignments uda
-                ON uda.document_id = d.id
+                    ON uda.document_id = d.id
+                LEFT JOIN document_signatures ds
+                    ON ds.document_id = d.id AND ds.user_id = ?
                 WHERE uda.user_id = ?
                 ORDER BY dc.name ASC, d.name ASC
             `;
 
-            const [rows] = await connection.execute<any[]>(selectSql, [userId]);
+            const [rows] = await connection.execute<any[]>(selectSql, [userId, userId]);
 
             // Group documents under their categories
             const grouped = rows.reduce((acc, row) => {
                 const {
                     category_id,
                     category_name,
-                    category_description,
                     category_color,
                     document_id,
                     document_name,
                     file_url,
                     file_size,
                     priority,
-                    document_created_at
+                    document_created_at,
+                    signature_status
                 } = row;
 
                 if (!acc[category_id]) {
                     acc[category_id] = {
                         id: category_id,
                         name: category_name,
-                        description: category_description,
                         color: category_color,
                         documents: []
                     };
@@ -908,10 +967,12 @@ userDoc.get('/categories-with-documents/:userId', async (c) => {
                 acc[category_id].documents.push({
                     id: document_id,
                     name: document_name,
-                    file_url,
-                    file_size,
+                    fileUrl: file_url,
+                    size: file_size,
                     priority,
-                    createdAt: document_created_at
+                    createdAt: document_created_at,
+                    status: signature_status,
+                    signedDate: row.signed_at
                 });
 
                 return acc;
@@ -937,6 +998,7 @@ userDoc.get('/categories-with-documents/:userId', async (c) => {
         return c.json(response, 500);
     }
 });
+
 
 
 export default userDoc;

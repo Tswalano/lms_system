@@ -1,0 +1,13 @@
+{
+  "name": "lms-api-docs",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "zudoku dev --port 9000",
+    "build": "zudoku build",
+    "preview": "zudoku preview"
+  },
+  "devDependencies": {
+    "zudoku": "^0.75.1"
+  }
+}

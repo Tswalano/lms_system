@@ -4,26 +4,27 @@ on:
   push:
     branches:
       - main
+      - dev
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: "Deployment environment"
         required: true
-        default: 'prod'
+        default: "prod"
         type: choice
         options:
-          - staging
+          - dev
           - prod
       action:
-        description: 'Deploy or Destroy'
+        description: "Deploy or Destroy"
         required: true
-        default: 'deploy'
+        default: "deploy"
         type: choice
         options:
           - deploy
           - destroy
   release:
-    types: [published]
+    types: [ published ]
 
 jobs:
   detect-changes:
@@ -32,59 +33,105 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
+      branch: ${{ steps.filter.outputs.branch }}
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - id: filter
         run: |
-          git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changes.txt
           FRONTEND=false
           BACKEND=false
-          if grep -q "^frontend/" changes.txt; then FRONTEND=true; fi
-          if grep -q "^backend/" changes.txt; then BACKEND=true; fi
+          BRANCH=${GITHUB_REF##*/}
+
+          # Handle case where there's no previous commit (first push)
+          if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ] || [ -z "${{ github.event.before }}" ]; then
+            echo "First push detected, checking all files"
+            git ls-tree -r --name-only HEAD > changes.txt
+          else
+            echo "Comparing ${{ github.event.before }} to ${{ github.sha }}"
+            if ! git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changes.txt 2>/dev/null; then
+              echo "Git diff failed, falling back to HEAD~1"
+              git diff --name-only HEAD~1 HEAD > changes.txt 2>/dev/null || git ls-tree -r --name-only HEAD > changes.txt
+            fi
+          fi
+
+          echo "Changed files:"
+          cat changes.txt
+
+          if grep -q "^frontend/" changes.txt; then 
+            FRONTEND=true
+            echo "Frontend changes detected"
+          fi
+          if grep -q "^backend/" changes.txt; then 
+            BACKEND=true
+            echo "Backend changes detected"
+          fi
+
           echo "frontend=$FRONTEND" >> $GITHUB_OUTPUT
           echo "backend=$BACKEND" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "Frontend: $FRONTEND, Backend: $BACKEND, Branch: $BRANCH"
 
   semantic-release:
-    needs: [detect-changes]
+    needs: [ detect-changes ]
     if: |
       github.event_name == 'push' && 
-      github.ref == 'refs/heads/main' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') &&
       needs.detect-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     outputs:
       new-release-published: ${{ steps.semantic.outputs.new-release-published }}
       new-release-version: ${{ steps.semantic.outputs.new-release-version }}
+      release-type: ${{ steps.semantic.outputs.release-type }}
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
-
       - uses: actions/setup-node@v3
         with:
-          node-version: '20.9.0'
-
+          node-version: "20.9.0"
       - run: npm ci
-
       - name: Run semantic-release
         id: semantic
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          npx semantic-release
-          # Check if a new release was published
-          if [ -f .semantic-release-output ]; then
-            NEW_VERSION=$(cat .semantic-release-output)
+          echo "Running semantic-release on branch: ${GITHUB_REF##*/}"
+
+          # Run semantic-release and capture output
+          npx semantic-release --dry-run=false > semantic-output.log 2>&1 || true
+          cat semantic-output.log
+
+          # Check if a release was published
+          if grep -q "Published release" semantic-output.log; then
             echo "new-release-published=true" >> $GITHUB_OUTPUT
-            echo "new-release-version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            
+            # Extract version from semantic-release output
+            VERSION=$(grep -o "Published release [0-9]\+\.[0-9]\+\.[0-9]\+\(-dev\.[0-9]\+\)\?" semantic-output.log | sed 's/Published release //')
+            if [ -z "$VERSION" ]; then
+              # Fallback: get version from package.json if semantic-release updated it
+              VERSION=$(node -p "require('./package.json').version")
+            fi
+            
+            echo "new-release-version=$VERSION" >> $GITHUB_OUTPUT
+            
+            # Determine release type
+            if [[ "$VERSION" =~ -dev\. ]]; then
+              echo "release-type=prerelease" >> $GITHUB_OUTPUT
+            else
+              echo "release-type=release" >> $GITHUB_OUTPUT
+            fi
+            
+            echo "Released version: $VERSION"
           else
             echo "new-release-published=false" >> $GITHUB_OUTPUT
+            echo "No new release published"
           fi
 
   frontend-deploy:
-    needs: [detect-changes, semantic-release]
+    needs: [ detect-changes, semantic-release ]
     if: |
       always() && 
       (
@@ -97,131 +144,120 @@ jobs:
     defaults:
       run:
         working-directory: ./frontend
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+      environment: ${{ steps.set-version.outputs.environment }}
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
-
       - uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
-
-      # Pull latest changes if semantic-release updated package.json
-      - name: Pull latest changes
-        if: needs.semantic-release.outputs.new-release-published == 'true'
-        run: |
-          git pull origin main
-
+          node-version: "18.x"
       - run: npm ci
-      
       - name: Set version environment variable
+        id: set-version
         run: |
-          echo "=== DEBUG INFO ==="
-          echo "Current directory: $(pwd)"
-          echo "Root package.json exists: $(test -f ../package.json && echo 'YES' || echo 'NO')"
-          
-          if [ "${{ github.event_name }}" = "release" ]; then
-            VERSION="${{ github.event.release.tag_name }}"
-            echo "Using release tag version: $VERSION"
-          elif [ "${{ needs.semantic-release.outputs.new-release-published }}" = "true" ]; then
+          BRANCH=${GITHUB_REF##*/}
+          ENV="${{ github.event.inputs.environment || 'prod' }}"
+          VERSION=""
+
+          echo "Branch: $BRANCH"
+          echo "Event: ${{ github.event_name }}"
+          echo "Semantic release published: ${{ needs.semantic-release.outputs.new-release-published }}"
+          echo "Semantic release version: ${{ needs.semantic-release.outputs.new-release-version }}"
+          echo "Release type: ${{ needs.semantic-release.outputs.release-type }}"
+
+          # If semantic-release published a new version, use it
+          if [ "${{ needs.semantic-release.outputs.new-release-published }}" = "true" ]; then
             VERSION="${{ needs.semantic-release.outputs.new-release-version }}"
-            echo "Using new semantic release version: $VERSION"
+            
+            # Set environment based on release type
+            if [ "${{ needs.semantic-release.outputs.release-type }}" = "prerelease" ]; then
+              ENV="dev"
+            else
+              ENV="prod"
+            fi
+          elif [ "$BRANCH" = "dev" ]; then
+            # For dev branch without semantic release, create a dev version
+            BASE_VERSION=$(node -p "require('../package.json').version")
+            SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+            VERSION="${BASE_VERSION}-dev.${SHORT_SHA}"
+            ENV="dev"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            ENV="prod"
           else
-            # Try to get latest release from GitHub API as fallback
-            echo "Checking for latest GitHub release..."
+            # Fallback for main branch
             LATEST_RELEASE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
               "https://api.github.com/repos/${{ github.repository }}/releases/latest" | \
               grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]*).*/\1/' || echo "")
-            
             if [ ! -z "$LATEST_RELEASE" ]; then
               VERSION="$LATEST_RELEASE"
-              echo "Using latest GitHub release: $VERSION"
             else
               VERSION=$(node -p "require('../package.json').version")
-              echo "Using package.json version as fallback: $VERSION"
             fi
+            ENV="prod"
           fi
-          
+
+
           echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "=== FINAL VERSION: $VERSION ==="
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "=== FRONTEND VERSION: $VERSION ==="
+          echo "=== ENVIRONMENT: $ENV ==="
 
       - name: Build with version
         run: npm run build
         env:
           VITE_VERSION: ${{ env.VITE_VERSION }}
-          
+          NODE_ENV: ${{ steps.set-version.outputs.environment }}
+
       - uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Determine deployment target and version
-        id: vars
-        run: |
-          ENV=""
-          VERSION=""
-          if [ "${{ github.event_name }}" = "release" ]; then
-            ENV="prod"
-            VERSION="${{ github.event.release.tag_name }}"
-          else
-            ENV="${{ github.event.inputs.environment }}"
-            if [ -z "$ENV" ]; then ENV="prod"; fi
-            VERSION="latest"
-          fi
-          echo "env=$ENV" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Archive old version (only on release)
-        if: github.event_name == 'release'
-        run: |
-          BUCKET=${{ secrets.AWS_S3_BUCKET }}
-          VERSION=${{ steps.vars.outputs.version }}
-          echo "Archiving current 'latest' as version $VERSION"
-          aws s3 cp s3://$BUCKET/ s3://$BUCKET/archive/$VERSION/ --recursive
-
       - name: Upload to S3 and invalidate CloudFront
         run: |
           BUCKET=${{ secrets.AWS_S3_BUCKET }}
-          ENV=${{ steps.vars.outputs.env }}
-          VERSION=${{ steps.vars.outputs.version }}
+          ENV=${{ steps.set-version.outputs.environment }}
+          VERSION=${{ steps.set-version.outputs.version }}
 
           if [ "$ENV" = "prod" ]; then
-            TARGET="s3://$BUCKET/"
-            INVALIDATION_PATH="/*"
+            TARGET="s3://$BUCKET/prod/"
+            CF_ID="${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}"
           else
-            TARGET="s3://$BUCKET/$ENV/"
-            INVALIDATION_PATH="/$ENV/*"
+            TARGET="s3://$BUCKET/dev-fe/"
+            CF_ID="${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_DEV }}"
           fi
 
-          echo "Syncing to $TARGET"
+          echo "Syncing version $VERSION to $TARGET"
           aws s3 sync dist/ "$TARGET" --delete --acl public-read
 
-          echo "Invalidating CloudFront cache at $INVALIDATION_PATH"
+          echo "Invalidating CloudFront ($CF_ID) cache"
           aws cloudfront create-invalidation \
-            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
-            --paths "$INVALIDATION_PATH"
+            --distribution-id "$CF_ID" \
+            --paths "/*"
 
   backend:
-    needs: [frontend-deploy, detect-changes]
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' || needs.detect-changes.outputs.backend == 'true' || github.event_name == 'release'
+    needs: [ frontend-deploy, detect-changes ]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action ==
+      'deploy' || needs.detect-changes.outputs.backend == 'true' ||
+      github.event_name == 'release'
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./backend
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
-
+          node-version: "18.x"
       - run: npm ci
       - run: npm run build
-
       - uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -241,11 +277,11 @@ jobs:
         id: envvar
         run: |
           ENV=""
-          if [ "${{ github.event_name }}" = "release" ]; then
+          BRANCH=${GITHUB_REF##*/}
+          if [ "${{ github.event_name }}" = "release" ] || [ "$BRANCH" = "main" ]; then
             ENV="prod"
           else
-            ENV="${{ github.event.inputs.environment }}"
-            if [ -z "$ENV" ]; then ENV="prod"; fi
+            ENV="dev"
           fi
           echo "env=$ENV" >> $GITHUB_OUTPUT
 
@@ -253,7 +289,7 @@ jobs:
         run: |
           ENV=${{ steps.envvar.outputs.env }}
           echo "Deploying backend for $ENV"
-          npx cdk deploy --require-approval never --context env=$ENV
+          npx cdk deploy --require-approval never --context environment=$ENV
         env:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -263,28 +299,26 @@ jobs:
           CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
 
   backend-destroy:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action ==
+      'destroy'
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./backend
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
-
+          node-version: "18.x"
       - uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-
       - name: CDK Destroy
         run: |
           ENV="${{ github.event.inputs.environment }}"
           echo "Destroying backend for $ENV"
-          npx cdk destroy --force --context env=$ENV
+          npx cdk destroy --force --context environment=$ENV
         env:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}

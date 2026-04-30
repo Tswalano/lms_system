@@ -1,162 +1,520 @@
-import React, { useState, type FC } from 'react';
-import {
-    Plus,
-    Folder,
-    FileText,
-    Download,
-    Eye,
-    Edit3,
-    Trash2,
-    FileBadge,
-    X,
-    FolderPlus,
-    Save,
-    UploadCloud,
-    Loader2,
-    AlertCircle,
-} from 'lucide-react';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect, type FC } from 'react';
+import { Plus, FileBadge, FolderPlus, BellRing, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { User } from "../contexts/AuthContext";
+import { createAvatar } from '@/lib/helper';
+import DocumentViewModal from '@/components/admin/DocumentViewModal';
+import AddDocumentModal from '@/components/admin/AddDocumentModal';
+import EditDocumentModal from '@/components/admin/EditDocumentModal'; // Import the new modal
+import DocumentTable from '@/components/admin/DocumentTable';
+import FolderManager from '@/components/admin/FolderManager';
+import ConfirmationModal from '@/components/ConfirmationModal';
+import CreateFolderModal from '@/components/admin/CreateFolderModal';
 
-// Interface for API Document
+// Interfaces
 interface ApiDocument {
     id: number;
     name: string;
     file_url: string;
     file_size: string;
     priority: string;
+    category: string;
     createdAt: string;
     uploadedById: string;
     uploadedByDisplay: string;
+    department: string;
+    departmentId: number;
+    signatures: {
+        signed: number;
+        totalAssigned: number;
+        percentage: number;
+    };
 }
 
-// Interface for API Category
 interface ApiCategory {
-    id: string;
+    departmentId?: number;
+    id: number;
     name: string;
     description: string;
     color: string;
     documents: ApiDocument[];
 }
 
-// Interface for API Response
-interface ApiResponse {
+interface Department {
+    id: number;
+    name: string;
+    description?: string;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+interface DocumentCategoriesResponse {
     code: string;
     message: string;
     error: boolean;
     payload: ApiCategory[];
 }
 
-// Interface for a Folder object (transformed from API)
 interface FolderType {
-    id?: string | "";
+    id: number;
     name: string;
-    fileCount: number;
-    size: string;
+    departmentId?: number;
     color: string;
-    icon: React.ElementType;
-    description?: string;
+    fileCount?: number;
+    totalSize?: string;
 }
 
-// Interface for a Document object (transformed from API)
 interface DocumentType {
     id: number;
     name: string;
     uploadedByDisplay: string;
     uploadedById: string;
+    department: string;
     avatar: string;
     date: string;
     status: 'active' | 'draft' | 'archived';
     signatureRate: number;
     folder: string;
+    category: string;
     size: string;
-    content: string;
     fileUrl: string;
     priority?: string;
-    mimeType?: string | "";
-    fileBase64?: string | null; // Base64 representation of the file
+    mimeType?: string;
+    fileBase64?: string | null;
 }
 
-// Interface for the new document state
 interface NewDocumentState {
     name: string;
     folder: string;
     expiryFrequency: string;
-    file: File | null;
+    file?: File | null;
+    url?: string | null;
     status: 'active' | 'draft' | 'archived';
 }
 
-// Interface for the new folder state
+interface EditDocumentState {
+    name: string;
+    folder: string;
+    expiryFrequency: string;
+    file?: File | null;
+    url?: string | null;
+    status: 'active' | 'draft' | 'archived';
+    keepExistingFile: boolean;
+}
+
 interface NewFolderState {
     name: string;
+    departmentId: number;
     color: string;
 }
 
-// Interface for the edit document state
-interface EditDocumentState {
-    id: number | null;
-    name: string;
-    folder: string;
-    status: 'active' | 'draft' | 'archived';
-}
-
-// Interface for Modal component props
-interface ModalProps {
-    show: boolean;
-    onClose: () => void;
-    title: string;
-    children: React.ReactNode;
-}
-
 const AdminDocumentsPage: FC = () => {
-    const { authFetch, user } = useAuth()
+    const { authFetch, user } = useAuth();
+    const queryClient = useQueryClient();
+
+    // Component state
     const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
     const [showAddDocumentModal, setShowAddDocumentModal] = useState<boolean>(false);
-    const [showAddFolderModal, setShowAddFolderModal] = useState<boolean>(false);
+    const [showEditDocumentModal, setShowEditDocumentModal] = useState<boolean>(false); // Add edit modal state
+    const [showCreateFolderModal, setShowCreateFolderModal] = useState<boolean>(false);
     const [showViewModal, setShowViewModal] = useState<boolean>(false);
-    const [showEditModal, setShowEditModal] = useState<boolean>(false);
+    const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
     const [selectedDocument, setSelectedDocument] = useState<DocumentType | null>(null);
-    const [isDragging, setIsDragging] = useState(false)
+    const [documentToDelete, setDocumentToDelete] = useState<DocumentType | null>(null);
+    const [documentToEdit, setDocumentToEdit] = useState<DocumentType | null>(null); // Add edit document state
 
-    // State for folders and documents (will be populated from API)
+    // Local state for folders and documents (mutated by mutations)
     const [folders, setFolders] = useState<FolderType[]>([]);
     const [allDocuments, setAllDocuments] = useState<DocumentType[]>([]);
 
-    const renewalFrequencies = [{
-        id: 1,
-        name: 'Weekly',
-    }, {
-        id: 2,
-        name: 'Monthly',
-    }, {
-        id: 3,
-        name: 'Quarterly',
-    }, {
-        id: 4,
-        name: 'Bi-Annually',
-    },
-    {
-        id: 6,
-        name: 'Never',
-        className: 'text-gray-400 dark:text-gray-500'
-    }]
+    // URL validation function
+    const isValidUrl = (url: string): boolean => {
+        try {
+            const urlObj = new URL(url);
+            return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+        } catch {
+            return false;
+        }
+    };
 
-    // Helper function to calculate file size from multiple documents
-    const calculateTotalSize = (documents: ApiDocument[]): string => {
+    const fetchDocumentCategories = async (): Promise<{ folders: FolderType[], documents: DocumentType[] }> => {
+        try {
+            const response = await authFetch('/admin-docs/by-category', {
+                method: 'GET',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch document categories');
+            }
+
+            const result: DocumentCategoriesResponse = await response.json();
+
+            if (result.error || result.code !== 'SUCCESS') {
+                throw new Error(result.message || 'Failed to fetch document categories');
+            }
+
+            return transformApiData(result.payload);
+        } catch (error) {
+            console.error('Error fetching document categories:', error);
+            throw error;
+        }
+    };
+
+    const fetchDepartments = async (): Promise<Department[]> => {
+        try {
+            const response = await authFetch('/admin-docs/departments', {
+                method: 'GET',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch departments');
+            }
+
+            const result = await response.json();
+
+            if (result.error || result.code !== 'SUCCESS') {
+                throw new Error(result.message || 'Failed to fetch departments');
+            }
+
+            return result.payload;
+        } catch (error) {
+            console.error('Error fetching departments:', error);
+            throw error;
+        }
+    };
+
+    // React Query hooks
+    const {
+        data: departmentsData = [],
+        isLoading: departmentsLoading,
+        error: departmentsError
+    } = useQuery({
+        queryKey: ['departments'],
+        queryFn: fetchDepartments,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        retry: 2,
+    });
+
+    const {
+        data: documentsData,
+        isLoading: documentsLoading,
+        error: documentsError,
+        refetch: refetchDocuments
+    } = useQuery({
+        queryKey: ['documentsCategories'],
+        queryFn: fetchDocumentCategories,
+        staleTime: 2 * 60 * 1000, // 2 minutes
+        retry: 2,
+    });
+
+    // Update local state when data changes
+    useEffect(() => {
+        if (documentsData) {
+            setFolders(documentsData.folders);
+            setAllDocuments(documentsData.documents);
+        }
+    }, [documentsData]);
+
+
+    // Folder mutations
+    const createFolderMutation = useMutation({
+        mutationFn: async (folderData: NewFolderState) => {
+            const response = await authFetch('/admin-docs/categories', {
+                method: 'PUT',
+                body: JSON.stringify({
+                    name: folderData.name,
+                    fileCount: 0,
+                    size: '0 MB',
+                    color: folderData.color,
+                    departmentId: folderData.departmentId || null
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (folderData) => {
+            const folder: FolderType = {
+                id: folderData.id,
+                name: folderData.name,
+                color: folderData.color,
+                departmentId: folderData.departmentId
+            };
+
+            setFolders(prev => [...prev, folder]);
+            setShowCreateFolderModal(false);
+
+            toast.success("Folder created successfully!", {
+                description: `Folder "${folder.name}" has been created.`,
+            });
+        },
+        onError: (error: Error) => {
+            toast.error("Error creating folder", {
+                description: error.message || "Failed to create folder. Please try again.",
+            });
+        }
+    });
+
+    // Document mutations
+    const createDocumentMutation = useMutation({
+        mutationFn: async (documentPayload: any) => {
+            const response = await authFetch('/admin-docs', {
+                method: 'POST',
+                body: JSON.stringify(documentPayload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (responsePayload, documentPayload) => {
+            // Get the folder name from the folder ID
+            const selectedFolderObj = folders.find(f => f.id.toString() === documentPayload.folder.toString());
+            const folderName = selectedFolderObj ? selectedFolderObj.name : 'Unknown Folder';
+
+            const document: DocumentType = {
+                id: responsePayload.payload.id,
+                name: documentPayload.name,
+                category: documentPayload.category || folderName,
+                uploadedByDisplay: documentPayload.uploadedByDisplay,
+                uploadedById: documentPayload.uploadedById,
+                department: documentPayload.department,
+                avatar: createAvatar(
+                    documentPayload.uploadedByDisplay.split(' ')[0] || '',
+                    documentPayload.uploadedByDisplay.split(' ')[1] || ''
+                ),
+                date: new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                }),
+                status: documentPayload.status || 'draft',
+                signatureRate: documentPayload.signatures ? documentPayload.signatures.percentage : 0,
+                folder: folderName,
+                size: documentPayload.size,
+                fileUrl: documentPayload.fileUrl || documentPayload.finalUrl || "",
+            };
+
+            setAllDocuments(prev => [document, ...prev]);
+
+            // Update the folder's file count and total size
+            setFolders(prev => prev.map(folder => {
+                if (folder.id.toString() === documentPayload.folder.toString()) {
+                    const folderDocuments = [...allDocuments.filter(doc => doc.folder === folder.name), document];
+                    return {
+                        ...folder,
+                        fileCount: folderDocuments.length,
+                        totalSize: calculateTotalSize(folderDocuments)
+                    };
+                }
+                return folder;
+            }));
+
+            setShowAddDocumentModal(false);
+
+            toast.success("Document added successfully!", {
+                description: `Document "${document.name}" has been added.`,
+            });
+        },
+        onError: (error: Error) => {
+            toast.error("Error adding document", {
+                description: error.message || "Failed to add document. Please try again.",
+            });
+        }
+    });
+
+    // Add edit document mutation
+    const editDocumentMutation = useMutation({
+        mutationFn: async ({ documentId, documentPayload }: { documentId: number, documentPayload: any }) => {
+            const response = await authFetch(`/admin-docs/${documentId}`, {
+                method: 'PUT',
+                body: JSON.stringify(documentPayload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (responsePayload, { documentId, documentPayload }) => {
+            // Update the document in the local state
+            const selectedFolderObj = folders.find(f => f.id.toString() === documentPayload.folder.toString());
+            const folderName = selectedFolderObj ? selectedFolderObj.name : 'Unknown Folder';
+
+            setAllDocuments(prev => prev.map(doc => {
+                if (doc.id === documentId) {
+                    return {
+                        ...doc,
+                        name: documentPayload.name,
+                        status: documentPayload.status,
+                        folder: folderName,
+                        category: folderName,
+                        size: documentPayload.size || doc.size,
+                        fileUrl: documentPayload.fileUrl || documentPayload.finalUrl || doc.fileUrl,
+                    };
+                }
+                return doc;
+            }));
+
+            // Update folder counts if folder changed
+            setFolders(prev => prev.map(folder => {
+                const folderDocuments = allDocuments.filter(doc =>
+                    doc.id === documentId ? folderName === folder.name : doc.folder === folder.name
+                );
+                return {
+                    ...folder,
+                    fileCount: folderDocuments.length,
+                    totalSize: calculateTotalSize(folderDocuments)
+                };
+            }));
+
+            setShowEditDocumentModal(false);
+            setDocumentToEdit(null);
+
+            toast.success("Document updated successfully!", {
+                description: `Document "${documentPayload.name}" has been updated.`,
+            });
+        },
+        onError: (error: Error) => {
+            toast.error("Error updating document", {
+                description: error.message || "Failed to update document. Please try again.",
+            });
+        }
+    });
+
+    const sendReminderMutation = useMutation({
+        mutationFn: async (docId: number) => {
+            const response = await authFetch(`/admin-docs/${docId}/send-reminders`, {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (data) => {
+            const { sent, total } = data?.payload ?? {};
+            if (sent === 0 && total === 0) {
+                toast.info("No reminders needed", {
+                    description: "All assigned users have already signed this document.",
+                });
+            } else {
+                toast.success("Reminders sent", {
+                    description: `${sent} of ${total} unsigned user${total !== 1 ? 's' : ''} notified by email.`,
+                });
+            }
+        },
+        onError: (error: Error) => {
+            toast.error("Failed to send reminders", {
+                description: error.message || "An error occurred. Please try again.",
+            });
+        },
+    });
+
+    const sendBulkRemindersMutation = useMutation({
+        mutationFn: async () => {
+            const response = await authFetch('/admin-docs/send-bulk-reminders', {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (data) => {
+            const { emailsSent, totalUsers, totalDocuments } = data?.payload ?? {};
+            if (totalUsers === 0) {
+                toast.info("No reminders needed", {
+                    description: "No documents older than 15 days have unsigned assignments, or all eligible users were reminded recently.",
+                });
+            } else {
+                toast.success("Bulk reminders sent", {
+                    description: `${emailsSent} of ${totalUsers} user${totalUsers !== 1 ? 's' : ''} notified covering ${totalDocuments} pending document${totalDocuments !== 1 ? 's' : ''}.`,
+                });
+            }
+        },
+        onError: (error: Error) => {
+            toast.error("Failed to send bulk reminders", {
+                description: error.message || "An error occurred. Please try again.",
+            });
+        },
+    });
+
+    const deleteDocumentMutation = useMutation({
+        mutationFn: async (docId: number) => {
+            const response = await authFetch(`/admin-docs/${docId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (_, docId) => {
+            const documentToRemove = allDocuments.find(doc => doc.id === docId);
+
+            setAllDocuments(prev => prev.filter(doc => doc.id !== docId));
+
+            // Update the folder's file count and total size after deletion
+            if (documentToRemove) {
+                setFolders(prev => prev.map(folder => {
+                    if (folder.name === documentToRemove.folder) {
+                        const remainingDocuments = allDocuments.filter(doc =>
+                            doc.folder === folder.name && doc.id !== docId
+                        );
+                        return {
+                            ...folder,
+                            fileCount: remainingDocuments.length,
+                            totalSize: calculateTotalSize(remainingDocuments)
+                        };
+                    }
+                    return folder;
+                }));
+            }
+
+            setShowDeleteModal(false);
+            setDocumentToDelete(null);
+
+            toast.success("Document deleted", {
+                description: "Document has been removed successfully.",
+            });
+        },
+        onError: (error: Error) => {
+            toast.error("Error deleting document", {
+                description: error.message || "Failed to delete document. Please try again.",
+            });
+        }
+    });
+
+    // Helper functions
+    const calculateTotalSize = (documents: DocumentType[]): string => {
         const totalBytes = documents.reduce((total, doc) => {
-            const sizeStr = doc?.file_size ? doc.file_size.toLowerCase() : "0 KB";
+            const sizeStr = doc.size ? doc.size.toLowerCase() : "0 kb";
+
+            // Skip external links
+            if (sizeStr === 'external link') return total;
+
             let bytes = 0;
 
             if (sizeStr.includes('kb')) {
@@ -170,7 +528,9 @@ const AdminDocumentsPage: FC = () => {
             return total + bytes;
         }, 0);
 
-        if (totalBytes < 1024 * 1024) {
+        if (totalBytes === 0) {
+            return '0 KB';
+        } else if (totalBytes < 1024 * 1024) {
             return `${(totalBytes / 1024).toFixed(1)} KB`;
         } else if (totalBytes < 1024 * 1024 * 1024) {
             return `${(totalBytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -179,382 +539,266 @@ const AdminDocumentsPage: FC = () => {
         }
     };
 
-    // Helper function to transform API data
     const transformApiData = (apiData: ApiCategory[]) => {
         const transformedFolders: FolderType[] = [];
         const transformedDocuments: DocumentType[] = [];
 
         apiData.forEach(category => {
-            // Transform category to folder
-            transformedFolders.push({
-                id: category.id,
-                name: category.name,
-                fileCount: category.documents.length,
-                size: calculateTotalSize(category.documents),
-                color: category.color,
-                icon: Folder,
-                description: category.description
-            });
+            // Filter out documents that don't have an ID first
+            const validDocuments = category.documents.filter(doc => doc.id && doc.id > 0);
 
-            const actualCategoryDocuments = category.documents.filter(dc => !!dc.id);
-            
-            // Transform documents
-            actualCategoryDocuments.forEach(doc => {
-                transformedDocuments.push({
+            // Transform documents for this category
+            const categoryDocuments: DocumentType[] = [];
+            validDocuments.forEach(doc => {
+                const nameParts = doc.uploadedByDisplay?.split(' ') || ['', ''];
+
+                const transformedDoc: DocumentType = {
                     id: doc.id,
                     name: doc.name,
-                    uploadedByDisplay: doc.uploadedByDisplay, 
+                    category: doc.category,
+                    uploadedByDisplay: doc.uploadedByDisplay,
                     uploadedById: doc.uploadedById,
-                    avatar: 'SU',
+                    department: doc.department,
+                    avatar: createAvatar(nameParts[0] || '', nameParts[1] || ''),
                     date: new Date(doc.createdAt).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric'
                     }),
-                    status: 'active', // Default since API doesn't provide this
-                    signatureRate: Math.floor(Math.random() * 100), // Random since API doesn't provide this
-                    folder: category.id,
+                    status: 'active',
+                    signatureRate: doc.signatures ? doc.signatures.percentage : 0,
+                    folder: category.name,
                     size: doc.file_size,
-                    content: `This is the ${doc.name} document. Content will be loaded when the document is accessed.`,
                     fileUrl: doc.file_url,
                     priority: doc.priority
-                });
+                };
+
+                categoryDocuments.push(transformedDoc);
+                transformedDocuments.push(transformedDoc);
+            });
+
+            // Calculate totals for this folder
+            const totalSize = calculateTotalSize(categoryDocuments);
+            const fileCount = categoryDocuments.length;
+
+            transformedFolders.push({
+                id: category.id,
+                name: category.name,
+                color: category.color,
+                departmentId: category.departmentId,
+                fileCount: fileCount,
+                totalSize: totalSize
             });
         });
 
         return { folders: transformedFolders, documents: transformedDocuments };
     };
 
-    const fetchDocumentCategories = async (): Promise<{ folders: FolderType[], documents: DocumentType[] }> => {
-        try {
-            const response = await authFetch('/admin-docs/by-category', {
-                method: 'GET',
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch document categories');
-            }
-
-            const result: ApiResponse = await response.json();
-
-            if (result.error || result.code !== 'SUCCESS') {
-                throw new Error(result.message || 'Failed to fetch document categories');
-            }
-
-            return transformApiData(result.payload);
-        } catch (error) {
-            console.error('Error fetching document categories:', error);
-            throw error;
-        }
+    const getDocumentBase64 = async (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+        });
     };
 
-    const {
-        data,
-        isLoading,
-        error,
-        refetch
-    } = useQuery({
-        queryKey: ['documentsCategories'],
-        queryFn: fetchDocumentCategories,
-        staleTime: 2 * 60 * 1000, // 2 minutes
-        retry: 2,
-        // onSuccess: (data) => {
-        //     setFolders(data.folders);
-        //     setAllDocuments(data.documents);
-        // }
-    });
-
-    // Use the data from the query if available
-    React.useEffect(() => {
-        if (data) {
-            setFolders(data.folders);
-            setAllDocuments(data.documents);
-        }
-    }, [data]);
-
-    const [newDocument, setNewDocument] = useState<NewDocumentState>({
-        name: '',
-        folder: '',
-        expiryFrequency: '',
-        file: null,
-        status: 'draft'
-    });
-
-    const [newFolder, setNewFolder] = useState<NewFolderState>({
-        name: '',
-        color: 'bg-blue-500'
-    });
-
-    const [editDocument, setEditDocument] = useState<EditDocumentState>({
-        id: null,
-        name: '',
-        folder: '',
-        status: 'draft'
-    });
-
-    // Helper function to get status color class
-    const getStatusColor = (status: 'active' | 'draft' | 'archived'): string => {
-        switch (status) {
-            case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-            case 'draft': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-            case 'archived': return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
-            default: return 'bg-gray-100 text-gray-800';
-        }
-    };
-
-    // Filter documents based on selected folder
-    const filteredDocuments: DocumentType[] = selectedFolder
-        ? allDocuments.filter(doc => doc.folder === selectedFolder)
-        : allDocuments;
-
-    // Handle folder click to filter documents
+    // Event handlers
     const handleFolderClick = (folderId: string): void => {
         setSelectedFolder(selectedFolder === folderId ? null : folderId);
     };
 
-    const getDocumentBase64 = async (file: File): Promise<string> => {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            
-            reader.onloadend = () => {
-                resolve(reader.result as string);
+    const handleCreateFolder = (folderData: NewFolderState): void => {
+        createFolderMutation.mutate(folderData);
+    };
+
+    const handleAddDocument = async (documentData: NewDocumentState): Promise<void> => {
+        // Validation
+        if (!documentData.name.trim() || !documentData.folder) {
+            toast.error("Validation Error", {
+                description: "Document name and folder are required.",
+            });
+            return;
+        }
+
+        // Check if both file and URL are provided or both are missing
+        const hasFile = !!documentData.file;
+        const hasUrl = !!documentData.url?.trim();
+
+        if (!hasFile && !hasUrl) {
+            toast.error("Validation Error", {
+                description: "Please either upload a file or provide a URL.",
+            });
+            return;
+        }
+
+        if (hasFile && hasUrl) {
+            toast.error("Validation Error", {
+                description: "Please provide either a file or a URL, not both.",
+            });
+            return;
+        }
+
+        // Validate URL format if URL is provided
+        if (hasUrl && !isValidUrl(documentData.url!)) {
+            toast.error("Validation Error", {
+                description: "Please enter a valid URL (must start with http:// or https://).",
+            });
+            return;
+        }
+
+        try {
+            const documentPayload: any = {
+                name: documentData.name,
+                uploadedById: (user as User).id,
+                uploadedByDisplay: `${(user as User).firstName} ${(user as User).lastName}`,
+                departmentId: null,
+                folder: documentData.folder,
+                content: hasUrl
+                    ? `This document is linked to: ${documentData.url}`
+                    : 'Document content will be processed and displayed here once uploaded.',
+                status: documentData.status,
             };
 
-            reader.readAsDataURL(file);
-        });
-    };
-    
-    // Handle adding a new document
-    const handleAddDocument = async (): Promise<void> => {
-        if (!newDocument.name || !newDocument.folder) {
-            console.warn("Document name and folder are required.");
-            return;
-        }
-        const fileBasse64 = await getDocumentBase64(newDocument.file as File);
-        const document: DocumentType = {
-            id: Date.now(),
-            name: newDocument.name,
-            uploadedByDisplay: `${(user as User).firstName} ${(user as User).lastName}`,
-            uploadedById: (user as User).id,
-            avatar: 'CU',
-            date: new Date().toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-            }),
-            status: newDocument.status,
-            signatureRate: 0,
-            folder: newDocument.folder,
-            size: newDocument.file ? `${Math.round(newDocument.file.size / 1024)} KB` : '0 KB',
-            content: 'Document content will be processed and displayed here once uploaded.',
-            // fileUrl: newDocument.file ? URL.createObjectURL(newDocument.file) : '#',
-            fileUrl: "",
-            mimeType: newDocument.file ? newDocument.file.type : '',
-            fileBase64: fileBasse64.split(",")[1]
-        };
-
-        const documentUploadResponse = await authFetch('/admin-docs', {
-            method: 'POST',
-            body: JSON.stringify(document),
-        });
-        
-        if (documentUploadResponse.ok) {
-            const responsePayload = await documentUploadResponse.json();
-            document.id = responsePayload.payload.id;
-            
-            setAllDocuments([document, ...allDocuments]);
-    
-            // Update folder file count
-            setFolders(folders.map(folder =>
-                folder.id === newDocument.folder
-                    ? { ...folder, fileCount: folder.fileCount + 1 }
-                    : folder
-            ));
-    
-            setNewDocument({ name: '', folder: '', file: null, status: 'draft', expiryFrequency: '' });
-            setShowAddDocumentModal(false);
-        }
-        else {
-            const errorResponse = await documentUploadResponse?.json();
-
-            switch (documentUploadResponse?.status) {
-                default:
-                    toast.error(errorResponse.message || 'Failed to create folder. Please try again later.');
+            if (hasUrl) {
+                documentPayload.fileUrl = documentData.url;
+                documentPayload.size = 'External Link';
+                documentPayload.mimeType = 'text/html';
+                documentPayload.fileBase64 = null;
+            } else if (hasFile) {
+                const fileBase64 = await getDocumentBase64(documentData.file!);
+                documentPayload.size = `${Math.round(documentData.file!.size / 1024)} KB`;
+                documentPayload.mimeType = documentData.file!.type || 'application/octet-stream';
+                documentPayload.fileBase64 = fileBase64 ? fileBase64.split(",")[1] : null;
+                documentPayload.fileUrl = null;
             }
+
+            createDocumentMutation.mutate(documentPayload);
+        } catch (error) {
+            console.error('Error processing document:', error);
+            toast.error("Error processing document", {
+                description: "Failed to process the document. Please try again.",
+            });
         }
     };
 
-    // Handle adding a new folder
-    const handleAddFolder = async (): Promise<void> => {
-        if (!newFolder.name) {
-            console.warn("Folder name is required.");
+    // Add edit document handler
+    const handleEditDocument = async (documentId: number, documentData: EditDocumentState): Promise<void> => {
+        // Validation
+        if (!documentData.name.trim() || !documentData.folder) {
+            toast.error("Validation Error", {
+                description: "Document name and folder are required.",
+            });
             return;
         }
 
-        // TODO: Indicate loading while HTTP requestion in transit
-        
-        const folder: FolderType = {
-            name: newFolder.name,
-            fileCount: 0,
-            size: '0 MB',
-            color: newFolder.color,
-            icon: Folder
-        };
-        let response;
-        
-        // TODO: Submit new folder request to backend API 
+        // Check file/URL logic
+        const hasFile = !!documentData.file;
+        const hasUrl = !!documentData.url?.trim();
+        const keepExisting = documentData.keepExistingFile;
+
+        if (!hasFile && !hasUrl && !keepExisting) {
+            toast.error("Validation Error", {
+                description: "Please either keep the existing file, upload a new file, or provide a URL.",
+            });
+            return;
+        }
+
+        if ((hasFile && hasUrl) || (hasFile && keepExisting) || (hasUrl && keepExisting)) {
+            toast.error("Validation Error", {
+                description: "Please select only one option: keep existing, upload file, or provide URL.",
+            });
+            return;
+        }
+
+        // Validate URL format if URL is provided
+        if (hasUrl && !isValidUrl(documentData.url!)) {
+            toast.error("Validation Error", {
+                description: "Please enter a valid URL (must start with http:// or https://).",
+            });
+            return;
+        }
+
         try {
-            response = await authFetch('/admin-docs/categories', {
-                method: 'PUT',
-                body: JSON.stringify(folder)
-            });
-        } catch (putFolderError) {
-            console.error("Could not PUT folder", putFolderError);
+            const documentPayload: any = {
+                name: documentData.name,
+                folder: documentData.folder,
+                status: documentData.status,
+                keepExistingFile: keepExisting
+            };
 
-            toast.error('Error', {
-                description: error instanceof Error ? error.message : 'Failed to load profile data',
-            });
-        }
-
-        if (response?.ok) { // Replace with actual API call result
-            const responsePayload = await response.json();
-            const newCategory = responsePayload.payload;
-            folder.id = newCategory.id;
-
-            setFolders([...folders, folder]);
-            setNewFolder({ name: '', color: 'bg-blue-500' });
-            setShowAddFolderModal(false);
-        }
-        else {
-            // Handle error case
-            const errorResponse = await response?.json();
-
-            switch (response?.status) {
-                case 409:
-                    toast.error(errorResponse.message);
-                    break;
-
-                case 413:
-                    toast.error(errorResponse.message);
-                    break;
-
-                default:
-                    toast.error('Failed to create folder. Please try again later.');
+            if (hasUrl) {
+                documentPayload.fileUrl = documentData.url;
+                documentPayload.size = 'External Link';
+                documentPayload.mimeType = 'text/html';
+                documentPayload.fileBase64 = null;
+            } else if (hasFile) {
+                const fileBase64 = await getDocumentBase64(documentData.file!);
+                documentPayload.size = `${Math.round(documentData.file!.size / 1024)} KB`;
+                documentPayload.mimeType = documentData.file!.type || 'application/octet-stream';
+                documentPayload.fileBase64 = fileBase64 ? fileBase64.split(",")[1] : null;
             }
+
+            editDocumentMutation.mutate({ documentId, documentPayload });
+        } catch (error) {
+            console.error('Error processing document update:', error);
+            toast.error("Error updating document", {
+                description: "Failed to process the document update. Please try again.",
+            });
         }
     };
 
-    // Handle viewing a document
     const handleViewDocument = (doc: DocumentType): void => {
         setSelectedDocument(doc);
         setShowViewModal(true);
     };
 
-    // Handle downloading a document
     const handleDownloadDocument = (doc: DocumentType): void => {
         const link = document.createElement('a');
         link.href = doc.fileUrl;
-        link.download = doc.name;
+        link.target = '_blank';   // open in a new tab
+        link.rel = 'noopener noreferrer'; // security best practice
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        console.log(`Downloading ${doc.name}...`);
+        console.log(`Opening ${doc.name} in a new tab...`);
     };
 
-    // Handle editing a document
-    const handleEditDocument = (doc: DocumentType): void => {
-        setEditDocument({
-            id: doc.id,
-            name: doc.name,
-            folder: doc.folder,
-            status: doc.status
-        });
-        setShowEditModal(true);
+    // Update the edit handler to open the edit modal
+    const handleEditDocumentClick = (doc: DocumentType): void => {
+        setDocumentToEdit(doc);
+        setShowEditDocumentModal(true);
     };
 
-    // Handle updating an existing document
-    const handleUpdateDocument = (): void => {
-        if (!editDocument.name || !editDocument.folder || editDocument.id === null) {
-            console.warn("Document name, folder, and ID are required for update.");
-            return;
-        }
-
-        const oldDocument = allDocuments.find(doc => doc.id === editDocument.id);
-        const oldFolderId = oldDocument?.folder;
-        const newFolderId = editDocument.folder;
-
-        setAllDocuments(allDocuments.map(doc =>
-            doc.id === editDocument.id
-                ? { ...doc, name: editDocument.name, folder: editDocument.folder, status: editDocument.status }
-                : doc
-        ));
-
-        if (oldFolderId !== newFolderId) {
-            setFolders(folders.map(folder => {
-                if (folder.id === oldFolderId) {
-                    return { ...folder, fileCount: Math.max(0, folder.fileCount - 1) };
-                }
-                if (folder.id === newFolderId) {
-                    return { ...folder, fileCount: folder.fileCount + 1 };
-                }
-                return folder;
-            }));
-        }
-
-        setShowEditModal(false);
-        setEditDocument({ id: null, name: '', folder: '', status: 'draft' });
+    const handleSendReminder = (docId: number): void => {
+        sendReminderMutation.mutate(docId);
     };
 
-    // Handle deleting a document
     const handleDeleteDocument = (docId: number): void => {
-        if (confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
-            const documentToDelete = allDocuments.find(doc => doc.id === docId);
-
-            setAllDocuments(allDocuments.filter(doc => doc.id !== docId));
-
-            if (documentToDelete) {
-                setFolders(folders.map(folder =>
-                    folder.id === documentToDelete.folder
-                        ? { ...folder, fileCount: Math.max(0, folder.fileCount - 1) }
-                        : folder
-                ));
-            }
+        const document = allDocuments.find(doc => doc.id === docId);
+        if (document) {
+            setDocumentToDelete(document);
+            setShowDeleteModal(true);
         }
     };
 
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault()
-        setIsDragging(false)
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            setNewDocument({ ...newDocument, file: e.dataTransfer.files[0] })
-            e.dataTransfer.clearData()
+    const confirmDeleteDocument = (): void => {
+        if (documentToDelete) {
+            deleteDocumentMutation.mutate(documentToDelete.id);
         }
-    }
-
-    // Modal Component
-    const Modal: FC<ModalProps> = ({ show, onClose, title, children }) => {
-        if (!show) return null;
-
-        return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-                    <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-                        <button
-                            onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-                    <div className="p-6">
-                        {children}
-                    </div>
-                </div>
-            </div>
-        );
     };
+
+    // Computed values
+    const filteredDocuments: DocumentType[] = selectedFolder
+        ? allDocuments.filter(doc => doc.folder === selectedFolder)
+        : allDocuments;
+
+    const isLoading = documentsLoading || departmentsLoading;
+    const hasError = documentsError || departmentsError;
+
+    const documentTableTitle = selectedFolder
+        ? `${folders.find(f => f.name === selectedFolder)?.name || 'Selected Folder'} Files`
+        : 'All Files';
 
     return (
         <div className="font-inter">
@@ -575,16 +819,26 @@ const AdminDocumentsPage: FC = () => {
 
                     <div className="flex flex-wrap items-center gap-3">
                         <button
-                            onClick={() => setShowAddFolderModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            onClick={() => sendBulkRemindersMutation.mutate()}
+                            disabled={sendBulkRemindersMutation.isPending}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/40 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {sendBulkRemindersMutation.isPending
+                                ? <Loader2 className="w-4 h-4 animate-spin" />
+                                : <BellRing className="w-4 h-4" />
+                            }
+                            {sendBulkRemindersMutation.isPending ? 'Sending...' : 'Send All Reminders'}
+                        </button>
+                        <button
+                            onClick={() => setShowCreateFolderModal(true)}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/20 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800/40 transition-colors"
                         >
                             <FolderPlus className="w-4 h-4" />
                             New Folder
                         </button>
-
                         <button
                             onClick={() => setShowAddDocumentModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                             New Document
@@ -594,530 +848,100 @@ const AdminDocumentsPage: FC = () => {
             </div>
 
             <div>
-                {/* Folders Section */}
-                {isLoading ? (
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12">
-                        <div className="text-center">
-                            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
-                            <p className="text-gray-600 dark:text-gray-400">Loading documents categories...</p>
-                        </div>
-                    </div>
-                ) : error ? (
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12">
-                        <div className="text-center">
-                            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                            <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">Error loading document categories</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                {error instanceof Error ? error.message : 'Something went wrong'}
-                            </p>
-                            <Button onClick={() => refetch()} className="bg-blue-500 hover:bg-blue-600 text-white">
-                                Try Again
-                            </Button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="mb-8">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Folders</h2>
-                            {selectedFolder && (
-                                <button
-                                    onClick={() => setSelectedFolder(null)}
-                                    className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline"
-                                >
-                                    Show All Documents
-                                </button>
-                            )}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {folders.map((folder: FolderType) => (
-                                <div
-                                    key={folder.id}
-                                    onClick={() => handleFolderClick(folder?.id || "")}
-                                    className={`bg-white dark:bg-gray-800 rounded-xl border-2 p-4 hover:shadow-lg transition-all duration-200 cursor-pointer group ${selectedFolder === folder.id
-                                        ? 'border-cyan-500 dark:border-cyan-400 bg-cyan-50 dark:bg-cyan-900/20'
-                                        : 'border-gray-200 dark:border-gray-700'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className={`w-10 h-10 ${folder.color} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                                            <folder.icon className="w-5 h-5 text-white" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
-                                                {folder.name}
-                                            </h3>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                                        <span>{folder.fileCount} Files</span>
-                                        <span>{folder.size}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                {/* Folder Manager Component */}
+                <FolderManager
+                    folders={folders}
+                    departments={departmentsData}
+                    selectedFolder={selectedFolder}
+                    onFolderClick={handleFolderClick}
+                    onFolderSelect={setSelectedFolder}
+                    onFolderCreated={(folder) => setFolders(prev => [...prev, folder])}
+                    onFolderUpdated={(folder) => {
+                        setFolders(prev => prev.map(f => f.id === folder.id ? folder : f));
+                    }}
+                    onFolderDeleted={(folderId) => {
+                        setFolders(prev => prev.filter(f => f.id !== folderId));
+                    }}
+                    isLoading={isLoading}
+                    error={hasError ? new Error('Failed to load data') : null}
+                    onRetry={() => {
+                        refetchDocuments();
+                        queryClient.invalidateQueries({ queryKey: ['departments'] });
+                    }}
+                    hideCreateButton={true}
+                />
 
-                {/* All Files Table */}
-                {allDocuments.length > 0 && (
-                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                {selectedFolder
-                                    ? `${folders.find(f => f.id === selectedFolder)?.name || 'Selected Folder'} Files`
-                                    : 'All Files'
-                                }
-                            </h2>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-gray-50 dark:bg-gray-900/50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Name
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Upload By
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Status
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Signatures
-                                        </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Actions
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                    {filteredDocuments.map((doc) => (
-                                        <tr key={doc.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 rounded-lg flex items-center justify-center">
-                                                        <FileText className="w-4 h-4 text-white" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-sm font-medium text-gray-900 dark:text-white">{doc.name}</div>
-                                                        <div className="text-sm text-gray-500 dark:text-gray-400">{doc.date} • {doc.size}</div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 rounded-full flex items-center justify-center">
-                                                        <span className="text-xs font-semibold text-white">{doc.avatar}</span>
-                                                    </div>
-                                                    <span className="text-sm text-gray-900 dark:text-white">{doc.uploadedByDisplay}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(doc.status)}`}>
-                                                    {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                                        <div
-                                                            className="bg-cyan-500 h-full rounded-full"
-                                                            style={{ width: `${doc.signatureRate}%` }}
-                                                        ></div>
-                                                    </div>
-                                                    <span className="text-sm text-gray-900 dark:text-white">{doc.signatureRate}%</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button
-                                                        onClick={() => handleViewDocument(doc)}
-                                                        className="text-gray-500 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
-                                                        title="View Document"
-                                                    >
-                                                        <Eye className="w-5 h-5" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleEditDocument(doc)}
-                                                        className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                                        title="Edit Document"
-                                                    >
-                                                        <Edit3 className="w-5 h-5" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDownloadDocument(doc)}
-                                                        className="text-gray-500 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                                                        title="Download Document"
-                                                    >
-                                                        <Download className="w-5 h-5" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteDocument(doc.id)}
-                                                        className="text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                                                        title="Delete Document"
-                                                    >
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                {/* Documents Table */}
+                {!isLoading && !hasError && (
+                    <DocumentTable
+                        documents={filteredDocuments}
+                        title={documentTableTitle}
+                        onView={handleViewDocument}
+                        onEdit={handleEditDocumentClick}
+                        onDownload={handleDownloadDocument}
+                        onDelete={handleDeleteDocument}
+                        onSendReminder={handleSendReminder}
+                    />
                 )}
             </div>
 
             {/* Add Document Modal */}
-            {showAddDocumentModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-600/50">
-                        {/* Header */}
-                        <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                                        <FileText className="w-6 h-6 text-white" />
-                                    </div>
-                                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Add New Document</h3>
-                                </div>
-                                <button
-                                    onClick={() => setShowAddDocumentModal(false)}
-                                    className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-colors"
-                                >
-                                    <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Content */}
-                        <div className="p-6 space-y-6">
-                            <div>
-                                <Label htmlFor="new-doc-name" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                                    Document Name
-                                </Label>
-                                <Input
-                                    id="new-doc-name"
-                                    type="text"
-                                    value={newDocument.name}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDocument({ ...newDocument, name: e.target.value })}
-                                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-lg"
-                                    placeholder="Enter document name"
-                                />
-                            </div>
-
-                            <div>
-                                <Label htmlFor="renewal-frequency" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                                    Renewal Frequency
-                                </Label>
-                                <Select
-                                    value={newDocument.expiryFrequency}
-                                    onValueChange={(value: string) => setNewDocument({ ...newDocument, expiryFrequency: value })}
-                                >
-                                    <SelectTrigger id='renewal-frequency' className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
-                                        <SelectValue placeholder="Expiry Frequency" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
-                                        {renewalFrequencies.map((renewal) => (
-                                            <SelectItem
-                                                className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
-                                                key={renewal.id} value={renewal.name}>
-                                                {renewal.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div>
-                                <Label htmlFor="new-doc-folder" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                                    Folder
-                                </Label>
-                                <Select
-                                    value={newDocument.folder}
-                                    onValueChange={(value: string) => setNewDocument({ ...newDocument, folder: value })}
-                                >
-                                    <SelectTrigger id='new-doc-folder' className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
-                                        <SelectValue placeholder="Select a folder" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
-                                        {folders.map((folder) => (
-                                            <SelectItem
-                                                className="hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800"
-                                                key={folder.id} value={folder.id as string}>
-                                                {folder.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div>
-                                <Label
-                                    htmlFor="new-doc-file"
-                                    className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2"
-                                >
-                                    Upload File (Optional)
-                                </Label>
-
-                                <div
-                                    onDragOver={(e) => {
-                                        e.preventDefault()
-                                        setIsDragging(true)
-                                    }}
-                                    onDragLeave={() => setIsDragging(false)}
-                                    onDrop={handleDrop}
-                                    className={`flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl transition
-                                    ${isDragging ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20" : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"}
-                                    hover:border-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 cursor-pointer`}
-                                    onClick={() => document.getElementById("new-doc-file")?.click()}
-                                >
-                                    <UploadCloud className="w-10 h-10 text-gray-400 mb-3" />
-                                    <p className="text-gray-600 dark:text-gray-300 text-sm text-center">
-                                        {newDocument.file
-                                            ? `Selected: ${newDocument.file.name}`
-                                            : "Drag & drop your file here, or click to browse"}
-                                    </p>
-                                    <input
-                                        id="new-doc-file"
-                                        type="file"
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                            setNewDocument({
-                                                ...newDocument,
-                                                file: e.target.files ? e.target.files[0] : null,
-                                            })
-                                        }
-                                        className="hidden"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="p-6 bg-gray-50 dark:bg-slate-700/30 border-t border-gray-100 dark:border-slate-600/30">
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setShowAddDocumentModal(false)}
-                                    className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-lg font-medium"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleAddDocument}
-                                    disabled={!newDocument.name || !newDocument.folder}
-                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-lg font-medium"
-                                >
-                                    <Save className="w-5 h-5 inline-block mr-2" />
-                                    Add Document
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Add Folder Modal */}
-            <Modal
-                show={showAddFolderModal}
-                onClose={() => setShowAddFolderModal(false)}
-                title="Add New Folder"
-            >
-                <div className="space-y-4">
-                    <div>
-                        <label htmlFor="new-folder-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Folder Name
-                        </label>
-                        <input
-                            id="new-folder-name"
-                            type="text"
-                            value={newFolder.name}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewFolder({ ...newFolder, name: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            placeholder="Enter folder name"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Folder Color
-                        </label>
-                        <div className="flex gap-2">
-                            {['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-red-500', 'bg-indigo-500'].map(color => (
-                                <button
-                                    key={color}
-                                    onClick={() => setNewFolder({ ...newFolder, color: color })}
-                                    className={`w-10 h-10 rounded-lg ${color} ${newFolder.color === color ? 'ring-2 ring-offset-2 ring-cyan-500 dark:ring-offset-gray-800' : ''} hover:scale-110 transition-transform`}
-                                    title={color.replace('bg-', '')}
-                                ></button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex gap-3 pt-4">
-                        <button
-                            onClick={() => setShowAddFolderModal(false)}
-                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleAddFolder}
-                            disabled={!newFolder.name}
-                            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Add Folder
-                        </button>
-                    </div>
-                </div>
-            </Modal>
-
-            {/* View Document Modal */}
-            <Modal
-                show={showViewModal}
-                onClose={() => setShowViewModal(false)}
-                title="View Document"
-            >
-                {selectedDocument && (
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 rounded-lg flex items-center justify-center">
-                                <FileText className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedDocument.name}</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    Uploaded by {selectedDocument.uploadedByDisplay} on {selectedDocument.date}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 py-4 border-y border-gray-200 dark:border-gray-700">
-                            <div>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Status:</span>
-                                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedDocument.status)}`}>
-                                    {selectedDocument.status.charAt(0).toUpperCase() + selectedDocument.status.slice(1)}
-                                </span>
-                            </div>
-                            <div>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Size:</span>
-                                <span className="ml-2 text-sm text-gray-900 dark:text-white">{selectedDocument.size}</span>
-                            </div>
-                            <div>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Signatures:</span>
-                                <span className="ml-2 text-sm text-gray-900 dark:text-white">{selectedDocument.signatureRate}%</span>
-                            </div>
-                            <div>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Folder:</span>
-                                <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                                    {folders.find(f => f.id === selectedDocument.folder)?.name || 'Unknown'}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* <div>
-                            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Content Preview:</h4>
-                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-sm text-gray-600 dark:text-gray-300 max-h-32 overflow-y-auto">
-                                {selectedDocument.content}
-                            </div>
-                        </div> */}
-
-                        <div className="flex gap-3 pt-4">
-                            <button
-                                onClick={() => handleDownloadDocument(selectedDocument)}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:opacity-90 transition-opacity"
-                            >
-                                <Download className="w-4 h-4" />
-                                Download
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowViewModal(false);
-                                    handleEditDocument(selectedDocument);
-                                }}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90 transition-opacity"
-                            >
-                                <Edit3 className="w-4 h-4" />
-                                Edit
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </Modal>
+            <AddDocumentModal
+                isOpen={showAddDocumentModal}
+                onClose={() => setShowAddDocumentModal(false)}
+                onSubmit={handleAddDocument}
+                folders={folders}
+                isLoading={createDocumentMutation.isPending}
+            />
 
             {/* Edit Document Modal */}
-            <Modal
-                show={showEditModal}
-                onClose={() => setShowEditModal(false)}
-                title="Edit Document"
-            >
-                <div className="space-y-4">
-                    <div>
-                        <label htmlFor="edit-doc-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Document Name
-                        </label>
-                        <input
-                            id="edit-doc-name"
-                            type="text"
-                            value={editDocument.name}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditDocument({ ...editDocument, name: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            placeholder="Enter document name"
-                        />
-                    </div>
+            <EditDocumentModal
+                isOpen={showEditDocumentModal}
+                onClose={() => {
+                    setShowEditDocumentModal(false);
+                    setDocumentToEdit(null);
+                }}
+                onSubmit={handleEditDocument}
+                folders={folders}
+                document={documentToEdit}
+                isLoading={editDocumentMutation.isPending}
+            />
 
-                    <div>
-                        <label htmlFor="edit-doc-folder" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Folder
-                        </label>
-                        <select
-                            id="edit-doc-folder"
-                            value={editDocument.folder}
-                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditDocument({ ...editDocument, folder: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="">Select a folder</option>
-                            {folders.map(folder => (
-                                <option key={folder.id} value={folder.id}>{folder.name}</option>
-                            ))}
-                        </select>
-                    </div>
+            {/* Create Folder Modal */}
+            <CreateFolderModal
+                isOpen={showCreateFolderModal}
+                onClose={() => setShowCreateFolderModal(false)}
+                onSubmit={handleCreateFolder}
+                departments={departmentsData}
+                isLoading={createFolderMutation.isPending}
+                title="Add New Folder"
+                submitText="Add Folder"
+            />
 
-                    <div>
-                        <label htmlFor="edit-doc-status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Status
-                        </label>
-                        <select
-                            id="edit-doc-status"
-                            value={editDocument.status}
-                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditDocument({ ...editDocument, status: e.target.value as 'active' | 'draft' | 'archived' })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="draft">Draft</option>
-                            <option value="active">Active</option>
-                            <option value="archived">Archived</option>
-                        </select>
-                    </div>
+            {/* View Document Modal */}
+            <DocumentViewModal
+                showViewModal={showViewModal}
+                setShowViewModal={setShowViewModal}
+                selectedDocument={selectedDocument}
+                onSendReminder={handleSendReminder}
+                isReminderLoading={sendReminderMutation.isPending}
+            />
 
-                    <div className="flex gap-3 pt-4">
-                        <button
-                            onClick={() => setShowEditModal(false)}
-                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleUpdateDocument}
-                            disabled={!editDocument.name || !editDocument.folder}
-                            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Save className="w-4 h-4 inline-block mr-2" />
-                            Update Document
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+            {/* Delete Document Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showDeleteModal}
+                onClose={() => {
+                    setShowDeleteModal(false);
+                    setDocumentToDelete(null);
+                }}
+                onConfirm={confirmDeleteDocument}
+                title="Delete Document"
+                message={`Are you sure you want to delete the document "${documentToDelete?.name}"? This action cannot be undone.`}
+                confirmText="Delete Document"
+                cancelText="Cancel"
+                isLoading={deleteDocumentMutation.isPending}
+                type="danger"
+            />
         </div>
     );
 };

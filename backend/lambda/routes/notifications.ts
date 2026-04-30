@@ -118,10 +118,12 @@ notificationRoutes.get('/', async (c: Context): Promise<Response> => {
             queryParams.push(isRead === 'true');
         }
 
-        // Date range filter
+        // Date range filter — default to last 30 days if no startDate provided
         if (startDate) {
             whereClause += ' AND n.createdAt >= ?';
             queryParams.push(new Date(startDate));
+        } else {
+            whereClause += ' AND n.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
         }
         if (endDate) {
             whereClause += ' AND n.createdAt <= ?';
@@ -187,9 +189,7 @@ notificationRoutes.get('/', async (c: Context): Promise<Response> => {
             createdAt: notification.createdAt,
             relatedId: notification.relatedId,
             relatedType: notification.relatedType,
-            createdBy: notification.creatorFirstName || notification.creatorLastName ? {
-                name: `${notification.creatorFirstName || ''} ${notification.creatorLastName || ''}`.trim()
-            } : null,
+            createdBy: notification.creatorFirstName || notification.creatorLastName ? `${notification.creatorFirstName || ''} ${notification.creatorLastName || ''}`.trim() : null,
             metadata: notification.metadata ? JSON.parse(notification.metadata) : null
         }));
 
@@ -261,11 +261,12 @@ notificationRoutes.get('/counts', async (c: Context): Promise<Response> => {
             WHERE recipientId = ? AND isArchived = true
         `;
 
-        // Add total notifications count query (for completeness)
+        // Total non-archived notifications in the last 30 days (matches the list view)
         const totalQuery = `
             SELECT COUNT(*) as totalCount
-            FROM notifications 
-            WHERE recipientId = ?
+            FROM notifications
+            WHERE recipientId = ? AND isArchived = false
+            AND createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         `;
 
         const [countsRows] = await connection.query<mysql.RowDataPacket[]>(countsQuery, [userId]);

@@ -10,6 +10,8 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
@@ -438,11 +440,63 @@ export class LmsBackendStack extends cdk.Stack {
         ENVIRONMENT: environment,
         SECRET_NAME: config.secretName,
         POLICY_DOCUMENTS_DISTRIBUTION_URL: `https://${distribution.distributionDomainName}`,
-        POLICY_DOCUMENTS_BUCKET_NAME: policyRepositoryBucket.bucketName
+        POLICY_DOCUMENTS_BUCKET_NAME: policyRepositoryBucket.bucketName,
+        FRONTEND_URL: environment === 'prod'
+          ? 'https://lms.disraptor.co.za/documents'
+          : 'http://localhost:3000/documents',
       },
       timeout: cdk.Duration.seconds(30),
       memorySize: 1024,
       logRetention: environment === 'prod' ? logs.RetentionDays.ONE_WEEK : logs.RetentionDays.THREE_DAYS,
+    });
+
+    // ============================================================================
+    // Document Reminder Scheduler — EventBridge + Lambda
+    // Runs Mon–Fri at 8 AM UTC; sends reminder emails for overdue unsigned docs.
+    // ============================================================================
+    const schedulerLambda = new NodejsFunction(this, `lms-document-reminder-scheduler${resourceSuffix}`, {
+      entry: 'lambda/scheduled/documentReminderScheduler.ts',
+      handler: 'handler',
+      functionName: `lms-document-reminder-scheduler${resourceSuffix}`,
+      description: `Daily document signing reminder scheduler - ${environment}`,
+      bundling: {
+        externalModules: ['aws-sdk'],
+        minify: true,
+        sourceMap: true,
+        target: 'es2020',
+        nodeModules: ['mysql2', 'dayjs'],
+      },
+      runtime: lambda.Runtime.NODEJS_22_X,
+      role: lambdaRole,
+      layers: [dependenciesLayer],
+      environment: {
+        DATABASE_SECRET_ARN: databaseCredentials.secretArn,
+        NODE_ENV: environment === 'prod' ? 'production' : 'development',
+        ENVIRONMENT: environment,
+        SECRET_NAME: config.secretName,
+        FRONTEND_URL: environment === 'prod'
+          ? 'https://lms.disraptor.co.za/documents'
+          : 'http://localhost:3000/documents',
+      },
+      timeout: cdk.Duration.minutes(5),
+      memorySize: 512,
+      logRetention: environment === 'prod' ? logs.RetentionDays.ONE_WEEK : logs.RetentionDays.THREE_DAYS,
+    });
+
+    const dailyReminderRule = new events.Rule(this, `DailyDocumentReminderRule${resourceSuffix}`, {
+      ruleName: `lms-daily-document-reminder${resourceSuffix}`,
+      description: 'Triggers daily document signing reminders for overdue unsigned documents',
+      // 8 AM UTC, Monday through Friday
+      schedule: events.Schedule.cron({ minute: '0', hour: '8', weekDay: 'MON-FRI' }),
+    });
+
+    dailyReminderRule.addTarget(new targets.LambdaFunction(schedulerLambda, {
+      retryAttempts: 2,
+    }));
+
+    new cdk.CfnOutput(this, 'SchedulerLambdaName', {
+      value: schedulerLambda.functionName,
+      description: `Document reminder scheduler Lambda - ${environment}`,
     });
 
     // ============================================================================

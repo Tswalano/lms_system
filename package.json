@@ -1,7 +1,7 @@
 {
     "name": "employee-management-system",
     "private": true,
-    "version": "1.1.2",
+    "version": "1.0.0-dev.1",
     "workspaces": [
         "backend",
         "frontend"
@@ -12,9 +12,12 @@
     },
     "devDependencies": {
         "@semantic-release/changelog": "^6.0.3",
+        "@semantic-release/commit-analyzer": "^11.1.0",
         "@semantic-release/git": "^10.0.1",
-        "@semantic-release/github": "^11.0.3",
-        "@semantic-release/npm": "^12.0.1",
-        "semantic-release": "^24.2.6"
+        "@semantic-release/github": "^9.2.6",
+        "@semantic-release/npm": "^11.0.2",
+        "@semantic-release/release-notes-generator": "^12.1.0",
+        "concurrently": "^9.2.1",
+        "semantic-release": "^22.0.12"
     }
 }
