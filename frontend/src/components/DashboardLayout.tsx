@@ -62,19 +62,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     showFooter = true
 }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [isCollapsed, setIsCollapsed] = useState(false);
-
-    // Calculate margin based on sidebar state
-    const getMainContentMargin = () => {
-        if (!showSidebar) return '';
-
-        // Desktop margins
-        if (isCollapsed) {
-            return 'lg:ml-20'; // 5rem = 80px
-        } else {
-            return 'lg:ml-72'; // 18rem = 288px
-        }
-    };
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     return (
         <div className={`min-h-screen bg-gradient-to-br from-green-50/30 via-emerald-50/30 to-cyan-50/30 dark:from-slate-900 dark:via-gray-950/30 dark:to-gray-950/30 transition-colors duration-200 ${className}`}>
@@ -97,19 +85,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <Sidebar
                     isMobileMenuOpen={isMobileMenuOpen}
                     setIsMobileMenuOpen={setIsMobileMenuOpen}
-                    isCollapsed={isCollapsed}
-                    setIsCollapsed={setIsCollapsed}
+                    isCollapsed={isSidebarCollapsed}
+                    setIsCollapsed={setIsSidebarCollapsed}
                 />
             )}
 
             {/* Main Content Area */}
-            <div className={`${getMainContentMargin()} relative z-10 transition-all duration-300 ease-in-out flex flex-col min-h-screen`}>
+            <div className={`${showSidebar ? (isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72') : ''} relative z-10 transition-all duration-300 ease-in-out flex flex-col min-h-screen`}>
                 {/* Header */}
                 {showHeader && (
-                    <DashboardHeader
-                        isCollapsed={isCollapsed}
-                        showSidebar={showSidebar}
-                    />
+                    <DashboardHeader />
                 )}
 
                 {/* Main Content - Flex grow to push footer down */}

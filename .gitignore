@@ -54,3 +54,8 @@ yarn-error.log*
 cdk.out
 **/*.js.map
 **/.npmrc
+
+# claude
+.claude
+*.claude
+.claude/*

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Pagination } from "@/components/ui/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 import { Users, Building2, UserPlus, Plus, Edit, Search, Loader2, AlertCircle, RefreshCw, Shield, User, Trash2, X, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -540,6 +542,9 @@ const ManageEmployeesPage = () => {
             department.description.toLowerCase().includes(searchLower);
     });
 
+    const employeesPagination = usePagination(filteredEmployees, 10);
+    const departmentsPagination = usePagination(filteredDepartments, 10);
+
     if (!token) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950 flex items-center justify-center">
@@ -624,7 +629,7 @@ const ManageEmployeesPage = () => {
                         <Input
                             placeholder="Search employees by name, email, occupation, or department..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => { setSearchTerm(e.target.value); employeesPagination.resetPage(); }}
                             className="pl-10 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700"
                         />
                     </div>
@@ -661,6 +666,7 @@ const ManageEmployeesPage = () => {
                                 </div>
                             </div>
                         ) : (
+                            <>
                             <Table>
                                 <TableHeader>
                                     <TableRow className="border-gray-100 dark:border-slate-700">
@@ -674,7 +680,7 @@ const ManageEmployeesPage = () => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredEmployees.map((employee) => (
+                                    {employeesPagination.paginatedItems.map((employee) => (
                                         <TableRow key={employee.id} className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700">
                                             <TableCell>
                                                 <div>
@@ -709,21 +715,21 @@ const ManageEmployeesPage = () => {
                                             <TableCell className="px-6 py-4 whitespace-nowrap text-right">
                                                 <div className="inline-flex items-center gap-2">
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
-                                                        className="group text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                                                        className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
                                                         onClick={() => handleOpenEditEmployeeDialog(employee)}
                                                     >
-                                                        <Edit className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
+                                                        <Edit className="w-4 h-4 mr-1" />
                                                         <span className="text-sm font-medium">Edit</span>
                                                     </Button>
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
-                                                        className="group text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40 transition-colors"
+                                                        className="border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
                                                         onClick={() => handleOpenDeleteEmployeeDialog(employee)}
                                                     >
-                                                        <UserMinus className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
+                                                        <UserMinus className="w-4 h-4 mr-1" />
                                                         <span className="text-sm font-medium">Delete</span>
                                                     </Button>
                                                 </div>
@@ -732,6 +738,15 @@ const ManageEmployeesPage = () => {
                                     ))}
                                 </TableBody>
                             </Table>
+                            <Pagination
+                                currentPage={employeesPagination.page}
+                                totalPages={employeesPagination.totalPages}
+                                pageSize={employeesPagination.pageSize}
+                                totalItems={employeesPagination.totalItems}
+                                onPageChange={employeesPagination.setPage}
+                                onPageSizeChange={employeesPagination.setPageSize}
+                            />
+                            </>
                         )}
                     </div>
                 </TabsContent>
@@ -743,7 +758,7 @@ const ManageEmployeesPage = () => {
                         <Input
                             placeholder="Search departments by name or description..."
                             value={departmentSearchTerm}
-                            onChange={(e) => setDepartmentSearchTerm(e.target.value)}
+                            onChange={(e) => { setDepartmentSearchTerm(e.target.value); departmentsPagination.resetPage(); }}
                             className="pl-10 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700"
                         />
                     </div>
@@ -780,6 +795,7 @@ const ManageEmployeesPage = () => {
                                 </div>
                             </div>
                         ) : (
+                            <>
                             <Table>
                                 <TableHeader>
                                     <TableRow className="border-gray-100 dark:border-slate-700">
@@ -793,7 +809,7 @@ const ManageEmployeesPage = () => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredDepartments.map((department) => (
+                                    {departmentsPagination.paginatedItems.map((department) => (
                                         <TableRow key={department.id} className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700">
                                             <TableCell>
                                                 <div>
@@ -820,22 +836,22 @@ const ManageEmployeesPage = () => {
                                             <TableCell className="px-6 py-4 whitespace-nowrap text-right">
                                                 <div className="inline-flex items-center gap-2">
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
-                                                        className="group text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                                                        className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
                                                         onClick={() => handleOpenEditDepartmentDialog(department)}
                                                     >
-                                                        <Edit className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
+                                                        <Edit className="w-4 h-4 mr-1" />
                                                         <span className="text-sm font-medium">Edit</span>
                                                     </Button>
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
-                                                        className="group text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40 transition-colors"
+                                                        className="border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
                                                         onClick={() => handleOpenDeleteDepartmentDialog(department)}
                                                         disabled={employees.filter(emp => emp.departmentId === department.id).length > 0}
                                                     >
-                                                        <Trash2 className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
+                                                        <Trash2 className="w-4 h-4 mr-1" />
                                                         <span className="text-sm font-medium">Delete</span>
                                                     </Button>
                                                 </div>
@@ -844,6 +860,15 @@ const ManageEmployeesPage = () => {
                                     ))}
                                 </TableBody>
                             </Table>
+                            <Pagination
+                                currentPage={departmentsPagination.page}
+                                totalPages={departmentsPagination.totalPages}
+                                pageSize={departmentsPagination.pageSize}
+                                totalItems={departmentsPagination.totalItems}
+                                onPageChange={departmentsPagination.setPage}
+                                onPageSizeChange={departmentsPagination.setPageSize}
+                            />
+                            </>
                         )}
                     </div>
                 </TabsContent>

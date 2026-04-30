@@ -2,8 +2,10 @@ import { SESClient, SendEmailCommand, SendEmailCommandInput, SESServiceException
 import {
     emailTemplate,
     managementEmailTemplate,
+    documentReminderTemplate,
     EmailTemplateData,
-    ManagementTemplateData
+    ManagementTemplateData,
+    DocumentReminderData
 } from "./templateHtml";
 import { LeaveStatus } from "../helpers/leaveHelpers";
 
@@ -810,6 +812,82 @@ export function validateEmailTemplate(): boolean {
     } catch (error) {
         console.error("Email template validation failed:", (error as Error).message);
         return false;
+    }
+}
+
+/**
+ * Send document signing reminder email via AWS SES
+ */
+export async function senderDocumentReminder(
+    recipientEmail: string,
+    data: DocumentReminderData
+): Promise<EmailResult> {
+    console.log("=== Document Reminder Email Sending Started ===");
+    console.log("Recipient:", recipientEmail);
+    console.log("Employee:", data.employeeName);
+    console.log("Documents:", data.documents.length);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+        throw new Error(`Invalid recipient email: ${recipientEmail}`);
+    }
+    if (!data.employeeName?.trim()) {
+        throw new Error("Employee name is required");
+    }
+    if (!data.documents?.length) {
+        throw new Error("At least one document is required");
+    }
+
+    const emailConfig = getEmailConfiguration();
+    const subject = `Action Required: You have ${data.documents.length} pending document${data.documents.length > 1 ? 's' : ''} to sign`;
+    const html = documentReminderTemplate(data);
+
+    const plainText = [
+        `Hi ${data.employeeName},`,
+        "",
+        "This is a reminder that you have pending documents requiring your signature:",
+        "",
+        ...data.documents.map(doc =>
+            `- ${doc.name}${doc.isMandatory ? " [MANDATORY]" : ""}${doc.dueDate ? ` | Due: ${doc.dueDate}` : ` | Assigned: ${doc.assignedDate}`}`
+        ),
+        "",
+        `Please log in to the portal to sign: ${data.portalUrl}`,
+        "",
+        "---",
+        "This is an automated message from the Employee Management System.",
+    ].join("\n");
+
+    const params: SESEmailParams = {
+        Destination: { ToAddresses: [recipientEmail] },
+        Message: {
+            Body: {
+                Html: { Charset: CHARSET, Data: html },
+                Text: { Charset: CHARSET, Data: plainText },
+            },
+            Subject: {
+                Charset: CHARSET,
+                Data: emailConfig.environment === 'dev' ? `[DEV] ${subject}` : subject,
+            },
+        },
+        Source: SENDER_EMAIL,
+        ReplyToAddresses: [REPLY_TO_EMAIL],
+        Tags: [
+            { Name: "EmailType", Value: "DocumentSigningReminder" },
+            { Name: "Environment", Value: emailConfig.environment },
+        ],
+    };
+
+    try {
+        const sesClient = createSESClient();
+        const command = new SendEmailCommand(params as SendEmailCommandInput);
+        const data2 = await sesClient.send(command);
+
+        console.log("Document reminder sent. MessageId:", data2.MessageId);
+        return { success: true, messageId: data2.MessageId ?? "unknown", recipient: recipientEmail };
+    } catch (err) {
+        console.error("Error sending document reminder email:");
+        handleEmailError(err);
+        throw err;
     }
 }
 

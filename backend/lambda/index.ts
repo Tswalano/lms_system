@@ -2,10 +2,11 @@ import { Hono } from 'hono';
 import { handle } from 'hono/aws-lambda';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
-import { auth } from './routes/auth';
-import { users } from './routes/user';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { authApp } from './routes/auth';
+import { userApp } from './routes/user';
 import adminDocs from './routes/adminDoc';
-import { leave } from './routes/leave';
+import { leaveApp } from './routes/leave';
 import { authMiddleware } from './middleware/auth';
 import testRoutes from './routes/dummy';
 import userDoc from './routes/userDoc';
@@ -21,6 +22,7 @@ app.use(
     cors({
         origin: [
             'http://localhost:5173',
+            'http://localhost:3001',
             'https://d2m4zkv512jna9.cloudfront.net', // Dev/Staging FE URL (Clodfront)
             'd1eqa63aq0eyfn.cloudfront.net', // Production FE URL (Cloudfront)
             'https://lms.disraptor-internal.net'
@@ -33,7 +35,7 @@ app.use(
     })
 );
 
-app.route('/auth', auth);
+app.route('/auth', authApp);
 // Protected routes - require authentication
 app.use('/users/*', authMiddleware());
 app.use('/leave/*', authMiddleware());
@@ -44,8 +46,8 @@ app.use('/admin-docs/*', authMiddleware());
 // app.use('/user-docs/*', authMiddleware());
 
 // Apply routes
-app.route('/users', users);
-app.route('/leave', leave);
+app.route('/users', userApp);
+app.route('/leave', leaveApp);
 
 // Document Management
 app.route('/user-docs', userDoc);
@@ -127,6 +129,15 @@ app.get('/ping', (c) =>
         timestamp: new Date().toISOString()
     })
 );
+
+// Serve built API docs at /docs (production only)
+if (process.env.NODE_ENV !== 'development') {
+    app.use('/docs/*', serveStatic({
+        root: '../api-docs/dist',
+        rewriteRequestPath: (path) => path.replace(/^\/docs/, '') || '/index.html',
+    }));
+    app.get('/docs', (c) => c.redirect('/docs/'));
+}
 
 // 404 handler
 app.notFound((c) => {

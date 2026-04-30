@@ -54,8 +54,8 @@ export const validateToken = (token: string): DecodedToken | null => {
 
         const now = Math.floor(Date.now() / 1000);
         if (decoded.exp && decoded.exp < now) {
-            console.warn("Token expired");
-            return null;
+            console.log('[Auth] Token expired. Exp:', decoded.exp, 'Now:', now);
+            throw new Error("Token expired");
         }
 
         if (!decoded['sub']) return null;

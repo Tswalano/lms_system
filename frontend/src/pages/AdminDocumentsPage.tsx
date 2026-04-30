@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, type FC } from 'react';
-import { Plus, FileBadge, FolderPlus } from 'lucide-react';
+import { Plus, FileBadge, FolderPlus, BellRing, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -126,10 +126,9 @@ const AdminDocumentsPage: FC = () => {
     const [documentToDelete, setDocumentToDelete] = useState<DocumentType | null>(null);
     const [documentToEdit, setDocumentToEdit] = useState<DocumentType | null>(null); // Add edit document state
 
-    // Local state for folders, documents, and departments
+    // Local state for folders and documents (mutated by mutations)
     const [folders, setFolders] = useState<FolderType[]>([]);
     const [allDocuments, setAllDocuments] = useState<DocumentType[]>([]);
-    const [departments, setDepartments] = useState<Department[]>([]);
 
     // URL validation function
     const isValidUrl = (url: string): boolean => {
@@ -219,11 +218,6 @@ const AdminDocumentsPage: FC = () => {
         }
     }, [documentsData]);
 
-    useEffect(() => {
-        if (departmentsData) {
-            setDepartments(departmentsData);
-        }
-    }, [departmentsData]);
 
     // Folder mutations
     const createFolderMutation = useMutation({
@@ -398,6 +392,70 @@ const AdminDocumentsPage: FC = () => {
                 description: error.message || "Failed to update document. Please try again.",
             });
         }
+    });
+
+    const sendReminderMutation = useMutation({
+        mutationFn: async (docId: number) => {
+            const response = await authFetch(`/admin-docs/${docId}/send-reminders`, {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (data) => {
+            const { sent, total } = data?.payload ?? {};
+            if (sent === 0 && total === 0) {
+                toast.info("No reminders needed", {
+                    description: "All assigned users have already signed this document.",
+                });
+            } else {
+                toast.success("Reminders sent", {
+                    description: `${sent} of ${total} unsigned user${total !== 1 ? 's' : ''} notified by email.`,
+                });
+            }
+        },
+        onError: (error: Error) => {
+            toast.error("Failed to send reminders", {
+                description: error.message || "An error occurred. Please try again.",
+            });
+        },
+    });
+
+    const sendBulkRemindersMutation = useMutation({
+        mutationFn: async () => {
+            const response = await authFetch('/admin-docs/send-bulk-reminders', {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (data) => {
+            const { emailsSent, totalUsers, totalDocuments } = data?.payload ?? {};
+            if (totalUsers === 0) {
+                toast.info("No reminders needed", {
+                    description: "No documents older than 15 days have unsigned assignments, or all eligible users were reminded recently.",
+                });
+            } else {
+                toast.success("Bulk reminders sent", {
+                    description: `${emailsSent} of ${totalUsers} user${totalUsers !== 1 ? 's' : ''} notified covering ${totalDocuments} pending document${totalDocuments !== 1 ? 's' : ''}.`,
+                });
+            }
+        },
+        onError: (error: Error) => {
+            toast.error("Failed to send bulk reminders", {
+                description: error.message || "An error occurred. Please try again.",
+            });
+        },
     });
 
     const deleteDocumentMutation = useMutation({
@@ -712,6 +770,10 @@ const AdminDocumentsPage: FC = () => {
         setShowEditDocumentModal(true);
     };
 
+    const handleSendReminder = (docId: number): void => {
+        sendReminderMutation.mutate(docId);
+    };
+
     const handleDeleteDocument = (docId: number): void => {
         const document = allDocuments.find(doc => doc.id === docId);
         if (document) {
@@ -757,15 +819,26 @@ const AdminDocumentsPage: FC = () => {
 
                     <div className="flex flex-wrap items-center gap-3">
                         <button
+                            onClick={() => sendBulkRemindersMutation.mutate()}
+                            disabled={sendBulkRemindersMutation.isPending}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/40 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {sendBulkRemindersMutation.isPending
+                                ? <Loader2 className="w-4 h-4 animate-spin" />
+                                : <BellRing className="w-4 h-4" />
+                            }
+                            {sendBulkRemindersMutation.isPending ? 'Sending...' : 'Send All Reminders'}
+                        </button>
+                        <button
                             onClick={() => setShowCreateFolderModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/20 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800/40 transition-colors"
                         >
                             <FolderPlus className="w-4 h-4" />
                             New Folder
                         </button>
                         <button
                             onClick={() => setShowAddDocumentModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 via-cyan-500 to-green-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                             New Document
@@ -778,7 +851,7 @@ const AdminDocumentsPage: FC = () => {
                 {/* Folder Manager Component */}
                 <FolderManager
                     folders={folders}
-                    departments={departments}
+                    departments={departmentsData}
                     selectedFolder={selectedFolder}
                     onFolderClick={handleFolderClick}
                     onFolderSelect={setSelectedFolder}
@@ -804,9 +877,10 @@ const AdminDocumentsPage: FC = () => {
                         documents={filteredDocuments}
                         title={documentTableTitle}
                         onView={handleViewDocument}
-                        onEdit={handleEditDocumentClick} // Use the new handler
+                        onEdit={handleEditDocumentClick}
                         onDownload={handleDownloadDocument}
                         onDelete={handleDeleteDocument}
+                        onSendReminder={handleSendReminder}
                     />
                 )}
             </div>
@@ -838,7 +912,7 @@ const AdminDocumentsPage: FC = () => {
                 isOpen={showCreateFolderModal}
                 onClose={() => setShowCreateFolderModal(false)}
                 onSubmit={handleCreateFolder}
-                departments={departments}
+                departments={departmentsData}
                 isLoading={createFolderMutation.isPending}
                 title="Add New Folder"
                 submitText="Add Folder"
@@ -849,6 +923,8 @@ const AdminDocumentsPage: FC = () => {
                 showViewModal={showViewModal}
                 setShowViewModal={setShowViewModal}
                 selectedDocument={selectedDocument}
+                onSendReminder={handleSendReminder}
+                isReminderLoading={sendReminderMutation.isPending}
             />
 
             {/* Delete Document Confirmation Modal */}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Search, RefreshCw, AlertCircle, Loader2, Users, UserCheck, UserX, Calendar as CalendarIcon, UserSearch, ChevronDown, ChevronRight, Clock, CheckCircle } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -166,16 +167,38 @@ const TeamAvailabilityPage = () => {
         return true;
     };
 
+    const STATUS_SORT_ORDER: Record<string, number> = {
+        'on-leave': 0,
+        'upcoming-leave': 1,
+        'available': 2,
+    };
+
+    const getNextLeaveDate = (member: TeamMember): number => {
+        if (member.status === 'on-leave' && member.startDate) {
+            return new Date(member.startDate).getTime();
+        }
+        if (member.upcomingLeaves && member.upcomingLeaves.length > 0) {
+            return new Date(member.upcomingLeaves[0].startDate).getTime();
+        }
+        return Infinity;
+    };
+
     // Filter team members based on search and status
-    const filteredMembers = teamMembers.filter(member => {
-        const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            member.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const filteredMembers = teamMembers
+        .filter(member => {
+            const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                member.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-        const matchesStatus = filter === "all" || member.status === filter;
-        const matchesDateRange = isWithinDateRange(member);
+            const matchesStatus = filter === "all" || member.status === filter;
+            const matchesDateRange = isWithinDateRange(member);
 
-        return matchesSearch && matchesStatus && matchesDateRange;
-    });
+            return matchesSearch && matchesStatus && matchesDateRange;
+        })
+        .sort((a, b) => {
+            const statusDiff = (STATUS_SORT_ORDER[a.status] ?? 3) - (STATUS_SORT_ORDER[b.status] ?? 3);
+            if (statusDiff !== 0) return statusDiff;
+            return getNextLeaveDate(a) - getNextLeaveDate(b);
+        });
 
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['teamAvailability'] });
@@ -240,7 +263,7 @@ const TeamAvailabilityPage = () => {
                     text: 'text-amber-800 dark:text-amber-200',
                     icon: <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />,
                     label: 'Upcoming Leave',
-                    description: daysUntil ? `Going on leave in ${daysUntil} day${daysUntil > 1 ? 's' : ''}` : 'Leave scheduled',
+                    description: daysUntil ? `Going on leave for ${daysUntil} day${daysUntil > 1 ? 's' : ''}` : 'Leave scheduled',
                     priority: 'medium'
                 };
             }
@@ -337,38 +360,6 @@ const TeamAvailabilityPage = () => {
             totalDays,
             count: member.upcomingLeaves.length
         };
-    };
-
-    const getStatusIcon = (status: string): JSX.Element => {
-        const statuses: { [key: string]: { label: string; icon: JSX.Element } } = {
-            'available': {
-                label: 'Available',
-                icon: <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-            },
-            'on-leave': {
-                label: 'On Leave',
-                icon: <CalendarIcon className="w-5 h-5 text-red-600 dark:text-red-400" />
-            },
-            'upcoming-leave': {
-                label: 'Upcoming Leave',
-                icon: <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-            },
-            // Legacy statuses for backward compatibility
-            'active': {
-                label: 'Active',
-                icon: <Users className="w-5 h-5 text-green-600 dark:text-green-400" />
-            },
-            'inactive': {
-                label: 'Inactive',
-                icon: <Users className="w-5 h-5 text-red-600 dark:text-red-400" />
-            },
-            'pending': {
-                label: 'Pending',
-                icon: <Users className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-            }
-        };
-
-        return statuses[status]?.icon || <Users className="w-5 h-5 text-gray-600 dark:text-gray-400" />;
     };
 
     // Helper function to get status label
@@ -546,83 +537,113 @@ const TeamAvailabilityPage = () => {
 
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <Card className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                                    <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                </div>
+                    <Card className="group relative bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 border-l-blue-500 dark:border-l-blue-400 hover:shadow-lg hover:bg-blue-50/30 dark:hover:bg-blue-900/10 hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default">
+                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-blue-500/10 group-hover:scale-[2] group-hover:bg-blue-500/20 transition-all duration-500" />
+                        <CardContent className="p-5 relative">
+                            <div className="flex items-start justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Team Members</p>
-                                    <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{filteredMembers.length}</p>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Total Members</p>
+                                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{filteredMembers.length}</p>
+                                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">in selected period</p>
+                                </div>
+                                <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                    <Users className="w-5 h-5 text-white" />
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                                    <UserCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
-                                </div>
+                    <Card className="group relative bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 border-l-emerald-500 dark:border-l-emerald-400 hover:shadow-lg hover:bg-emerald-50/30 dark:hover:bg-emerald-900/10 hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default">
+                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-emerald-500/10 group-hover:scale-[2] group-hover:bg-emerald-500/20 transition-all duration-500" />
+                        <CardContent className="p-5 relative">
+                            <div className="flex items-start justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">Available</p>
-                                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">{availableCount}</p>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Available</p>
+                                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{availableCount}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {filteredMembers.length > 0 ? Math.round((availableCount / filteredMembers.length) * 100) : 0}% of team
+                                    </p>
+                                </div>
+                                <div className="w-11 h-11 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                    <UserCheck className="w-5 h-5 text-white" />
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
-                                    <UserX className="w-5 h-5 text-red-600 dark:text-red-400" />
-                                </div>
+                    <Card className="group relative bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 border-l-red-500 dark:border-l-red-400 hover:shadow-lg hover:bg-red-50/30 dark:hover:bg-red-900/10 hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default">
+                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-red-500/10 group-hover:scale-[2] group-hover:bg-red-500/20 transition-all duration-500" />
+                        <CardContent className="p-5 relative">
+                            <div className="flex items-start justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">Currently On Leave</p>
-                                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">{onLeaveCount}</p>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">On Leave</p>
+                                    <p className="text-3xl font-bold text-red-600 dark:text-red-400">{onLeaveCount}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">currently away</p>
+                                </div>
+                                <div className="w-11 h-11 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                    <UserX className="w-5 h-5 text-white" />
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
-                                    <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                                </div>
+                    <Card className="group relative bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 border-l-amber-500 dark:border-l-amber-400 hover:shadow-lg hover:bg-amber-50/30 dark:hover:bg-amber-900/10 hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default">
+                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-amber-500/10 group-hover:scale-[2] group-hover:bg-amber-500/20 transition-all duration-500" />
+                        <CardContent className="p-5 relative">
+                            <div className="flex items-start justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">Upcoming Leaves</p>
-                                    <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{upcomingLeaveCount}</p>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Upcoming</p>
+                                    <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">{upcomingLeaveCount}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">leave{upcomingLeaveCount !== 1 ? 's' : ''} scheduled</p>
+                                </div>
+                                <div className="w-11 h-11 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                    <Clock className="w-5 h-5 text-white" />
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
 
-                {/* Filter Buttons */}
-                <div className="flex gap-2 mb-6">
-                    {[
-                        { key: 'all', label: 'All' },
-                        { key: 'available', label: 'Available' },
-                        { key: 'on-leave', label: 'Currently On Leave' },
-                        { key: 'upcoming-leave', label: 'Upcoming Leaves' }
-                    ].map(({ key, label }) => (
-                        <Button
-                            key={key}
-                            onClick={() => setFilter(key)}
-                            variant='ghost'
-                            className={`${filter === key ? 'bg-cyan-600 text-white' : 'text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-300'} hover:bg-cyan-500 hover:text-white flex items-center gap-2`}
-                        >
-                            {label}
-                            <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
-                                {getStatusCount(key)}
-                            </span>
-                        </Button>
-                    ))}
+                {/* Filter Dropdown */}
+                <div className="flex items-center gap-3 mb-6">
+                    <Select value={filter} onValueChange={setFilter}>
+                        <SelectTrigger className="w-56 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-800 dark:text-gray-200">
+                            <SelectValue placeholder="Filter by status" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
+                            <SelectItem value="all">
+                                <span className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
+                                    All Members
+                                    <span className="text-xs text-gray-400 ml-1">({getStatusCount('all')})</span>
+                                </span>
+                            </SelectItem>
+                            <SelectItem value="available">
+                                <span className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                                    Available
+                                    <span className="text-xs text-gray-400 ml-1">({getStatusCount('available')})</span>
+                                </span>
+                            </SelectItem>
+                            <SelectItem value="on-leave">
+                                <span className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+                                    Currently On Leave
+                                    <span className="text-xs text-gray-400 ml-1">({getStatusCount('on-leave')})</span>
+                                </span>
+                            </SelectItem>
+                            <SelectItem value="upcoming-leave">
+                                <span className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                                    Upcoming Leaves
+                                    <span className="text-xs text-gray-400 ml-1">({getStatusCount('upcoming-leave')})</span>
+                                </span>
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Showing <span className="font-medium text-gray-700 dark:text-gray-300">{filteredMembers.length}</span> member{filteredMembers.length !== 1 ? 's' : ''}
+                    </p>
                 </div>
 
                 {/* Search Bar */}
@@ -695,7 +716,7 @@ const TeamAvailabilityPage = () => {
                                 const upcomingSummary = getUpcomingLeavesSummary(member);
 
                                 return (
-                                    <>
+                                    <React.Fragment key={member.id}>
                                         <TableRow
                                             key={member.id}
                                             className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
@@ -763,9 +784,9 @@ const TeamAvailabilityPage = () => {
                                             </TableCell>
                                             <TableCell className="px-6 py-4 whitespace-nowrap text-right">
                                                 <Button
-                                                    variant="ghost"
+                                                    variant="outline"
                                                     size="sm"
-                                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/50 dark:text-blue-400 dark:hover:text-blue-300"
+                                                    className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40"
                                                     onClick={() => openMemberDetails(member.id)}
                                                 >
                                                     {expandedRow === member.id ? (
@@ -783,278 +804,207 @@ const TeamAvailabilityPage = () => {
 
                                         {/* Expanded Row */}
                                         {expandedRow === member.id && (
-                                            <TableRow className="border-0 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-slate-900/50">
-                                                <TableCell colSpan={5} className="py-8 px-6">
-                                                    <div className="mx-auto">
-                                                        {/* Status Cards */}
-                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                                                            {/* Current Status Card */}
-                                                            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-gray-200 dark:border-slate-700 shadow-sm">
-                                                                <div className="flex items-center gap-3 mb-4">
-                                                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${member.status === 'available'
-                                                                        ? 'bg-green-100 dark:bg-green-900/30'
-                                                                        : member.status === 'on-leave'
-                                                                            ? 'bg-red-100 dark:bg-red-900/30'
-                                                                            : member.status === 'upcoming-leave'
-                                                                                ? 'bg-orange-100 dark:bg-orange-900/30'
-                                                                                : 'bg-gray-100 dark:bg-gray-900/30'
-                                                                        }`}>
-                                                                        {getStatusIcon(member.status)}
-                                                                    </div>
-                                                                    <div>
-                                                                        <h4 className="font-semibold text-gray-900 dark:text-white">
-                                                                            Current Status
-                                                                        </h4>
-                                                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                                            Work availability
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
+                                            <TableRow className="border-0">
+                                                <TableCell colSpan={5} className="p-0">
+                                                    <div className={cn(
+                                                        "border-l-4 px-6 py-6",
+                                                        member.status === 'available' ? 'border-l-emerald-400 dark:border-l-emerald-300 bg-emerald-50/40 dark:bg-emerald-900/5' :
+                                                            member.status === 'on-leave' ? 'border-l-red-400 dark:border-l-red-300 bg-red-50/40 dark:bg-red-900/5' :
+                                                                'border-l-amber-400 dark:border-l-amber-300 bg-amber-50/40 dark:bg-amber-900/5'
+                                                    )}>
+                                                        {/* Member header inside expanded row */}
+                                                        <div className="flex items-center gap-3 mb-5 pb-4 border-b border-gray-200/60 dark:border-slate-700/60">
+                                                            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                                                <span className="text-white font-semibold text-xs">{member.avatar}</span>
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-semibold text-gray-900 dark:text-white text-sm">{member.name}</p>
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400">{member.department || member.email}</p>
+                                                            </div>
+                                                            <div className={cn(
+                                                                "ml-auto px-3 py-1 rounded-full text-xs font-medium",
+                                                                member.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
+                                                                    member.status === 'on-leave' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                                                                        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                                                            )}>
+                                                                {member.status === 'available' ? 'Available' : member.status === 'on-leave' ? 'On Leave' : 'Upcoming Leave'}
+                                                            </div>
+                                                        </div>
 
+                                                        <div className={cn(
+                                                            "grid gap-6",
+                                                            (member.status === 'on-leave' || (member.status === 'upcoming-leave' && member.leaveType))
+                                                                ? "grid-cols-1 lg:grid-cols-2"
+                                                                : "grid-cols-1"
+                                                        )}>
+                                                            {/* Left: Status panel */}
+                                                            <div className="space-y-3">
+                                                                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Status</p>
                                                                 {member.status === 'available' ? (
-                                                                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border-l-4 border-green-400">
-                                                                        <p className="text-green-800 dark:text-green-200 font-medium mb-1">
-                                                                            Available for Work
-                                                                        </p>
-                                                                        <p className="text-sm text-green-700 dark:text-green-300">
-                                                                            Ready to take on new tasks and projects
-                                                                        </p>
+                                                                    <div className="flex items-start gap-3 bg-white dark:bg-slate-800 rounded-xl p-4 border border-emerald-100 dark:border-emerald-900/30 shadow-sm">
+                                                                        <div className="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                            <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="font-semibold text-gray-900 dark:text-white text-sm">Available for Work</p>
+                                                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Ready to take on tasks and projects</p>
+                                                                        </div>
                                                                     </div>
                                                                 ) : member.status === 'on-leave' ? (
-                                                                    <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border-l-4 border-red-400">
-                                                                        <p className="text-red-800 dark:text-red-200 font-medium mb-1">
-                                                                            Currently On Leave
-                                                                        </p>
-                                                                        <p className="text-sm text-red-700 dark:text-red-300">
-                                                                            Temporarily unavailable for work assignments
-                                                                        </p>
-                                                                        {member.currentLeave && (
-                                                                            <p className="text-sm text-red-600 dark:text-red-400 mt-2">
-                                                                                {member.currentLeave.leaveType} • {member.leaveDates}
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-                                                                ) : member.status === 'upcoming-leave' ? (
-                                                                    <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border-l-4 border-orange-400">
-                                                                        <p className="text-orange-800 dark:text-orange-200 font-medium mb-1">
-                                                                            Upcoming Leave Scheduled
-                                                                        </p>
-                                                                        <p className="text-sm text-orange-700 dark:text-orange-300">
-                                                                            Currently available but has leave planned soon
-                                                                        </p>
-                                                                        {member.upcomingLeaves && member.upcomingLeaves.length > 0 && (
-                                                                            <p className="text-sm text-orange-600 dark:text-orange-400 mt-2">
-                                                                                Next: {member.upcomingLeaves[0].leaveType} • {formatDate(member.upcomingLeaves[0].startDate)}
-                                                                            </p>
-                                                                        )}
+                                                                    <div className="flex items-start gap-3 bg-white dark:bg-slate-800 rounded-xl p-4 border border-red-100 dark:border-red-900/30 shadow-sm">
+                                                                        <div className="w-9 h-9 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                            <UserX className="w-4 h-4 text-red-600 dark:text-red-400" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="font-semibold text-gray-900 dark:text-white text-sm">Currently On Leave</p>
+                                                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Temporarily unavailable for work</p>
+                                                                            {member.currentLeave && (
+                                                                                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                                                                    {member.currentLeave.leaveType} · {member.leaveDates}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="bg-gray-50 dark:bg-gray-900/20 rounded-lg p-4 border-l-4 border-gray-400">
-                                                                        <p className="text-gray-800 dark:text-gray-200 font-medium mb-1">
-                                                                            Status Unknown
-                                                                        </p>
-                                                                        <p className="text-sm text-gray-700 dark:text-gray-300">
-                                                                            Unable to determine current availability
-                                                                        </p>
+                                                                    <div className="flex items-start gap-3 bg-white dark:bg-slate-800 rounded-xl p-4 border border-amber-100 dark:border-amber-900/30 shadow-sm">
+                                                                        <div className="w-9 h-9 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                            <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="font-semibold text-gray-900 dark:text-white text-sm">Upcoming Leave Scheduled</p>
+                                                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Available now but leave planned soon</p>
+                                                                            {member.upcomingLeaves && member.upcomingLeaves.length > 0 && (
+                                                                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                                                                    Next: {member.upcomingLeaves[0].leaveType} · {formatDate(member.upcomingLeaves[0].startDate)}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Employee info pills */}
+                                                                {(member.jobTitle || member.department) && (
+                                                                    <div className="flex flex-wrap gap-2 pt-1">
+                                                                        {member.jobTitle && (
+                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs text-gray-600 dark:text-gray-400 shadow-sm">
+                                                                                {member.jobTitle}
+                                                                            </span>
+                                                                        )}
+                                                                        {member.department && (
+                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs text-gray-600 dark:text-gray-400 shadow-sm">
+                                                                                {member.department}
+                                                                            </span>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </div>
 
-                                                            {/* Current/Upcoming Leave Details Card */}
-                                                            {(member.status === 'on-leave' || member.status === 'upcoming-leave') && member.leaveType && (
-                                                                <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-gray-200 dark:border-slate-700 shadow-sm">
-                                                                    <div className="flex items-center gap-3 mb-4">
-                                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${member.status === 'on-leave'
-                                                                            ? 'bg-red-100 dark:bg-red-900/30'
-                                                                            : 'bg-orange-100 dark:bg-orange-900/30'
-                                                                            }`}>
-                                                                            <CalendarIcon className={`w-5 h-5 ${member.status === 'on-leave'
-                                                                                ? 'text-red-600 dark:text-red-400'
-                                                                                : 'text-orange-600 dark:text-orange-400'
-                                                                                }`} />
-                                                                        </div>
-                                                                        <div>
-                                                                            <h4 className="font-semibold text-gray-900 dark:text-white">
-                                                                                {member.status === 'on-leave' ? 'Current Leave' : 'Upcoming Leave'}
-                                                                            </h4>
-                                                                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                                                {member.status === 'on-leave' ? 'Active leave details' : 'Scheduled leave details'}
-                                                                            </p>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div className="space-y-4">
-                                                                        <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4">
-                                                                            <div className="grid grid-cols-1 gap-3">
-                                                                                <div>
-                                                                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                                                        Leave Type
-                                                                                    </span>
-                                                                                    <p className="text-gray-900 dark:text-white font-semibold mt-1">
-                                                                                        {member.leaveType}
-                                                                                    </p>
-                                                                                </div>
-
+                                                            {/* Right: Active/next leave detail */}
+                                                            {(member.status === 'on-leave' || member.status === 'upcoming-leave') && member.leaveType && member.startDate && member.endDate && (
+                                                                <div className="space-y-3">
+                                                                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                        {member.status === 'on-leave' ? 'Active Leave' : 'Next Leave'}
+                                                                    </p>
+                                                                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                                                                        <div className={cn(
+                                                                            "h-1",
+                                                                            member.status === 'on-leave' ? 'bg-gradient-to-r from-red-500 to-rose-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'
+                                                                        )} />
+                                                                        <div className="p-4 space-y-3">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <p className="font-semibold text-gray-900 dark:text-white">{member.leaveType}</p>
                                                                                 {member.duration && (
-                                                                                    <div>
-                                                                                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                                                            Duration
-                                                                                        </span>
-                                                                                        <p className="text-gray-900 dark:text-white font-semibold mt-1">
-                                                                                            {`${member.duration} day${member.duration > 1 ? 's' : ''}${member.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
-                                                                                        </p>
-                                                                                    </div>
+                                                                                    <Badge className={cn(
+                                                                                        "text-xs",
+                                                                                        member.status === 'on-leave'
+                                                                                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                                                                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                                                                                    )}>
+                                                                                        {member.duration} day{member.duration > 1 ? 's' : ''}{member.leave_length === 'half_day' ? ' (Half)' : ''}
+                                                                                    </Badge>
                                                                                 )}
                                                                             </div>
-                                                                        </div>
-
-                                                                        {(member.startDate && member.endDate) && (
-                                                                            <div className="flex gap-4">
-                                                                                <div className={`flex-1 text-center py-3 rounded-lg ${member.status === 'on-leave'
-                                                                                    ? 'bg-red-50 dark:bg-red-900/20'
-                                                                                    : 'bg-orange-50 dark:bg-orange-900/20'
-                                                                                    }`}>
-                                                                                    <p className={`text-xs font-medium uppercase tracking-wider ${member.status === 'on-leave'
-                                                                                        ? 'text-red-600 dark:text-red-400'
-                                                                                        : 'text-orange-600 dark:text-orange-400'
-                                                                                        }`}>
-                                                                                        Start Date
-                                                                                    </p>
-                                                                                    <p className={`font-semibold mt-1 ${member.status === 'on-leave'
-                                                                                        ? 'text-red-900 dark:text-red-100'
-                                                                                        : 'text-orange-900 dark:text-orange-100'
-                                                                                        }`}>
-                                                                                        {formatDate(member.startDate)}
-                                                                                    </p>
+                                                                            <div className="grid grid-cols-2 gap-2">
+                                                                                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
+                                                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">From</p>
+                                                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(member.startDate)}</p>
                                                                                 </div>
-                                                                                <div className={`flex-1 text-center py-3 rounded-lg ${member.status === 'on-leave'
-                                                                                    ? 'bg-red-50 dark:bg-red-900/20'
-                                                                                    : 'bg-orange-50 dark:bg-orange-900/20'
-                                                                                    }`}>
-                                                                                    <p className={`text-xs font-medium uppercase tracking-wider ${member.status === 'on-leave'
-                                                                                        ? 'text-red-600 dark:text-red-400'
-                                                                                        : 'text-orange-600 dark:text-orange-400'
-                                                                                        }`}>
-                                                                                        End Date
-                                                                                    </p>
-                                                                                    <p className={`font-semibold mt-1 ${member.status === 'on-leave'
-                                                                                        ? 'text-red-900 dark:text-red-100'
-                                                                                        : 'text-orange-900 dark:text-orange-100'
-                                                                                        }`}>
-                                                                                        {formatDate(member.endDate)}
-                                                                                    </p>
+                                                                                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
+                                                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Until</p>
+                                                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(member.endDate)}</p>
                                                                                 </div>
                                                                             </div>
-                                                                        )}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             )}
                                                         </div>
 
-                                                        {/* Upcoming Leaves Section */}
+                                                        {/* Upcoming Leaves Timeline */}
                                                         {member.upcomingLeaves && member.upcomingLeaves.length > 0 && (
-                                                            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-gray-200 dark:border-slate-700 shadow-sm">
-                                                                <div className="flex items-center gap-3 mb-6">
-                                                                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                                                                        <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                                                    </div>
-                                                                    <div>
-                                                                        <h4 className="font-semibold text-gray-900 dark:text-white">
-                                                                            Upcoming Leaves ({member.upcomingLeaves.length})
-                                                                        </h4>
-                                                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                                            {member.totalUpcomingLeaveDays} total days scheduled
-                                                                        </p>
-                                                                    </div>
+                                                            <div className="mt-6 space-y-3">
+                                                                <div className="flex items-center justify-between">
+                                                                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                        Upcoming Leaves
+                                                                    </p>
+                                                                    <span className="text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-2 py-0.5 rounded-full shadow-sm">
+                                                                        {member.upcomingLeaves.length} leave{member.upcomingLeaves.length !== 1 ? 's' : ''} · {member.totalUpcomingLeaveDays} day{(member.totalUpcomingLeaveDays || 0) > 1 ? 's' : ''} total
+                                                                    </span>
                                                                 </div>
-
-                                                                <div className="space-y-4">
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                                                                     {member.upcomingLeaves.map((leave) => (
-                                                                        <div key={leave.id} className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
-                                                                            <div className="flex items-start justify-between mb-3">
-                                                                                <div>
-                                                                                    <h5 className="font-semibold text-gray-900 dark:text-white">
-                                                                                        {leave.leaveType}
-                                                                                    </h5>
-                                                                                    <div className="flex items-center gap-2 mt-1">
-                                                                                        <Badge
-                                                                                            className={
-                                                                                                leave.status === 'approved'
-                                                                                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                                                                                    : leave.status === 'pending'
-                                                                                                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                                                                                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                                                                            }
-                                                                                        >
-                                                                                            {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
-                                                                                        </Badge>
-                                                                                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                                                            {leave.duration} day{leave.duration > 1 ? 's' : ''}
-                                                                                            {leave.leave_length === 'half_day' ? ' (Half Day)' : ''}
-                                                                                        </span>
+                                                                        <div key={leave.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                                                                            <div className={cn(
+                                                                                "h-1",
+                                                                                leave.status === 'approved' ? 'bg-gradient-to-r from-emerald-500 to-green-500' :
+                                                                                    leave.status === 'pending' ? 'bg-gradient-to-r from-amber-400 to-yellow-400' :
+                                                                                        'bg-gradient-to-r from-red-400 to-rose-400'
+                                                                            )} />
+                                                                            <div className="p-4">
+                                                                                <div className="flex items-start justify-between mb-3">
+                                                                                    <div>
+                                                                                        <p className="font-semibold text-gray-900 dark:text-white text-sm">{leave.leaveType}</p>
+                                                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                                                            {leave.duration} day{leave.duration > 1 ? 's' : ''}{leave.leave_length === 'half_day' ? ' (Half)' : ''}
+                                                                                        </p>
                                                                                     </div>
+                                                                                    <Badge className={cn(
+                                                                                        "text-xs",
+                                                                                        leave.status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
+                                                                                            leave.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                                                                                                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                                                                    )}>
+                                                                                        {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+                                                                                    </Badge>
                                                                                 </div>
-                                                                                <div className="text-right text-sm text-gray-600 dark:text-gray-400">
+                                                                                <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                                                                    <CalendarIcon className="w-3 h-3" />
                                                                                     {formatDateRange(leave.startDate, leave.endDate)}
                                                                                 </div>
-                                                                            </div>
-
-                                                                            <div className="grid grid-cols-2 gap-4">
-                                                                                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
-                                                                                    <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                                                                                        Start Date
-                                                                                    </p>
-                                                                                    <p className="text-blue-900 dark:text-blue-100 font-semibold">
-                                                                                        {formatDate(leave.startDate)}
-                                                                                    </p>
-                                                                                </div>
-                                                                                <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
-                                                                                    <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wider">
-                                                                                        End Date
-                                                                                    </p>
-                                                                                    <p className="text-red-900 dark:text-red-100 font-semibold">
-                                                                                        {formatDate(leave.endDate)}
-                                                                                    </p>
-                                                                                </div>
-                                                                            </div>
-
-                                                                            {leave.reason && (
-                                                                                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-600">
-                                                                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-                                                                                        Reason
-                                                                                    </p>
-                                                                                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                                                {leave.reason && (
+                                                                                    <p className="mt-2 pt-2 border-t border-gray-100 dark:border-slate-700 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
                                                                                         {leave.reason}
                                                                                     </p>
-                                                                                </div>
-                                                                            )}
+                                                                                )}
+                                                                            </div>
                                                                         </div>
                                                                     ))}
                                                                 </div>
                                                             </div>
                                                         )}
 
-                                                        {/* No upcoming leaves message */}
+                                                        {/* No upcoming leaves */}
                                                         {(!member.upcomingLeaves || member.upcomingLeaves.length === 0) && member.status !== 'on-leave' && (
-                                                            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-gray-200 dark:border-slate-700 shadow-sm">
-                                                                <div className="text-center py-8">
-                                                                    <div className="w-16 h-16 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3">
-                                                                        <CalendarIcon className="w-8 h-8 text-gray-400" />
-                                                                    </div>
-                                                                    <p className="text-gray-500 dark:text-gray-400 font-medium">
-                                                                        No upcoming leaves scheduled
-                                                                    </p>
-                                                                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                                                                        This team member has no planned leave in the selected period
-                                                                    </p>
-                                                                </div>
+                                                            <div className="mt-5 text-center py-6 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
+                                                                <CalendarIcon className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+                                                                <p className="text-sm text-gray-500 dark:text-gray-400">No upcoming leaves in the selected period</p>
                                                             </div>
                                                         )}
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
                                         )}
-                                    </>
+                                    </React.Fragment >
                                 );
                             })}
                         </TableBody>

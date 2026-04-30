@@ -39,6 +39,7 @@ import utc from 'dayjs/plugin/utc';
 import isBetween from 'dayjs/plugin/isBetween';
 import { sender, senderManagement } from '../email/emailMiddleware';
 import { EmailNotificationDetails } from '../email/notificationHandler';
+import { createLeaveEvents, deleteLeaveEvents } from '../integrations/outlookCalendar';
 dayjs.extend(utc);
 dayjs.extend(isBetween);
 
@@ -551,11 +552,38 @@ app.put('/:id/approve', async (c: Context): Promise<Response> => {
                 emailDetails.status
             );
 
+            // Create Outlook calendar events when leave is approved (fire-and-forget)
+            if (action === 'approve') {
+                try {
+                    const managerToken = getDecodedToken(c);
+                    const managerName = `${managerToken.given_name || managerToken.name || 'Manager'} ${managerToken.family_name || ''}`.trim();
+                    const { sharedEventId, personalEventId } = await createLeaveEvents({
+                        employeeEmail: leaveRequest.email,
+                        employeeName: `${leaveRequest.firstName} ${leaveRequest.lastName}`,
+                        leaveType: leaveRequest.leave_type,
+                        startDate: leaveRequest.start_date,
+                        endDate: leaveRequest.end_date,
+                        managerName,
+                    });
+                    const calendarConnection = await DatabaseService.createConnection();
+                    try {
+                        await calendarConnection.query(
+                            'UPDATE leave_requests SET outlook_shared_event_id = ?, outlook_personal_event_id = ? WHERE id = ?',
+                            [sharedEventId, personalEventId, leaveId]
+                        );
+                    } finally {
+                        await calendarConnection.end();
+                    }
+                } catch (err) {
+                    console.error('[Outlook] Failed to create calendar events:', err);
+                }
+            }
+
             return c.json<ApiResponse>({
                 success: true,
-                message: `Leave request ${action}d successfully`,
+                message: `Leave request ${action} successfully`,
                 data: {
-                    leaveId: parseInt(leaveId),
+                    leaveId: leaveId !== undefined ? parseInt(leaveId) : null,
                     action: action,
                     status: newStatus,
                     processedAt: processedAt,
@@ -585,6 +613,121 @@ app.put('/:id/approve', async (c: Context): Promise<Response> => {
         }, 500);
     } finally {
         if (connection) await connection.end();
+    }
+});
+
+// POST /bulk-action - Approve or reject multiple pending leave requests at once
+app.post('/bulk-action', async (c: Context): Promise<Response> => {
+    try {
+        const managerId = getUserId(c);
+        const managerToken = getDecodedToken(c);
+        const managerName = `${managerToken.given_name || managerToken.name || 'Manager'} ${managerToken.family_name || ''}`.trim();
+
+        const body = await c.req.json();
+        const schema = z.object({
+            leaveIds: z.array(z.number().int().positive()).min(1).max(50),
+            action: z.enum(['approve', 'reject']),
+            feedback: z.string().optional().default(''),
+        });
+        const { leaveIds, action, feedback } = schema.parse(body);
+
+        const newStatus = action === 'approve' ? 'approved' : 'rejected';
+        const processedAt = new Date().toISOString();
+
+        const results: { id: number; success: boolean; error?: string }[] = [];
+
+        for (const leaveId of leaveIds) {
+            let connection: mysql.Connection | null = null;
+            try {
+                connection = await DatabaseService.createConnection();
+
+                const [rows] = await connection.query<mysql.RowDataPacket[]>(`
+                    SELECT lr.*, u.firstName, u.lastName, u.email
+                    FROM leave_requests lr
+                    LEFT JOIN users u ON lr.uid = u.id
+                    WHERE lr.id = ? AND lr.status = "pending"
+                `, [leaveId]);
+
+                if (!rows || rows.length === 0) {
+                    results.push({ id: leaveId, success: false, error: 'Not found or already processed' });
+                    continue;
+                }
+
+                const leaveRequest = rows[0] as LeaveRequestWithUser;
+
+                await connection.beginTransaction();
+                await connection.query(`
+                    UPDATE leave_requests
+                    SET status = ?, approved_by = ?, feedback = ?, approved_at = ?, updatedAt = ?
+                    WHERE id = ?
+                `, [newStatus, managerId, feedback, processedAt, processedAt, leaveId]);
+
+                await connection.query(`
+                    INSERT INTO leave_action_log (leave_id, manager_id, action, previous_status, new_status, timestamp)
+                    VALUES (?, ?, ?, ?, ?, NOW())
+                `, [leaveId, managerId, action, 'pending', newStatus]);
+
+                await connection.commit();
+                await connection.end();
+                connection = null;
+
+                // Fire-and-forget: email + calendar — never block the loop
+                sender(
+                    leaveRequest.email,
+                    `${leaveRequest.firstName} ${leaveRequest.lastName}`,
+                    `Your leave request for <strong>${leaveRequest.leave_type}</strong> from ${formatDate(leaveRequest.start_date)} to ${formatDate(leaveRequest.end_date)} has been <strong>${newStatus}</strong>.<br><br>Feedback: ${feedback}`,
+                    `Leave Request ${newStatus} - ${leaveRequest.leave_type}`,
+                    newStatus as 'approved' | 'rejected'
+                ).catch(err => console.error(`[BulkAction] Email failed for leave ${leaveId}:`, err));
+
+                if (action === 'approve') {
+                    createLeaveEvents({
+                        employeeEmail: leaveRequest.email,
+                        employeeName: `${leaveRequest.firstName} ${leaveRequest.lastName}`,
+                        leaveType: leaveRequest.leave_type,
+                        startDate: leaveRequest.start_date,
+                        endDate: leaveRequest.end_date,
+                        managerName,
+                    }).then(async ({ sharedEventId, personalEventId }) => {
+                        const calConn = await DatabaseService.createConnection();
+                        try {
+                            await calConn.query(
+                                'UPDATE leave_requests SET outlook_shared_event_id = ?, outlook_personal_event_id = ? WHERE id = ?',
+                                [sharedEventId, personalEventId, leaveId]
+                            );
+                        } finally {
+                            await calConn.end();
+                        }
+                    }).catch(err => console.error(`[BulkAction] Outlook calendar failed for leave ${leaveId}:`, err));
+                }
+
+                results.push({ id: leaveId, success: true });
+
+            } catch (err) {
+                if (connection) {
+                    try { await connection.rollback(); } catch (_) {}
+                    try { await connection.end(); } catch (_) {}
+                }
+                console.error(`[BulkAction] Failed to process leave ${leaveId}:`, err);
+                results.push({ id: leaveId, success: false, error: 'Internal error' });
+            }
+        }
+
+        const succeeded = results.filter(r => r.success).length;
+        const failed = results.filter(r => !r.success).length;
+
+        return c.json({
+            success: true,
+            message: `${succeeded} request${succeeded !== 1 ? 's' : ''} ${newStatus}${failed > 0 ? `, ${failed} failed` : ''}`,
+            data: { results, succeeded, failed, action, newStatus },
+        }, 200);
+
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return c.json({ success: false, message: 'Invalid request data' }, 400);
+        }
+        console.error('[BulkAction] Unexpected error:', error);
+        return c.json({ success: false, message: 'Failed to process bulk action' }, 500);
     }
 });
 
@@ -794,6 +937,13 @@ app.post('/leave/:id/upload-document', async (c: Context): Promise<Response> => 
         }
 
         // Upload to S3
+        if (!leaveId) {
+            return c.json<ApiResponse>({
+                success: false,
+                message: 'Leave request ID is required'
+            }, 400);
+        }
+
         const s3Key = await uploadToS3(file_data, file_name, file_type, uid.toString(), leaveId);
 
         // Update leave request with document path
@@ -844,7 +994,8 @@ app.put('/:id/cancel', async (c: Context): Promise<Response> => {
 
         // Check if leave request exists and is approved
         const [existingLeave] = await connection.query<mysql.RowDataPacket[]>(`
-            SELECT lr.*, u.firstName, u.lastName, u.email 
+            SELECT lr.*, u.firstName, u.lastName, u.email,
+                   lr.outlook_shared_event_id, lr.outlook_personal_event_id
             FROM leave_requests lr
             LEFT JOIN users u ON lr.uid = u.id
             WHERE lr.id = ? AND lr.status = "approved"
@@ -940,11 +1091,21 @@ app.put('/:id/cancel', async (c: Context): Promise<Response> => {
                 // Don't fail the request if email fails
             }
 
+            // Delete Outlook calendar events when leave is cancelled (fire-and-forget)
+            try {
+                const { outlook_shared_event_id, outlook_personal_event_id, email } = leaveRequest;
+                if (outlook_shared_event_id || outlook_personal_event_id) {
+                    await deleteLeaveEvents(outlook_shared_event_id ?? null, outlook_personal_event_id ?? null, email);
+                }
+            } catch (err) {
+                console.error('[Outlook] Failed to delete calendar events:', err);
+            }
+
             return c.json<ApiResponse>({
                 success: true,
                 message: 'Leave request cancelled successfully',
                 data: {
-                    leaveId: parseInt(leaveId),
+                    leaveId: leaveId !== undefined ? parseInt(leaveId) : null,
                     action: 'cancel',
                     status: 'cancelled',
                     cancelledAt: cancelledAt,
@@ -1308,10 +1469,20 @@ app.get('/leave-calendar-with-birthdays', async (c: Context): Promise<Response> 
         ]);
 
         // Transform birthday data
+        const today = dayjs();
+        const todayDayOfWeek = today.day(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
         const birthdays: Birthday[] = birthdayResults.map(user => {
             const birthdayThisYear = dayjs(user.birthday_this_year);
             const age = user.current_age + 1; // Age they'll turn on birthday
-            const isToday = birthdayThisYear.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+            const birthdayDayOfWeek = birthdayThisYear.day();
+
+            // Observe weekend birthdays on the preceding Friday
+            const isTodayBirthday = birthdayThisYear.format('YYYY-MM-DD') === today.format('YYYY-MM-DD');
+            const isFridayObserved = todayDayOfWeek === 5 && (
+                (birthdayDayOfWeek === 6 && birthdayThisYear.isSame(today.add(1, 'day'), 'day')) || // Sat → Fri
+                (birthdayDayOfWeek === 0 && birthdayThisYear.isSame(today.add(2, 'day'), 'day'))    // Sun → Fri
+            );
+            const isToday = isTodayBirthday || isFridayObserved;
 
             return {
                 id: `birthday-${user.id}`,
@@ -1435,10 +1606,19 @@ app.get('/birthdays', async (c: Context): Promise<Response> => {
         ]);
 
         // Transform birthday data
+        const today2 = dayjs();
+        const todayDow2 = today2.day();
         const birthdays: Birthday[] = birthdayResults.map(user => {
             const birthdayThisYear = dayjs(user.birthday_this_year);
             const age = user.current_age + 1; // Age they'll turn on birthday
-            const isToday = birthdayThisYear.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+            const birthdayDow = birthdayThisYear.day();
+
+            const isTodayBirthday = birthdayThisYear.format('YYYY-MM-DD') === today2.format('YYYY-MM-DD');
+            const isFridayObserved = todayDow2 === 5 && (
+                (birthdayDow === 6 && birthdayThisYear.isSame(today2.add(1, 'day'), 'day')) ||
+                (birthdayDow === 0 && birthdayThisYear.isSame(today2.add(2, 'day'), 'day'))
+            );
+            const isToday = isTodayBirthday || isFridayObserved;
 
             return {
                 id: `birthday-${user.id}`,
@@ -1750,4 +1930,4 @@ app.patch('/:id/cancel', async (c: Context): Promise<Response> => {
     }
 });
 
-export { app as leave };
+export { app as leaveApp };

@@ -1,5 +1,7 @@
 import React from 'react';
-import { FileText, Eye, Edit3, Trash2 } from 'lucide-react';
+import { FileText, Eye, Edit3, Trash2, Download, Bell } from 'lucide-react';
+import { Pagination } from "@/components/ui/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 
 interface DocumentType {
     id: number;
@@ -27,7 +29,10 @@ interface DocumentTableProps {
     onEdit: (doc: DocumentType) => void;
     onDownload: (doc: DocumentType) => void;
     onDelete: (docId: number) => void;
+    onSendReminder?: (docId: number) => void;
 }
+
+
 
 const getStatusColor = (status: 'active' | 'draft' | 'archived'): string => {
     switch (status) {
@@ -43,8 +48,12 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     title,
     onView,
     onEdit,
-    onDelete
+    onDownload,
+    onDelete,
+    onSendReminder,
 }) => {
+    const pagination = usePagination(documents, 10);
+
     if (documents.length === 0) {
         return (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
@@ -98,7 +107,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {documents.map((doc) => (
+                        {pagination.paginatedItems.map((doc) => (
                             <tr key={doc.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center gap-3">
@@ -141,28 +150,44 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                                         <span className="text-sm text-gray-900 dark:text-white">{doc.signatureRate}%</span>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <td className="px-6 py-4 whitespace-nowrap text-right">
                                     <div className="flex items-center justify-end gap-2">
+                                        {onSendReminder && doc.signatureRate < 100 && (
+                                            <button
+                                                onClick={() => onSendReminder(doc.id)}
+                                                className="p-1.5 rounded-lg border border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/40 transition-colors"
+                                                title="Send Signing Reminders"
+                                            >
+                                                <Bell className="w-4 h-4" />
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => onView(doc)}
-                                            className="text-cyan-500 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+                                            className="p-1.5 rounded-lg border border-cyan-200 text-cyan-600 bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-900/20 dark:border-cyan-800 dark:text-cyan-400 dark:hover:bg-cyan-900/40 transition-colors"
                                             title="View Document"
                                         >
-                                            <Eye className="w-5 h-5" />
+                                            <Eye className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => onDownload(doc)}
+                                            className="p-1.5 rounded-lg border border-green-200 text-green-600 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/40 transition-colors"
+                                            title="Download Document"
+                                        >
+                                            <Download className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => onEdit(doc)}
-                                            className="text-green-500 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                                            className="p-1.5 rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
                                             title="Edit Document"
                                         >
-                                            <Edit3 className="w-5 h-5" />
+                                            <Edit3 className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => onDelete(doc.id)}
-                                            className="text-red-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                                            className="p-1.5 rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
                                             title="Delete Document"
                                         >
-                                            <Trash2 className="w-5 h-5" />
+                                            <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
                                 </td>
@@ -171,6 +196,14 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     </tbody>
                 </table>
             </div>
+            <Pagination
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                pageSize={pagination.pageSize}
+                totalItems={pagination.totalItems}
+                onPageChange={pagination.setPage}
+                onPageSizeChange={pagination.setPageSize}
+            />
         </div>
     );
 };

@@ -143,7 +143,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             if (response.ok) {
                 const data = await response.json();
-                localStorage.setItem('authToken', data.idToken);
+                localStorage.setItem('authToken', data.idToken || data.accessToken);
                 localStorage.setItem('accessToken', data.accessToken);
                 localStorage.setItem('refreshToken', data.refreshToken);
                 return {
@@ -164,6 +164,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkAuthStatus = async (): Promise<void> => {
         try {
             const token = getAuthToken();
+            console.log('[Auth] checkAuthStatus - Token:', token ? `${token.substring(0, 50)}...` : 'null');
+
             if (!token) {
                 setLoading(false);
                 return;
@@ -177,6 +179,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     'Accept': 'application/json'
                 },
             });
+
+            console.log('[Auth] /users/me response status:', response.status);
 
             if (response.status === 401) {
                 const refreshResult = await refreshAuthToken();

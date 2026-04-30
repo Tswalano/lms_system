@@ -2,13 +2,61 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { MonitorOff, Moon, SunDim, Bell, X, Check, Clock, Archive, Trash2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+interface Quote { text: string; author: string; }
+
+const QUOTES: Quote[] = [
+    // Life
+    { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+    { text: "In the middle of every difficulty lies opportunity.", author: "Albert Einstein" },
+    { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
+    { text: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill" },
+    { text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
+    { text: "You miss 100% of the shots you don't take.", author: "Wayne Gretzky" },
+    { text: "Whether you think you can or you think you can't, you're right.", author: "Henry Ford" },
+    // Education
+    { text: "Education is the most powerful weapon which you can use to change the world.", author: "Nelson Mandela" },
+    { text: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin" },
+    { text: "Live as if you were to die tomorrow. Learn as if you were to live forever.", author: "Mahatma Gandhi" },
+    { text: "Intelligence plus character — that is the goal of true education.", author: "Martin Luther King Jr." },
+    { text: "The more that you read, the more things you will know.", author: "Dr. Seuss" },
+    { text: "Tell me and I forget. Teach me and I remember. Involve me and I learn.", author: "Benjamin Franklin" },
+    // Engineering & Technology
+    { text: "Scientists study the world as it is; engineers create the world that has never been.", author: "Theodore von Kármán" },
+    { text: "First, solve the problem. Then, write the code.", author: "John Johnson" },
+    { text: "Simplicity is the ultimate sophistication.", author: "Leonardo da Vinci" },
+    { text: "Make everything as simple as possible, but not simpler.", author: "Albert Einstein" },
+    { text: "Programs must be written for people to read, and only incidentally for machines to execute.", author: "Harold Abelson" },
+    { text: "Talk is cheap. Show me the code.", author: "Linus Torvalds" },
+    { text: "Any sufficiently advanced technology is indistinguishable from magic.", author: "Arthur C. Clarke" },
+    { text: "The function of good software is to make the complex appear to be simple.", author: "Grady Booch" },
+    { text: "The engineer has been, and is, a maker of history.", author: "James Kip Finch" },
+];
+
+const QUOTE_TTL_MS = 24 * 60 * 60 * 1000; // refresh after 24 hours
+
+function pickAndStoreQuote(userKey: string): Quote {
+    const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+    localStorage.setItem(`lms_quote_${userKey}`, JSON.stringify({ quote, ts: Date.now() }));
+    return quote;
+}
+
+function getQuoteForUser(userKey: string): Quote {
+    try {
+        const raw = localStorage.getItem(`lms_quote_${userKey}`);
+        if (raw) {
+            const { quote, ts } = JSON.parse(raw);
+            if (Date.now() - ts < QUOTE_TTL_MS) return quote;
+        }
+    } catch { /* ignore parse errors */ }
+    return pickAndStoreQuote(userKey);
+}
 import { useNotifications, useNotificationCounts, useNotificationMutations } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
 
-interface DashboardHeaderProps {
-    isCollapsed?: boolean;
-    showSidebar?: boolean;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface DashboardHeaderProps {}
 
 interface NotificationAPI {
     id: string;
@@ -30,15 +78,61 @@ interface NotificationAPI {
     metadata?: any;
 }
 
-const DashboardHeader: React.FC<DashboardHeaderProps> = ({
-    isCollapsed = false,
-    showSidebar = true
-}) => {
+// Returns "YYYY-MM-DD" for a Date using local calendar values
+function localDateStr(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, authFetch } = useAuth();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [showNotifications, setShowNotifications] = useState(false);
     const [showActions, setShowActions] = useState<string | null>(null);
+    const [quote, setQuote] = useState<Quote | null>(null);
+
+    // Fetch today's (and observed) birthdays — reuses the same cache key as CalendarSection for this month
+    const today = new Date();
+    const todayDow = today.getDay(); // 0=Sun … 6=Sat
+    // On Friday we look ahead to Sat+Sun so those birthdays are observed today
+    const lookAheadEnd = todayDow === 5
+        ? new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2)
+        : today;
+    const birthdayQueryStart = localDateStr(today);
+    const birthdayQueryEnd = localDateStr(lookAheadEnd);
+
+    const { data: birthdayData } = useQuery({
+        queryKey: ['todayBirthdays', birthdayQueryStart, birthdayQueryEnd],
+        queryFn: async () => {
+            const res = await authFetch(
+                `/leave/leave-calendar-with-birthdays?start_date=${birthdayQueryStart}&end_date=${birthdayQueryEnd}`
+            );
+            if (!res.ok) throw new Error('Failed to fetch birthdays');
+            return res.json();
+        },
+        staleTime: 60 * 60 * 1000, // 1 hour — birthdays don't change intraday
+        gcTime: 2 * 60 * 60 * 1000,
+        refetchOnWindowFocus: false,
+    });
+
+    // Compute isToday on the client so we don't depend on a backend restart
+    const isBirthdayObservedToday = (birthdayDate: string): boolean => {
+        const now = new Date();
+        const bday = new Date(birthdayDate); // "YYYY-MM-DD" → parsed as UTC midnight
+        const nowStr = localDateStr(now);
+        const bdayStr = localDateStr(bday);
+        if (bdayStr === nowStr) return true;
+        const dow = now.getDay(); // 0=Sun … 6=Sat
+        if (dow === 5) {
+            const satStr = localDateStr(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+            const sunStr = localDateStr(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2));
+            if (bdayStr === satStr || bdayStr === sunStr) return true;
+        }
+        return false;
+    };
+
+    const todaysBirthdays: Array<{ userId: string; name: string; firstName: string; birthdayDate: string }> =
+        (birthdayData?.data?.birthdays ?? []).filter((b: any) => isBirthdayObservedToday(b.birthdayDate));
 
     const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -58,15 +152,23 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         deleteNotification
     } = useNotificationMutations();
 
-    const notifications = notificationsData?.data?.notifications || [];
+    const allNotifications = notificationsData?.data?.notifications || [];
+    const notifications = allNotifications.filter((n: NotificationAPI) => !n.isRead);
     const unreadCount = countsData?.data?.totalUnread || 0;
     const urgentCount = countsData?.data?.urgentUnread || 0;
+
+    // Load persisted quote for this user (refreshes after 24h TTL)
+    useEffect(() => {
+        if (user?.email) {
+            setQuote(getQuoteForUser(user.email));
+        }
+    }, [user?.email]);
 
     // Update time every second
     useEffect(() => {
         const timer = setInterval(() => {
             setCurrentTime(new Date());
-        }, 100);
+        }, 1000);
         return () => clearInterval(timer);
     }, []);
 
@@ -188,16 +290,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         setShowActions(null);
     };
 
-    const getResponsivePadding = () => {
-        if (!showSidebar) {
-            return "px-4 lg:px-8";
-        }
-        if (isCollapsed) {
-            return "px-4 lg:px-8";
-        } else {
-            return "px-4 lg:px-8";
-        }
-    };
+    const getResponsivePadding = () => "px-4 lg:px-8";
 
     const handleNavigation = () => {
         setShowNotifications(false);
@@ -265,7 +358,8 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                                 ) : notifications.length === 0 ? (
                                     <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                                         <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                        <p>No notifications</p>
+                                        <p className="font-medium">You're all caught up!</p>
+                                        <p className="text-xs mt-1">No unread notifications</p>
                                     </div>
                                 ) : (
                                     <div className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -436,11 +530,35 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                         </div>
                     </div>
 
-                    {/* Subtitle */}
-                    <p className="text-sm lg:text-lg text-gray-600 dark:text-gray-300 mt-3 lg:mt-4 font-medium">
-                        {user && user.dob === new Date().getFullYear().toString() ? `🎉 Happy Birthday ${user?.firstName} ${user?.lastName}! Wishing a fantastic day!`
-                            : 'Welcome back to Disraptor LMS Hub!'}
-                    </p>
+                    {/* Subtitle — birthday override or daily quote */}
+                    {todaysBirthdays.length > 0 ? (
+                        <div className="mt-3 lg:mt-4 space-y-1">
+                            {todaysBirthdays.map((b) => {
+                                const isOwnBirthday = String(b.userId) === String(user?.id);
+                                const formattedDate = new Date(b.birthdayDate).toLocaleDateString('en-ZA', {
+                                    weekday: 'long', month: 'long', day: 'numeric'
+                                });
+                                return isOwnBirthday ? (
+                                    <p key={b.userId} className="text-sm lg:text-lg text-pink-600 dark:text-pink-400 font-semibold">
+                                        🎂 Happy Birthday {b.firstName}! Wishing you a fantastic day! 🎉🎉🎉
+                                    </p>
+                                ) : (
+                                    <p key={b.userId} className="text-sm lg:text-base text-gray-600 dark:text-gray-300 font-medium">
+                                        🎂 It's <span className="text-pink-600 dark:text-pink-400 font-semibold">{b.firstName}'s</span> Birthday on {formattedDate} — wish them a happy birthday! 🎉🎉🎉
+                                    </p>
+                                );
+                            })}
+                        </div>
+                    ) : quote ? (
+                        <div className="mt-3 lg:mt-4 max-w-xl mx-auto">
+                            <p className="text-sm lg:text-base text-gray-600 dark:text-gray-300 italic leading-relaxed">
+                                &ldquo;{quote.text}&rdquo;
+                            </p>
+                            <p className="text-xs lg:text-sm text-gray-400 dark:text-gray-500 mt-1 font-medium tracking-wide">
+                                — {quote.author}
+                            </p>
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </div>

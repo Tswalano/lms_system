@@ -22,15 +22,14 @@ import DashboardLayout from "./components/DashboardLayout";
 import AdminDocumentsPage from "./pages/AdminDocumentsPage";
 import EmployeeDocumentsPage from "./pages/EmployeeDocumentsPage";
 // Import Performance Review Components
-import DashboardPage from "./pages/performance-review/pages/DashboardPage";
-import RequestReviewPage from "./pages/performance-review/pages/RequestReviewPage";
-import SelfReviewPage from "./pages/performance-review/pages/SelfReviewPage";
-import ReviewRequestsPage from "./pages/performance-review/pages/ReviewRequestsPage";
-import PendingReviewsPage from "./pages/performance-review/pages/PendingReviewsPage";
-import ConductReviewPage from "./pages/performance-review/pages/ConductReviewPage";
-import AdminApp from "./pages/performance-review/pages/AdminApp";
+import PerformanceReviewAdmin from "./pages/PerformanceReviewAdmin";
+import PerformanceReviewEmployee from "./pages/PerformanceReviewEmployee";
+import PerformanceReviewPeerPage from "./pages/PerformanceReviewPeerPage";
+import PerformanceReviewSubmissionsPage from "./pages/PerformanceReviewSubmissionsPage";
+// end of Performance Review imports
 import NotificationCenterPage from "./pages/NotificationCenterPage";
 import SupportPage from "./pages/SupportPage";
+import features from "./config/features";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
 import BackendDownPage from "./pages/BackendDownPage";
 import LandingPage from "./pages/LandingPage";
@@ -128,39 +127,24 @@ const App: React.FC = () => (
               } />
 
               {/* Performance Review Routes */}
-              <Route path="/performance" element={
-                <ProtectedRoute>
-                  <DashboardPage />
+              <Route path="/performance-review" element={
+                <ProtectedRoute allowedRoles={['user', 'admin']}>
+                  <PerformanceReviewEmployee />
                 </ProtectedRoute>
               } />
-              <Route path="/performance/request-review" element={
-                <ProtectedRoute>
-                  <RequestReviewPage />
+              <Route path="/performance-review/peer/:assignmentId" element={
+                <ProtectedRoute allowedRoles={['user', 'admin']}>
+                  <PerformanceReviewPeerPage />
                 </ProtectedRoute>
               } />
-              <Route path="/performance/self-review" element={
-                <ProtectedRoute>
-                  <SelfReviewPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/performance/review-requests" element={
-                <ProtectedRoute>
-                  <ReviewRequestsPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/performance/pending-reviews" element={
-                <ProtectedRoute>
-                  <PendingReviewsPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/performance/conduct-review/:requestId" element={
-                <ProtectedRoute>
-                  <ConductReviewPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/performance/admin" element={
+              <Route path="/performance-review-admin" element={
                 <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminApp />
+                  <PerformanceReviewAdmin />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance-review-admin/submissions/:employeeId" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <PerformanceReviewSubmissionsPage />
                 </ProtectedRoute>
               } />
               {/* End of Performance Review Routes */}
@@ -172,16 +156,20 @@ const App: React.FC = () => (
                 </ProtectedRoute>
               } />
 
-              <Route path="/employee-document" element={
-                <ProtectedRoute>
-                  <EmployeeDocumentsPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin-document" element={
-                <ProtectedRoute>
-                  <AdminDocumentsPage />
-                </ProtectedRoute>
-              } />
+              {features.employeeDocuments && (
+                <Route path="/employee-document" element={
+                  <ProtectedRoute>
+                    <EmployeeDocumentsPage />
+                  </ProtectedRoute>
+                } />
+              )}
+              {features.adminDocuments && (
+                <Route path="/admin-document" element={
+                  <ProtectedRoute>
+                    <AdminDocumentsPage />
+                  </ProtectedRoute>
+                } />
+              )}
               <Route path="/approve-leave" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <ApproveLeave />

@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Users, Calendar, ArrowLeft, Loader2, AlertCircle, Clock, CheckCircle, XCircle, Search, Mail, Briefcase, History, ChevronUp, ChevronDown, MessageSquare } from "lucide-react";
+import { Pagination } from "@/components/ui/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery } from '@tanstack/react-query';
@@ -64,6 +66,13 @@ const TeamListLeaveHistoryPage = () => {
         });
     };
 
+    // Format a leave date (start_date / end_date) in SAST.
+    // mysql2 may return DATE columns as SAST-midnight-encoded-as-UTC (e.g. "2026-05-01T22:00:00Z"
+    // = May 2 SAST). moment(str) in a UTC browser would show May 1. Using utcOffset('+02:00')
+    // gives the correct SAST calendar date in all browser timezones.
+    const formatLeaveDate = (dateStr: string) =>
+        moment.utc(dateStr).utcOffset('+02:00').format('MMM DD, YYYY');
+
     const getUserInitials = (firstName: string, lastName: string) => {
         return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
     };
@@ -96,28 +105,39 @@ const TeamListLeaveHistoryPage = () => {
 
     const getCardAccent = (userId: string) => {
         const accents = [
-            'border-l-purple-400 bg-purple-50/50 dark:bg-purple-900/10',
-            'border-l-blue-400 bg-blue-50/50 dark:bg-blue-900/10',
-            'border-l-green-400 bg-green-50/50 dark:bg-green-900/10',
-            'border-l-orange-400 bg-orange-50/50 dark:bg-orange-900/10',
-            'border-l-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10',
-            'border-l-pink-400 bg-pink-50/50 dark:bg-pink-900/10',
-            'border-l-cyan-400 bg-cyan-50/50 dark:bg-cyan-900/10',
-            'border-l-teal-400 bg-teal-50/50 dark:bg-teal-900/10',
-            'border-l-red-400 bg-red-50/50 dark:bg-red-900/10',
-            'border-l-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/10',
-            'border-l-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10',
-            'border-l-violet-400 bg-violet-50/50 dark:bg-violet-900/10',
-            'border-l-sky-400 bg-sky-50/50 dark:bg-sky-900/10',
-            'border-l-lime-400 bg-lime-50/50 dark:bg-lime-900/10',
-            'border-l-amber-400 bg-amber-50/50 dark:bg-amber-900/10',
-            'border-l-rose-400 bg-rose-50/50 dark:bg-rose-900/10'
+            'border-l-purple-400 dark:border-l-purple-300 bg-purple-50/50 dark:bg-purple-900/10',
+            'border-l-blue-400 dark:border-l-blue-300 bg-blue-50/50 dark:bg-blue-900/10',
+            'border-l-green-400 dark:border-l-green-300 bg-green-50/50 dark:bg-green-900/10',
+            'border-l-orange-400 dark:border-l-orange-300 bg-orange-50/50 dark:bg-orange-900/10',
+            'border-l-indigo-400 dark:border-l-indigo-300 bg-indigo-50/50 dark:bg-indigo-900/10',
+            'border-l-pink-400 dark:border-l-pink-300 bg-pink-50/50 dark:bg-pink-900/10',
+            'border-l-cyan-400 dark:border-l-cyan-300 bg-cyan-50/50 dark:bg-cyan-900/10',
+            'border-l-teal-400 dark:border-l-teal-300 bg-teal-50/50 dark:bg-teal-900/10',
+            'border-l-red-400 dark:border-l-red-300 bg-red-50/50 dark:bg-red-900/10',
+            'border-l-yellow-400 dark:border-l-yellow-300 bg-yellow-50/50 dark:bg-yellow-900/10',
+            'border-l-emerald-400 dark:border-l-emerald-300 bg-emerald-50/50 dark:bg-emerald-900/10',
+            'border-l-violet-400 dark:border-l-violet-300 bg-violet-50/50 dark:bg-violet-900/10',
+            'border-l-sky-400 dark:border-l-sky-300 bg-sky-50/50 dark:bg-sky-900/10',
+            'border-l-lime-400 dark:border-l-lime-300 bg-lime-50/50 dark:bg-lime-900/10',
+            'border-l-amber-400 dark:border-l-amber-300 bg-amber-50/50 dark:bg-amber-900/10',
+            'border-l-rose-400 dark:border-l-rose-300 bg-rose-50/50 dark:bg-rose-900/10'
         ];
         const hash = userId.split('').reduce((a, b) => {
             a = ((a << 5) - a) + b.charCodeAt(0);
             return a & a;
         }, 0);
         return accents[Math.abs(hash) % accents.length];
+    };
+
+    const getLeaveBorderColor = (status: string) => {
+        const statusLower = status.toLowerCase();
+        switch (statusLower) {
+            case 'approved': return 'border-l-emerald-500 dark:border-l-emerald-400';
+            case 'pending': return 'border-l-amber-500 dark:border-l-amber-400';
+            case 'rejected': return 'border-l-rose-500 dark:border-l-rose-400';
+            case 'cancelled': return 'border-l-gray-500 dark:border-l-gray-400';
+            default: return 'border-l-gray-300 dark:border-l-gray-200';
+        }
     };
 
     const fetchUsers = async (): Promise<User[]> => {
@@ -189,6 +209,15 @@ const TeamListLeaveHistoryPage = () => {
         user.jobTitle.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const usersPagination = usePagination(filteredUsers, 10);
+    const leavePagination = usePagination(leaveHistory, 10);
+
+    // Reset leave pagination when switching users
+    useEffect(() => {
+        leavePagination.resetPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedUser?.id]);
+
     const getStatusBadge = (status: string) => {
         const statusLower = status.toLowerCase();
         switch (statusLower) {
@@ -198,6 +227,8 @@ const TeamListLeaveHistoryPage = () => {
                 return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400';
             case 'rejected':
                 return 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400';
+            case 'cancelled':
+                return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400';
             default:
                 return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400';
         }
@@ -313,192 +344,162 @@ const TeamListLeaveHistoryPage = () => {
                                 <p className="text-gray-500 dark:text-gray-400">No leave history found</p>
                             </div>
                         ) : (
-                            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full">
-                                        <thead className="bg-gray-50 dark:bg-slate-700/30">
-                                            <tr>
-                                                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                    Leave Type
-                                                </th>
-                                                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                    Duration
-                                                </th>
-                                                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                    Dates
-                                                </th>
-                                                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                    Status
-                                                </th>
-                                                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                    Applied
-                                                </th>
-                                                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                    Actions
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-200 dark:divide-slate-600">
-                                            {leaveHistory.map((leave) => (
-                                                <>
-                                                    <tr key={leave.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors duration-150">
-                                                        {/* Leave Type */}
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <div className="flex items-center gap-3">
-                                                                <div>
-                                                                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                                        {toTitleCase(leave.leave_type)}
+                            <div className="space-y-4">
+                                {leavePagination.paginatedItems.map((leave) => {
+                                    const isExpanded = expandedLeaveId === leave.id;
+                                    const leaveBorderColor = getLeaveBorderColor(leave.status);
+                                    return (
+                                        <div
+                                            key={leave.id}
+                                            className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden hover:shadow-lg dark:hover:shadow-slate-900/20 transition-all duration-300 border-l-4 ${leaveBorderColor}`}
+                                        >
+                                            <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                {/* Main Leave Info */}
+                                                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-center">
+                                                    {/* Leave Type */}
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-gray-600 dark:text-gray-300">
+                                                            <Clock className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{toTitleCase(leave.leave_type)}</div>
+                                                            <div className="text-xs text-gray-500 dark:text-gray-400">{formatLeaveLength(leave.leave_length)}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Duration */}
+                                                    <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                                        <Calendar className="w-4 h-4 text-gray-400" />
+                                                        <span>
+                                                            {`${leave.duration} day${leave.duration > 1 ? 's' : ''}${leave.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Dates */}
+                                                    <div className="text-sm text-gray-700 dark:text-gray-300">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <Calendar className="w-4 h-4 text-gray-400" />
+                                                            <span>{formatLeaveDate(leave.start_date)}</span>
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400 pl-6">
+                                                            to {formatLeaveDate(leave.end_date)}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Status & Applied */}
+                                                    <div className="flex flex-col items-start gap-1">
+                                                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadge(leave.status)}`}>
+                                                            {getStatusIcon(leave.status)}
+                                                            {toTitleCase(leave.status)}
+                                                        </span>
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                            Applied {moment(leave.createdAt).format('MMM DD, YYYY')}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Actions */}
+                                                <div className="flex-shrink-0">
+                                                    <button
+                                                        onClick={() => toggleLeaveDetails(leave.id)}
+                                                        className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors duration-150 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"
+                                                    >
+                                                        View Details
+                                                        {isExpanded ? (
+                                                            <ChevronUp className="w-4 h-4" />
+                                                        ) : (
+                                                            <ChevronDown className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Expandable Details Section */}
+                                            {isExpanded && (
+                                                <div className="bg-gray-50 dark:bg-slate-700/30 border-t border-gray-200 dark:border-slate-600 px-5 py-4">
+                                                    <div className="max-w-7xl mx-auto ">
+                                                        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
+                                                            <MessageSquare className="w-4 h-4" />
+                                                            Leave Details
+                                                        </h4>
+
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                            <div className="space-y-2">
+                                                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Leave Information</div>
+                                                                <div className="bg-white dark:bg-slate-800 rounded-lg p-3 space-y-2">
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-sm text-gray-600 dark:text-gray-400">Type:</span>
+                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{toTitleCase(leave.leave_type)}</span>
                                                                     </div>
-                                                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                                        {formatLeaveLength(leave.leave_length)}
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-sm text-gray-600 dark:text-gray-400">Length:</span>
+                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatLeaveLength(leave.leave_length)}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-sm text-gray-600 dark:text-gray-400">Duration:</span>
+                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                                            {`${leave.duration} day${leave.duration > 1 ? 's' : ''}${leave.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
+                                                                        </span>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </td>
 
-                                                        {/* Duration */}
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                                                                <Clock className="w-4 h-4 text-gray-400" />
-                                                                <span>
-                                                                    {`${leave.duration} day${leave.duration > 1 ? 's' : ''}${leave.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
-                                                                </span>
-                                                            </div>
-                                                        </td>
-
-                                                        {/* Dates */}
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <div className="text-sm text-gray-700 dark:text-gray-300">
-                                                                <div className="flex items-center gap-2 mb-1">
-                                                                    <Calendar className="w-4 h-4 text-gray-400" />
-                                                                    <span>{moment(leave.start_date).format('MMM DD, YYYY')}</span>
-                                                                </div>
-                                                                <div className="text-xs text-gray-500 dark:text-gray-400 pl-6">
-                                                                    to {moment(leave.end_date).format('MMM DD, YYYY')}
-                                                                </div>
-                                                            </div>
-                                                        </td>
-
-                                                        {/* Status */}
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadge(leave.status)}`}>
-                                                                {getStatusIcon(leave.status)}
-                                                                {toTitleCase(leave.status)}
-                                                            </span>
-                                                        </td>
-
-                                                        {/* Applied Date */}
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                            <div>{moment(leave.createdAt).format('MMM DD, YYYY')}</div>
-                                                            {leave.updatedAt && (
-                                                                <div className="text-xs text-gray-400 dark:text-gray-500">
-                                                                    Updated {moment(leave.updatedAt).format('MMM DD')}
-                                                                </div>
-                                                            )}
-                                                        </td>
-
-                                                        {/* Actions */}
-                                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                            <button
-                                                                onClick={() => toggleLeaveDetails(leave.id)}
-                                                                className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors duration-150"
-                                                            >
-                                                                View Details
-                                                                {expandedLeaveId === leave.id ? (
-                                                                    <ChevronUp className="w-4 h-4" />
-                                                                ) : (
-                                                                    <ChevronDown className="w-4 h-4" />
-                                                                )}
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-
-                                                    {/* Expandable Details Row */}
-                                                    {expandedLeaveId === leave.id && (
-                                                        <tr>
-                                                            <td colSpan={6} className="px-0 py-0">
-                                                                <div className="bg-gray-50 dark:bg-slate-700/30 border-t border-gray-200 dark:border-slate-600">
-                                                                    <div className="px-6 py-4">
-                                                                        <div className="px-16 max-w-7xl mx-auto ">
-                                                                            <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
-                                                                                <MessageSquare className="w-4 h-4" />
-                                                                                Leave Details
-                                                                            </h4>
-
-                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                                                                <div className="space-y-2">
-                                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Leave Information</div>
-                                                                                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3 space-y-2">
-                                                                                        <div className="flex justify-between items-center">
-                                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">Type:</span>
-                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{toTitleCase(leave.leave_type)}</span>
-                                                                                        </div>
-                                                                                        <div className="flex justify-between items-center">
-                                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">Length:</span>
-                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatLeaveLength(leave.leave_length)}</span>
-                                                                                        </div>
-                                                                                        <div className="flex justify-between items-center">
-                                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">Duration:</span>
-                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                                                                {`${leave.duration} day${leave.duration > 1 ? 's' : ''}${leave.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
-                                                                                            </span>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                <div className="space-y-2">
-                                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timeline</div>
-                                                                                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3 space-y-2">
-                                                                                        <div className="flex justify-between items-center">
-                                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">Applied:</span>
-                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{moment(leave.createdAt).format('MMM DD, YYYY')}</span>
-                                                                                        </div>
-                                                                                        <div className="flex justify-between items-center">
-                                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">Start Date:</span>
-                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{moment(leave.start_date).format('MMM DD, YYYY')}</span>
-                                                                                        </div>
-                                                                                        <div className="flex justify-between items-center">
-                                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">End Date:</span>
-                                                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{moment(leave.end_date).format('MMM DD, YYYY')}</span>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-
-                                                                            {/* Comments Section */}
-                                                                            {leave.leave_comment && (
-                                                                                <div className="space-y-2">
-                                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Employee Comment</div>
-                                                                                    <div className="bg-white dark:bg-slate-800 rounded-lg p-4">
-                                                                                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
-                                                                                            {leave.leave_comment}
-                                                                                        </p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-
-                                                                            {/* Feedback Section */}
-                                                                            {leave.feedback && (
-                                                                                <div className="space-y-2 mt-4">
-                                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Manager Feedback</div>
-                                                                                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                                                                                        <p className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">
-                                                                                            {leave.feedback}
-                                                                                        </p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
+                                                            <div className="space-y-2">
+                                                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timeline</div>
+                                                                <div className="bg-white dark:bg-slate-800 rounded-lg p-3 space-y-2">
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-sm text-gray-600 dark:text-gray-400">Applied:</span>
+                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{moment(leave.createdAt).format('MMM DD, YYYY')}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-sm text-gray-600 dark:text-gray-400">Start Date:</span>
+                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatLeaveDate(leave.start_date)}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-sm text-gray-600 dark:text-gray-400">End Date:</span>
+                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatLeaveDate(leave.end_date)}</span>
                                                                     </div>
                                                                 </div>
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Comments Section */}
+                                                        {leave.leave_comment && (
+                                                            <div className="space-y-2">
+                                                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Employee Comment</div>
+                                                                <div className="bg-white dark:bg-slate-800 rounded-lg p-4">
+                                                                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+                                                                        {leave.leave_comment}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Feedback Section */}
+                                                        {leave.feedback && (
+                                                            <div className="space-y-2 mt-4">
+                                                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Manager Feedback</div>
+                                                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                                                                    <p className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">
+                                                                        {leave.feedback}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            <Pagination
+                                currentPage={leavePagination.page}
+                                totalPages={leavePagination.totalPages}
+                                pageSize={leavePagination.pageSize}
+                                totalItems={leavePagination.totalItems}
+                                onPageChange={leavePagination.setPage}
+                                onPageSizeChange={leavePagination.setPageSize}
+                            />
                             </div>
                         )}
                     </div>
@@ -527,7 +528,7 @@ const TeamListLeaveHistoryPage = () => {
                             <Input
                                 placeholder="Search team members..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => { setSearchTerm(e.target.value); usersPagination.resetPage(); }}
                                 className="pl-10 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-600 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
                             />
                         </div>
@@ -579,8 +580,9 @@ const TeamListLeaveHistoryPage = () => {
                             )}
                         </div>
                     ) : (
+                        <>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-                            {filteredUsers.map((user) => (
+                            {usersPagination.paginatedItems.map((user) => (
                                 <div
                                     key={user.id}
                                     className={`relative bg-white dark:bg-slate-800 border-l-4 ${getCardAccent(user.id)} rounded-xl shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/20 transition-all duration-300 overflow-hidden group hover:scale-[1.02]`}
@@ -631,6 +633,15 @@ const TeamListLeaveHistoryPage = () => {
                                 </div>
                             ))}
                         </div>
+                        <Pagination
+                            currentPage={usersPagination.page}
+                            totalPages={usersPagination.totalPages}
+                            pageSize={usersPagination.pageSize}
+                            totalItems={usersPagination.totalItems}
+                            onPageChange={usersPagination.setPage}
+                            onPageSizeChange={usersPagination.setPageSize}
+                        />
+                        </>
                     )}
                 </div>
             </div>
