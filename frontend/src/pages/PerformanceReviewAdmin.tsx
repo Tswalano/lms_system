@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import StatsCard from "@/components/ui/StatsCard";
 import { Button } from "@/components/ui/button";
@@ -8,14 +8,19 @@ import { Input } from "@/components/ui/input";
 import {
     usePerformanceCycles,
     useAdminPerformanceSummary,
+    useManagerReviews,
     useCreateCycle,
     useActivateCycle,
     useCloseCycle,
+    useEmployeeNominations,
+    useSetNominations,
     type ReviewCycleApi,
     type AdminSummaryItemApi,
+    type NominationAssignment,
 } from "@/hooks/usePerformanceReview";
+import { useAuth } from "@/contexts/AuthContext";
 import { WEIGHTS } from "@/lib/performanceReview";
-import { CheckCircle2, Eye, Loader2, Sparkles, UserCheck, Users, Zap, Lock } from "lucide-react";
+import { CheckCircle2, ClipboardEdit, Eye, Loader2, Sparkles, UserCheck, UserPlus, Users, Zap, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -75,17 +80,25 @@ const formatReviewStatus = (s: string) =>
 
 const PerformanceReviewAdmin = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [selectedCycleId, setSelectedCycleId] = useState<string>("");
     const [createCycleOpen, setCreateCycleOpen] = useState(false);
     const [newCycleName, setNewCycleName] = useState("");
     const [newStartDate, setNewStartDate] = useState("");
     const [newEndDate, setNewEndDate] = useState("");
+    const [nominationTarget, setNominationTarget] = useState<{ employeeId: string; employeeName: string } | null>(null);
 
     const { data: cycles = [], isLoading: cyclesLoading } = usePerformanceCycles();
     const activeCycleId = selectedCycleId || cycles[0]?.id || "";
     const selectedCycle = cycles.find((c) => c.id === activeCycleId);
 
     const { data: summary = [], isLoading: summaryLoading } = useAdminPerformanceSummary(activeCycleId || undefined);
+    const { data: managerReviews = [] } = useManagerReviews(activeCycleId || undefined);
+
+    // Build a lookup: employeeId → reviewId for appraisals this user must write
+    const myAppraisalMap = Object.fromEntries(
+        managerReviews.map((r) => [r.employee.id, r.reviewId])
+    );
 
     const createCycle = useCreateCycle();
     const activateCycle = useActivateCycle();
@@ -106,10 +119,13 @@ const PerformanceReviewAdmin = () => {
     };
 
     const handleActivate = async (cycle: ReviewCycleApi) => {
+        const tid = toast.loading(`Activating "${cycle.name}" and initialising reviews…`);
         try {
             await activateCycle.mutateAsync(cycle.id);
-            toast.success(`"${cycle.name}" is now active — peers assigned automatically`);
+            toast.dismiss(tid);
+            toast.success(`"${cycle.name}" is now active — all reviews initialised`);
         } catch {
+            toast.dismiss(tid);
             toast.error("Failed to activate cycle");
         }
     };
@@ -124,6 +140,7 @@ const PerformanceReviewAdmin = () => {
     };
 
     const isLoading = cyclesLoading || summaryLoading;
+    const allEmployeesForNomination = summary.map((s) => ({ id: s.employee.id, name: s.employee.name, role: s.employee.role }));
 
     return (
         <div>
@@ -151,9 +168,7 @@ const PerformanceReviewAdmin = () => {
                                     <SelectContent>
                                         {cycles.map((c) => (
                                             <SelectItem key={c.id} value={c.id}>
-                                                {c.name}
-                                                {" "}
-                                                <span className="text-gray-400">({c.status})</span>
+                                                {c.name} <span className="text-gray-400">({c.status})</span>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -166,7 +181,7 @@ const PerformanceReviewAdmin = () => {
                                 disabled={activateCycle.isPending}
                                 className="rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm hover:from-emerald-700 hover:to-teal-700 gap-1.5"
                             >
-                                <Zap className="w-4 h-4" /> Activate
+                                <Zap className="w-4 h-4" /> {activateCycle.isPending ? "Activating…" : "Activate"}
                             </Button>
                         )}
                         {selectedCycle?.status === "active" && (
@@ -187,34 +202,10 @@ const PerformanceReviewAdmin = () => {
 
                 {/* Stat Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-                    <StatsCard
-                        label="Employees in cycle"
-                        value={selectedCycle?.employeeCount ?? "—"}
-                        subtitle="in this cycle"
-                        tone="blue"
-                        icon={<Users className="w-5 h-5" />}
-                    />
-                    <StatsCard
-                        label="Peers assigned"
-                        value={selectedCycle ? `${selectedCycle.nominatedCount}/${selectedCycle.employeeCount}` : "—"}
-                        subtitle="peer assignments done"
-                        tone="violet"
-                        icon={<UserCheck className="w-5 h-5" />}
-                    />
-                    <StatsCard
-                        label="Reviews submitted"
-                        value={selectedCycle ? `${selectedCycle.submittedCount}/${selectedCycle.employeeCount}` : "—"}
-                        subtitle="self-reviews complete"
-                        tone="emerald"
-                        icon={<CheckCircle2 className="w-5 h-5" />}
-                    />
-                    <StatsCard
-                        label="Avg final score"
-                        value={selectedCycle?.avgFinalScore == null ? "—" : selectedCycle.avgFinalScore.toFixed(1)}
-                        subtitle="across all employees"
-                        tone="amber"
-                        icon={<Sparkles className="w-5 h-5" />}
-                    />
+                    <StatsCard label="Employees in cycle" value={selectedCycle?.employeeCount ?? "—"} subtitle="in this cycle" tone="blue" icon={<Users className="w-5 h-5" />} />
+                    <StatsCard label="Peers assigned" value={selectedCycle ? `${selectedCycle.nominatedCount}/${selectedCycle.employeeCount}` : "—"} subtitle="peer assignments done" tone="violet" icon={<UserCheck className="w-5 h-5" />} />
+                    <StatsCard label="Reviews submitted" value={selectedCycle ? `${selectedCycle.submittedCount}/${selectedCycle.employeeCount}` : "—"} subtitle="self-reviews complete" tone="emerald" icon={<CheckCircle2 className="w-5 h-5" />} />
+                    <StatsCard label="Avg final score" value={selectedCycle?.avgFinalScore == null ? "—" : selectedCycle.avgFinalScore.toFixed(1)} subtitle="across all employees" tone="amber" icon={<Sparkles className="w-5 h-5" />} />
                 </div>
             </div>
 
@@ -225,59 +216,36 @@ const PerformanceReviewAdmin = () => {
                         <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center mx-auto">
                             <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                         </div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Loading cycle data…
-                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Loading cycle data…</p>
                     </div>
                 </div>
-
             ) : cycles.length === 0 ? (
-                // No cycles at all
                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white/90 p-10 text-center dark:border-slate-600 dark:bg-slate-900/90">
                     <Users className="w-10 h-10 mx-auto text-gray-300 dark:text-slate-600 mb-3" />
-
-                    <p className="font-semibold text-gray-700 dark:text-gray-300">
-                        No cycle available
-                    </p>
-
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        There are no performance cycles yet. Create one to get started.
-                    </p>
-
-                    <Button
-                        onClick={() => setCreateCycleOpen(true)}
-                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-blue-700 hover:shadow-md active:scale-[0.98] dark:bg-blue-500 dark:hover:bg-blue-400"
-                    >
+                    <p className="font-semibold text-gray-700 dark:text-gray-300">No cycle available</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">There are no performance cycles yet. Create one to get started.</p>
+                    <Button onClick={() => setCreateCycleOpen(true)} className="mt-4 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
                         Create Cycle
                     </Button>
                 </div>
-
             ) : summary.length === 0 ? (
-
-                // Existing empty state (valid)
                 <div className="rounded-2xl border border-dashed border-gray-300 bg-white/90 p-10 text-center dark:border-slate-600 dark:bg-slate-900/90">
                     <Users className="w-10 h-10 mx-auto text-gray-300 dark:text-slate-600 mb-3" />
-                    <p className="font-semibold text-gray-700 dark:text-gray-300">
-                        No employees in this cycle
-                    </p>
+                    <p className="font-semibold text-gray-700 dark:text-gray-300">No employees in this cycle</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {selectedCycle?.status === "draft"
-                            ? "Activate the cycle to auto-assign employees and peers."
-                            : "Select a cycle above or create a new one."}
+                        {selectedCycle?.status === "draft" ? "Activate the cycle to auto-assign employees and peers." : "Select a cycle above or create a new one."}
                     </p>
                 </div>
-
             ) : (
                 <div className="space-y-3">
                     {summary.map((item) => (
                         <EmployeeCard
                             key={item.employee.id}
                             item={item}
-                            onViewSubmissions={() =>
-                                navigate(
-                                    `/performance-review-admin/submissions/${item.employee.id}?cycleId=${activeCycleId}`
-                                )
-                            }
+                            appraisalReviewId={myAppraisalMap[item.employee.id]}
+                            onViewSubmissions={() => navigate(`/performance-review-admin/submissions/${item.employee.id}?cycleId=${activeCycleId}`)}
+                            onWriteAppraisal={(reviewId) => navigate(`/performance-review/appraisal/${reviewId}`)}
+                            onManagePeers={() => setNominationTarget({ employeeId: item.employee.id, employeeName: item.employee.name })}
                         />
                     ))}
                 </div>
@@ -287,72 +255,60 @@ const PerformanceReviewAdmin = () => {
             <Dialog open={createCycleOpen} onOpenChange={setCreateCycleOpen}>
                 <DialogContent className="overflow-hidden rounded-[28px] border border-gray-200/70 bg-white/95 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)] dark:border-slate-700/70 dark:bg-slate-900/95">
                     <DialogHeader className="border-b border-gray-200/70 px-6 py-5 dark:border-slate-700/70">
-                        <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                            Create New Review Cycle
-                        </DialogTitle>
-                        <DialogDescription className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            Set a name and date range for the cycle.
-                        </DialogDescription>
+                        <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">Create New Review Cycle</DialogTitle>
+                        <DialogDescription className="text-sm text-gray-500 dark:text-gray-400 mt-1">Set a name and date range for the cycle.</DialogDescription>
                     </DialogHeader>
                     <div className="px-6 py-6 space-y-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Cycle Name</label>
-                            <Input
-                                placeholder="e.g. 2026 Mid-Year Review"
-                                value={newCycleName}
-                                onChange={(e) => setNewCycleName(e.target.value)}
-                                className="rounded-xl border-gray-200 dark:border-slate-600"
-                            />
+                            <Input placeholder="e.g. 2026 Mid-Year Review" value={newCycleName} onChange={(e) => setNewCycleName(e.target.value)} className="rounded-xl border-gray-200 dark:border-slate-600" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Start Date</label>
-                                <Input
-                                    type="date"
-                                    value={newStartDate}
-                                    onChange={(e) => setNewStartDate(e.target.value)}
-                                    className="rounded-xl border-gray-200 dark:border-slate-600"
-                                />
+                                <Input type="date" value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} className="rounded-xl border-gray-200 dark:border-slate-600" />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">End Date</label>
-                                <Input
-                                    type="date"
-                                    value={newEndDate}
-                                    onChange={(e) => setNewEndDate(e.target.value)}
-                                    className="rounded-xl border-gray-200 dark:border-slate-600"
-                                />
+                                <Input type="date" value={newEndDate} onChange={(e) => setNewEndDate(e.target.value)} className="rounded-xl border-gray-200 dark:border-slate-600" />
                             </div>
                         </div>
                     </div>
                     <div className="flex items-center justify-end gap-3 border-t border-gray-200/70 px-6 py-4 dark:border-slate-700/70">
-                        <Button
-                            variant="outline"
-                            onClick={() => setCreateCycleOpen(false)}
-                            className={appOutlineButtonClass}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleCreateCycle}
-                            disabled={!newCycleName.trim() || !newStartDate || !newEndDate || createCycle.isPending}
-                            className={appPrimaryButtonClass}
-                        >
+                        <Button variant="outline" onClick={() => setCreateCycleOpen(false)} className={appOutlineButtonClass}>Cancel</Button>
+                        <Button onClick={handleCreateCycle} disabled={!newCycleName.trim() || !newStartDate || !newEndDate || createCycle.isPending} className={appPrimaryButtonClass}>
                             {createCycle.isPending ? "Creating…" : "Create Cycle"}
                         </Button>
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Peer Nomination Modal */}
+            {nominationTarget && activeCycleId && (
+                <PeerNominationModal
+                    employeeId={nominationTarget.employeeId}
+                    employeeName={nominationTarget.employeeName}
+                    cycleId={activeCycleId}
+                    allEmployees={allEmployeesForNomination}
+                    onClose={() => setNominationTarget(null)}
+                />
+            )}
         </div>
     );
 };
 
 const EmployeeCard = ({
     item,
+    appraisalReviewId,
     onViewSubmissions,
+    onWriteAppraisal,
+    onManagePeers,
 }: {
     item: AdminSummaryItemApi;
+    appraisalReviewId?: string;
     onViewSubmissions: () => void;
+    onWriteAppraisal: (reviewId: string) => void;
+    onManagePeers: () => void;
 }) => {
     const cardAccent = getCardAccent(item.employee.id);
     const gradient = getEmployeeGradient(item.employee.id);
@@ -360,13 +316,7 @@ const EmployeeCard = ({
     const statusBadge = REVIEW_STATUS_BADGES[item.reviewStatus] ?? "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300";
 
     return (
-        <div
-            className={cn(
-                softPanelClass,
-                "overflow-hidden border-l-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg dark:hover:shadow-slate-950/20",
-                cardAccent
-            )}
-        >
+        <div className={cn(softPanelClass, "overflow-hidden border-l-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg dark:hover:shadow-slate-950/20", cardAccent)}>
             <div className="p-5">
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                     {/* Avatar + Name */}
@@ -377,16 +327,16 @@ const EmployeeCard = ({
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap mb-1">
                                 <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-lg leading-tight">{item.employee.name}</h3>
-                                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
-                                    {item.employee.role}
-                                </span>
-                                <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", statusBadge)}>
-                                    {formatReviewStatus(item.reviewStatus)}
-                                </span>
+                                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">{item.employee.role}</span>
+                                <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", statusBadge)}>{formatReviewStatus(item.reviewStatus)}</span>
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {item.nominatedPeers} peer{item.nominatedPeers !== 1 ? "s" : ""} assigned
-                            </p>
+                            <button
+                                onClick={onManagePeers}
+                                className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                            >
+                                <UserPlus className="w-3 h-3" />
+                                {item.nominatedPeers} peer{item.nominatedPeers !== 1 ? "s" : ""} assigned · Manage
+                            </button>
                         </div>
                     </div>
 
@@ -400,12 +350,12 @@ const EmployeeCard = ({
 
                     {/* Actions */}
                     <div className="flex flex-col sm:flex-row md:flex-col gap-2 flex-shrink-0">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={onViewSubmissions}
-                            className={appOutlineButtonClass}
-                        >
+                        {appraisalReviewId && (
+                            <Button size="sm" onClick={() => onWriteAppraisal(appraisalReviewId)} className={cn(appPrimaryButtonClass, "gap-1.5")}>
+                                <ClipboardEdit className="w-4 h-4" /> Write appraisal
+                            </Button>
+                        )}
+                        <Button variant="outline" size="sm" onClick={onViewSubmissions} className={appOutlineButtonClass}>
                             <Eye className="w-4 h-4 mr-1" /> Review submissions
                         </Button>
                     </div>
@@ -430,5 +380,126 @@ const ScorePill = ({ label, value, highlight }: { label: string; value: number |
         </span>
     </div>
 );
+
+const PeerNominationModal = ({
+    employeeId,
+    employeeName,
+    cycleId,
+    allEmployees,
+    onClose,
+}: {
+    employeeId: string;
+    employeeName: string;
+    cycleId: string;
+    allEmployees: { id: string; name: string; role: string }[];
+    onClose: () => void;
+}) => {
+    const { data: currentNominations = [], isLoading } = useEmployeeNominations(employeeId, cycleId);
+    const setNominations = useSetNominations();
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [search, setSearch] = useState("");
+
+    useEffect(() => {
+        if (!isLoading) {
+            setSelectedIds(new Set(currentNominations.map((n: NominationAssignment) => n.reviewerId)));
+        }
+    }, [isLoading, currentNominations]);
+
+    const toggle = (id: string) => {
+        const asgn = currentNominations.find((n: NominationAssignment) => n.reviewerId === id);
+        if (asgn && !asgn.canRemove) return;
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) { next.delete(id); } else { next.add(id); }
+            return next;
+        });
+    };
+
+    const handleSave = async () => {
+        try {
+            await setNominations.mutateAsync({ employeeId, cycleId, peerIds: [...selectedIds] });
+            toast.success("Peer reviewers updated");
+            onClose();
+        } catch {
+            toast.error("Failed to update peer reviewers");
+        }
+    };
+
+    const available = allEmployees.filter(
+        (e) => e.id !== employeeId && (!search || e.name.toLowerCase().includes(search.toLowerCase()) || e.role.toLowerCase().includes(search.toLowerCase()))
+    );
+
+    return (
+        <Dialog open onOpenChange={onClose}>
+            <DialogContent className="max-w-lg overflow-hidden rounded-[28px] border border-gray-200/70 bg-white/95 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)] dark:border-slate-700/70 dark:bg-slate-900/95">
+                <DialogHeader className="border-b border-gray-200/70 px-6 py-5 dark:border-slate-700/70">
+                    <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">Manage Peer Reviewers</DialogTitle>
+                    <DialogDescription className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {employeeName} · {selectedIds.size} peer{selectedIds.size !== 1 ? "s" : ""} selected
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="px-6 py-4 space-y-3">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                        </div>
+                    ) : (
+                        <>
+                            <Input
+                                placeholder="Search employees…"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="rounded-xl border-gray-200 dark:border-slate-600"
+                            />
+                            <div className="max-h-72 overflow-y-auto space-y-1 pr-1">
+                                {available.map((emp) => {
+                                    const isSelected = selectedIds.has(emp.id);
+                                    const asgn = currentNominations.find((n: NominationAssignment) => n.reviewerId === emp.id);
+                                    const locked = asgn && !asgn.canRemove;
+                                    return (
+                                        <button
+                                            key={emp.id}
+                                            type="button"
+                                            disabled={!!locked}
+                                            onClick={() => toggle(emp.id)}
+                                            className={cn(
+                                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors",
+                                                locked ? "cursor-not-allowed opacity-60 bg-gray-50 dark:bg-slate-800"
+                                                    : isSelected ? "bg-blue-50 dark:bg-blue-900/20"
+                                                    : "hover:bg-gray-50 dark:hover:bg-slate-800"
+                                            )}
+                                        >
+                                            <div className={cn(
+                                                "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0",
+                                                isSelected ? "border-blue-500 bg-blue-500" : "border-gray-300 dark:border-slate-500"
+                                            )}>
+                                                {isSelected && <CheckCircle2 className="w-3 h-3 text-white" />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{emp.name}</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">{emp.role}</p>
+                                            </div>
+                                            {locked && (
+                                                <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full flex-shrink-0">
+                                                    In progress
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
+                </div>
+                <div className="flex items-center justify-end gap-3 border-t border-gray-200/70 px-6 py-4 dark:border-slate-700/70">
+                    <Button variant="outline" onClick={onClose} className={appOutlineButtonClass}>Cancel</Button>
+                    <Button onClick={handleSave} disabled={setNominations.isPending} className={appPrimaryButtonClass}>
+                        {setNominations.isPending ? "Saving…" : "Save reviewers"}
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
 export default PerformanceReviewAdmin;

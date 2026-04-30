@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { Save, CheckCircle, AlertCircle as AlertCircleIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import RatingScale from "@/components/RatingScale";
 import { Button } from "@/components/ui/button";
@@ -6,11 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-    SELF_QUESTIONS,
-    WEIGHTS,
-    type RatingValue,
-} from "@/lib/performanceReview";
+import { WEIGHTS, type RatingValue } from "@/lib/performanceReview";
 import {
     usePerformanceCycles,
     useMyPerformanceReview,
@@ -18,6 +15,7 @@ import {
     usePerformanceSubmissions,
     useSaveResponse,
     useSubmitReview,
+    type ReviewQuestion,
 } from "@/hooks/usePerformanceReview";
 import { useAuth } from "@/contexts/AuthContext";
 import { AlertCircle, CheckCircle2, ClipboardList, Loader2, UserCheck } from "lucide-react";
@@ -64,46 +62,80 @@ const PerformanceReviewEmployee = () => {
     const submitReview = useSubmitReview();
 
     const selfReview = myReviews?.selfReview ?? null;
-    const selfSubmitted = selfReview?.status === "submitted";
+    const selfSubmitted = selfReview?.status === "submitted" || selfReview?.status === "employee_completed";
 
-    // Zip API responses with SELF_QUESTIONS definitions by index
-    const selfResponses = useMemo(() => selfReview?.responses ?? [], [selfReview]);
-    const nextStepsResponses = useMemo(() => selfResponses.slice(SELF_QUESTIONS.length), [selfResponses]);
-
-    const getResponse = useCallback(
-        (idx: number) => selfResponses[idx] ?? null,
-        [selfResponses]
-    );
-
-    const handleRatingChange = (idx: number, v: RatingValue) => {
-        const resp = getResponse(idx);
-        if (!selfReview?.id || !resp) return;
-        saveResponse.mutate({
-            reviewId: selfReview.id,
-            questionId: resp.questionId,
-            ratingResponse: v,
-        });
+    const handleRatingChange = (reviewId: string, questionId: string, v: RatingValue) => {
+        saveResponse.mutate({ reviewId, questionId, ratingResponse: v });
     };
 
-    const handleTextChange = (idx: number, text: string) => {
-        const resp = getResponse(idx);
-        if (!selfReview?.id || !resp) return;
-        saveResponse.mutate({
-            reviewId: selfReview.id,
-            questionId: resp.questionId,
-            textResponse: text,
-        });
+    // Track save status per question: 'idle' | 'typing' | 'saving' | 'saved' | 'error'
+    const [saveStatusMap, setSaveStatusMap] = useState<Record<string, 'idle' | 'typing' | 'saving' | 'saved' | 'error'>>({});
+    const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+
+    const setStatus = (key: string, status: 'idle' | 'typing' | 'saving' | 'saved' | 'error') => {
+        setSaveStatusMap(prev => ({ ...prev, [key]: status }));
     };
 
-    const handleNextStepsChange = (idx: number, text: string) => {
-        const resp = nextStepsResponses[idx];
-        if (!selfReview?.id || !resp) return;
-        saveResponse.mutate({
-            reviewId: selfReview.id,
-            questionId: resp.questionId,
-            textResponse: text,
-        });
+    const handleTextChange = (reviewId: string, questionId: string, text: string) => {
+        const key = `${reviewId}::${questionId}`;
+        setStatus(key, 'typing');
+
+        // Clear existing timer for this question
+        if (debounceTimers.current[key]) {
+            clearTimeout(debounceTimers.current[key]);
+        }
+
+        // Set new debounced save (800ms after user stops typing)
+        debounceTimers.current[key] = setTimeout(() => {
+            setStatus(key, 'saving');
+            saveResponse.mutate(
+                { reviewId, questionId, textResponse: text },
+                {
+                    onSuccess: () => {
+                        setStatus(key, 'saved');
+                        // Reset to idle after 2 seconds
+                        setTimeout(() => setStatus(key, 'idle'), 2000);
+                    },
+                    onError: () => {
+                        setStatus(key, 'error');
+                    },
+                }
+            );
+        }, 800);
     };
+
+    const handleTextBlur = (reviewId: string, questionId: string, text: string) => {
+        const key = `${reviewId}::${questionId}`;
+        // Flush any pending debounced save immediately on blur
+        if (debounceTimers.current[key]) {
+            clearTimeout(debounceTimers.current[key]);
+            delete debounceTimers.current[key];
+        }
+        // Only save if we're not already saved/saving
+        const currentStatus = saveStatusMap[key];
+        if (currentStatus !== 'saved' && currentStatus !== 'saving') {
+            setStatus(key, 'saving');
+            saveResponse.mutate(
+                { reviewId, questionId, textResponse: text },
+                {
+                    onSuccess: () => {
+                        setStatus(key, 'saved');
+                        setTimeout(() => setStatus(key, 'idle'), 2000);
+                    },
+                    onError: () => {
+                        setStatus(key, 'error');
+                    },
+                }
+            );
+        }
+    };
+
+    // Cleanup timers on unmount
+    useEffect(() => {
+        return () => {
+            Object.values(debounceTimers.current).forEach(clearTimeout);
+        };
+    }, []);
 
     const handleSubmitSelfReview = async () => {
         if (!selfReview?.id) return;
@@ -141,7 +173,9 @@ const PerformanceReviewEmployee = () => {
                         </div>
                         <div>
                             <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">My Performance Review</h1>
-                            <p className="text-gray-600 dark:text-gray-400">{user?.firstName} {user?.lastName ?? user?.email} - {cycles.find((c) => c.id === activeCycleId)?.name ?? 'Performance Review'} </p>
+                            <p className="text-gray-600 dark:text-gray-400">
+                                {user?.firstName} {user?.lastName ?? user?.email} · {cycles.find((c) => c.id === activeCycleId)?.name ?? "Performance Review"}
+                            </p>
                         </div>
                     </div>
 
@@ -180,10 +214,11 @@ const PerformanceReviewEmployee = () => {
                         </p>
                     </div>
                 ) : (
-
                     <Tabs defaultValue="self">
                         <TabsList className="rounded-2xl border border-gray-200/80 bg-white/95 p-1 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/95">
-                            <TabsTrigger value="self" className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:via-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white">Self-Review</TabsTrigger>
+                            <TabsTrigger value="self" className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:via-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white">
+                                Self-Review
+                            </TabsTrigger>
                             <TabsTrigger value="peers" className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:via-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white">
                                 Reviews to complete
                                 {pendingPeerCount > 0 && (
@@ -192,7 +227,9 @@ const PerformanceReviewEmployee = () => {
                                     </span>
                                 )}
                             </TabsTrigger>
-                            <TabsTrigger value="next" className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:via-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white">Next Steps</TabsTrigger>
+                            <TabsTrigger value="next" className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:via-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white">
+                                Next Steps
+                            </TabsTrigger>
                         </TabsList>
 
                         {/* SELF REVIEW */}
@@ -203,48 +240,28 @@ const PerformanceReviewEmployee = () => {
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Rate your own performance and provide supporting evidence</p>
                                 </div>
                                 <div className="divide-y divide-gray-200/70 dark:divide-slate-700/70">
-                                    {SELF_QUESTIONS.map((q, idx) => {
-                                        const resp = getResponse(idx);
-                                        return (
-                                            <div key={q.id} className="p-5">
-                                                <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-4">
-                                                    <div className="flex-1">
-                                                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">{q.title}</h3>
-                                                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{q.prompt}</p>
-                                                        {q.hint && <p className="text-xs text-gray-400 dark:text-gray-500 italic mt-1">{q.hint}</p>}
-                                                    </div>
-                                                    <div className="text-right flex-shrink-0">
-                                                        <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Impact Score</p>
-                                                        <RatingScale
-                                                            size="sm"
-                                                            disabled={selfSubmitted || !selfReview}
-                                                            value={(resp?.ratingResponse as RatingValue) ?? null}
-                                                            onChange={(v) => handleRatingChange(idx, v)}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <Textarea
-                                                    disabled={selfSubmitted || !selfReview}
-                                                    placeholder="Describe your contribution, feedback received, and any measurable outcomes…"
-                                                    value={resp?.textResponse ?? ""}
-                                                    onChange={(e) => handleTextChange(idx, e.target.value)}
-                                                    className={cn(appTextareaClass, "min-h-[96px] text-sm")}
-                                                />
-                                            </div>
-                                        );
-                                    })}
+                                    {selfReview.selfQuestions.map((q) => (
+                                        <SelfQuestionRow
+                                            key={q.id}
+                                            question={q}
+                                            disabled={selfSubmitted}
+                                            onRatingChange={(v) => handleRatingChange(selfReview.id, q.id, v)}
+                                            onTextChange={(t) => handleTextChange(selfReview.id, q.id, t)}
+                                            onTextBlur={(t) => handleTextBlur(selfReview.id, q.id, t)}
+                                            saveStatus={saveStatusMap[`${selfReview.id}::${q.id}`]}
+                                        />
+                                    ))}
                                 </div>
                                 <div className="border-t border-gray-200/70 p-5 flex justify-end gap-2 dark:border-slate-700/70">
                                     <Button
                                         variant="outline"
-                                        disabled={!selfReview}
                                         className={appOutlineButtonClass}
                                         onClick={() => navigate("/")}
                                     >
                                         Save & close
                                     </Button>
                                     <Button
-                                        disabled={selfSubmitted || !selfReview || submitReview.isPending}
+                                        disabled={selfSubmitted || submitReview.isPending}
                                         className={appPrimaryButtonClass}
                                         onClick={handleSubmitSelfReview}
                                     >
@@ -322,24 +339,17 @@ const PerformanceReviewEmployee = () => {
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Set your intentions for the next quarter</p>
                                 </div>
                                 <div className="p-5 space-y-5">
-                                    {nextStepsResponses.length > 0 ? (
-                                        nextStepsResponses.map((resp, idx) => (
-                                            <div key={resp.questionId} className="space-y-2">
-                                                <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold block">
-                                                    {idx === 0
-                                                        ? "What do you want to learn or achieve in the next quarter?"
-                                                        : "What kind of support or resources would help you be more effective?"}
-                                                </label>
-                                                <Textarea
-                                                    disabled={selfSubmitted || !selfReview}
-                                                    placeholder={idx === 0
-                                                        ? "Describe your learning goals and targets for the next quarter…"
-                                                        : "Describe the tools, mentorship, training or other support you need…"}
-                                                    value={resp.textResponse ?? ""}
-                                                    onChange={(e) => handleNextStepsChange(idx, e.target.value)}
-                                                    className={cn(appTextareaClass, "min-h-[140px]")}
-                                                />
-                                            </div>
+                                    {selfReview.nextStepsQuestions.length > 0 ? (
+                                        selfReview.nextStepsQuestions.map((q) => (
+                                            <NextStepsTextarea
+                                                key={q.id}
+                                                question={q}
+                                                disabled={selfSubmitted}
+                                                reviewId={selfReview.id}
+                                                onTextChange={handleTextChange}
+                                                onTextBlur={handleTextBlur}
+                                                saveStatus={saveStatusMap[`${selfReview.id}::${q.id}`] ?? 'idle'}
+                                            />
                                         ))
                                     ) : (
                                         <p className="text-sm text-gray-500 dark:text-gray-400 italic">
@@ -352,6 +362,147 @@ const PerformanceReviewEmployee = () => {
                     </Tabs>
                 )}
             </div>
+        </div>
+    );
+};
+
+const SaveStatusIndicator = ({ status }: { status: 'idle' | 'typing' | 'saving' | 'saved' | 'error' }) => {
+    if (status === 'idle') return null;
+    if (status === 'typing') return (
+        <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500 animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-500" />Typing…
+        </span>
+    );
+    if (status === 'saving') return (
+        <span className="inline-flex items-center gap-1 text-[11px] text-blue-500 dark:text-blue-400">
+            <Loader2 className="w-3 h-3 animate-spin" />Saving…
+        </span>
+    );
+    if (status === 'saved') return (
+        <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
+            <CheckCircle className="w-3 h-3" />Saved
+        </span>
+    );
+    if (status === 'error') return (
+        <span className="inline-flex items-center gap-1 text-[11px] text-red-500 dark:text-red-400">
+            <AlertCircleIcon className="w-3 h-3" />Save failed
+        </span>
+    );
+    return null;
+};
+
+const SelfQuestionRow = ({
+    question,
+    disabled,
+    onRatingChange,
+    onTextChange,
+    onTextBlur,
+    saveStatus,
+}: {
+    question: ReviewQuestion;
+    disabled: boolean;
+    onRatingChange: (v: RatingValue) => void;
+    onTextChange: (t: string) => void;
+    onTextBlur: (t: string) => void;
+    saveStatus?: 'idle' | 'typing' | 'saving' | 'saved' | 'error';
+}) => {
+    // Local state for text so rating clicks don't wipe unsaved text
+    const [localText, setLocalText] = useState(question.response?.textResponse ?? "");
+    const hasSyncedRef = useRef(false);
+
+    // Only sync from props on initial mount, not on every re-render
+    useEffect(() => {
+        if (!hasSyncedRef.current) {
+            setLocalText(question.response?.textResponse ?? "");
+            hasSyncedRef.current = true;
+        }
+    }, [question.response?.textResponse]);
+
+    return (
+        <div className="p-5">
+            <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-4">
+                <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">{question.category}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{question.questionText}</p>
+                    {question.guidanceText && (
+                        <p className="text-xs text-gray-400 dark:text-gray-500 italic mt-1">{question.guidanceText}</p>
+                    )}
+                </div>
+                <div className="text-right flex-shrink-0">
+                    <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Impact Score</p>
+                    <RatingScale
+                        size="sm"
+                        disabled={disabled}
+                        value={(question.response?.ratingResponse as RatingValue) ?? null}
+                        onChange={onRatingChange}
+                    />
+                </div>
+            </div>
+            <Textarea
+                disabled={disabled}
+                placeholder="Describe your contribution, feedback received, and any measurable outcomes…"
+                value={localText}
+                onChange={(e) => {
+                    setLocalText(e.target.value);
+                    onTextChange(e.target.value);
+                }}
+                onBlur={(e) => onTextBlur(e.target.value)}
+                className={cn(
+                    "rounded-2xl border-gray-200 bg-white/95 shadow-sm focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-0 dark:border-slate-600 dark:bg-slate-900/90 dark:text-slate-100 dark:placeholder:text-slate-500",
+                    "min-h-[96px] text-sm"
+                )}
+            />
+            <div className="flex justify-end mt-1.5">
+                <SaveStatusIndicator status={saveStatus ?? 'idle'} />
+            </div>
+        </div>
+    );
+};
+
+const NextStepsTextarea = ({
+    question,
+    disabled,
+    reviewId,
+    onTextChange,
+    onTextBlur,
+    saveStatus,
+}: {
+    question: ReviewQuestion;
+    disabled: boolean;
+    reviewId: string;
+    onTextChange: (reviewId: string, questionId: string, text: string) => void;
+    onTextBlur: (reviewId: string, questionId: string, text: string) => void;
+    saveStatus: 'idle' | 'typing' | 'saving' | 'saved' | 'error';
+}) => {
+    const [localText, setLocalText] = useState(question.response?.textResponse ?? "");
+    const hasSyncedRef = useRef(false);
+
+    useEffect(() => {
+        if (!hasSyncedRef.current) {
+            setLocalText(question.response?.textResponse ?? "");
+            hasSyncedRef.current = true;
+        }
+    }, [question.response?.textResponse]);
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center justify-between">
+                <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold block">
+                    {question.questionText}
+                </label>
+                <SaveStatusIndicator status={saveStatus} />
+            </div>
+            <Textarea
+                disabled={disabled}
+                placeholder={question.guidanceText ?? "Describe your goals…"}
+                value={localText}
+                onChange={(e) => {
+                    setLocalText(e.target.value);
+                    onTextChange(reviewId, question.id, e.target.value);
+                }}
+                onBlur={(e) => onTextBlur(reviewId, question.id, e.target.value)}
+                className={cn(appTextareaClass, "min-h-[140px]")}
+            />
         </div>
     );
 };

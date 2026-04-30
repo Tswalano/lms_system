@@ -26,6 +26,7 @@ import PerformanceReviewAdmin from "./pages/PerformanceReviewAdmin";
 import PerformanceReviewEmployee from "./pages/PerformanceReviewEmployee";
 import PerformanceReviewPeerPage from "./pages/PerformanceReviewPeerPage";
 import PerformanceReviewSubmissionsPage from "./pages/PerformanceReviewSubmissionsPage";
+import PerformanceReviewManagerAppraisalPage from "./pages/PerformanceReviewManagerAppraisalPage";
 // end of Performance Review imports
 import NotificationCenterPage from "./pages/NotificationCenterPage";
 import SupportPage from "./pages/SupportPage";
@@ -145,6 +146,11 @@ const App: React.FC = () => (
               <Route path="/performance-review-admin/submissions/:employeeId" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <PerformanceReviewSubmissionsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance-review/appraisal/:reviewId" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <PerformanceReviewManagerAppraisalPage />
                 </ProtectedRoute>
               } />
               {/* End of Performance Review Routes */}
