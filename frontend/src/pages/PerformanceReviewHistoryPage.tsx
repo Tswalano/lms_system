@@ -5,6 +5,7 @@ import { ArrowLeft, Download, History, Loader2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePerformanceCycles, useCycleExport, type CycleExportApi } from "@/hooks/usePerformanceReview";
 import { WEIGHTS } from "@/lib/performanceReview";
+import { formatDate } from "@/lib/helper";
 
 const appPrimaryButtonClass = "rounded-lg bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 text-white shadow-sm hover:from-cyan-700 hover:via-blue-700 hover:to-indigo-700";
 const appOutlineButtonClass = "rounded-lg border-gray-200 bg-white/90 text-gray-700 shadow-sm hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200 dark:hover:bg-slate-700";
@@ -18,7 +19,7 @@ function buildCsvRows(data: CycleExportApi): string[][] {
 
     // ── Sheet 1: Summary ──────────────────────────────────────────────────────
     rows.push([`Cycle: ${data.cycle.name}`]);
-    rows.push([`Period: ${data.cycle.startDate.slice(0, 10)} to ${data.cycle.endDate.slice(0, 10)}`]);
+    rows.push([`Period: ${formatDate(new Date(data.cycle.startDate))} to ${formatDate(new Date(data.cycle.endDate))}`]);
     rows.push([]);
     rows.push(["=== SCORE SUMMARY ==="]);
     rows.push(["Employee", "Job Title", `Manager Score (${WEIGHTS.manager}%)`, `Peer Score (${WEIGHTS.peer}%)`, `Self Score (${WEIGHTS.self}%)`, "Final Score (%)"]);
@@ -117,7 +118,7 @@ const CycleExportPanel = ({ cycleId, cycleName }: { cycleId: string; cycleName: 
             {/* Export bar */}
             <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {data.employees.length} employees · {data.cycle.startDate.slice(0, 10)} – {data.cycle.endDate.slice(0, 10)}
+                    {data.employees.length} employees · {formatDate(new Date(data.cycle.startDate))} – {formatDate(new Date(data.cycle.endDate))}
                 </p>
                 <Button onClick={handleExport} disabled={exporting} className={cn(appPrimaryButtonClass, "gap-1.5")}>
                     <Download className="w-4 h-4" />
@@ -225,7 +226,7 @@ const PerformanceReviewHistoryPage = () => {
                                     <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">Closed</span>
                                 </div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    {String(cycle.startDate).slice(0, 10)} – {String(cycle.endDate).slice(0, 10)}
+                                    {formatDate(new Date(cycle.startDate))} – {formatDate(new Date(cycle.endDate))}
                                 </p>
                                 <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400">
                                     <span className="flex items-center gap-1"><Users className="w-3 h-3" />{cycle.employeeCount} employees</span>
