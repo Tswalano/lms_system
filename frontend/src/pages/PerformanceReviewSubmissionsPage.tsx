@@ -232,7 +232,6 @@ const PerformanceReviewSubmissionsPage = () => {
                         </div>
                         <div>
                             <div className="flex items-center gap-2 mb-1">
-                                <UserCheck className="h-4 w-4 text-blue-600" />
                                 <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">{submissions.employee.name}</h1>
                             </div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">

@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import { Save, CheckCircle, AlertCircle as AlertCircleIcon } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { CheckCircle, AlertCircle as AlertCircleIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import RatingScale from "@/components/RatingScale";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,8 @@ const PerformanceReviewEmployee = () => {
     const { user } = useAuth();
     const [selectedCycleId, setSelectedCycleId] = useState<string>("");
 
-    const { data: cycles = [] } = usePerformanceCycles();
+    const { data: allCycles = [] } = usePerformanceCycles();
+    const cycles = allCycles.filter((c) => c.status !== "closed");
     const activeCycleId = selectedCycleId || cycles.find((c) => c.status === "active")?.id || cycles[0]?.id || "";
 
     const { data: myReviews, isLoading: reviewsLoading } = useMyPerformanceReview(activeCycleId || undefined);
@@ -64,19 +65,29 @@ const PerformanceReviewEmployee = () => {
     const selfReview = myReviews?.selfReview ?? null;
     const selfSubmitted = selfReview?.status === "submitted" || selfReview?.status === "employee_completed";
 
-    const handleRatingChange = (reviewId: string, questionId: string, v: RatingValue) => {
-        saveResponse.mutate({ reviewId, questionId, ratingResponse: v });
+    const handleRatingChange = (reviewId: string, questionId: string, v: RatingValue, currentText?: string) => {
+        saveResponse.mutate({
+            reviewId,
+            questionId,
+            ratingResponse: v,
+            textResponse: currentText ?? "",
+        });
     };
 
     // Track save status per question: 'idle' | 'typing' | 'saving' | 'saved' | 'error'
     const [saveStatusMap, setSaveStatusMap] = useState<Record<string, 'idle' | 'typing' | 'saving' | 'saved' | 'error'>>({});
-    const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+    const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
     const setStatus = (key: string, status: 'idle' | 'typing' | 'saving' | 'saved' | 'error') => {
         setSaveStatusMap(prev => ({ ...prev, [key]: status }));
     };
 
-    const handleTextChange = (reviewId: string, questionId: string, text: string) => {
+    const handleTextChange = (
+        reviewId: string,
+        questionId: string,
+        text: string,
+        rating?: RatingValue | null
+    ) => {
         const key = `${reviewId}::${questionId}`;
         setStatus(key, 'typing');
 
@@ -88,8 +99,13 @@ const PerformanceReviewEmployee = () => {
         // Set new debounced save (800ms after user stops typing)
         debounceTimers.current[key] = setTimeout(() => {
             setStatus(key, 'saving');
+            const payload: { reviewId: string; questionId: string; textResponse: string; ratingResponse?: RatingValue | null } =
+                { reviewId, questionId, textResponse: text };
+            if (rating !== undefined) {
+                payload.ratingResponse = rating;
+            }
             saveResponse.mutate(
-                { reviewId, questionId, textResponse: text },
+                payload,
                 {
                     onSuccess: () => {
                         setStatus(key, 'saved');
@@ -104,7 +120,7 @@ const PerformanceReviewEmployee = () => {
         }, 800);
     };
 
-    const handleTextBlur = (reviewId: string, questionId: string, text: string) => {
+    const handleTextBlur = (reviewId: string, questionId: string, text: string, rating?: RatingValue | null) => {
         const key = `${reviewId}::${questionId}`;
         // Flush any pending debounced save immediately on blur
         if (debounceTimers.current[key]) {
@@ -115,8 +131,13 @@ const PerformanceReviewEmployee = () => {
         const currentStatus = saveStatusMap[key];
         if (currentStatus !== 'saved' && currentStatus !== 'saving') {
             setStatus(key, 'saving');
+            const payload: { reviewId: string; questionId: string; textResponse: string; ratingResponse?: RatingValue | null } =
+                { reviewId, questionId, textResponse: text };
+            if (rating !== undefined) {
+                payload.ratingResponse = rating;
+            }
             saveResponse.mutate(
-                { reviewId, questionId, textResponse: text },
+                payload,
                 {
                     onSuccess: () => {
                         setStatus(key, 'saved');
@@ -245,9 +266,15 @@ const PerformanceReviewEmployee = () => {
                                             key={q.id}
                                             question={q}
                                             disabled={selfSubmitted}
-                                            onRatingChange={(v) => handleRatingChange(selfReview.id, q.id, v)}
-                                            onTextChange={(t) => handleTextChange(selfReview.id, q.id, t)}
-                                            onTextBlur={(t) => handleTextBlur(selfReview.id, q.id, t)}
+                                            onRatingChange={(v, text) =>
+                                                handleRatingChange(selfReview.id, q.id, v, text)
+                                            }
+                                            onTextChange={(t, r) =>
+                                                handleTextChange(selfReview.id, q.id, t, r)
+                                            }
+                                            onTextBlur={(t, r) =>
+                                                handleTextBlur(selfReview.id, q.id, t, r)
+                                            }
                                             saveStatus={saveStatusMap[`${selfReview.id}::${q.id}`]}
                                         />
                                     ))}
@@ -401,22 +428,24 @@ const SelfQuestionRow = ({
 }: {
     question: ReviewQuestion;
     disabled: boolean;
-    onRatingChange: (v: RatingValue) => void;
-    onTextChange: (t: string) => void;
-    onTextBlur: (t: string) => void;
+    onRatingChange: (v: RatingValue, text: string) => void;
+    onTextChange: (t: string, rating: RatingValue | null) => void;
+    onTextBlur: (t: string, rating: RatingValue | null) => void;
     saveStatus?: 'idle' | 'typing' | 'saving' | 'saved' | 'error';
 }) => {
     // Local state for text so rating clicks don't wipe unsaved text
     const [localText, setLocalText] = useState(question.response?.textResponse ?? "");
+    const [localRating, setLocalRating] = useState<RatingValue | null>((question.response?.ratingResponse as RatingValue) ?? null);
     const hasSyncedRef = useRef(false);
 
     // Only sync from props on initial mount, not on every re-render
     useEffect(() => {
         if (!hasSyncedRef.current) {
             setLocalText(question.response?.textResponse ?? "");
+            setLocalRating((question.response?.ratingResponse as RatingValue) ?? null);
             hasSyncedRef.current = true;
         }
-    }, [question.response?.textResponse]);
+    }, [question.response?.textResponse, question.response?.ratingResponse]);
 
     return (
         <div className="p-5">
@@ -433,8 +462,11 @@ const SelfQuestionRow = ({
                     <RatingScale
                         size="sm"
                         disabled={disabled}
-                        value={(question.response?.ratingResponse as RatingValue) ?? null}
-                        onChange={onRatingChange}
+                        value={localRating}
+                        onChange={(v) => {
+                            setLocalRating(v);
+                            onRatingChange(v, localText);
+                        }}
                     />
                 </div>
             </div>
@@ -444,9 +476,9 @@ const SelfQuestionRow = ({
                 value={localText}
                 onChange={(e) => {
                     setLocalText(e.target.value);
-                    onTextChange(e.target.value);
+                    onTextChange(e.target.value, localRating);
                 }}
-                onBlur={(e) => onTextBlur(e.target.value)}
+                onBlur={(e) => onTextBlur(e.target.value, localRating)}
                 className={cn(
                     "rounded-2xl border-gray-200 bg-white/95 shadow-sm focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-0 dark:border-slate-600 dark:bg-slate-900/90 dark:text-slate-100 dark:placeholder:text-slate-500",
                     "min-h-[96px] text-sm"
@@ -470,8 +502,8 @@ const NextStepsTextarea = ({
     question: ReviewQuestion;
     disabled: boolean;
     reviewId: string;
-    onTextChange: (reviewId: string, questionId: string, text: string) => void;
-    onTextBlur: (reviewId: string, questionId: string, text: string) => void;
+    onTextChange: (reviewId: string, questionId: string, text: string, rating?: RatingValue | null) => void;
+    onTextBlur: (reviewId: string, questionId: string, text: string, rating?: RatingValue | null) => void;
     saveStatus: 'idle' | 'typing' | 'saving' | 'saved' | 'error';
 }) => {
     const [localText, setLocalText] = useState(question.response?.textResponse ?? "");

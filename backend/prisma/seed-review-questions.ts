@@ -11,12 +11,13 @@ interface QuestionSeed {
     questionType: 'text' | 'rating' | 'nomination';
     phase: 'self' | 'peer' | 'nomination';
     reviewType: 'self_review' | 'peer_review' | 'manager_appraisal' | 'next_steps';
+    targetRole?: 'employee' | 'manager';
     weight?: number;
     displayOrder: number;
 }
 
 const managerAppraisalQuestions: QuestionSeed[] = [
-    // Technical Competence
+    // Technical Competence — for individual contributors (employees)
     {
         category: 'Technical Competence',
         subcategory: 'Task Delivery on Time',
@@ -25,6 +26,7 @@ const managerAppraisalQuestions: QuestionSeed[] = [
         questionType: 'rating' as const,
         phase: 'self' as const,
         reviewType: 'manager_appraisal' as const,
+        targetRole: 'employee' as const,
         weight: 10.0,
         displayOrder: 1,
     },
@@ -36,6 +38,7 @@ const managerAppraisalQuestions: QuestionSeed[] = [
         questionType: 'rating' as const,
         phase: 'self' as const,
         reviewType: 'manager_appraisal' as const,
+        targetRole: 'employee' as const,
         weight: 10.0,
         displayOrder: 2,
     },
@@ -47,10 +50,11 @@ const managerAppraisalQuestions: QuestionSeed[] = [
         questionType: 'rating' as const,
         phase: 'self' as const,
         reviewType: 'manager_appraisal' as const,
+        targetRole: 'employee' as const,
         weight: 10.0,
         displayOrder: 3,
     },
-    // Delivery & Reliability
+    // Delivery & Reliability — for individual contributors
     {
         category: 'Delivery & Reliability',
         subcategory: 'Dependability',
@@ -59,6 +63,7 @@ const managerAppraisalQuestions: QuestionSeed[] = [
         questionType: 'rating' as const,
         phase: 'self' as const,
         reviewType: 'manager_appraisal' as const,
+        targetRole: 'employee' as const,
         weight: 10.0,
         displayOrder: 4,
     },
@@ -70,10 +75,11 @@ const managerAppraisalQuestions: QuestionSeed[] = [
         questionType: 'rating' as const,
         phase: 'self' as const,
         reviewType: 'manager_appraisal' as const,
+        targetRole: 'employee' as const,
         weight: 10.0,
         displayOrder: 5,
     },
-    // Growth & Collaboration
+    // Growth & Collaboration — for individual contributors
     {
         category: 'Growth & Collaboration',
         subcategory: 'Continuous Learning',
@@ -82,6 +88,7 @@ const managerAppraisalQuestions: QuestionSeed[] = [
         questionType: 'rating' as const,
         phase: 'self' as const,
         reviewType: 'manager_appraisal' as const,
+        targetRole: 'employee' as const,
         weight: 10.0,
         displayOrder: 6,
     },
@@ -93,7 +100,96 @@ const managerAppraisalQuestions: QuestionSeed[] = [
         questionType: 'rating' as const,
         phase: 'self' as const,
         reviewType: 'manager_appraisal' as const,
+        targetRole: 'employee' as const,
         weight: 10.0,
+        displayOrder: 7,
+    },
+];
+
+// Questions used when appraising a manager or admin
+const managerRoleAppraisalQuestions: QuestionSeed[] = [
+    {
+        category: 'Strategic Leadership',
+        subcategory: 'Vision & Goal Setting',
+        questionText: 'Rate their ability to set a clear vision and measurable goals for the team.',
+        guidanceText: 'Do they translate business priorities into actionable team objectives? Are goals communicated clearly and tracked?',
+        questionType: 'rating' as const,
+        phase: 'self' as const,
+        reviewType: 'manager_appraisal' as const,
+        targetRole: 'manager' as const,
+        weight: 15.0,
+        displayOrder: 1,
+    },
+    {
+        category: 'Strategic Leadership',
+        subcategory: 'Decision Making',
+        questionText: 'Rate their ability to make timely and sound decisions under pressure.',
+        guidanceText: 'Consider how they handle ambiguity, escalate appropriately, and take accountability for outcomes of decisions made.',
+        questionType: 'rating' as const,
+        phase: 'self' as const,
+        reviewType: 'manager_appraisal' as const,
+        targetRole: 'manager' as const,
+        weight: 15.0,
+        displayOrder: 2,
+    },
+    {
+        category: 'Team Development',
+        subcategory: 'Coaching & Mentoring',
+        questionText: 'Rate how effectively they develop and grow team members.',
+        guidanceText: 'Do they provide actionable feedback, create development opportunities, and actively unblock their team?',
+        questionType: 'rating' as const,
+        phase: 'self' as const,
+        reviewType: 'manager_appraisal' as const,
+        targetRole: 'manager' as const,
+        weight: 15.0,
+        displayOrder: 3,
+    },
+    {
+        category: 'Team Development',
+        subcategory: 'Retention & Engagement',
+        questionText: 'Rate their ability to maintain team morale, engagement, and retention.',
+        guidanceText: 'Consider team attrition signals, engagement levels, and whether they address team concerns proactively.',
+        questionType: 'rating' as const,
+        phase: 'self' as const,
+        reviewType: 'manager_appraisal' as const,
+        targetRole: 'manager' as const,
+        weight: 10.0,
+        displayOrder: 4,
+    },
+    {
+        category: 'Delivery & Accountability',
+        subcategory: 'Team Output',
+        questionText: 'Rate how consistently the team delivers commitments under their leadership.',
+        guidanceText: 'Look at sprint/milestone delivery rates, quality of output, and how they manage scope changes and blockers.',
+        questionType: 'rating' as const,
+        phase: 'self' as const,
+        reviewType: 'manager_appraisal' as const,
+        targetRole: 'manager' as const,
+        weight: 15.0,
+        displayOrder: 5,
+    },
+    {
+        category: 'Stakeholder Management',
+        subcategory: 'Communication & Alignment',
+        questionText: 'Rate their effectiveness in managing stakeholder relationships and cross-functional alignment.',
+        guidanceText: 'Do they communicate team progress clearly, manage expectations, and build trust with stakeholders across the business?',
+        questionType: 'rating' as const,
+        phase: 'self' as const,
+        reviewType: 'manager_appraisal' as const,
+        targetRole: 'manager' as const,
+        weight: 15.0,
+        displayOrder: 6,
+    },
+    {
+        category: 'Culture & Collaboration',
+        subcategory: 'Team Culture',
+        questionText: 'Rate how effectively they foster a positive, inclusive, and collaborative team culture.',
+        guidanceText: 'Do they model the values, encourage psychological safety, and promote knowledge sharing within and across teams?',
+        questionType: 'rating' as const,
+        phase: 'self' as const,
+        reviewType: 'manager_appraisal' as const,
+        targetRole: 'manager' as const,
+        weight: 15.0,
         displayOrder: 7,
     },
 ];
@@ -202,6 +298,7 @@ async function main() {
 
     const allQuestions = [
         ...managerAppraisalQuestions,
+        ...managerRoleAppraisalQuestions,
         ...peerReviewQuestions,
         ...selfReviewQuestions,
         ...nextStepsQuestions,
@@ -220,6 +317,7 @@ async function main() {
                 subcategory: q.subcategory ?? null,
                 questionText: q.questionText,
                 guidanceText: q.guidanceText ?? null,
+                targetRole: q.targetRole ?? null,
                 weight: q.weight ?? null,
                 isActive: true,
             },
@@ -232,6 +330,7 @@ async function main() {
                 questionType: q.questionType,
                 phase: q.phase,
                 reviewType: q.reviewType,
+                targetRole: q.targetRole ?? null,
                 weight: q.weight ?? null,
                 displayOrder: q.displayOrder,
                 isActive: true,

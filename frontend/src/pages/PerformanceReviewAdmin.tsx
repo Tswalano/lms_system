@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import StatsCard from "@/components/ui/StatsCard";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,9 +19,8 @@ import {
     type AdminSummaryItemApi,
     type NominationAssignment,
 } from "@/hooks/usePerformanceReview";
-import { useAuth } from "@/contexts/AuthContext";
 import { WEIGHTS } from "@/lib/performanceReview";
-import { CheckCircle2, ClipboardEdit, Eye, Loader2, Sparkles, UserCheck, UserPlus, Users, Zap, Lock } from "lucide-react";
+import { CheckCircle2, ClipboardEdit, Eye, History, Loader2, Sparkles, UserCheck, UserPlus, Users, Zap, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -86,9 +86,11 @@ const PerformanceReviewAdmin = () => {
     const [newCycleName, setNewCycleName] = useState("");
     const [newStartDate, setNewStartDate] = useState("");
     const [newEndDate, setNewEndDate] = useState("");
-    const [nominationTarget, setNominationTarget] = useState<{ employeeId: string; employeeName: string } | null>(null);
+    const [nominationTarget, setNominationTarget] = useState<{ employeeId: string; employeeName: string; employeeSystemRole: string } | null>(null);
 
-    const { data: cycles = [], isLoading: cyclesLoading } = usePerformanceCycles();
+    const { data: allCycles = [], isLoading: cyclesLoading } = usePerformanceCycles();
+    // Only show draft/active cycles in the main view; closed cycles live in History
+    const cycles = allCycles.filter((c) => c.status !== 'closed');
     const activeCycleId = selectedCycleId || cycles[0]?.id || "";
     const selectedCycle = cycles.find((c) => c.id === activeCycleId);
 
@@ -96,8 +98,11 @@ const PerformanceReviewAdmin = () => {
     const { data: managerReviews = [] } = useManagerReviews(activeCycleId || undefined);
 
     // Build a lookup: employeeId → reviewId for appraisals this user must write
+    // Exclude own record — admins/managers cannot write their own appraisal
     const myAppraisalMap = Object.fromEntries(
-        managerReviews.map((r) => [r.employee.id, r.reviewId])
+        managerReviews
+            .filter((r) => r.employee.id !== user?.id)
+            .map((r) => [r.employee.id, r.reviewId])
     );
 
     const createCycle = useCreateCycle();
@@ -194,6 +199,9 @@ const PerformanceReviewAdmin = () => {
                                 <Lock className="w-4 h-4" /> Close cycle
                             </Button>
                         )}
+                        <Button variant="outline" onClick={() => navigate("/performance-review-history")} className={cn(appOutlineButtonClass, "gap-1.5")}>
+                            <History className="w-4 h-4" /> History
+                        </Button>
                         <Button onClick={() => setCreateCycleOpen(true)} className={appPrimaryButtonClass}>
                             + New Cycle
                         </Button>
@@ -245,7 +253,7 @@ const PerformanceReviewAdmin = () => {
                             appraisalReviewId={myAppraisalMap[item.employee.id]}
                             onViewSubmissions={() => navigate(`/performance-review-admin/submissions/${item.employee.id}?cycleId=${activeCycleId}`)}
                             onWriteAppraisal={(reviewId) => navigate(`/performance-review/appraisal/${reviewId}`)}
-                            onManagePeers={() => setNominationTarget({ employeeId: item.employee.id, employeeName: item.employee.name })}
+                            onManagePeers={() => setNominationTarget({ employeeId: item.employee.id, employeeName: item.employee.name, employeeSystemRole: item.employee.systemRole })}
                         />
                     ))}
                 </div>
@@ -288,6 +296,7 @@ const PerformanceReviewAdmin = () => {
                 <PeerNominationModal
                     employeeId={nominationTarget.employeeId}
                     employeeName={nominationTarget.employeeName}
+                    employeeSystemRole={nominationTarget.employeeSystemRole}
                     cycleId={activeCycleId}
                     allEmployees={allEmployeesForNomination}
                     onClose={() => setNominationTarget(null)}
@@ -384,12 +393,14 @@ const ScorePill = ({ label, value, highlight }: { label: string; value: number |
 const PeerNominationModal = ({
     employeeId,
     employeeName,
+    employeeSystemRole,
     cycleId,
     allEmployees,
     onClose,
 }: {
     employeeId: string;
     employeeName: string;
+    employeeSystemRole: string;
     cycleId: string;
     allEmployees: { id: string; name: string; role: string }[];
     onClose: () => void;
@@ -398,24 +409,45 @@ const PeerNominationModal = ({
     const setNominations = useSetNominations();
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [search, setSearch] = useState("");
+    const initialized = useRef(false);
 
+    // Only sync from server once — React Query returns a new array reference on every
+    // background refetch, which would otherwise reset the user's in-progress selections.
     useEffect(() => {
-        if (!isLoading) {
+        if (!isLoading && !initialized.current) {
             setSelectedIds(new Set(currentNominations.map((n: NominationAssignment) => n.reviewerId)));
+            initialized.current = true;
         }
     }, [isLoading, currentNominations]);
+
+    // Admins and managers are reviewed by exactly 3 peers; employees 3–5
+    const isManagerRole = employeeSystemRole === 'admin' || employeeSystemRole === 'manager';
+    const MIN_PEERS = 3;
+    const MAX_PEERS = isManagerRole ? 3 : 5;
 
     const toggle = (id: string) => {
         const asgn = currentNominations.find((n: NominationAssignment) => n.reviewerId === id);
         if (asgn && !asgn.canRemove) return;
         setSelectedIds((prev) => {
             const next = new Set(prev);
-            if (next.has(id)) { next.delete(id); } else { next.add(id); }
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                if (next.size >= MAX_PEERS) {
+                    toast.warning(`You can select a maximum of ${MAX_PEERS} peer reviewers`);
+                    return prev;
+                }
+                next.add(id);
+            }
             return next;
         });
     };
 
     const handleSave = async () => {
+        if (selectedIds.size < MIN_PEERS) {
+            toast.error(`Please select at least ${MIN_PEERS} peer reviewers`);
+            return;
+        }
         try {
             await setNominations.mutateAsync({ employeeId, cycleId, peerIds: [...selectedIds] });
             toast.success("Peer reviewers updated");
@@ -435,7 +467,11 @@ const PeerNominationModal = ({
                 <DialogHeader className="border-b border-gray-200/70 px-6 py-5 dark:border-slate-700/70">
                     <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">Manage Peer Reviewers</DialogTitle>
                     <DialogDescription className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {employeeName} · {selectedIds.size} peer{selectedIds.size !== 1 ? "s" : ""} selected
+                        {employeeName} · {selectedIds.size}/{MAX_PEERS} selected
+                        {isManagerRole
+                            ? <span className="ml-1 text-gray-400">— exactly {MAX_PEERS} required</span>
+                            : selectedIds.size < MIN_PEERS && <span className="ml-1 text-amber-500">— select at least {MIN_PEERS}</span>
+                        }
                     </DialogDescription>
                 </DialogHeader>
                 <div className="px-6 py-4 space-y-3">
@@ -466,7 +502,7 @@ const PeerNominationModal = ({
                                                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors",
                                                 locked ? "cursor-not-allowed opacity-60 bg-gray-50 dark:bg-slate-800"
                                                     : isSelected ? "bg-blue-50 dark:bg-blue-900/20"
-                                                    : "hover:bg-gray-50 dark:hover:bg-slate-800"
+                                                        : "hover:bg-gray-50 dark:hover:bg-slate-800"
                                             )}
                                         >
                                             <div className={cn(
@@ -493,7 +529,11 @@ const PeerNominationModal = ({
                 </div>
                 <div className="flex items-center justify-end gap-3 border-t border-gray-200/70 px-6 py-4 dark:border-slate-700/70">
                     <Button variant="outline" onClick={onClose} className={appOutlineButtonClass}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={setNominations.isPending} className={appPrimaryButtonClass}>
+                    <Button
+                        onClick={handleSave}
+                        disabled={setNominations.isPending || selectedIds.size < MIN_PEERS || (isManagerRole && selectedIds.size > MAX_PEERS)}
+                        className={appPrimaryButtonClass}
+                    >
                         {setNominations.isPending ? "Saving…" : "Save reviewers"}
                     </Button>
                 </div>

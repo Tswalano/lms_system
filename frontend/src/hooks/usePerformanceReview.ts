@@ -55,7 +55,7 @@ export interface MyReviewsApi {
 }
 
 export interface AdminSummaryItemApi {
-    employee: { id: string; name: string; role: string };
+    employee: { id: string; name: string; role: string; systemRole: string };
     managerReviewId: string | null;
     managerId: string | null;
     managerScore: number | null;
@@ -162,7 +162,7 @@ export function useAdminPerformanceSummary(cycleId?: string) {
     return useQuery<AdminSummaryItemApi[]>({
         queryKey: ['performance-admin-summary', cycleId],
         queryFn: () => apiFetch(`/performance/admin/summary${cycleId ? `?cycleId=${cycleId}` : ''}`),
-        enabled: !!user && user.role === 'admin',
+        enabled: !!user && (user.role === 'admin' || user.role === 'manager'),
         staleTime: 30_000,
     });
 }
@@ -277,6 +277,7 @@ export function useEmployeeNominations(employeeId?: string, cycleId?: string) {
         queryKey: ['employee-nominations', employeeId, cycleId],
         queryFn: () => apiFetch(`/performance/nominations/${employeeId}${cycleId ? `?cycleId=${cycleId}` : ''}`),
         enabled: !!user && !!employeeId,
+        staleTime: 30_000,
     });
 }
 
@@ -344,6 +345,31 @@ export function useSubmitReview() {
             qc.invalidateQueries({ queryKey: ['manager-reviews'] });
             qc.invalidateQueries({ queryKey: ['performance-admin-summary'] });
         },
+    });
+}
+
+export interface CycleExportApi {
+    cycle: { id: string; name: string; startDate: string; endDate: string };
+    employees: {
+        employeeName: string;
+        jobTitle: string;
+        managerScore: number | null;
+        peerScore: number | null;
+        selfScore: number | null;
+        finalScore: number | null;
+        managerFeedback: { category: string; subcategory: string; rating: number | null; notes: string }[];
+        selfFeedback: { category: string; questionText: string; response: string }[];
+        peerFeedback: { reviewerName: string; category: string; rating: number | null }[];
+    }[];
+}
+
+export function useCycleExport(cycleId?: string) {
+    const { user } = useAuth();
+    return useQuery<CycleExportApi>({
+        queryKey: ['cycle-export', cycleId],
+        queryFn: () => apiFetch(`/performance/cycles/${cycleId}/export`),
+        enabled: !!user && !!cycleId,
+        staleTime: 60_000,
     });
 }
 

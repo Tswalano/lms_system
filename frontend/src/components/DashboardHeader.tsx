@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAuth } from "@/contexts/AuthContext";
-import { MonitorOff, Moon, SunDim, Bell, X, Check, Clock, Archive, Trash2 } from "lucide-react";
+import { MonitorOff, Moon, Sun, SunDim, Bell, X, Check, Clock, Archive, Trash2 } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -86,6 +87,7 @@ function localDateStr(d: Date) {
 const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
     const navigate = useNavigate();
     const { user, authFetch } = useAuth();
+    const { theme, toggleTheme } = useTheme();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [showNotifications, setShowNotifications] = useState(false);
     const [showActions, setShowActions] = useState<string | null>(null);
@@ -299,8 +301,34 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
 
     return (
         <div className={`relative ${getResponsivePadding()} pt-8 lg:pt-16 overflow-visible transition-all duration-300`}>
-            {/* Notification Center */}
-            <div className="absolute top-8 lg:top-16 right-4 lg:right-8 mr-20 z-50" ref={notificationRef}>
+            {/* Header action icons */}
+            <div className="absolute top-8 lg:top-16 right-4 lg:right-8 z-50 flex items-center gap-2">
+                {/* Dark mode toggle */}
+                <button
+                    onClick={toggleTheme}
+                    aria-label="Toggle dark mode"
+                    className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors overflow-hidden relative"
+                >
+                    <span
+                        key={theme}
+                        className="block animate-spin-in"
+                        style={{ animation: 'spinIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both' }}
+                    >
+                        {theme === 'dark'
+                            ? <Sun className="w-5 h-5 text-yellow-400" />
+                            : <Moon className="w-5 h-5 text-blue-500" />
+                        }
+                    </span>
+                    <style>{`
+                        @keyframes spinIn {
+                            from { transform: rotate(-90deg) scale(0.5); opacity: 0; }
+                            to   { transform: rotate(0deg)  scale(1);   opacity: 1; }
+                        }
+                    `}</style>
+                </button>
+
+                {/* Notification Center */}
+                <div ref={notificationRef}>
                 <div className="relative">
                     {/* Bell Icon Button */}
                     <button
@@ -498,6 +526,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
                             )}
                         </div>
                     )}
+                </div>
                 </div>
             </div>
 

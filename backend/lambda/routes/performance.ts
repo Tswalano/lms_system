@@ -54,6 +54,21 @@ async function isAdmin(c: Context): Promise<boolean> {
     }
 }
 
+// Admins and managers share the same permissions for review management
+async function isAdminOrManager(c: Context): Promise<boolean> {
+    const token = getDecodedToken(c);
+    const tokenRole = token?.['custom:role'];
+    if (tokenRole === 'admin' || tokenRole === 'manager') return true;
+    try {
+        const userId = token?.['custom:userId'];
+        if (!userId) return false;
+        const user = await prisma.users.findUnique({ where: { id: userId }, select: { role: true } });
+        return user?.role === 'admin' || user?.role === 'manager';
+    } catch {
+        return false;
+    }
+}
+
 // ─────────────────────────────────────────────
 // Notification helper
 // ─────────────────────────────────────────────
@@ -954,7 +969,7 @@ app.post('/submissions/:employeeId/override', async (c: Context): Promise<Respon
 app.get('/admin/summary', async (c: Context): Promise<Response> => {
     try {
 
-        if (!(await isAdmin(c))) {
+        if (!(await isAdminOrManager(c))) {
             return c.json({ success: false, message: "Forbidden" }, 403);
         }
 
@@ -962,7 +977,7 @@ app.get('/admin/summary', async (c: Context): Promise<Response> => {
 
         const employees = await prisma.users.findMany({
             where: { isActive: true },
-            select: { id: true, firstName: true, lastName: true, jobTitle: true },
+            select: { id: true, firstName: true, lastName: true, jobTitle: true, role: true },
         });
 
         const results = await Promise.all(employees.map(async (emp) => {
@@ -990,7 +1005,7 @@ app.get('/admin/summary', async (c: Context): Promise<Response> => {
             const pAvg = avg(pAverages);
 
             return {
-                employee: { id: emp.id, name: `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim(), role: emp.jobTitle ?? '' },
+                employee: { id: emp.id, name: `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim(), role: emp.jobTitle ?? '', systemRole: emp.role ?? 'employee' },
                 managerReviewId: managerReview?.id ?? null,
                 managerId: managerReview?.managerId ?? null,
                 managerScore: mAvg != null ? (mAvg / 5) * 100 : null,
@@ -1060,23 +1075,29 @@ app.get('/manager-review/:reviewId', async (c: Context): Promise<Response> => {
         const userId = getUserId(c);
         const reviewId = c.req.param('reviewId');
 
-        const [review, questions] = await Promise.all([
-            prisma.performance_reviews.findUnique({
-                where: { id: reviewId },
-                include: {
-                    employee: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
-                    cycle: { select: { id: true, name: true } },
-                    responses: true,
-                },
-            }),
-            prisma.review_questions.findMany({
-                where: { reviewType: 'manager_appraisal', isActive: true },
-                orderBy: { displayOrder: 'asc' },
-            }),
-        ]);
+        const review = await prisma.performance_reviews.findUnique({
+            where: { id: reviewId },
+            include: {
+                employee: { select: { id: true, firstName: true, lastName: true, jobTitle: true, role: true } },
+                cycle: { select: { id: true, name: true } },
+                responses: true,
+            },
+        });
 
         if (!review) return c.json({ success: false, message: 'Review not found' }, 404);
-        if (review.managerId !== userId && !(await isAdmin(c))) return c.json({ success: false, message: 'Access denied' }, 403);
+        if (review.managerId !== userId && !(await isAdminOrManager(c))) return c.json({ success: false, message: 'Access denied' }, 403);
+        if (review.employeeId === userId) return c.json({ success: false, message: 'You cannot write your own appraisal' }, 403);
+
+        // Serve the appropriate question set based on the reviewee's system role
+        const revieweeIsManager = ['admin', 'manager'].includes(review.employee.role ?? '');
+        const questions = await prisma.review_questions.findMany({
+            where: {
+                reviewType: 'manager_appraisal',
+                isActive: true,
+                targetRole: revieweeIsManager ? 'manager' : 'employee',
+            },
+            orderBy: { displayOrder: 'asc' },
+        });
 
         return c.json({
             success: true,
@@ -1109,13 +1130,128 @@ app.get('/manager-review/:reviewId', async (c: Context): Promise<Response> => {
 });
 
 // ─────────────────────────────────────────────
+// CYCLE EXPORT  (admin / manager)
+// ─────────────────────────────────────────────
+
+// GET /performance/cycles/:id/export  — full scoring + feedback for a closed cycle
+app.get('/cycles/:id/export', async (c: Context): Promise<Response> => {
+    try {
+        if (!(await isAdminOrManager(c))) return c.json({ success: false, message: 'Forbidden' }, 403);
+
+        const cycleId = c.req.param('id');
+        const cycle = await prisma.review_cycles.findUnique({ where: { id: cycleId } });
+        if (!cycle) return c.json({ success: false, message: 'Cycle not found' }, 404);
+
+        const employees = await prisma.users.findMany({
+            where: { isActive: true },
+            select: { id: true, firstName: true, lastName: true, jobTitle: true },
+        });
+
+        const rows = await Promise.all(employees.map(async (emp) => {
+            const [managerReview, selfReview, peerAssignments] = await Promise.all([
+                prisma.performance_reviews.findFirst({
+                    where: { employeeId: emp.id, reviewType: 'manager_appraisal', cycleId },
+                    include: {
+                        responses: {
+                            include: { question: { select: { category: true, subcategory: true } } },
+                        },
+                    },
+                }),
+                prisma.performance_reviews.findFirst({
+                    where: { employeeId: emp.id, reviewType: 'self_review', cycleId },
+                    include: {
+                        responses: {
+                            include: { question: { select: { category: true, questionText: true } } },
+                        },
+                    },
+                }),
+                prisma.peer_review_assignments.findMany({
+                    where: { revieweeId: emp.id, status: 'completed', cycleId },
+                    include: {
+                        reviewer: { select: { firstName: true, lastName: true } },
+                        performanceReview: {
+                            include: {
+                                responses: {
+                                    include: { question: { select: { category: true } } },
+                                },
+                            },
+                        },
+                    },
+                }),
+            ]);
+
+            const mRatings = managerReview?.responses.map((r) => r.ratingResponse).filter((v): v is number => v != null) ?? [];
+            const sRatings = selfReview?.responses.map((r) => r.ratingResponse).filter((v): v is number => v != null) ?? [];
+            const pAverages = peerAssignments
+                .filter((a) => a.performanceReview)
+                .map((a) => {
+                    const vals = a.performanceReview!.responses.map((r) => r.overrideRating ?? r.ratingResponse).filter((v): v is number => v != null);
+                    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+                })
+                .filter((v): v is number => v != null);
+
+            const mAvg = mRatings.length ? mRatings.reduce((a, b) => a + b, 0) / mRatings.length : null;
+            const sAvg = sRatings.length ? sRatings.reduce((a, b) => a + b, 0) / sRatings.length : null;
+            const pAvg = pAverages.length ? pAverages.reduce((a, b) => a + b, 0) / pAverages.length : null;
+
+            // Manager appraisal detail rows (one per response)
+            const managerFeedback = (managerReview?.responses ?? []).map((r) => ({
+                category: r.question.category,
+                subcategory: r.question.subcategory ?? '',
+                rating: r.ratingResponse,
+                notes: r.textResponse ?? '',
+            }));
+
+            // Self-review text responses
+            const selfFeedback = (selfReview?.responses ?? []).map((r) => ({
+                category: r.question.category,
+                questionText: r.question.questionText,
+                response: r.textResponse ?? '',
+            }));
+
+            // Peer feedback (anonymised — no reviewer name in export)
+            const peerFeedback = peerAssignments.flatMap((a) =>
+                (a.performanceReview?.responses ?? []).map((r) => ({
+                    reviewerName: `${a.reviewer.firstName ?? ''} ${a.reviewer.lastName ?? ''}`.trim(),
+                    category: r.question.category,
+                    rating: r.overrideRating ?? r.ratingResponse,
+                }))
+            );
+
+            return {
+                employeeName: `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim(),
+                jobTitle: emp.jobTitle ?? '',
+                managerScore: mAvg != null ? parseFloat(((mAvg / 5) * 100).toFixed(1)) : null,
+                peerScore: pAvg != null ? parseFloat(((pAvg / 5) * 100).toFixed(1)) : null,
+                selfScore: sAvg != null ? parseFloat(((sAvg / 5) * 100).toFixed(1)) : null,
+                finalScore: weightedScore(mAvg, pAvg, sAvg),
+                managerFeedback,
+                selfFeedback,
+                peerFeedback,
+            };
+        }));
+
+        return c.json({
+            success: true,
+            data: {
+                cycle: { id: cycle.id, name: cycle.name, startDate: cycle.startDate, endDate: cycle.endDate },
+                employees: rows,
+            },
+        });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to fetch export data' }, 500);
+    }
+});
+
+// ─────────────────────────────────────────────
 // PEER NOMINATIONS (admin)
 // ─────────────────────────────────────────────
 
 // GET /performance/nominations/:employeeId?cycleId=
 app.get('/nominations/:employeeId', async (c: Context): Promise<Response> => {
     try {
-        if (!(await isAdmin(c))) return c.json({ success: false, message: 'Forbidden' }, 403);
+        if (!(await isAdminOrManager(c))) return c.json({ success: false, message: 'Forbidden' }, 403);
         const employeeId = c.req.param('employeeId');
         const cycleId = c.req.query('cycleId');
 
@@ -1142,7 +1278,7 @@ app.get('/nominations/:employeeId', async (c: Context): Promise<Response> => {
 // PUT /performance/nominations/:employeeId  — replace peer assignments for an employee
 app.put('/nominations/:employeeId', async (c: Context): Promise<Response> => {
     try {
-        if (!(await isAdmin(c))) return c.json({ success: false, message: 'Forbidden' }, 403);
+        if (!(await isAdminOrManager(c))) return c.json({ success: false, message: 'Forbidden' }, 403);
         const employeeId = c.req.param('employeeId') as string;
         const body = await c.req.json();
         const { cycleId, peerIds } = body as { cycleId: string; peerIds: string[] };

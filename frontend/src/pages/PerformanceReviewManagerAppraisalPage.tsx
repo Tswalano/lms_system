@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +41,29 @@ const PerformanceReviewManagerAppraisalPage = () => {
     const saveResponse = useSaveResponse();
     const submitReview = useSubmitReview();
 
+    // Local text state so typing doesn't wait on API round-trips
+    const [localTexts, setLocalTexts] = useState<Record<string, string>>({});
+    const [saveStatusMap, setSaveStatusMap] = useState<Record<string, 'idle' | 'typing' | 'saving' | 'saved' | 'error'>>({});
+    const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+    const initialized = useRef(false);
+
+    // Initialise local text from server data once on load
+    useEffect(() => {
+        if (detail && !initialized.current) {
+            const texts: Record<string, string> = {};
+            for (const q of detail.questions) {
+                texts[q.id] = q.response?.textResponse ?? "";
+            }
+            setLocalTexts(texts);
+            initialized.current = true;
+        }
+    }, [detail]);
+
+    // Cleanup debounce timers on unmount
+    useEffect(() => {
+        return () => { Object.values(debounceTimers.current).forEach(clearTimeout); };
+    }, []);
+
     if (isLoading) {
         return (
             <div className="space-y-4">
@@ -70,17 +94,67 @@ const PerformanceReviewManagerAppraisalPage = () => {
     const submitted = detail.status === "final_review_complete" || detail.status === "employee_completed";
     const gradient = getEmployeeGradient(detail.employee.id);
     const initials = getInitials(detail.employee.name);
-    const answered = detail.questions.filter((q) => q.response?.ratingResponse != null).length;
+    const ratedQuestions = detail.questions.filter((q) => q.response?.ratingResponse != null);
+    const answered = ratedQuestions.length;
     const allAnswered = answered >= detail.questions.length;
+    const avgScore = answered > 0
+        ? ratedQuestions.reduce((sum, q) => sum + (q.response!.ratingResponse as number), 0) / answered
+        : null;
 
     const handleRatingChange = (questionId: string, v: RatingValue) => {
         if (!reviewId) return;
-        saveResponse.mutate({ reviewId, questionId, ratingResponse: v, reviewerType: "manager" });
+        // Always include current text so the server doesn't overwrite it with null
+        saveResponse.mutate({
+            reviewId,
+            questionId,
+            ratingResponse: v,
+            textResponse: localTexts[questionId] ?? null,
+            reviewerType: "manager",
+        });
     };
 
-    const handleTextChange = (questionId: string, text: string) => {
+    const handleTextChange = (questionId: string, text: string, currentRating: RatingValue | null) => {
         if (!reviewId) return;
-        saveResponse.mutate({ reviewId, questionId, textResponse: text, reviewerType: "manager" });
+        setLocalTexts((prev) => ({ ...prev, [questionId]: text }));
+        setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'typing' }));
+
+        if (debounceTimers.current[questionId]) clearTimeout(debounceTimers.current[questionId]);
+
+        debounceTimers.current[questionId] = setTimeout(() => {
+            setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'saving' }));
+            saveResponse.mutate(
+                { reviewId: reviewId!, questionId, textResponse: text, ratingResponse: currentRating ?? null, reviewerType: "manager" },
+                {
+                    onSuccess: () => {
+                        setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'saved' }));
+                        setTimeout(() => setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'idle' })), 2000);
+                    },
+                    onError: () => setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'error' })),
+                }
+            );
+        }, 800);
+    };
+
+    const handleTextBlur = (questionId: string, text: string, currentRating: RatingValue | null) => {
+        if (!reviewId) return;
+        if (debounceTimers.current[questionId]) {
+            clearTimeout(debounceTimers.current[questionId]);
+            delete debounceTimers.current[questionId];
+        }
+        const status = saveStatusMap[questionId];
+        if (status !== 'saved' && status !== 'saving') {
+            setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'saving' }));
+            saveResponse.mutate(
+                { reviewId: reviewId!, questionId, textResponse: text, ratingResponse: currentRating ?? null, reviewerType: "manager" },
+                {
+                    onSuccess: () => {
+                        setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'saved' }));
+                        setTimeout(() => setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'idle' })), 2000);
+                    },
+                    onError: () => setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'error' })),
+                }
+            );
+        }
     };
 
     const handleSubmit = async () => {
@@ -124,7 +198,6 @@ const PerformanceReviewManagerAppraisalPage = () => {
                         </div>
                         <div>
                             <div className="flex items-center gap-2 mb-1">
-                                <UserCheck className="h-4 w-4 text-indigo-600" />
                                 <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Manager Appraisal</h1>
                             </div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -138,6 +211,7 @@ const PerformanceReviewManagerAppraisalPage = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
+                        <ScorePill label="Avg score" value={avgScore != null ? avgScore.toFixed(1) : "—"} highlight />
                         <ScorePill label="Answered" value={`${answered}/${detail.questions.length}`} />
                         {submitted && (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
@@ -178,10 +252,20 @@ const PerformanceReviewManagerAppraisalPage = () => {
                                     <Textarea
                                         disabled={submitted}
                                         placeholder="Optional notes…"
-                                        value={q.response?.textResponse ?? ""}
-                                        onChange={(e) => handleTextChange(q.id, e.target.value)}
+                                        value={localTexts[q.id] ?? ""}
+                                        onChange={(e) => handleTextChange(q.id, e.target.value, (q.response?.ratingResponse as RatingValue) ?? null)}
+                                        onBlur={(e) => handleTextBlur(q.id, e.target.value, (q.response?.ratingResponse as RatingValue) ?? null)}
                                         className="min-h-[90px] text-sm rounded-xl border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-400 dark:focus-visible:border-indigo-500 resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                                     />
+                                    {saveStatusMap[q.id] === 'saving' && (
+                                        <p className="mt-1 text-xs text-gray-400">Saving…</p>
+                                    )}
+                                    {saveStatusMap[q.id] === 'saved' && (
+                                        <p className="mt-1 text-xs text-emerald-500">Saved</p>
+                                    )}
+                                    {saveStatusMap[q.id] === 'error' && (
+                                        <p className="mt-1 text-xs text-red-500">Failed to save</p>
+                                    )}
                                 </div>
                             </div>
                         ))}

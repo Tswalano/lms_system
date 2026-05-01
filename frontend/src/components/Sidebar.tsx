@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Moon, Sun, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, Calendar, Settings, Sparkles, ClipboardCheck } from "lucide-react";
+import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, History, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, Calendar, Settings, Sparkles, ClipboardCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -39,7 +38,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     setIsCollapsed
 }) => {
     const location = useLocation();
-    const { theme, toggleTheme } = useTheme();
     const { user, logout } = useAuth();
     const isLgUp = useMediaQuery('(min-width: 1024px)');
     const [userRole] = useState<'admin' | 'user'>(user?.role === 'admin' ? 'admin' : 'user');
@@ -74,6 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: "manage", label: "Manage Employees", icon: Users, path: "/manage-employees" },
                 ...(features.adminDocuments ? [
                     { id: "performance-admin", label: "Manage Reviews", icon: ClipboardCheck, path: "/performance-review-admin" },
+                    { id: "performance-history", label: "Review History", icon: History, path: "/performance-review-history" },
                     { id: "admin-docs", label: "Admin Documents", icon: ArchiveRestore, path: "/admin-document" }
                 ] : []),
             ]
@@ -330,59 +329,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     "flex-shrink-0 p-4 border-t border-gray-100/50 dark:border-slate-700/50 space-y-3",
                     isDesktopCollapsed ? "px-2" : ""
                 )}>
-                    {/* Theme Toggle */}
-                    {isDesktopCollapsed ? (
-                        <button
-                            onClick={toggleTheme}
-                            className="w-12 h-12 mx-auto flex items-center justify-center rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-800 dark:to-slate-700 shadow-lg border border-gray-200 dark:border-slate-600 hover:shadow-xl hover:scale-105 transition-all duration-300"
-                            title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-                        >
-                            <div className="relative w-5 h-5">
-                                <Sun className={cn(
-                                    "w-5 h-5 text-yellow-500 dark:text-yellow-400 absolute inset-0 transition-all duration-500",
-                                    theme === 'light' ? "rotate-0 opacity-100" : "rotate-180 opacity-0"
-                                )} />
-                                <Moon className={cn(
-                                    "w-5 h-5 text-blue-500 dark:text-blue-400 absolute inset-0 transition-all duration-500",
-                                    theme === 'dark' ? "rotate-0 opacity-100" : "rotate-180 opacity-0"
-                                )} />
-                            </div>
-                        </button>
-                    ) : (
-                        <div className="relative bg-gradient-to-r from-gray-100 to-gray-200 dark:from-slate-800 dark:to-slate-700 p-1 rounded-2xl shadow-inner border border-gray-200 dark:border-slate-600">
-                            <div className={cn(
-                                "absolute top-1 bottom-1 bg-white dark:bg-slate-600 rounded-xl shadow-lg transition-all duration-300 ease-out",
-                                theme === 'light' ? "left-1 right-1/2" : "left-1/2 right-1"
-                            )} />
-                            <div className="relative grid grid-cols-2">
-                                <button
-                                    onClick={() => theme !== 'light' && toggleTheme()}
-                                    className={cn(
-                                        "flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300",
-                                        theme === 'light'
-                                            ? "text-yellow-600 dark:text-yellow-400"
-                                            : "text-gray-500 dark:text-gray-400 hover:text-yellow-500"
-                                    )}
-                                >
-                                    <Sun className="w-4 h-4" />
-                                    Light
-                                </button>
-                                <button
-                                    onClick={() => theme !== 'dark' && toggleTheme()}
-                                    className={cn(
-                                        "flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300",
-                                        theme === 'dark'
-                                            ? "text-blue-600 dark:text-blue-400"
-                                            : "text-gray-500 dark:text-gray-400 hover:text-blue-500"
-                                    )}
-                                >
-                                    <Moon className="w-4 h-4" />
-                                    Dark
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Logout Button */}
                     {isDesktopCollapsed ? (
                         <button
