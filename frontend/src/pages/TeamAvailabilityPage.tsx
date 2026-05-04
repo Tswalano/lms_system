@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import StatsCard from "@/components/ui/StatsCard";
 import type { DateRange } from "react-day-picker";
 import { Calendar } from "@/components/ui/calendar";
 
@@ -537,71 +538,34 @@ const TeamAvailabilityPage = () => {
 
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <Card className="group relative bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 border-l-blue-500 dark:border-l-blue-400 hover:shadow-lg hover:bg-blue-50/30 dark:hover:bg-blue-900/10 hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default">
-                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-blue-500/10 group-hover:scale-[2] group-hover:bg-blue-500/20 transition-all duration-500" />
-                        <CardContent className="p-5 relative">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Total Members</p>
-                                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{filteredMembers.length}</p>
-                                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">in selected period</p>
-                                </div>
-                                <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
-                                    <Users className="w-5 h-5 text-white" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="group relative bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 border-l-emerald-500 dark:border-l-emerald-400 hover:shadow-lg hover:bg-emerald-50/30 dark:hover:bg-emerald-900/10 hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default">
-                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-emerald-500/10 group-hover:scale-[2] group-hover:bg-emerald-500/20 transition-all duration-500" />
-                        <CardContent className="p-5 relative">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Available</p>
-                                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{availableCount}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                        {filteredMembers.length > 0 ? Math.round((availableCount / filteredMembers.length) * 100) : 0}% of team
-                                    </p>
-                                </div>
-                                <div className="w-11 h-11 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
-                                    <UserCheck className="w-5 h-5 text-white" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="group relative bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 border-l-red-500 dark:border-l-red-400 hover:shadow-lg hover:bg-red-50/30 dark:hover:bg-red-900/10 hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default">
-                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-red-500/10 group-hover:scale-[2] group-hover:bg-red-500/20 transition-all duration-500" />
-                        <CardContent className="p-5 relative">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">On Leave</p>
-                                    <p className="text-3xl font-bold text-red-600 dark:text-red-400">{onLeaveCount}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">currently away</p>
-                                </div>
-                                <div className="w-11 h-11 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
-                                    <UserX className="w-5 h-5 text-white" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="group relative bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 border-l-amber-500 dark:border-l-amber-400 hover:shadow-lg hover:bg-amber-50/30 dark:hover:bg-amber-900/10 hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default">
-                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-amber-500/10 group-hover:scale-[2] group-hover:bg-amber-500/20 transition-all duration-500" />
-                        <CardContent className="p-5 relative">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Upcoming</p>
-                                    <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">{upcomingLeaveCount}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">leave{upcomingLeaveCount !== 1 ? 's' : ''} scheduled</p>
-                                </div>
-                                <div className="w-11 h-11 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
-                                    <Clock className="w-5 h-5 text-white" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <StatsCard
+                        label="Total Members"
+                        value={filteredMembers.length}
+                        subtitle="in selected period"
+                        tone="blue"
+                        icon={<Users className="w-5 h-5" />}
+                    />
+                    <StatsCard
+                        label="Available"
+                        value={availableCount}
+                        subtitle={`${filteredMembers.length > 0 ? Math.round((availableCount / filteredMembers.length) * 100) : 0}% of team`}
+                        tone="emerald"
+                        icon={<UserCheck className="w-5 h-5" />}
+                    />
+                    <StatsCard
+                        label="On Leave"
+                        value={onLeaveCount}
+                        subtitle="currently away"
+                        tone="red"
+                        icon={<UserX className="w-5 h-5" />}
+                    />
+                    <StatsCard
+                        label="Upcoming"
+                        value={upcomingLeaveCount}
+                        subtitle={`leave${upcomingLeaveCount !== 1 ? 's' : ''} scheduled`}
+                        tone="amber"
+                        icon={<Clock className="w-5 h-5" />}
+                    />
                 </div>
 
                 {/* Filter Dropdown */}

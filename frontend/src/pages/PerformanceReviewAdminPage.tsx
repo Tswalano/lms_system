@@ -78,7 +78,7 @@ const REVIEW_STATUS_BADGES: Record<string, string> = {
 const formatReviewStatus = (s: string) =>
     s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-const PerformanceReviewAdmin = () => {
+const PerformanceReviewAdminPage = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [selectedCycleId, setSelectedCycleId] = useState<string>("");
@@ -542,4 +542,4 @@ const PeerNominationModal = ({
     );
 };
 
-export default PerformanceReviewAdmin;
+export default PerformanceReviewAdminPage;

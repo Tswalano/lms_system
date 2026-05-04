@@ -1,7 +1,7 @@
 import LeaveBalanceCards from "@/components/LeaveBalanceCards";
 import CalendarSection from "@/components/CalendarSection";
 
-const Index = () => {
+const DashboardPage = () => {
 
     return (
         <>
@@ -11,4 +11,4 @@ const Index = () => {
     );
 };
 
-export default Index;
+export default DashboardPage;

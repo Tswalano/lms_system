@@ -54,12 +54,12 @@ const Sidebar: React.FC<SidebarProps> = ({
             defaultOpen: true,
             items: [
                 { id: "dashboard", label: "Dashboard", icon: Home, path: "/" },
-                { id: "team", label: "Team Calendar", icon: Calendar, path: "/team-availability" },
-                { id: "apply", label: "Apply for Leave", icon: FileText, path: "/apply-leave" },
-                { id: "history", label: "Leave Requests", icon: Clock, path: "/leave-history" },
+                { id: "team", label: "Team Availability", icon: Calendar, path: "/team-availability" },
+                { id: "apply", label: "Request Leave", icon: FileText, path: "/apply-leave" },
+                { id: "history", label: "My Leave History", icon: Clock, path: "/leave-history" },
                 ...(features.employeeDocuments ? [
-                    { id: "employee-docs", label: "Employee Handbook", icon: FileCheck2, path: "/employee-document" },
-                    { id: "performance", label: "Performance Review", icon: Sparkles, path: "/performance-review" }
+                    { id: "employee-docs", label: "Documents", icon: FileCheck2, path: "/employee-document" },
+                    { id: "performance", label: "My Reviews", icon: Sparkles, path: "/performance-review" }
                 ] : []),
             ]
         },
@@ -68,12 +68,12 @@ const Sidebar: React.FC<SidebarProps> = ({
             label: 'Administration',
             icon: Settings,
             items: [
-                { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave" },
-                { id: "manage", label: "Manage Employees", icon: Users, path: "/manage-employees" },
+                { id: "approve", label: "Leave Approvals", icon: CheckCircle, path: "/approve-leave" },
+                { id: "manage", label: "Team Management", icon: Users, path: "/manage-employees" },
                 ...(features.adminDocuments ? [
-                    { id: "performance-admin", label: "Manage Reviews", icon: ClipboardCheck, path: "/performance-review-admin" },
+                    { id: "performance-admin", label: "Performance Reviews", icon: ClipboardCheck, path: "/performance-review-admin" },
                     { id: "performance-history", label: "Review History", icon: History, path: "/performance-review-history" },
-                    { id: "admin-docs", label: "Admin Documents", icon: ArchiveRestore, path: "/admin-document" }
+                    { id: "admin-docs", label: "Document Library", icon: ArchiveRestore, path: "/admin-document" }
                 ] : []),
             ]
         }] : []),

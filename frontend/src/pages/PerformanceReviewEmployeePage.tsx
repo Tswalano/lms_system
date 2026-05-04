@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { CheckCircle, AlertCircle as AlertCircleIcon } from "lucide-react";
+import { CheckCircle, AlertCircle as AlertCircleIcon, TrendingUp, TrendingDown, Lock, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import RatingScale from "@/components/RatingScale";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { WEIGHTS, type RatingValue } from "@/lib/performanceReview";
+import { WEIGHTS, RATING_LABELS, RATING_TEXT_TONES, type RatingValue } from "@/lib/performanceReview";
 import {
     usePerformanceCycles,
     useMyPerformanceReview,
@@ -16,6 +16,7 @@ import {
     useSaveResponse,
     useSubmitReview,
     type ReviewQuestion,
+    type SubmissionsApi,
 } from "@/hooks/usePerformanceReview";
 import { useAuth } from "@/contexts/AuthContext";
 import { AlertCircle, CheckCircle2, ClipboardList, Loader2, UserCheck } from "lucide-react";
@@ -46,14 +47,16 @@ const appTextareaClass = "rounded-2xl border-gray-200 bg-white/95 shadow-sm focu
 const appPrimaryButtonClass = "rounded-2xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 text-white shadow-sm hover:from-cyan-700 hover:via-blue-700 hover:to-indigo-700";
 const appOutlineButtonClass = "rounded-2xl border-gray-200 bg-white/90 text-gray-700 shadow-sm hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200 dark:hover:bg-slate-700";
 
-const PerformanceReviewEmployee = () => {
+const PerformanceReviewEmployeePage = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [selectedCycleId, setSelectedCycleId] = useState<string>("");
 
     const { data: allCycles = [] } = usePerformanceCycles();
-    const cycles = allCycles.filter((c) => c.status !== "closed");
+    const cycles = allCycles;
     const activeCycleId = selectedCycleId || cycles.find((c) => c.status === "active")?.id || cycles[0]?.id || "";
+    const selectedCycle = cycles.find((c) => c.id === activeCycleId);
+    const isClosed = selectedCycle?.status === "closed";
 
     const { data: myReviews, isLoading: reviewsLoading } = useMyPerformanceReview(activeCycleId || undefined);
     const { data: peerAssignments = [] } = useMyPeerAssignments(activeCycleId || undefined);
@@ -195,7 +198,12 @@ const PerformanceReviewEmployee = () => {
                         <div>
                             <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">My Performance Review</h1>
                             <p className="text-gray-600 dark:text-gray-400">
-                                {user?.firstName} {user?.lastName ?? user?.email} · {cycles.find((c) => c.id === activeCycleId)?.name ?? "Performance Review"}
+                                {user?.firstName} {user?.lastName ?? user?.email} · {selectedCycle?.name ?? "Performance Review"}
+                                {isClosed && (
+                                    <span className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                                        <Lock className="w-3 h-3" /> Cycle closed
+                                    </span>
+                                )}
                             </p>
                         </div>
                     </div>
@@ -224,16 +232,10 @@ const PerformanceReviewEmployee = () => {
                     </div>
                 </div>
 
-                {!selfReview ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4">
-                            <AlertCircle className="w-7 h-7 text-amber-500" />
-                        </div>
-                        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-1">No active review cycle</h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
-                            Your questionnaire will appear here once a review cycle is activated and you are enrolled.
-                        </p>
-                    </div>
+                {isClosed ? (
+                    <ClosedCycleSummary submissions={submissions ?? null} cycleName={selectedCycle?.name ?? ""} />
+                ) : !selfReview ? (
+                    <NoActiveCycleState />
                 ) : (
                     <Tabs defaultValue="self">
                         <TabsList className="rounded-2xl border border-gray-200/80 bg-white/95 p-1 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/95">
@@ -539,6 +541,242 @@ const NextStepsTextarea = ({
     );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// NoActiveCycleState — ghost cards behind a frosted message, à la Documents page
+// ─────────────────────────────────────────────────────────────────────────────
+
+const GHOST_CARDS = [
+    { title: "Technical Contribution", desc: "Rate your most impactful technical work this period", accent: "border-l-blue-500", icon: "bg-blue-500" },
+    { title: "Leadership in Projects", desc: "Describe a project where you led or played a key role", accent: "border-l-purple-500", icon: "bg-purple-500" },
+    { title: "Learning & Application", desc: "New tools or processes you applied in projects", accent: "border-l-cyan-500", icon: "bg-cyan-500" },
+    { title: "Peer Review — Colleague A", desc: "Review a colleague's performance this cycle", accent: "border-l-indigo-500", icon: "bg-indigo-500" },
+    { title: "Next Steps & Goals", desc: "Set your development intentions for the next quarter", accent: "border-l-emerald-500", icon: "bg-emerald-500" },
+    { title: "Collaboration & Communication", desc: "How effectively did you work across teams?", accent: "border-l-rose-500", icon: "bg-rose-500" },
+];
+
+const NoActiveCycleState = () => (
+    <div className="relative rounded-3xl overflow-hidden">
+        {/* Ghost cards — blurred, dimmed backdrop */}
+        <div
+            className="grid grid-cols-1 md:grid-cols-2 gap-4 p-1 pointer-events-none select-none"
+            style={{ filter: "blur(3px)", opacity: 0.35 }}
+            aria-hidden
+        >
+            {GHOST_CARDS.map((card) => (
+                <div
+                    key={card.title}
+                    className={`bg-white dark:bg-slate-800 rounded-xl border border-l-4 ${card.accent} border-gray-200 dark:border-slate-700 p-4`}
+                >
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-10 h-10 ${card.icon} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                            <ClipboardList className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 dark:text-white truncate">{card.title}</p>
+                        </div>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{card.desc}</p>
+                    <div className="mt-3 h-2 rounded-full bg-gray-100 dark:bg-slate-700 overflow-hidden">
+                        <div className={`h-full rounded-full ${card.icon} opacity-30`} style={{ width: "60%" }} />
+                    </div>
+                </div>
+            ))}
+        </div>
+
+        {/* Frosted glass overlay + message */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-[2px] rounded-3xl px-6 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 flex items-center justify-center mb-4 shadow-sm">
+                <AlertCircle className="w-7 h-7 text-amber-500" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-1">No active review cycle</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
+                Your questionnaire will appear here once a review cycle is activated and you are enrolled.
+            </p>
+        </div>
+    </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ClosedCycleSummary — shown when the selected cycle is closed
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface CategoryStat {
+    category: string;
+    avgRating: number;
+    source: "manager" | "peer" | "self";
+}
+
+function buildCategoryStats(submissions: SubmissionsApi): CategoryStat[] {
+    const map: Record<string, { sum: number; count: number; source: "manager" | "peer" | "self" }> = {};
+
+    const add = (category: string, rating: number | null, source: "manager" | "peer" | "self") => {
+        if (rating == null) return;
+        if (!map[category]) map[category] = { sum: 0, count: 0, source };
+        map[category].sum += rating;
+        map[category].count += 1;
+    };
+
+    submissions.managerReview?.responses.forEach((r) => add(r.question.category, r.ratingResponse, "manager"));
+    submissions.selfReview?.responses.forEach((r) => add(r.question.category, r.ratingResponse, "self"));
+    submissions.peerAssignments.forEach((pa) =>
+        pa.review?.responses.forEach((r) => add(r.question.category, r.overrideRating ?? r.ratingResponse, "peer"))
+    );
+
+    return Object.entries(map)
+        .map(([category, { sum, count, source }]) => ({ category, avgRating: sum / count, source }))
+        .sort((a, b) => b.avgRating - a.avgRating);
+}
+
+const ratingBarColor = (avg: number) => {
+    if (avg >= 4.5) return "bg-violet-500";
+    if (avg >= 3.5) return "bg-emerald-500";
+    if (avg >= 2.5) return "bg-amber-500";
+    if (avg >= 1.5) return "bg-orange-500";
+    return "bg-red-500";
+};
+
+const ClosedCycleSummary = ({ submissions, cycleName }: { submissions: SubmissionsApi | null; cycleName: string }) => {
+    if (!submissions) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-4">
+                    <Lock className="w-7 h-7 text-slate-400" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-1">Cycle closed</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
+                    Results for <strong>{cycleName}</strong> are not yet available. Check back after the admin publishes scores.
+                </p>
+            </div>
+        );
+    }
+
+    const { scores } = submissions;
+    const stats = buildCategoryStats(submissions);
+    const strengths = stats.filter((s) => s.avgRating >= 3.5);
+    const improvements = stats.filter((s) => s.avgRating < 3);
+
+    return (
+        <div className="space-y-5">
+            {/* Score summary */}
+            <div className={cn(shellCardClass, "p-5")}>
+                <div className="flex items-center gap-2 mb-4">
+                    <BarChart3 className="w-4 h-4 text-blue-500" />
+                    <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wide">
+                        Final Scores · {cycleName}
+                    </h2>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                        { label: `Manager (${WEIGHTS.manager}%)`, value: scores.managerScore },
+                        { label: `Peer (${WEIGHTS.peer}%)`, value: scores.peerScore },
+                        { label: `Self (${WEIGHTS.self}%)`, value: scores.selfScore },
+                        { label: "Final Score", value: scores.finalScore, highlight: true },
+                    ].map(({ label, value, highlight }) => (
+                        <div key={label} className={cn(
+                            "rounded-2xl border p-3 text-center",
+                            highlight
+                                ? "border-blue-200 bg-blue-50/80 dark:border-blue-700 dark:bg-blue-900/20"
+                                : "border-gray-200 bg-gray-50/80 dark:border-slate-700 dark:bg-slate-800/60"
+                        )}>
+                            <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{label}</p>
+                            <p className={cn(
+                                "text-2xl font-bold",
+                                value == null
+                                    ? "text-gray-300 dark:text-slate-600"
+                                    : highlight
+                                        ? "text-blue-700 dark:text-blue-300"
+                                        : "text-emerald-700 dark:text-emerald-300"
+                            )}>
+                                {value == null ? "—" : value.toFixed(1)}
+                            </p>
+                            {value != null && (
+                                <p className={cn("text-[11px] mt-0.5", RATING_TEXT_TONES[Math.round(value) as 1 | 2 | 3 | 4 | 5] ?? "text-gray-500")}>
+                                    {RATING_LABELS[Math.round(value) as 1 | 2 | 3 | 4 | 5] ?? ""}
+                                </p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Category breakdown */}
+            {stats.length > 0 && (
+                <div className={cn(shellCardClass, "overflow-hidden")}>
+                    <div className="border-b border-gray-200/70 p-4 dark:border-slate-700/70">
+                        <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Performance by Category</h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Average ratings across all reviewers</p>
+                    </div>
+                    <div className="divide-y divide-gray-100 dark:divide-slate-800">
+                        {stats.map(({ category, avgRating }) => (
+                            <div key={category} className="flex items-center gap-3 px-5 py-3">
+                                <span className="text-sm text-gray-700 dark:text-gray-300 w-44 flex-shrink-0 truncate">{category}</span>
+                                <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-slate-700 overflow-hidden">
+                                    <div
+                                        className={cn("h-full rounded-full transition-all", ratingBarColor(avgRating))}
+                                        style={{ width: `${(avgRating / 5) * 100}%` }}
+                                    />
+                                </div>
+                                <span className={cn("text-xs font-semibold w-6 text-right", RATING_TEXT_TONES[Math.round(avgRating) as 1 | 2 | 3 | 4 | 5])}>
+                                    {avgRating.toFixed(1)}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <div className="grid md:grid-cols-2 gap-5">
+                {/* Strengths */}
+                {strengths.length > 0 && (
+                    <div className={cn(shellCardClass, "overflow-hidden")}>
+                        <div className="border-b border-gray-200/70 p-4 dark:border-slate-700/70 flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-emerald-500" />
+                            <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Strengths</h2>
+                        </div>
+                        <ul className="divide-y divide-gray-100 dark:divide-slate-800">
+                            {strengths.map(({ category, avgRating }) => (
+                                <li key={category} className="flex items-center justify-between px-5 py-3 gap-2">
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">{category}</span>
+                                    <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20", RATING_TEXT_TONES[Math.round(avgRating) as 1 | 2 | 3 | 4 | 5])}>
+                                        {avgRating.toFixed(1)} · {RATING_LABELS[Math.round(avgRating) as 1 | 2 | 3 | 4 | 5] ?? ""}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {/* Areas to improve */}
+                {improvements.length > 0 && (
+                    <div className={cn(shellCardClass, "overflow-hidden")}>
+                        <div className="border-b border-gray-200/70 p-4 dark:border-slate-700/70 flex items-center gap-2">
+                            <TrendingDown className="w-4 h-4 text-orange-500" />
+                            <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Areas to Improve</h2>
+                        </div>
+                        <ul className="divide-y divide-gray-100 dark:divide-slate-800">
+                            {improvements.map(({ category, avgRating }) => (
+                                <li key={category} className="flex items-center justify-between px-5 py-3 gap-2">
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">{category}</span>
+                                    <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-900/20", RATING_TEXT_TONES[Math.round(avgRating) as 1 | 2 | 3 | 4 | 5])}>
+                                        {avgRating.toFixed(1)} · {RATING_LABELS[Math.round(avgRating) as 1 | 2 | 3 | 4 | 5] ?? ""}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </div>
+
+            {improvements.length === 0 && strengths.length > 0 && (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 dark:border-emerald-800 dark:bg-emerald-950/20 px-5 py-4 text-sm text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                    All categories rated at <strong>Meets Expectations</strong> or above — no flagged areas to improve.
+                </div>
+            )}
+        </div>
+    );
+};
+
 const ScorePill = ({ label, value, highlight }: { label: string; value: number | null; highlight?: boolean }) => (
     <div className="flex flex-col items-center min-w-[80px]">
         <span className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{label}</span>
@@ -555,4 +793,4 @@ const ScorePill = ({ label, value, highlight }: { label: string; value: number |
     </div>
 );
 
-export default PerformanceReviewEmployee;
+export default PerformanceReviewEmployeePage;

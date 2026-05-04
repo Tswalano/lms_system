@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import Index from "./pages/Index";
+import DashboardPage from "./pages/DashboardPage";
 import TeamAvailability from "./pages/TeamAvailabilityPage";
 import ApplyLeave from "./pages/ApplyLeavePage";
 import LeaveHistory from "./pages/LeaveHistoryPage";
@@ -22,8 +22,8 @@ import DashboardLayout from "./components/DashboardLayout";
 import AdminDocumentsPage from "./pages/AdminDocumentsPage";
 import EmployeeDocumentsPage from "./pages/EmployeeDocumentsPage";
 // Import Performance Review Components
-import PerformanceReviewAdmin from "./pages/PerformanceReviewAdmin";
-import PerformanceReviewEmployee from "./pages/PerformanceReviewEmployee";
+import PerformanceReviewAdminPage from "./pages/PerformanceReviewAdminPage";
+import PerformanceReviewEmployeePage from "./pages/PerformanceReviewEmployeePage";
 import PerformanceReviewPeerPage from "./pages/PerformanceReviewPeerPage";
 import PerformanceReviewSubmissionsPage from "./pages/PerformanceReviewSubmissionsPage";
 import PerformanceReviewManagerAppraisalPage from "./pages/PerformanceReviewManagerAppraisalPage";
@@ -94,7 +94,7 @@ const App: React.FC = () => (
               {/* Protected Routes */}
               <Route path="/" element={
                 <ProtectedRoute>
-                  <Index />
+                  <DashboardPage />
                 </ProtectedRoute>
               } />
               <Route path="/profile" element={
@@ -131,7 +131,7 @@ const App: React.FC = () => (
               {/* Performance Review Routes */}
               <Route path="/performance-review" element={
                 <ProtectedRoute allowedRoles={['user', 'admin']}>
-                  <PerformanceReviewEmployee />
+                  <PerformanceReviewEmployeePage />
                 </ProtectedRoute>
               } />
               <Route path="/performance-review/peer/:assignmentId" element={
@@ -141,7 +141,7 @@ const App: React.FC = () => (
               } />
               <Route path="/performance-review-admin" element={
                 <ProtectedRoute allowedRoles={['admin']}>
-                  <PerformanceReviewAdmin />
+                  <PerformanceReviewAdminPage />
                 </ProtectedRoute>
               } />
               <Route path="/performance-review-admin/submissions/:employeeId" element={

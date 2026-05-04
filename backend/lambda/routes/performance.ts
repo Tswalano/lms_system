@@ -652,6 +652,7 @@ app.get('/peer-review/:assignmentId', async (c: Context): Promise<Response> => {
             success: true,
             data: {
                 assignmentId: assignment.id,
+                reviewId: assignment.performanceReview?.id ?? null,
                 status: assignment.status,
                 reviewee: {
                     id: assignment.reviewee.id,
