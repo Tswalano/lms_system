@@ -635,6 +635,7 @@ app.get('/peer-review/:assignmentId', async (c: Context): Promise<Response> => {
             where: { id: assignmentId },
             include: {
                 reviewee: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
+                reviewer: { select: { managerId: true } },
                 cycle: { select: { id: true, name: true } },
                 performanceReview: { include: { responses: true } },
             },
@@ -642,6 +643,30 @@ app.get('/peer-review/:assignmentId', async (c: Context): Promise<Response> => {
 
         if (!assignment) return c.json({ success: false, message: 'Assignment not found' }, 404);
         if (assignment.reviewerId !== userId) return c.json({ success: false, message: 'Access denied' }, 403);
+
+        // Auto-create the peer review record if it hasn't been linked yet
+        let reviewId: string | null = assignment.performanceReview?.id ?? null;
+        let responses: NonNullable<typeof assignment.performanceReview>['responses'] = assignment.performanceReview?.responses ?? [];
+        if (!reviewId && assignment.cycleId) {
+            const created = await prisma.performance_reviews.create({
+                data: {
+                    employeeId: assignment.reviewerId,
+                    revieweeId: assignment.revieweeId,
+                    managerId: assignment.reviewer?.managerId ?? userId,
+                    cycleId: assignment.cycleId,
+                    reviewPeriod: assignment.cycle.name,
+                    reviewType: 'peer_review',
+                    status: 'peer_reviews_in_progress',
+                },
+                select: { id: true },
+            });
+            await prisma.peer_review_assignments.update({
+                where: { id: assignment.id },
+                data: { performanceReviewId: created.id, status: 'in_progress' },
+            });
+            reviewId = created.id;
+            responses = [];
+        }
 
         const questions = await prisma.review_questions.findMany({
             where: { reviewType: 'peer_review', isActive: true },
@@ -652,7 +677,7 @@ app.get('/peer-review/:assignmentId', async (c: Context): Promise<Response> => {
             success: true,
             data: {
                 assignmentId: assignment.id,
-                reviewId: assignment.performanceReview?.id ?? null,
+                reviewId,
                 status: assignment.status,
                 reviewee: {
                     id: assignment.reviewee.id,
@@ -666,7 +691,7 @@ app.get('/peer-review/:assignmentId', async (c: Context): Promise<Response> => {
                     questionText: q.questionText,
                     guidanceText: q.guidanceText,
                 })),
-                responses: assignment.performanceReview?.responses ?? [],
+                responses,
             },
         });
     } catch (e) {
@@ -695,9 +720,11 @@ app.post('/responses', async (c: Context): Promise<Response> => {
         const response = await prisma.review_responses.upsert({
             where: { performanceReviewId_questionId: { performanceReviewId: data.reviewId, questionId: data.questionId } },
             update: {
-                ratingResponse: data.ratingResponse ?? null,
-                textResponse: data.textResponse ?? null,
-                nominationResponse: data.nominationResponse ?? null,
+                // Only overwrite a field if it was explicitly included in the payload;
+                // undefined means "leave unchanged" in Prisma update.
+                ...(data.ratingResponse !== undefined && { ratingResponse: data.ratingResponse }),
+                ...(data.textResponse !== undefined && { textResponse: data.textResponse }),
+                ...(data.nominationResponse !== undefined && { nominationResponse: data.nominationResponse }),
                 updatedAt: new Date(),
             },
             create: {

@@ -97,7 +97,9 @@ const Sidebar: React.FC<SidebarProps> = ({
         } else {
             // Otherwise, determine which section should be active based on current route
             const currentSection = menuSections.find(section =>
-                section.items.some(item => item.path === location.pathname)
+                section.items.some(item =>
+                    location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+                )
             );
 
             if (currentSection) {
@@ -108,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     }, [location.pathname, menuSections]);
 
     const isActive = (path: string) => {
-        return location.pathname === path;
+        return location.pathname === path || location.pathname.startsWith(path + '/');
     };
 
     const getInitials = (firstName: string | undefined, lastName: string | undefined) => {
@@ -127,7 +129,9 @@ const Sidebar: React.FC<SidebarProps> = ({
         // When expanding from collapsed state, ensure at least one section is open
         if (!newCollapseState && !activeSection) {
             const currentSection = menuSections.find(section =>
-                section.items.some(item => item.path === location.pathname)
+                section.items.some(item =>
+                    location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+                )
             ) || menuSections[0];
 
             if (currentSection) {
