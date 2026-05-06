@@ -217,7 +217,7 @@ const LeaveHistoryPage = () => {
 
     const getCount = (key: string) => key === 'all' ? leaveHistory.length : leaveHistory.filter(r => r.status.toLowerCase() === key).length;
     const filtered = leaveHistory.filter(r => filter === 'all' || r.status.toLowerCase() === filter);
-    const pagination = usePagination(filtered, 10);
+    const pagination = usePagination(filtered, 5);
 
     if (!token) {
         return (

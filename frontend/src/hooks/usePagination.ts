@@ -11,7 +11,7 @@ export interface PaginationState<T> {
     resetPage: () => void;
 }
 
-export function usePagination<T>(items: T[], defaultPageSize = 10): PaginationState<T> {
+export function usePagination<T>(items: T[], defaultPageSize = 5): PaginationState<T> {
     const [page, setPageState] = useState(1);
     const [pageSize, setPageSizeState] = useState(defaultPageSize);
 

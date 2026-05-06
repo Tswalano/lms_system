@@ -161,7 +161,7 @@ const NotFound: React.FC<NotFoundProps> = ({
                 {/* Brand Footer */}
                 <div className="mt-6 text-center">
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                        &copy; {new Date().getFullYear()} Disraptor LMS. All rights reserved.
+                        {new Date().getFullYear()} &copy; Disraptor Systems. All rights reserved.
                     </p>
                 </div>
             </div>

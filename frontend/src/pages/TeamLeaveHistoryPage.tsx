@@ -209,8 +209,8 @@ const TeamListLeaveHistoryPage = () => {
         user.jobTitle.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const usersPagination = usePagination(filteredUsers, 10);
-    const leavePagination = usePagination(leaveHistory, 10);
+    const usersPagination = usePagination(filteredUsers, 5);
+    const leavePagination = usePagination(leaveHistory, 5);
 
     // Reset leave pagination when switching users
     useEffect(() => {

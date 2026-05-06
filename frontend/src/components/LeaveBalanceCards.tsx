@@ -35,7 +35,7 @@ const LeaveBalanceCards = () => {
             bgGradient:
                 "from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20",
         },
-        "Family Responsibility": {
+        "Family Responsibility Leave": {
             title: "Family Responsibility",
             icon: Users,
             gradient: "from-emerald-400 to-green-500",
@@ -71,7 +71,7 @@ const LeaveBalanceCards = () => {
 
     return (
         <div className="mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 {leaveData.map((leave) => {
                     const Icon = leave.icon;
 
@@ -87,22 +87,22 @@ const LeaveBalanceCards = () => {
 
                             {/* Icon */}
                             <div
-                                className={`relative w-12 h-12 flex items-center justify-center rounded-xl bg-gradient-to-br ${leave.gradient} shadow-md group-hover:scale-105 transition-transform`}
+                                className={`relative w-10 h-10 sm:w-12 sm:h-12 shrink-0 flex items-center justify-center rounded-xl bg-gradient-to-br ${leave.gradient} shadow-md group-hover:scale-105 transition-transform`}
                             >
-                                <Icon className="w-6 h-6 text-white" />
+                                <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                             </div>
 
                             {/* Text */}
-                            <div className="flex flex-col">
-                                <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 leading-tight">
                                     {leave.title}
                                 </span>
 
-                                <span className="text-2xl font-semibold text-gray-900 dark:text-white leading-tight">
+                                <span className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white leading-tight">
                                     {leave.count}
                                 </span>
 
-                                <span className="text-xs text-gray-400">
+                                <span className="text-[10px] sm:text-xs text-gray-400">
                                     days taken
                                 </span>
                             </div>

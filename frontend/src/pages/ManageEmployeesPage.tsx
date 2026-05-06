@@ -542,8 +542,8 @@ const ManageEmployeesPage = () => {
             department.description.toLowerCase().includes(searchLower);
     });
 
-    const employeesPagination = usePagination(filteredEmployees, 10);
-    const departmentsPagination = usePagination(filteredDepartments, 10);
+    const employeesPagination = usePagination(filteredEmployees, 5);
+    const departmentsPagination = usePagination(filteredDepartments, 5);
 
     if (!token) {
         return (
