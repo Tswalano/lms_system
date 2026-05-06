@@ -95,6 +95,7 @@ export const validateToken = (token: string): TokenValidationResult => {
     }
 };
 
+
 // Type-safe function to get decoded token from context
 export const getDecodedToken = (c: Context): DecodedToken => {
     const decodedToken = c.get('decodedToken') as DecodedToken;
