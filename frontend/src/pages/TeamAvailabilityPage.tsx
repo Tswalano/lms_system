@@ -15,6 +15,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import StatsCard from "@/components/ui/StatsCard";
 import type { DateRange } from "react-day-picker";
 import { Calendar } from "@/components/ui/calendar";
+import { usePagination } from "@/hooks/usePagination";
+import { Pagination } from "@/components/ui/Pagination";
 
 interface LeaveRequest {
     id: string;
@@ -200,6 +202,8 @@ const TeamAvailabilityPage = () => {
             if (statusDiff !== 0) return statusDiff;
             return getNextLeaveDate(a) - getNextLeaveDate(b);
         });
+
+    const pagination = usePagination(filteredMembers, 5);
 
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['teamAvailability'] });
@@ -665,6 +669,7 @@ const TeamAvailabilityPage = () => {
                         </div>
                     </div>
                 ) : (
+                    <>
                     <Table>
                         <TableHeader>
                             <TableRow className="border-gray-100 dark:border-slate-700">
@@ -676,7 +681,7 @@ const TeamAvailabilityPage = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredMembers.map((member) => {
+                            {pagination.paginatedItems.map((member) => {
                                 const upcomingSummary = getUpcomingLeavesSummary(member);
 
                                 return (
@@ -973,6 +978,16 @@ const TeamAvailabilityPage = () => {
                             })}
                         </TableBody>
                     </Table>
+                    <Pagination
+                        currentPage={pagination.page}
+                        totalPages={pagination.totalPages}
+                        pageSize={pagination.pageSize}
+                        totalItems={pagination.totalItems}
+                        onPageChange={pagination.setPage}
+                        onPageSizeChange={pagination.setPageSize}
+                        pageSizeOptions={[5, 10, 15, 20, 50]}
+                    />
+                    </>
                 )}
             </div>
         </div>

@@ -509,7 +509,7 @@ const LandingPage: React.FC = (): JSX.Element => {
                             </span>
                         </div>
                         <p className="text-gray-600 dark:text-gray-400">
-                            &copy; {new Date().getFullYear()} Disraptor LMS. All rights reserved.
+                            {new Date().getFullYear()}  &copy; Disraptor Systems. All rights reserved.
                         </p>
                     </div>
                 </div>

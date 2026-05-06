@@ -12,7 +12,7 @@ interface PaginationProps {
     className?: string;
 }
 
-const DEFAULT_PAGE_SIZES = [10, 15, 20, 30, 50];
+const DEFAULT_PAGE_SIZES = [5, 10, 15, 20, 50];
 
 function getPageNumbers(current: number, total: number): (number | "...")[] {
     if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -31,7 +31,8 @@ export function Pagination({
     pageSizeOptions = DEFAULT_PAGE_SIZES,
     className,
 }: PaginationProps) {
-    if (totalItems === 0) return null;
+    const minPageSize = pageSizeOptions[0] ?? 5;
+    if (totalItems === 0 || totalItems < minPageSize) return null;
 
     const from = (currentPage - 1) * pageSize + 1;
     const to = Math.min(currentPage * pageSize, totalItems);

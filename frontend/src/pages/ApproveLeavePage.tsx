@@ -276,8 +276,8 @@ const ApproveLeavePage = () => {
 
     const pendingRequests = requests.filter(req => req.status.toLowerCase() === 'pending');
     const processedRequests = requests.filter(req => req.status.toLowerCase() !== 'pending');
-    const pendingPagination = usePagination(pendingRequests, 10);
-    const processedPagination = usePagination(processedRequests, 10);
+    const pendingPagination = usePagination(pendingRequests, 5);
+    const processedPagination = usePagination(processedRequests, 5);
 
     const processLeaveMutation = useMutation({
         mutationFn: async ({ requestId, action, comment }: { requestId: number; action: 'approve' | 'reject'; comment: string }) => {
