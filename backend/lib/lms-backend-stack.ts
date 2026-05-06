@@ -431,9 +431,9 @@ export class LmsBackendStack extends cdk.Stack {
           beforeInstall: () => [],
           beforeBundling: () => [],
           afterBundling: (inputDir: string, outputDir: string) => [
-            // Copy the generated Prisma query engine binary for Lambda (RHEL)
+            `mkdir -p ${outputDir}/lib/generated/prisma`,
             `cp ${inputDir}/lib/generated/prisma/libquery_engine-rhel-openssl-3.0.x.so.node ${outputDir}/lib/generated/prisma/libquery_engine-rhel-openssl-3.0.x.so.node`,
-            // Copy the Prisma schema
+            `mkdir -p ${outputDir}/prisma`,
             `cp ${inputDir}/prisma/schema.prisma ${outputDir}/prisma/schema.prisma`,
           ],
         },
