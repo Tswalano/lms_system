@@ -16,18 +16,22 @@ import { DatabaseService } from './helpers/databaseHeler';
 
 export const app = new Hono();
 
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3001',
+    'https://d2m4zkv512jna9.cloudfront.net',
+    'https://d1eqa63aq0eyfn.cloudfront.net',
+    'https://lms.disraptor-internal.net'
+];
 
 app.use(
     '/*',
     cors({
-        origin: [
-            'http://localhost:5173',
-            'http://localhost:3001',
-            'https://d2m4zkv512jna9.cloudfront.net', // Dev/Staging FE URL (Clodfront)
-            'd1eqa63aq0eyfn.cloudfront.net', // Production FE URL (Cloudfront)
-            'https://lms.disraptor-internal.net'
-        ],
-        allowMethods: ['*'],
+        origin: (origin) => {
+            if (!origin) return '*';
+            return allowedOrigins.includes(origin) ? origin : null;
+        },
+        allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Cookie'],
         exposeHeaders: ['Content-Length', 'X-Kuma-Revision', 'Set-Cookie'],
         credentials: true,

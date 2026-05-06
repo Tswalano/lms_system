@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,8 +8,9 @@ import {
     usePeerReviewDetail,
     useSaveResponse,
     useSubmitReview,
+    type ReviewQuestion,
 } from "@/hooks/usePerformanceReview";
-import { ArrowLeft, CheckCircle2, UserCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertCircle, CheckCircle2, Loader2, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -73,20 +75,9 @@ const PerformanceReviewPeerPage = () => {
     const reviewId = detail.reviewId;
     const gradient = getEmployeeGradient(detail.reviewee.id);
     const initials = getInitials(detail.reviewee.name);
+
+    // Count answered based on initial server data; PeerQuestionRow manages local state
     const answered = detail.responses.filter((r) => r.ratingResponse != null).length;
-
-    const getResponse = (questionId: string) =>
-        detail.responses.find((r) => r.questionId === questionId);
-
-    const handleRatingChange = (questionId: string, v: RatingValue) => {
-        if (!reviewId) return;
-        saveResponse.mutate({ reviewId, questionId, ratingResponse: v, reviewerType: "peer" });
-    };
-
-    const handleTextChange = (questionId: string, text: string) => {
-        if (!reviewId) return;
-        saveResponse.mutate({ reviewId, questionId, textResponse: text, reviewerType: "peer" });
-    };
 
     const handleSubmit = async () => {
         if (!reviewId) return;
@@ -154,34 +145,17 @@ const PerformanceReviewPeerPage = () => {
                 </div>
                 <div className="divide-y divide-gray-100 dark:divide-slate-700">
                     {detail.questions.map((q) => {
-                        const resp = getResponse(q.id);
+                        const initialResp = detail.responses.find((r) => r.questionId === q.id);
                         return (
-                            <div key={q.id} className="p-5 grid grid-cols-12 gap-4 items-start">
-                                <div className="col-span-12 md:col-span-4">
-                                    <p className="font-semibold text-gray-900 dark:text-gray-100">{q.category}</p>
-                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{q.questionText}</p>
-                                    {q.guidanceText && (
-                                        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500 italic">{q.guidanceText}</p>
-                                    )}
-                                </div>
-                                <div className="col-span-12 md:col-span-3">
-                                    <RatingScale
-                                        size="sm"
-                                        disabled={submitted || !reviewId}
-                                        value={(resp?.ratingResponse as RatingValue) ?? null}
-                                        onChange={(v) => handleRatingChange(q.id, v)}
-                                    />
-                                </div>
-                                <div className="col-span-12 md:col-span-5">
-                                    <Textarea
-                                        disabled={submitted || !reviewId}
-                                        placeholder="Written feedback…"
-                                        value={resp?.textResponse ?? ""}
-                                        onChange={(e) => handleTextChange(q.id, e.target.value)}
-                                        className="min-h-[110px] text-sm rounded-xl border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:ring-blue-500/30 focus-visible:border-blue-400 dark:focus-visible:border-blue-500 resize-none disabled:opacity-60 disabled:cursor-not-allowed"
-                                    />
-                                </div>
-                            </div>
+                            <PeerQuestionRow
+                                key={q.id}
+                                question={q}
+                                initialRating={(initialResp?.ratingResponse as RatingValue) ?? null}
+                                initialText={initialResp?.textResponse ?? ""}
+                                disabled={submitted || !reviewId}
+                                reviewId={reviewId ?? ""}
+                                saveResponse={saveResponse}
+                            />
                         );
                     })}
                 </div>
@@ -206,6 +180,119 @@ const PerformanceReviewPeerPage = () => {
                         <CheckCircle2 className="h-4 w-4 ml-1" />
                     </Button>
                 )}
+            </div>
+        </div>
+    );
+};
+
+// ─── PeerQuestionRow ──────────────────────────────────────────────────────────
+// Maintains local state so the textarea is never reset by server refetches.
+// Rating saves immediately; text is debounced (800 ms) and flushed on blur.
+
+const PeerQuestionRow = ({
+    question,
+    initialRating,
+    initialText,
+    disabled,
+    reviewId,
+    saveResponse,
+}: {
+    question: ReviewQuestion;
+    initialRating: RatingValue;
+    initialText: string;
+    disabled: boolean;
+    reviewId: string;
+    saveResponse: ReturnType<typeof useSaveResponse>;
+}) => {
+    // Lazy initialisers: run only once on mount (parent never renders this
+    // component until detail is loaded), so prop changes from refetches are
+    // intentionally ignored — local state is the single source of truth.
+    const [rating, setRating] = useState<RatingValue>(() => initialRating);
+    const [text, setText] = useState(() => initialText);
+    const [saveStatus, setSaveStatus] = useState<"idle" | "typing" | "saving" | "saved" | "error">("idle");
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); }, []);
+
+    const save = (ratingVal: RatingValue, textVal: string) => {
+        setSaveStatus("saving");
+        saveResponse.mutate(
+            { reviewId, questionId: question.id, reviewerType: "peer", ratingResponse: ratingVal, textResponse: textVal },
+            {
+                onSuccess: () => { setSaveStatus("saved"); setTimeout(() => setSaveStatus("idle"), 2000); },
+                onError: () => setSaveStatus("error"),
+            }
+        );
+    };
+
+    // Always save both values together — same pattern as SelfQuestionRow
+    const handleRatingChange = (v: RatingValue) => {
+        setRating(v);
+        // Flush any pending text debounce so we don't fire a stale text-only save after this
+        if (debounceTimer.current) { clearTimeout(debounceTimer.current); debounceTimer.current = null; }
+        save(v, text);
+    };
+
+    const handleTextChange = (t: string) => {
+        setText(t);
+        setSaveStatus("typing");
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => save(rating, t), 800);
+    };
+
+    const handleTextBlur = (t: string) => {
+        if (debounceTimer.current) { clearTimeout(debounceTimer.current); debounceTimer.current = null; }
+        if (saveStatus !== "saved" && saveStatus !== "saving") save(rating, t);
+    };
+
+    return (
+        <div className="p-5 grid grid-cols-12 gap-4 items-start">
+            <div className="col-span-12 md:col-span-4">
+                <p className="font-semibold text-gray-900 dark:text-gray-100">{question.category}</p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{question.questionText}</p>
+                {question.guidanceText && (
+                    <p className="mt-1 text-xs text-gray-400 dark:text-gray-500 italic">{question.guidanceText}</p>
+                )}
+            </div>
+            <div className="col-span-12 md:col-span-3">
+                <RatingScale
+                    size="sm"
+                    disabled={disabled}
+                    value={rating}
+                    onChange={handleRatingChange}
+                />
+            </div>
+            <div className="col-span-12 md:col-span-5 space-y-1">
+                <Textarea
+                    disabled={disabled}
+                    placeholder="Written feedback…"
+                    value={text}
+                    onChange={(e) => handleTextChange(e.target.value)}
+                    onBlur={(e) => handleTextBlur(e.target.value)}
+                    className="min-h-[110px] text-sm rounded-xl border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:ring-blue-500/30 focus-visible:border-blue-400 dark:focus-visible:border-blue-500 resize-none disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+                <div className="flex justify-end h-4">
+                    {saveStatus === "typing" && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />Typing…
+                        </span>
+                    )}
+                    {saveStatus === "saving" && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-blue-500">
+                            <Loader2 className="w-3 h-3 animate-spin" />Saving…
+                        </span>
+                    )}
+                    {saveStatus === "saved" && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle className="w-3 h-3" />Saved
+                        </span>
+                    )}
+                    {saveStatus === "error" && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-red-500">
+                            <AlertCircle className="w-3 h-3" />Save failed
+                        </span>
+                    )}
+                </div>
             </div>
         </div>
     );

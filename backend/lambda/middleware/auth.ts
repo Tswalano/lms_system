@@ -29,6 +29,13 @@ interface AuthVariables {
     cognitoUser?: any;
 }
 
+export interface TokenValidationResult {
+    valid: boolean;
+    expired: boolean;
+    decoded?: DecodedToken;
+    error?: string;
+}
+
 // Get token from cookie or Authorization header
 export const getToken = (c: any): string | null => {
     // First try to get from cookie
@@ -46,26 +53,45 @@ export const getToken = (c: any): string | null => {
 };
 
 // Simple token validation (decode only, no signature verification)
-export const validateToken = (token: string): DecodedToken | null => {
+export const validateToken = (token: string): TokenValidationResult => {
     try {
         const decoded = jwt.decode(token) as DecodedToken;
 
-        if (!decoded) return null;
-
-        const now = Math.floor(Date.now() / 1000);
-        if (decoded.exp && decoded.exp < now) {
-            console.log('[Auth] Token expired. Exp:', decoded.exp, 'Now:', now);
-            throw new Error("Token expired");
+        if (!decoded) {
+            return { valid: false, expired: false, error: "Could not decode token" };
         }
 
-        if (!decoded['sub']) return null;
-        if (decoded.token_use !== 'access' && decoded.token_use !== 'id') return null;
+        const now = Math.floor(Date.now() / 1000);
 
-        return decoded;
+        // Expiry check (DON'T THROW)
+        if (decoded.exp && decoded.exp < now) {
+            console.log('[Auth] Token expired. Exp:', decoded.exp, 'Now:', now);
+
+            return {
+                valid: false,
+                expired: true,
+                decoded, // still useful for refresh flows
+            };
+        }
+
+        // Required fields
+        if (!decoded.sub) {
+            return { valid: false, expired: false, error: "Missing 'sub'" };
+        }
+
+        if (decoded.token_use !== 'access' && decoded.token_use !== 'id') {
+            return { valid: false, expired: false, error: "Invalid token_use" };
+        }
+
+        return {
+            valid: true,
+            expired: false,
+            decoded,
+        };
 
     } catch (error) {
         console.error('Token validation error:', error);
-        return null;
+        return { valid: false, expired: false, error: "Invalid token" };
     }
 };
 
@@ -172,23 +198,34 @@ export const authMiddleware = (options: { fetchCognitoUser?: boolean } = {}) => 
                 }, 401);
             }
 
-            // Validate token structure and expiration
-            const decodedToken = validateToken(token);
+            const result = validateToken(token);
 
-            // Store token and decoded info in context
-            c.set('accessToken', token);
-            c.set('decodedToken', decodedToken);
+            // ✅ VALID TOKEN
+            if (result.valid && result.decoded) {
+                c.set('accessToken', token);
+                c.set('decodedToken', result.decoded);
 
-            // Optionally fetch full user data from Cognito
-            if (options.fetchCognitoUser) {
-                console.warn('fetchCognitoUser is enabled but using ID token. Most user data is already available in the token. Consider using the helper functions instead.');
-
-                // Skip the Cognito API call since we're using an ID token
-                // All user data is already available in the decoded token
-                // Use getUserFirstName(), getUserLastName(), getUserRole(), etc. instead
+                await next();
+                return;
             }
 
-            await next();
+            // 🔁 EXPIRED TOKEN → let frontend refresh
+            if (result.expired) {
+                return c.json({
+                    code: "TOKEN_EXPIRED",
+                    message: "Access token expired",
+                    error: true,
+                    payload: null
+                }, 401);
+            }
+
+            // ❌ INVALID TOKEN
+            return c.json({
+                code: "INVALID_TOKEN",
+                message: result.error || "Invalid token",
+                error: true,
+                payload: null
+            }, 401);
 
         } catch (error) {
             console.error('Auth middleware error:', error);
@@ -209,20 +246,23 @@ export const optionalAuthMiddleware = () => {
             const token = getToken(c);
 
             if (token) {
-                try {
-                    const decodedToken = validateToken(token);
+                const result = validateToken(token);
+
+                if (result.valid && result.decoded) {
                     c.set('accessToken', token);
-                    c.set('decodedToken', decodedToken);
-                } catch (error) {
-                    // Token exists but is invalid - just continue without setting user
-                    console.warn('Invalid token in optional auth:', error);
+                    c.set('decodedToken', result.decoded);
+                } else {
+                    // Don't fail, just log
+                    console.warn('Optional auth skipped:', {
+                        expired: result.expired,
+                        error: result.error
+                    });
                 }
             }
 
             await next();
 
         } catch (error) {
-            // In optional auth, we don't fail - just continue
             console.warn('Optional auth middleware error:', error);
             await next();
         }

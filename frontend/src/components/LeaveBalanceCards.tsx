@@ -29,7 +29,7 @@ const LeaveBalanceCards = () => {
                 "from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20",
         },
         "Paternity Leave": {
-            title: "Paternity Leave", // ✅ FIXED
+            title: "Paternity Leave",
             icon: Baby,
             gradient: "from-yellow-400 to-amber-500",
             bgGradient:

@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Moon, Sun, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, Calendar, Settings, Sparkles, ClipboardCheck } from "lucide-react";
+import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, History, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, Calendar, Settings, Sparkles, ClipboardCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -39,7 +38,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     setIsCollapsed
 }) => {
     const location = useLocation();
-    const { theme, toggleTheme } = useTheme();
     const { user, logout } = useAuth();
     const isLgUp = useMediaQuery('(min-width: 1024px)');
     const [userRole] = useState<'admin' | 'user'>(user?.role === 'admin' ? 'admin' : 'user');
@@ -56,12 +54,12 @@ const Sidebar: React.FC<SidebarProps> = ({
             defaultOpen: true,
             items: [
                 { id: "dashboard", label: "Dashboard", icon: Home, path: "/" },
-                { id: "team", label: "Team Calendar", icon: Calendar, path: "/team-availability" },
-                { id: "apply", label: "Apply for Leave", icon: FileText, path: "/apply-leave" },
-                { id: "history", label: "Leave Requests", icon: Clock, path: "/leave-history" },
+                { id: "team", label: "Team Availability", icon: Calendar, path: "/team-availability" },
+                { id: "apply", label: "Request Leave", icon: FileText, path: "/apply-leave" },
+                { id: "history", label: "My Leave History", icon: Clock, path: "/leave-history" },
                 ...(features.employeeDocuments ? [
-                    { id: "employee-docs", label: "Employee Handbook", icon: FileCheck2, path: "/employee-document" },
-                    { id: "performance", label: "Performance Review", icon: Sparkles, path: "/performance-review" }
+                    { id: "employee-docs", label: "Documents", icon: FileCheck2, path: "/employee-document" },
+                    { id: "performance", label: "My Reviews", icon: Sparkles, path: "/performance-review" }
                 ] : []),
             ]
         },
@@ -70,11 +68,12 @@ const Sidebar: React.FC<SidebarProps> = ({
             label: 'Administration',
             icon: Settings,
             items: [
-                { id: "approve", label: "Pending Approvals", icon: CheckCircle, path: "/approve-leave" },
-                { id: "manage", label: "Manage Employees", icon: Users, path: "/manage-employees" },
+                { id: "approve", label: "Leave Approvals", icon: CheckCircle, path: "/approve-leave" },
+                { id: "manage", label: "Team Management", icon: Users, path: "/manage-employees" },
                 ...(features.adminDocuments ? [
-                    { id: "performance-admin", label: "Manage Reviews", icon: ClipboardCheck, path: "/performance-review-admin" },
-                    { id: "admin-docs", label: "Admin Documents", icon: ArchiveRestore, path: "/admin-document" }
+                    { id: "performance-admin", label: "Performance Reviews", icon: ClipboardCheck, path: "/performance-review-admin" },
+                    { id: "performance-history", label: "Review History", icon: History, path: "/performance-review-history" },
+                    { id: "admin-docs", label: "Document Library", icon: ArchiveRestore, path: "/admin-document" }
                 ] : []),
             ]
         }] : []),
@@ -98,7 +97,9 @@ const Sidebar: React.FC<SidebarProps> = ({
         } else {
             // Otherwise, determine which section should be active based on current route
             const currentSection = menuSections.find(section =>
-                section.items.some(item => item.path === location.pathname)
+                section.items.some(item =>
+                    location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+                )
             );
 
             if (currentSection) {
@@ -109,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     }, [location.pathname, menuSections]);
 
     const isActive = (path: string) => {
-        return location.pathname === path;
+        return location.pathname === path || location.pathname.startsWith(path + '/');
     };
 
     const getInitials = (firstName: string | undefined, lastName: string | undefined) => {
@@ -128,7 +129,9 @@ const Sidebar: React.FC<SidebarProps> = ({
         // When expanding from collapsed state, ensure at least one section is open
         if (!newCollapseState && !activeSection) {
             const currentSection = menuSections.find(section =>
-                section.items.some(item => item.path === location.pathname)
+                section.items.some(item =>
+                    location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+                )
             ) || menuSections[0];
 
             if (currentSection) {
@@ -330,59 +333,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     "flex-shrink-0 p-4 border-t border-gray-100/50 dark:border-slate-700/50 space-y-3",
                     isDesktopCollapsed ? "px-2" : ""
                 )}>
-                    {/* Theme Toggle */}
-                    {isDesktopCollapsed ? (
-                        <button
-                            onClick={toggleTheme}
-                            className="w-12 h-12 mx-auto flex items-center justify-center rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-800 dark:to-slate-700 shadow-lg border border-gray-200 dark:border-slate-600 hover:shadow-xl hover:scale-105 transition-all duration-300"
-                            title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-                        >
-                            <div className="relative w-5 h-5">
-                                <Sun className={cn(
-                                    "w-5 h-5 text-yellow-500 dark:text-yellow-400 absolute inset-0 transition-all duration-500",
-                                    theme === 'light' ? "rotate-0 opacity-100" : "rotate-180 opacity-0"
-                                )} />
-                                <Moon className={cn(
-                                    "w-5 h-5 text-blue-500 dark:text-blue-400 absolute inset-0 transition-all duration-500",
-                                    theme === 'dark' ? "rotate-0 opacity-100" : "rotate-180 opacity-0"
-                                )} />
-                            </div>
-                        </button>
-                    ) : (
-                        <div className="relative bg-gradient-to-r from-gray-100 to-gray-200 dark:from-slate-800 dark:to-slate-700 p-1 rounded-2xl shadow-inner border border-gray-200 dark:border-slate-600">
-                            <div className={cn(
-                                "absolute top-1 bottom-1 bg-white dark:bg-slate-600 rounded-xl shadow-lg transition-all duration-300 ease-out",
-                                theme === 'light' ? "left-1 right-1/2" : "left-1/2 right-1"
-                            )} />
-                            <div className="relative grid grid-cols-2">
-                                <button
-                                    onClick={() => theme !== 'light' && toggleTheme()}
-                                    className={cn(
-                                        "flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300",
-                                        theme === 'light'
-                                            ? "text-yellow-600 dark:text-yellow-400"
-                                            : "text-gray-500 dark:text-gray-400 hover:text-yellow-500"
-                                    )}
-                                >
-                                    <Sun className="w-4 h-4" />
-                                    Light
-                                </button>
-                                <button
-                                    onClick={() => theme !== 'dark' && toggleTheme()}
-                                    className={cn(
-                                        "flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300",
-                                        theme === 'dark'
-                                            ? "text-blue-600 dark:text-blue-400"
-                                            : "text-gray-500 dark:text-gray-400 hover:text-blue-500"
-                                    )}
-                                >
-                                    <Moon className="w-4 h-4" />
-                                    Dark
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Logout Button */}
                     {isDesktopCollapsed ? (
                         <button

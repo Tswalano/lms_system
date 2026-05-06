@@ -369,6 +369,7 @@ model review_questions {
   questionType question_type
   phase        review_phase
   reviewType   question_review_type @default(self_review)
+  targetRole   String?              @db.VarChar(50)
   weight       Decimal?             @db.Decimal(5, 2)
   displayOrder Int                  @default(0)
   isActive     Boolean              @default(true)

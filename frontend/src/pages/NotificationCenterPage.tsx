@@ -23,6 +23,7 @@ import {
     X
 } from 'lucide-react';
 import { toCamelCase } from '@/lib/helper';
+import StatsCard from "@/components/ui/StatsCard";
 
 // Type definitions matching API response
 interface Notification {
@@ -349,69 +350,34 @@ const NotificationCenterPage: React.FC = () => {
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                    {
-                        label: 'Total',
-                        value: stats.total,
-                        icon: Inbox,
-                        gradient: 'from-slate-500 to-gray-600',
-                        borderColor: 'border-l-slate-500 dark:border-l-slate-400',
-                        hoverBg: 'hover:bg-slate-50/30 dark:hover:bg-slate-900/10',
-                        orbColor: 'bg-slate-500/10 group-hover:bg-slate-500/20',
-                        subLabel: 'all notifications'
-                    },
-                    {
-                        label: 'Unread',
-                        value: stats.unread,
-                        icon: Bell,
-                        gradient: 'from-blue-500 to-cyan-500',
-                        borderColor: 'border-l-blue-500 dark:border-l-blue-400',
-                        hoverBg: 'hover:bg-blue-50/30 dark:hover:bg-blue-900/10',
-                        orbColor: 'bg-blue-500/10 group-hover:bg-blue-500/20',
-                        subLabel: 'need attention'
-                    },
-                    {
-                        label: 'Urgent',
-                        value: stats.urgent,
-                        icon: AlertTriangle,
-                        gradient: 'from-red-500 to-rose-500',
-                        borderColor: 'border-l-red-500 dark:border-l-red-400',
-                        hoverBg: 'hover:bg-red-50/30 dark:hover:bg-red-900/10',
-                        orbColor: 'bg-red-500/10 group-hover:bg-red-500/20',
-                        subLabel: 'high priority'
-                    },
-                    {
-                        label: 'Archived',
-                        value: stats.archived,
-                        icon: ArchiveX,
-                        gradient: 'from-gray-400 to-slate-500',
-                        borderColor: 'border-l-gray-400 dark:border-l-gray-500',
-                        hoverBg: 'hover:bg-gray-50/30 dark:hover:bg-gray-900/10',
-                        orbColor: 'bg-gray-500/10 group-hover:bg-gray-500/20',
-                        subLabel: 'stored away'
-                    }
-                ].map((stat, index) => (
-                    <div
-                        key={index}
-                        className={`group relative bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden border-l-4 ${stat.borderColor} ${stat.hoverBg} hover:shadow-lg hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-300 cursor-default`}
-                    >
-                        <div className={`absolute -top-6 -right-6 w-24 h-24 rounded-full ${stat.orbColor} transition-all duration-500 group-hover:scale-[2]`} />
-                        <div className="p-5 relative">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">{stat.label}</p>
-                                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                                        {countsLoading ? <Loader2 className="w-5 h-5 animate-spin mt-1" /> : Number(stat.value) || 0}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{stat.subLabel}</p>
-                                </div>
-                                <div className={`w-11 h-11 bg-gradient-to-br ${stat.gradient} rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300`}>
-                                    <stat.icon className="w-5 h-5 text-white" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                ))}
+                <StatsCard
+                    label="Total"
+                    value={countsLoading ? '...' : Number(stats.total) || 0}
+                    subtitle="all notifications"
+                    tone="indigo"
+                    icon={<Inbox className="w-5 h-5" />}
+                />
+                <StatsCard
+                    label="Unread"
+                    value={countsLoading ? '...' : Number(stats.unread) || 0}
+                    subtitle="need attention"
+                    tone="blue"
+                    icon={<Bell className="w-5 h-5" />}
+                />
+                <StatsCard
+                    label="Urgent"
+                    value={countsLoading ? '...' : Number(stats.urgent) || 0}
+                    subtitle="high priority"
+                    tone="red"
+                    icon={<AlertTriangle className="w-5 h-5" />}
+                />
+                <StatsCard
+                    label="Archived"
+                    value={countsLoading ? '...' : Number(stats.archived) || 0}
+                    subtitle="stored away"
+                    tone="violet"
+                    icon={<ArchiveX className="w-5 h-5" />}
+                />
             </div>
 
             {/* Controls */}

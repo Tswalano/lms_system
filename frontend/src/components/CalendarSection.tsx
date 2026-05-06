@@ -16,6 +16,8 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { toast } from "sonner";
 
 const localizer = momentLocalizer(moment);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const BigCalendar = Calendar as React.ComponentType<any>;
 const sastDateFormatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Africa/Johannesburg',
     year: 'numeric',
@@ -44,6 +46,19 @@ interface LeaveEvent extends Event {
     };
 }
 
+interface BirthdayPerson {
+    userId: number;
+    name: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    jobTitle: string;
+    profilePicture?: string;
+    age: number;
+    isToday: boolean;
+    avatar: string;
+}
+
 interface BirthdayEvent extends Event {
     id: string;
     title: string;
@@ -66,6 +81,7 @@ interface BirthdayEvent extends Event {
         color: string;
         bgColor: string;
         avatar: string;
+        groupedPeople?: BirthdayPerson[];
     };
 }
 
@@ -212,7 +228,7 @@ const CalendarSection = () => {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [, setShowMoreEvents] = useState<{ events: CalendarEvent[], date: Date, slot: Date } | null>(null);
+    // const [, setShowMoreEvents] = useState<{ events: CalendarEvent[], date: Date, slot: Date } | null>(null);
     const [selectedSlotRange, setSelectedSlotRange] = useState<SelectedSlotRange | null>(null);
     const [dragPreviewRange, setDragPreviewRange] = useState<SelectedSlotRange | null>(null);
     const [dragAnchorDate, setDragAnchorDate] = useState<Date | null>(null);
@@ -402,42 +418,73 @@ const CalendarSection = () => {
 
         events.push(...Array.from(uniqueLeaveEvents.values()));
 
-        // Convert birthdays to events
+        // Group birthdays by date so multiple people sharing a birthday become one event
+        const birthdaysByDate = new Map<string, Birthday[]>();
         apiData.data.birthdays.forEach((birthday) => {
-            const birthdayDate = new Date(birthday.birthdayDate);
-            const avatar = getAvatar(birthday.firstName.toUpperCase(), birthday.lastName.toUpperCase());
+            const dateKey = birthday.birthdayDate.slice(0, 10);
+            if (!birthdaysByDate.has(dateKey)) birthdaysByDate.set(dateKey, []);
+            birthdaysByDate.get(dateKey)!.push(birthday);
+        });
+
+        birthdaysByDate.forEach((birthdays) => {
+            const primary = birthdays[0];
+            const birthdayDate = new Date(primary.birthdayDate);
+            const avatar = getAvatar(primary.firstName.toUpperCase(), primary.lastName.toUpperCase());
             const dayOfWeek = birthdayDate.getDay();
-            const isObserved = dayOfWeek === 6 || dayOfWeek === 0; // Saturday or Sunday
+            const isObserved = dayOfWeek === 6 || dayOfWeek === 0;
             let observedDate: string | undefined;
             if (isObserved) {
                 const friday = new Date(birthdayDate);
-                // Saturday → back 1 day; Sunday → back 2 days
                 friday.setDate(friday.getDate() - (dayOfWeek === 6 ? 1 : 2));
                 observedDate = moment(friday).format('MMMM Do');
             }
 
+            const groupedPeople: BirthdayPerson[] = birthdays.map((b) => ({
+                userId: b.userId,
+                name: b.name,
+                firstName: b.firstName,
+                lastName: b.lastName,
+                email: b.email,
+                jobTitle: b.jobTitle,
+                profilePicture: b.profilePicture,
+                age: b.age,
+                isToday: b.isToday,
+                avatar: getAvatar(b.firstName.toUpperCase(), b.lastName.toUpperCase()),
+            }));
+
+            // Build a combined title for multiple birthdays
+            let title: string;
+            if (birthdays.length === 1) {
+                title = `🎂 ${primary.name} (${primary.age})`;
+            } else if (birthdays.length === 2) {
+                title = `🎂 Happy Birthday ${primary.firstName} & ${birthdays[1].firstName}`;
+            } else {
+                title = `🎂 Happy Birthday ${primary.firstName} & ${birthdays.length - 1} others`;
+            }
+
             const birthdayEvent: BirthdayEvent = {
-                id: birthday.id,
-                title: `🎂 ${birthday.name} (${birthday.age})`,
+                id: primary.id,
+                title,
                 start: birthdayDate,
                 end: birthdayDate,
                 allDay: true,
                 resource: {
-                    userId: birthday.userId,
-                    name: birthday.name,
-                    firstName: birthday.firstName,
-                    lastName: birthday.lastName,
-                    email: birthday.email,
-                    jobTitle: birthday.jobTitle,
-                    profilePicture: birthday.profilePicture,
-                    age: birthday.age,
-                    isToday: birthday.isToday,
+                    userId: primary.userId,
+                    name: primary.name,
+                    firstName: primary.firstName,
+                    lastName: primary.lastName,
+                    email: primary.email,
+                    jobTitle: primary.jobTitle,
+                    profilePicture: primary.profilePicture,
+                    age: primary.age,
+                    isToday: primary.isToday,
                     isObserved,
                     observedDate,
                     type: 'birthday',
                     color: 'text-pink-600',
                     bgColor: 'bg-pink-100',
-                    avatar: avatar
+                    avatar,
+                    groupedPeople: birthdays.length > 1 ? groupedPeople : undefined,
                 }
             };
 
@@ -498,9 +545,9 @@ const CalendarSection = () => {
     };
 
     // Handle "show more" popup
-    const handleShowMore = (events: CalendarEvent[], date: Date) => {
-        setShowMoreEvents({ events, date, slot: date });
-    };
+    // const handleShowMore = (events: CalendarEvent[], date: Date) => {
+    //     setShowMoreEvents({ events, date, slot: date });
+    // };
 
     const handleNavigate = useCallback((newDate: Date) => {
         setDragPreviewRange(null);
@@ -707,68 +754,50 @@ const CalendarSection = () => {
 
     const eventStyleGetter = (event: CalendarEvent) => {
         const resource = event.resource;
-        const isDarkMode = document.documentElement.classList.contains('dark');
+        const isDark = document.documentElement.classList.contains('dark');
 
-        // Special styling for birthdays
         if ('type' in resource && resource.type === 'birthday') {
-            const isToday = true; //resource.isToday;
+            const bdRes = resource as BirthdayEvent['resource'];
             return {
                 style: {
-                    backgroundColor: isToday ? '#fce7f3' : '#fdf2f8',
-                    border: isToday ? '3px solid #ec4899' : '2px solid #f472b6',
-                    borderRadius: '8px',
-                    color: isDarkMode ? '#1f2937' : '#be185d',
-                    padding: '4px 8px',
-                    margin: '1px',
-                    fontWeight: '600',
-                    fontSize: '11px',
-                    boxShadow: isToday ? '0 4px 12px rgba(236, 72, 153, 0.3)' : '0 2px 8px rgba(244, 114, 182, 0.2)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    minHeight: '24px',
-                    overflow: 'hidden',
-                    animation: isToday ? 'birthday-glow 2s ease-in-out infinite alternate' : 'none'
+                    backgroundColor: isDark ? '#500724' : '#fdf2f8',
+                    border: `1.5px solid ${isDark ? '#be185d' : '#f9a8d4'}`,
+                    borderLeft: `3px solid #ec4899`,
+                    color: isDark ? '#fbcfe8' : '#be185d',
+                    borderRadius: 6,
+                    animation: bdRes.isToday ? 'birthday-glow 2s ease-in-out infinite alternate' : 'none',
                 }
             };
         }
 
-        // Original leave event styling
-        const colorMap: { [key: string]: { bg: string; border: string; text: string; darkText: string } } = {
-            'bg-red-100': { bg: '#fef2f2', border: '#f87171', text: '#dc2626', darkText: '#1f2937' },
-            'bg-orange-100': { bg: '#fff7ed', border: '#fb923c', text: '#ea580c', darkText: '#1f2937' },
-            'bg-blue-100': { bg: '#eff6ff', border: '#60a5fa', text: '#2563eb', darkText: '#1f2937' },
-            'bg-green-100': { bg: '#f0fdf4', border: '#4ade80', text: '#16a34a', darkText: '#1f2937' },
-            'bg-yellow-100': { bg: '#fefce8', border: '#facc15', text: '#ca8a04', darkText: '#1f2937' },
-            'bg-cyan-100': { bg: '#ecfeff', border: '#22d3ee', text: '#0891b2', darkText: '#1f2937' },
-            'bg-amber-100': { bg: '#fffbeb', border: '#fbbf24', text: '#d97706', darkText: '#1f2937' },
-            'bg-sky-100': { bg: '#f0f9ff', border: '#38bdf8', text: '#0284c7', darkText: '#1f2937' },
-            'bg-purple-100': { bg: '#faf5ff', border: '#a855f7', text: '#7c3aed', darkText: '#1f2937' },
-            'bg-indigo-100': { bg: '#eef2ff', border: '#818cf8', text: '#4f46e5', darkText: '#1f2937' }
+        // Map bgColor → solid palette
+        const paletteMap: Record<string, { bg: string; bgDark: string; accent: string; textLight: string; textDark: string }> = {
+            'bg-blue-100': { bg: '#eff6ff', bgDark: '#1e3a5f', accent: '#3b82f6', textLight: '#1d4ed8', textDark: '#93c5fd' },
+            'bg-red-100': { bg: '#fef2f2', bgDark: '#3b1219', accent: '#ef4444', textLight: '#b91c1c', textDark: '#fca5a5' },
+            'bg-green-100': { bg: '#f0fdf4', bgDark: '#14362a', accent: '#22c55e', textLight: '#15803d', textDark: '#86efac' },
+            'bg-purple-100': { bg: '#faf5ff', bgDark: '#2e1a4a', accent: '#a855f7', textLight: '#7e22ce', textDark: '#d8b4fe' },
+            'bg-cyan-100': { bg: '#ecfeff', bgDark: '#0e3347', accent: '#06b6d4', textLight: '#0e7490', textDark: '#67e8f9' },
+            'bg-indigo-100': { bg: '#eef2ff', bgDark: '#1e2b5e', accent: '#6366f1', textLight: '#4338ca', textDark: '#a5b4fc' },
+            'bg-yellow-100': { bg: '#fefce8', bgDark: '#3b2f08', accent: '#eab308', textLight: '#a16207', textDark: '#fde047' },
+            'bg-orange-100': { bg: '#fff7ed', bgDark: '#3b1f08', accent: '#f97316', textLight: '#c2410c', textDark: '#fdba74' },
+            'bg-emerald-100': { bg: '#ecfdf5', bgDark: '#0d3326', accent: '#10b981', textLight: '#047857', textDark: '#6ee7b7' },
+            'bg-violet-100': { bg: '#f5f3ff', bgDark: '#281545', accent: '#8b5cf6', textLight: '#6d28d9', textDark: '#c4b5fd' },
+            'bg-sky-100': { bg: '#f0f9ff', bgDark: '#0d3050', accent: '#0ea5e9', textLight: '#0369a1', textDark: '#7dd3fc' },
+            'bg-rose-100': { bg: '#fff1f2', bgDark: '#3b1020', accent: '#f43f5e', textLight: '#be123c', textDark: '#fda4af' },
+            'bg-amber-100': { bg: '#fffbeb', bgDark: '#3b2900', accent: '#f59e0b', textLight: '#b45309', textDark: '#fcd34d' },
+            'bg-lime-100': { bg: '#f7fee7', bgDark: '#1e3310', accent: '#84cc16', textLight: '#4d7c0f', textDark: '#bef264' },
+            'bg-pink-100': { bg: '#fdf2f8', bgDark: '#3b1030', accent: '#ec4899', textLight: '#be185d', textDark: '#f9a8d4' },
         };
 
-        const colors = colorMap[resource.bgColor] || { bg: '#f3f4f6', border: '#9ca3af', text: '#374151', darkText: '#1f2937' };
+        const p = paletteMap[resource.bgColor] ?? { bg: '#f8fafc', bgDark: '#1e293b', accent: '#94a3b8', textLight: '#475569', textDark: '#94a3b8' };
 
         return {
             style: {
-                backgroundColor: colors.bg,
-                border: `2px solid ${colors.border}`,
-                borderRadius: '8px',
-                color: isDarkMode ? colors.darkText : colors.text,
-                padding: '4px 8px',
-                margin: '1px',
-                fontWeight: '600',
-                fontSize: '11px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                minHeight: '24px',
-                overflow: 'hidden'
+                backgroundColor: isDark ? p.bgDark : p.bg,
+                borderLeft: `3px solid ${p.accent}`,
+                border: `1px solid ${p.accent}40`,
+                color: isDark ? p.textDark : p.textLight,
+                borderRadius: 6,
             }
         };
     };
@@ -853,35 +882,41 @@ const CalendarSection = () => {
     const EventComponent = ({ event }: { event: CalendarEvent }) => {
         const resource = event.resource;
 
-        // Birthday event component
         if ('type' in resource && resource.type === 'birthday') {
+            const bdRes = resource as BirthdayEvent['resource'];
+            let displayName: string;
+            if (bdRes.groupedPeople && bdRes.groupedPeople.length > 1) {
+                const firstNames = bdRes.groupedPeople.map((p) => p.firstName);
+                displayName = firstNames.length === 2
+                    ? `${firstNames[0]} & ${firstNames[1]}`
+                    : `${firstNames[0]} & ${firstNames.length - 1} others`;
+            } else {
+                displayName = bdRes.name;
+            }
             return (
-                <div className="flex items-center gap-1 w-full">
-                    <span className="text-sm flex-shrink-0">
-                        🎂
-                    </span>
-                    <span className="text-xs font-medium truncate">
-                        {resource.name}
+                <div className="flex items-center gap-1 w-full min-w-0">
+                    <span style={{ fontSize: 12 }}>🎂</span>
+                    <span className="truncate text-[11px] font-semibold leading-tight">
+                        Happy Birthday {displayName}
                     </span>
                 </div>
             );
         }
 
-        // Leave event component
-        const duration = (resource as LeaveEvent['resource']).duration;
+        const leaveResource = resource as LeaveEvent['resource'];
+        // Show initials chip + first name only (saves horizontal space)
+        // const firstName = resource.name.split(' ')[0];
+
         return (
-            <div className="flex items-center gap-1 w-full">
-                <span className="text-sm flex-shrink-0">
-                    {resource.avatar}
+            <div className="flex items-center gap-1.5 w-full min-w-0">
+                <span className="truncate text-[11px] font-semibold leading-tight flex-1 min-w-0">
+                    {resource.name}
+                    {' '}
+                    <span className="font-normal opacity-80">{leaveResource.type}</span>
                 </span>
-                <span className="text-xs font-medium truncate">
-                    {event.title}
-                    {duration >= 2 && (
-                        <span className="ml-1 text-xs font-bold">
-                            ({duration}d)
-                        </span>
-                    )}
-                </span>
+                {leaveResource.duration >= 2 && (
+                    <span className="flex-shrink-0 text-[9px] font-bold opacity-70">{leaveResource.duration}d</span>
+                )}
             </div>
         );
     };
@@ -946,7 +981,7 @@ const CalendarSection = () => {
     };
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
             <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-slate-700">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-2 sm:gap-4">
@@ -1002,7 +1037,7 @@ const CalendarSection = () => {
                         </div>
                     </div>
                 ) : (
-                    <div className="h-[500px] sm:h-[800px] relative">
+                    <div className="relative w-full" style={{ minHeight: 960 }}>
                         {/* Blocking overlay only on initial load — navigation uses keepPreviousData instead */}
                         {isLoading && (
                             <div className="absolute inset-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
@@ -1016,13 +1051,12 @@ const CalendarSection = () => {
                         )}
 
                         <CalendarDragContext.Provider value={dragContextValue}>
-                            <Calendar
+                            <BigCalendar
                                 localizer={localizer}
                                 events={deferredEvents}
                                 startAccessor="start"
                                 endAccessor="end"
                                 onSelectEvent={handleSelectEvent}
-                                onShowMore={handleShowMore}
                                 onNavigate={handleNavigate}
                                 date={currentDate}
                                 selectable
@@ -1033,10 +1067,11 @@ const CalendarSection = () => {
                                 defaultView="month"
                                 popup={true}
                                 popupOffset={10}
+                                style={{ height: 960 }}
                                 formats={{
                                     monthHeaderFormat: 'MMMM YYYY',
                                     dayHeaderFormat: 'ddd',
-                                    dayRangeHeaderFormat: ({ start, end }) =>
+                                    dayRangeHeaderFormat: ({ start, end }: { start: Date; end: Date }) =>
                                         `${moment(start).format('MMM DD')} - ${moment(end).format('MMM DD')}`,
                                 }}
                                 components={{
@@ -1056,7 +1091,7 @@ const CalendarSection = () => {
             {/* Enhanced Custom Modal for both leave and birthday events */}
             {isDialogOpen && selectedEvent && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden transform animate-in zoom-in-95 duration-300 border border-gray-200/50 dark:border-slate-600/50">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] transform animate-in zoom-in-95 duration-300 border border-gray-200/50 dark:border-slate-600/50">
                         {/* Header with conditional styling for birthdays */}
                         <div className={`relative p-6 border-b border-gray-200/50 dark:border-slate-600/50 ${isBirthdayEvent(selectedEvent)
                             ? 'bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20'
@@ -1079,7 +1114,9 @@ const CalendarSection = () => {
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                                            {selectedEvent.resource.name}
+                                            {isBirthdayEvent(selectedEvent) && selectedEvent.resource.groupedPeople && selectedEvent.resource.groupedPeople.length > 1
+                                                ? `${selectedEvent.resource.groupedPeople[0].firstName} & ${selectedEvent.resource.groupedPeople[1].firstName}${selectedEvent.resource.groupedPeople.length > 2 ? ` +${selectedEvent.resource.groupedPeople.length - 2}` : ''}`
+                                                : selectedEvent.resource.name}
                                         </h3>
                                         <div className="flex items-center gap-2">
                                             {isBirthdayEvent(selectedEvent) ? (
@@ -1087,9 +1124,11 @@ const CalendarSection = () => {
                                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">
                                                         🎉 Birthday
                                                     </span>
-                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                        Turning {selectedEvent.resource.age}
-                                                    </span>
+                                                    {!selectedEvent.resource.groupedPeople && (
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                            Turning {selectedEvent.resource.age}
+                                                        </span>
+                                                    )}
                                                     {selectedEvent.resource.isToday && (
                                                         <span className="text-xs font-bold text-pink-600 dark:text-pink-400 animate-pulse">
                                                             Today! 🎈
@@ -1122,35 +1161,40 @@ const CalendarSection = () => {
                             {isBirthdayEvent(selectedEvent) ? (
                                 // Birthday event details
                                 <>
-                                    <div className="bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-900/10 dark:to-purple-900/10 rounded-2xl p-4 border border-pink-200 dark:border-pink-800/30">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-pink-200 dark:bg-pink-600/30 rounded-lg flex items-center justify-center">
-                                                <span className="text-pink-600 dark:text-pink-300 text-lg">🎈</span>
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="text-xs font-medium text-pink-600 dark:text-pink-400 uppercase tracking-wide">Birthday Message</p>
-                                                {user && String(user.id) === String(selectedEvent.resource.userId) ? (
-                                                    <p className="text-sm text-pink-800 dark:text-pink-200 font-semibold">
-                                                        {selectedEvent.resource.isToday
-                                                            ? `🎉 Happy Birthdayyy ${selectedEvent.resource.firstName}, Wishing you a fantastic day!`
-                                                            : selectedEvent.resource.isObserved
-                                                                ? `It's Your Birthday ${selectedEvent.resource.firstName} on ${moment(selectedEvent.start).format('MMMM Do')} (Observed on ${selectedEvent.resource.observedDate} - weekend)`
-                                                                : `It's Your Birthday ${selectedEvent.resource.firstName} on ${moment(selectedEvent.start).format('MMMM Do')}`
-                                                        }
-                                                    </p>
-                                                ) : (
-                                                    <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                                                        {selectedEvent.resource.isToday
-                                                            ? `🎉 Happy Birthday ${selectedEvent.resource.firstName}! Wishing a fantastic day!`
-                                                            : selectedEvent.resource.isObserved
-                                                                ? `🎂 ${selectedEvent.resource.firstName} turns ${selectedEvent.resource.age} on ${moment(selectedEvent.start).format('MMMM Do')} (Observed on ${selectedEvent.resource.observedDate} - weekend)`
-                                                                : `🎂 ${selectedEvent.resource.firstName} turns ${selectedEvent.resource.age} on ${moment(selectedEvent.start).format('MMMM Do')}`
-                                                        }
-                                                    </p>
-                                                )}
+                                    {(selectedEvent.resource.groupedPeople && selectedEvent.resource.groupedPeople.length > 1
+                                        ? selectedEvent.resource.groupedPeople
+                                        : [selectedEvent.resource]
+                                    ).map((person, idx) => (
+                                        <div key={person.userId ?? idx} className="bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-900/10 dark:to-purple-900/10 rounded-2xl p-4 border border-pink-200 dark:border-pink-800/30">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-pink-200 dark:bg-pink-600/30 rounded-lg flex items-center justify-center">
+                                                    <span className="text-pink-600 dark:text-pink-300 text-lg">🎈</span>
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs font-medium text-pink-600 dark:text-pink-400 uppercase tracking-wide">Birthday Message</p>
+                                                    {user && String(user.id) === String(person.userId) ? (
+                                                        <p className="text-sm text-pink-800 dark:text-pink-200 font-semibold">
+                                                            {selectedEvent.resource.isToday
+                                                                ? `🎉 Happy Birthdayyy ${person.firstName}, Wishing you a fantastic day!`
+                                                                : selectedEvent.resource.isObserved
+                                                                    ? `It's Your Birthday ${person.firstName} on ${moment(selectedEvent.start).format('MMMM Do')} (Observed on ${selectedEvent.resource.observedDate} - weekend)`
+                                                                    : `It's Your Birthday ${person.firstName} on ${moment(selectedEvent.start).format('MMMM Do')}`
+                                                            }
+                                                        </p>
+                                                    ) : (
+                                                        <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                                                            {selectedEvent.resource.isToday
+                                                                ? `🎉 Happy Birthday ${person.firstName}! Wishing a fantastic day!`
+                                                                : selectedEvent.resource.isObserved
+                                                                    ? `🎂 ${person.firstName} turns ${person.age} on ${moment(selectedEvent.start).format('MMMM Do')} (Observed on ${selectedEvent.resource.observedDate} - weekend)`
+                                                                    : `🎂 ${person.firstName} turns ${person.age} on ${moment(selectedEvent.start).format('MMMM Do')}`
+                                                            }
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    ))}
                                 </>
                             ) : (
                                 // Leave event details (existing)
@@ -1391,421 +1435,282 @@ const CalendarSection = () => {
 
             <style>
                 {`
-                /* Birthday glow animation */
-                @keyframes birthday-glow {
-                    0% { box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3); }
-                    100% { box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5); }
+                /* ── Calendar base ─────────────────────────────────────────── */
+                .rbc-calendar {
+                    font-family: inherit;
                 }
 
-                /* Increased calendar height and day block sizes - Conservative approach */
-                .rbc-calendar {
-                    min-height: 500px;
-                }
-                
-                @media (min-width: 640px) {
-                    .rbc-calendar {
-                        min-height: 800px;
-                    }
-                }
-                
-                /* Make day cells larger without breaking event positioning */
+                /* ── Month view shell ──────────────────────────────────────── */
                 .rbc-month-view {
                     border-radius: 12px;
                     overflow: hidden;
+                    border: 1px solid #d1d9e0;
+                    background: #ffffff;
                 }
-                
-                /* Increase row heights */
-                .rbc-month-row {
-                    min-height: 120px;
-                }
-                
-                @media (min-width: 640px) {
-                    .rbc-month-row {
-                        min-height: 140px;
-                    }
-                }
-                
-                /* Day background cells */
-                .rbc-day-bg {
-                    min-height: 120px;
-                    cursor: pointer;
-                    transition: background 0.08s ease, box-shadow 0.08s ease, border-color 0.08s ease;
-                }
-                
-                @media (min-width: 640px) {
-                    .rbc-day-bg {
-                        min-height: 140px;
-                    }
-                }
-                
-                /* Date cells with better spacing */
-                .rbc-date-cell {
-                    padding: 8px;
-                    font-size: 14px;
-                    transition: background-color 0.08s ease;
-                }
-                
-                @media (min-width: 640px) {
-                    .rbc-date-cell {
-                        padding: 12px;
-                        font-size: 16px;
-                    }
-                }
-                
-                .rbc-date-cell a {
-                    font-weight: 600;
-                    padding: 6px 8px;
-                    border-radius: 6px;
-                    transition: all 0.2s ease;
-                    display: inline-block;
-                    min-width: 28px;
-                    text-align: center;
+                .dark .rbc-month-view {
+                    border: 1px solid #334155;
+                    background: #1e293b;
                 }
 
+                /* ── Week day headers ──────────────────────────────────────── */
+                .rbc-header {
+                    padding: 10px 8px;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.06em;
+                    text-transform: uppercase;
+                    background: #f1f5f9;
+                    border-bottom: 2px solid #d1d9e0;
+                    border-right: 1px solid #d1d9e0;
+                    color: #64748b;
+                    text-align: center;
+                }
+                .rbc-header:last-child { border-right: none; }
+                .dark .rbc-header {
+                    background: #172033;
+                    border-bottom: 2px solid #334155;
+                    border-right: 1px solid #334155;
+                    color: #475569;
+                }
+                .dark .rbc-header:last-child { border-right: none; }
+
+                /* ── Month rows ────────────────────────────────────────────── */
+                .rbc-month-row {
+                    min-height: 130px;
+                    overflow: visible;
+                    border-bottom: 1px solid #d1d9e0;
+                }
+                .rbc-month-row:last-child { border-bottom: none; }
+                .dark .rbc-month-row { border-bottom: 1px solid #334155; }
+                .dark .rbc-month-row:last-child { border-bottom: none; }
+                @media (min-width: 640px) { .rbc-month-row { min-height: 150px; } }
+                @media (max-width: 640px) { .rbc-month-row { min-height: 110px; } }
+
+                /* ── Day blocks — current-month cells ──────────────────────── */
+                .rbc-day-bg {
+                    background: #ffffff;
+                    border-right: 1px solid #d1d9e0;
+                    min-height: 130px;
+                    cursor: pointer;
+                    transition: background 0.1s ease;
+                }
+                .rbc-day-bg:last-child { border-right: none; }
+                @media (min-width: 640px) { .rbc-day-bg { min-height: 150px; } }
+                @media (max-width: 640px) { .rbc-day-bg { min-height: 110px; } }
+
+                .dark .rbc-day-bg {
+                    background: #1e293b;
+                    border-right: 1px solid #334155;
+                }
+                .dark .rbc-day-bg:last-child { border-right: none; }
+
+                /* ── Off-range (previous / next month) ─────────────────────── */
+                .rbc-off-range-bg {
+                    background: #f5f7fa !important;
+                }
+                .dark .rbc-off-range-bg {
+                    background: #111827 !important;
+                }
+                .rbc-off-range .rbc-date-cell a,
+                .rbc-off-range .rbc-date-cell { color: #c5cdd9 !important; }
+                .dark .rbc-off-range .rbc-date-cell a,
+                .dark .rbc-off-range .rbc-date-cell { color: #2e3a4d !important; }
+
+                /* ── Today ─────────────────────────────────────────────────── */
+                .rbc-today {
+                    background: rgba(59,130,246,0.08) !important;
+                    border-right: 1px solid #d1d9e0 !important;
+                }
+                .dark .rbc-today {
+                    background: rgba(59,130,246,0.13) !important;
+                    border-right: 1px solid #334155 !important;
+                }
+
+                /* Public holiday always wins over today's blue tint */
+                .rbc-today.public-holiday-cell {
+                    background: #fef3c7 !important;
+                    border: 2px solid #f59e0b !important;
+                }
+                .dark .rbc-today.public-holiday-cell {
+                    background: #431407 !important;
+                    border: 2px solid #9a3412 !important;
+                }
+
+                /* ── Date number ────────────────────────────────────────────── */
+                .rbc-date-cell { padding: 6px 8px 2px; text-align: right; }
+                .rbc-date-cell > a {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 50%;
+                    font-size: 13px;
+                    font-weight: 600;
+                    text-decoration: none;
+                    color: #374151;
+                    transition: background 0.15s ease, color 0.15s ease;
+                }
+                .rbc-date-cell > a:hover { background: #e0e7ff; color: #4338ca; }
+                .dark .rbc-date-cell > a { color: #cbd5e1; }
+                .dark .rbc-date-cell > a:hover { background: #312e81; color: #c7d2fe; }
+
+                /* Today's number — filled blue circle */
+                .rbc-today .rbc-date-cell > a {
+                    background: #3b82f6 !important;
+                    color: #ffffff !important;
+                }
+                .rbc-today .rbc-date-cell > a:hover { background: #2563eb !important; }
+
+                /* ── Hover on interactive cells ─────────────────────────────── */
+                .rbc-day-bg:hover:not(.rbc-off-range-bg) { background: #f0f6ff; }
+                .dark .rbc-day-bg:hover:not(.rbc-off-range-bg) { background: #1a2e46; }
+
+                /* ── Weekend tint ───────────────────────────────────────────── */
+                .weekend-cell { background: #fafbfc !important; }
+                .dark .weekend-cell { background: #192030 !important; }
+
+                /* ── Past dates ─────────────────────────────────────────────── */
+                .past-date-cell { cursor: pointer !important; }
+                .past-date-cell .rbc-date-cell > a { color: #94a3b8 !important; }
+                .dark .past-date-cell .rbc-date-cell > a { color: #3d4f65 !important; }
+                .past-date-cell:hover { background: inherit !important; box-shadow: none !important; }
+
+                /* ── Custom drag-select wrapper ─────────────────────────────── */
                 .calendar-date-cell-wrapper {
                     height: 100%;
                     width: 100%;
-                    transition: background 0.08s ease, box-shadow 0.08s ease, border-color 0.08s ease;
+                    transition: background 0.08s ease, box-shadow 0.08s ease;
                 }
-
-                .calendar-date-cell-interactive {
-                    cursor: pointer;
-                }
-
+                .calendar-date-cell-interactive { cursor: pointer; }
                 .calendar-date-cell-hovered {
-                    background: linear-gradient(180deg, rgba(34, 211, 238, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);
-                    box-shadow: inset 0 0 0 2px rgba(14, 165, 233, 0.2);
+                    background: rgba(34,211,238,0.09);
+                    box-shadow: inset 0 0 0 2px rgba(14,165,233,0.25);
                 }
-
                 .dark .calendar-date-cell-hovered {
-                    background: linear-gradient(180deg, rgba(8, 145, 178, 0.18) 0%, rgba(37, 99, 235, 0.18) 100%);
-                    box-shadow: inset 0 0 0 2px rgba(34, 211, 238, 0.2);
+                    background: rgba(8,145,178,0.16);
+                    box-shadow: inset 0 0 0 2px rgba(34,211,238,0.22);
                 }
-
                 .calendar-date-cell-selected {
-                    background: linear-gradient(180deg, rgba(34,211,238,0.18) 0%, rgba(59,130,246,0.18) 100%);
-                    box-shadow: inset 0 0 0 2px rgba(14,165,233,0.28);
+                    background: rgba(34,211,238,0.14);
+                    box-shadow: inset 0 0 0 2px rgba(14,165,233,0.32);
                 }
-
                 .dark .calendar-date-cell-selected {
-                    background: linear-gradient(180deg, rgba(8,145,178,0.28) 0%, rgba(37,99,235,0.28) 100%);
-                    box-shadow: inset 0 0 0 2px rgba(34,211,238,0.28);
+                    background: rgba(8,145,178,0.24);
+                    box-shadow: inset 0 0 0 2px rgba(34,211,238,0.32);
                 }
+                .calendar-date-cell-disabled { cursor: pointer; }
 
-                .calendar-date-cell-disabled {
+                /* ── Events ─────────────────────────────────────────────────── */
+                .rbc-event {
+                    border-radius: 5px;
+                    font-weight: 500;
+                    margin: 1px 2px;
+                    padding: 2px 5px;
+                    min-height: 20px;
+                    font-size: 11px;
+                    line-height: 1.3;
+                    border: 1px solid transparent;
+                    transition: opacity 0.15s ease, transform 0.1s ease, box-shadow 0.1s ease;
+                }
+                .rbc-event:hover {
+                    opacity: 0.9;
+                    transform: translateY(-1px);
+                    box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+                }
+                .rbc-event-content { font-size: 11px; line-height: 1.3; }
+                .rbc-row-segment { padding: 0 1px; height: auto; }
+
+                /* ── "+X more" link ─────────────────────────────────────────── */
+                .rbc-show-more {
+                    color: #3b82f6;
+                    font-weight: 600;
+                    font-size: 11px;
+                    padding: 2px 5px;
+                    border-radius: 4px;
+                    margin: 1px 2px;
+                    display: block;
                     cursor: pointer;
+                    background: transparent;
+                }
+                .rbc-show-more:hover { color: #1d4ed8; background: #eff6ff; text-decoration: underline; }
+                .dark .rbc-show-more { color: #60a5fa !important; }
+                .dark .rbc-show-more:hover { color: #93c5fd !important; background: #1e3a8a; }
+
+                /* ── Slot selection ──────────────────────────────────────────── */
+                .rbc-slot-selection {
+                    background: linear-gradient(135deg, rgba(34,211,238,0.25) 0%, rgba(59,130,246,0.25) 100%) !important;
+                    border: 2px solid rgba(14,165,233,0.45);
+                    border-radius: 8px;
                 }
 
-                .rbc-day-bg:hover {
-                    background: linear-gradient(180deg, rgba(34, 211, 238, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);
-                    box-shadow: inset 0 0 0 2px rgba(14, 165, 233, 0.2);
-                }
+                /* ── Pointer events ──────────────────────────────────────────── */
+                .rbc-row-content { pointer-events: none; }
+                .rbc-date-cell, .rbc-date-cell a, .rbc-event, .rbc-show-more, .rbc-row-segment { pointer-events: auto; }
 
-                .dark .rbc-day-bg:hover {
-                    background: linear-gradient(180deg, rgba(8, 145, 178, 0.18) 0%, rgba(37, 99, 235, 0.18) 100%);
-                    box-shadow: inset 0 0 0 2px rgba(34, 211, 238, 0.2);
-                }
-
-                .past-date-cell {
-                    cursor: pointer !important;
-                }
-
-                .past-date-cell:hover {
-                    background: inherit !important;
-                    box-shadow: none !important;
-                }
-
-                .past-date-cell::after {
+                /* ── Public holiday cell ─────────────────────────────────────── */
+                .public-holiday-cell { position: relative; }
+                .public-holiday-cell::after {
                     content: '';
                     position: absolute;
                     inset: 0;
                     background: repeating-linear-gradient(
-                        135deg,
-                        rgba(148, 163, 184, 0.08) 0px,
-                        rgba(148, 163, 184, 0.08) 8px,
-                        transparent 8px,
-                        transparent 16px
+                        -45deg,
+                        rgba(245,158,11,0.06) 0px,
+                        rgba(245,158,11,0.06) 4px,
+                        transparent 4px,
+                        transparent 10px
                     );
                     pointer-events: none;
                 }
 
-                .rbc-slot-selection {
-                    background: linear-gradient(135deg, rgba(34, 211, 238, 0.3) 0%, rgba(59, 130, 246, 0.3) 100%) !important;
-                    border: 2px solid rgba(14, 165, 233, 0.5);
-                    border-radius: 10px;
-                }
-
-                /* Let empty cell space hit the day background immediately while keeping labels/events clickable */
-                .rbc-row-content {
-                    pointer-events: none;
-                }
-
-                .rbc-date-cell,
-                .rbc-date-cell a,
-                .rbc-event,
-                .rbc-show-more,
-                .rbc-row-segment {
-                    pointer-events: auto;
-                }
-                
-                /* Preserve default event behavior - minimal overrides */
-                .rbc-event {
-                    border-radius: 4px;
-                    font-weight: 500;
-                    transition: all 0.2s ease;
-                }
-                
-                .rbc-event:hover {
-                    opacity: 0.9;
-                    transform: translateY(-1px);
-                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                }
-                
-                /* Header improvements for larger calendar */
-                .rbc-header {
-                    padding: 12px 8px;
-                    font-size: 13px;
-                    font-weight: 600;
-                    background-color: #f8fafc;
-                    border-bottom: 1px solid #e2e8f0;
-                }
-                
-                .dark .rbc-header {
-                    background-color: #334155;
-                    border-bottom-color: #475569;
-                }
-                
-                /* Today highlighting - responsive to dark mode */
-                .rbc-today {
-                    background-color: rgba(59, 130, 246, 0.1) !important;
-                    border: 2px solid rgba(59, 130, 246, 0.3) !important;
-                    position: relative;
-                }
-                
-                .dark .rbc-today {
-                    background-color: rgba(59, 130, 246, 0.15) !important;
-                    border: 2px solid rgba(59, 130, 246, 0.4) !important;
-                }
-                
-                /* Add subtle glow effect for today in dark mode */
-                .dark .rbc-today::before {
-                    content: '';
-                    position: absolute;
-                    top: -2px;
-                    left: -2px;
-                    right: -2px;
-                    bottom: -2px;
-                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 197, 253, 0.1) 100%);
-                    border-radius: 8px;
-                    z-index: -1;
-                    pointer-events: none;
-                }
-                
-                /* Public Holiday Styles */
-                .public-holiday-cell {
-                    position: relative;
-                }
-                .public-holiday-cell::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: linear-gradient(45deg, transparent 40%, #f59e0b 40%, #f59e0b 60%, transparent 60%);
-                    opacity: 0.1;
-                    pointer-events: none;
-                }
-                .public-holiday-cell:hover::after {
-                    content: attr(title);
-                    position: absolute;
-                    top: 100%;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background-color: #374151;
-                    color: white;
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    font-size: 12px;
-                    white-space: nowrap;
-                    z-index: 1000;
-                    pointer-events: none;
-                }
-
-                /* Custom popup styles to ensure it shows properly */
+                /* ── Popup overlay ───────────────────────────────────────────── */
                 .rbc-overlay {
-                    background-color: white;
-                    border: 1px solid #d1d5db;
-                    border-radius: 8px;
-                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+                    background: #ffffff;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 10px;
+                    box-shadow: 0 12px 28px rgba(0,0,0,0.14);
                     padding: 0;
                     min-width: 200px;
                     max-width: 300px;
                     z-index: 1000;
                 }
-                
                 .dark .rbc-overlay {
-                    background-color: #1e293b;
-                    border: 1px solid #475569;
-                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+                    background: #1e293b;
+                    border: 1px solid #334155;
+                    box-shadow: 0 12px 28px rgba(0,0,0,0.35);
                 }
-                
                 .rbc-overlay-header {
-                    background-color: #f8fafc;
+                    background: #f8fafc;
                     color: #374151;
                     border-bottom: 1px solid #e5e7eb;
                     padding: 8px 12px;
-                    font-weight: 600;
-                    font-size: 14px;
-                    border-radius: 8px 8px 0 0;
+                    font-weight: 700;
+                    font-size: 13px;
+                    border-radius: 10px 10px 0 0;
                 }
-                
                 .dark .rbc-overlay-header {
-                    background-color: #334155;
+                    background: #273548;
                     color: #e2e8f0;
-                    border-bottom: 1px solid #475569;
+                    border-bottom: 1px solid #334155;
                 }
 
-                /* Dark mode calendar styles */
-                .dark .rbc-calendar {
-                    background-color: #1e293b;
-                    color: #e2e8f0;
-                }
-                
-                .dark .rbc-month-view,
-                .dark .rbc-time-view {
-                    background-color: #1e293b;
-                    border-color: #475569;
-                }
-                
-                .dark .rbc-month-row {
-                    border-color: #475569;
-                }
-                
-                .dark .rbc-day-bg {
-                    background-color: #1e293b;
-                    border-color: #475569;
-                }
-                
-                .dark .rbc-off-range-bg {
-                    background-color: #0f172a;
-                    color: #64748b;
-                }
-                
-                .dark .rbc-off-range {
-                    color: #64748b;
-                }
-                
-                .dark .rbc-date-cell {
-                    color: #e2e8f0;
-                }
-                
-                .dark .rbc-date-cell a {
-                    color: #e2e8f0;
-                }
-                
-                .dark .rbc-off-range .rbc-date-cell a {
-                    color: #64748b;
-                }
-                
-                /* Fix for "+X more" popup text in dark mode */
-                .dark .rbc-show-more {
-                    color: #3b82f6 !important;
-                    background-color: transparent;
-                    font-weight: 500;
-                }
-                
-                .dark .rbc-show-more:hover {
-                    color: #60a5fa !important;
-                    background-color: #1e40af;
-                    border-radius: 4px;
-                }
-                
-                .dark .rbc-month-view .rbc-row {
-                    border-color: #475569;
-                }
-                
-                .dark .rbc-month-view .rbc-day-bg + .rbc-day-bg {
-                    border-left-color: #475569;
-                }
+                /* ── Dark mode base ──────────────────────────────────────────── */
+                .dark .rbc-calendar { background: #1e293b; color: #e2e8f0; }
+                .dark .rbc-toolbar { color: #e2e8f0; }
+                .dark .rbc-toolbar button { background: #1a2740; color: #e2e8f0; border: 1px solid #273548; }
+                .dark .rbc-toolbar button:hover { background: #273548; }
+                .dark .rbc-toolbar button.rbc-active { background: #3b82f6; border-color: #3b82f6; }
 
-                .dark .rbc-header + .rbc-header {
-                    border-left-color: #475569;
-                }
-                
-                .dark .rbc-date-cell a:hover {
-                    background-color: #334155;
-                    border-radius: 4px;
-                }
-                
-                .dark .rbc-off-range-bg {
-                    background-color: #0f172a;
-                }
-                
-                .dark .rbc-off-range {
-                    color: #475569;
-                }
-                
-                .dark .rbc-off-range .rbc-date-cell a {
-                    color: #475569;
-                }
-                
-                .dark .rbc-toolbar {
-                    color: #e2e8f0;
-                }
-                
-                .dark .rbc-toolbar button {
-                    background-color: #334155;
-                    color: #e2e8f0;
-                    border: 1px solid #475569;
-                }
-                
-                .dark .rbc-toolbar button:hover {
-                    background-color: #475569;
-                }
-                
-                .dark .rbc-toolbar button.rbc-active {
-                    background-color: #3b82f6;
-                    border-color: #3b82f6;
-                }
+                /* ── Selected range ──────────────────────────────────────────── */
+                .selected-leave-range-cell { position: relative; cursor: pointer; }
 
-                /* Ensure popup events are clickable */
-                .rbc-event {
-                    cursor: pointer !important;
+                /* ── Birthday glow ───────────────────────────────────────────── */
+                @keyframes birthday-glow {
+                    0%   { box-shadow: 0 4px 12px rgba(236,72,153,0.30); }
+                    100% { box-shadow: 0 6px 22px rgba(236,72,153,0.55); }
                 }
-                
-                .rbc-event:hover {
-                    opacity: 0.8;
-                }
-                
-                /* Responsive adjustments for mobile */
-                @media (max-width: 640px) {
-                    .rbc-month-row {
-                        min-height: 100px;
-                    }
-                    
-                    .rbc-day-bg {
-                        min-height: 100px;
-                    }
-                    
-                    .rbc-date-cell {
-                        padding: 6px;
-                        font-size: 12px;
-                    }
-                    
-                    .rbc-date-cell a {
-                        padding: 4px 6px;
-                        min-width: 24px;
-                        font-size: 14px;
-                    }
-                    
-                    .rbc-header {
-                        padding: 8px 4px;
-                        font-size: 11px;
-                    }
-                }
-                
-            `}
+                `}
             </style>
         </div>
     );

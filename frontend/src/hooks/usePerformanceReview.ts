@@ -36,17 +36,28 @@ export interface PeerReviewDetailApi {
     responses: { questionId: string; ratingResponse: number | null; textResponse: string | null }[];
 }
 
+export interface ReviewQuestion {
+    id: string;
+    category: string;
+    questionText: string;
+    guidanceText: string | null;
+    response: { ratingResponse: number | null; textResponse: string | null } | null;
+}
+
 export interface MyReviewsApi {
     selfReview: {
         id: string;
         status: string;
-        responses: { questionId: string; ratingResponse: number | null; textResponse: string | null }[];
+        selfQuestions: ReviewQuestion[];
+        nextStepsQuestions: ReviewQuestion[];
     } | null;
     peerAssignments: PeerAssignmentApi[];
 }
 
 export interface AdminSummaryItemApi {
-    employee: { id: string; name: string; role: string };
+    employee: { id: string; name: string; role: string; systemRole: string };
+    managerReviewId: string | null;
+    managerId: string | null;
     managerScore: number | null;
     peerScore: number | null;
     selfScore: number | null;
@@ -82,6 +93,31 @@ export interface SubmissionsApi {
         selfScore: number | null;
         finalScore: number | null;
     };
+}
+
+export interface ManagerAppraisalItemApi {
+    reviewId: string;
+    status: string;
+    cycleId: string | null;
+    cycleName: string;
+    employee: { id: string; name: string; role: string };
+}
+
+export interface ManagerAppraisalQuestion {
+    id: string;
+    category: string;
+    subcategory: string | null;
+    questionText: string;
+    guidanceText: string | null;
+    response: { ratingResponse: number | null; textResponse: string | null } | null;
+}
+
+export interface ManagerAppraisalDetailApi {
+    reviewId: string;
+    status: string;
+    cycle: { id: string; name: string };
+    employee: { id: string; name: string; role: string };
+    questions: ManagerAppraisalQuestion[];
 }
 
 // ─────────────────────────────────────────────
@@ -126,7 +162,7 @@ export function useAdminPerformanceSummary(cycleId?: string) {
     return useQuery<AdminSummaryItemApi[]>({
         queryKey: ['performance-admin-summary', cycleId],
         queryFn: () => apiFetch(`/performance/admin/summary${cycleId ? `?cycleId=${cycleId}` : ''}`),
-        enabled: !!user && user.role === 'admin',
+        enabled: !!user && (user.role === 'admin' || user.role === 'manager'),
         staleTime: 30_000,
     });
 }
@@ -171,6 +207,26 @@ export function usePerformanceSubmissions(employeeId?: string, cycleId?: string)
     });
 }
 
+export function useManagerReviews(cycleId?: string) {
+    const { user } = useAuth();
+    return useQuery<ManagerAppraisalItemApi[]>({
+        queryKey: ['manager-reviews', cycleId],
+        queryFn: () => apiFetch(`/performance/manager-reviews${cycleId ? `?cycleId=${cycleId}` : ''}`),
+        enabled: !!user,
+        staleTime: 30_000,
+    });
+}
+
+export function useManagerAppraisalDetail(reviewId?: string) {
+    const { user } = useAuth();
+    return useQuery<ManagerAppraisalDetailApi>({
+        queryKey: ['manager-appraisal-detail', reviewId],
+        queryFn: () => apiFetch(`/performance/manager-review/${reviewId}`),
+        enabled: !!user && !!reviewId,
+        staleTime: 30_000,
+    });
+}
+
 // ─────────────────────────────────────────────
 // Hooks — Mutations
 // ─────────────────────────────────────────────
@@ -189,7 +245,13 @@ export function useActivateCycle() {
     return useMutation({
         mutationFn: (cycleId: string) =>
             apiFetch(`/performance/cycles/${cycleId}/activate`, { method: 'POST' }),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ['performance-cycles'] }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['performance-cycles'] });
+            qc.invalidateQueries({ queryKey: ['performance-admin-summary'] });
+            qc.invalidateQueries({ queryKey: ['my-performance-review'] });
+            qc.invalidateQueries({ queryKey: ['my-peer-assignments'] });
+            qc.invalidateQueries({ queryKey: ['manager-reviews'] });
+        },
     });
 }
 
@@ -199,6 +261,56 @@ export function useCloseCycle() {
         mutationFn: (cycleId: string) =>
             apiFetch(`/performance/cycles/${cycleId}/close`, { method: 'POST' }),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['performance-cycles'] }),
+    });
+}
+
+export interface NominationAssignment {
+    assignmentId: string;
+    reviewerId: string;
+    status: string;
+    canRemove: boolean;
+}
+
+export function useEmployeeNominations(employeeId?: string, cycleId?: string) {
+    const { user } = useAuth();
+    return useQuery<NominationAssignment[]>({
+        queryKey: ['employee-nominations', employeeId, cycleId],
+        queryFn: () => apiFetch(`/performance/nominations/${employeeId}${cycleId ? `?cycleId=${cycleId}` : ''}`),
+        enabled: !!user && !!employeeId,
+        staleTime: 30_000,
+    });
+}
+
+export function useSetNominations() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (data: { employeeId: string; cycleId: string; peerIds: string[] }) => {
+            const { employeeId, ...body } = data;
+            return apiFetch(`/performance/nominations/${employeeId}`, {
+                method: 'PUT',
+                body: JSON.stringify(body),
+            });
+        },
+        onSuccess: (_data, vars) => {
+            qc.invalidateQueries({ queryKey: ['employee-nominations', vars.employeeId] });
+            qc.invalidateQueries({ queryKey: ['performance-admin-summary'] });
+            qc.invalidateQueries({ queryKey: ['performance-cycles'] });
+        },
+    });
+}
+
+export function useSyncCycle() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (cycleId: string) =>
+            apiFetch(`/performance/cycles/${cycleId}/sync`, { method: 'POST' }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['performance-cycles'] });
+            qc.invalidateQueries({ queryKey: ['performance-admin-summary'] });
+            qc.invalidateQueries({ queryKey: ['my-performance-review'] });
+            qc.invalidateQueries({ queryKey: ['my-peer-assignments'] });
+            qc.invalidateQueries({ queryKey: ['manager-reviews'] });
+        },
     });
 }
 
@@ -215,6 +327,7 @@ export function useSaveResponse() {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['my-performance-review'] });
             qc.invalidateQueries({ queryKey: ['peer-review-detail'] });
+            qc.invalidateQueries({ queryKey: ['manager-appraisal-detail'] });
         },
     });
 }
@@ -228,7 +341,35 @@ export function useSubmitReview() {
             qc.invalidateQueries({ queryKey: ['my-performance-review'] });
             qc.invalidateQueries({ queryKey: ['my-peer-assignments'] });
             qc.invalidateQueries({ queryKey: ['peer-review-detail'] });
+            qc.invalidateQueries({ queryKey: ['manager-appraisal-detail'] });
+            qc.invalidateQueries({ queryKey: ['manager-reviews'] });
+            qc.invalidateQueries({ queryKey: ['performance-admin-summary'] });
         },
+    });
+}
+
+export interface CycleExportApi {
+    cycle: { id: string; name: string; startDate: string; endDate: string };
+    employees: {
+        employeeName: string;
+        jobTitle: string;
+        managerScore: number | null;
+        peerScore: number | null;
+        selfScore: number | null;
+        finalScore: number | null;
+        managerFeedback: { category: string; subcategory: string; rating: number | null; notes: string }[];
+        selfFeedback: { category: string; questionText: string; response: string }[];
+        peerFeedback: { reviewerName: string; category: string; rating: number | null }[];
+    }[];
+}
+
+export function useCycleExport(cycleId?: string) {
+    const { user } = useAuth();
+    return useQuery<CycleExportApi>({
+        queryKey: ['cycle-export', cycleId],
+        queryFn: () => apiFetch(`/performance/cycles/${cycleId}/export`),
+        enabled: !!user && !!cycleId,
+        staleTime: 60_000,
     });
 }
 
