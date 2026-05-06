@@ -27,7 +27,7 @@ const DashboardFooter: React.FC = () => {
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     {/* Copyright Text - Left Side */}
                     <div className="text-sm text-gray-600 dark:text-gray-400 order-2 sm:order-1">
-                        © {currentYear} Disrapto LMS System. All rights reserved.
+                        {currentYear} © Disraptor System. All rights reserved.
                     </div>
 
                     {/* Links - Right Side */}

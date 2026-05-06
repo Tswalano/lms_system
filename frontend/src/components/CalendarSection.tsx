@@ -539,6 +539,7 @@ const CalendarSection = () => {
     };
 
     const handleSelectEvent = (event: CalendarEvent) => {
+        console.log('Selected event:', event);
         setSelectedEvent(event);
         setIsDialogOpen(true);
     };
