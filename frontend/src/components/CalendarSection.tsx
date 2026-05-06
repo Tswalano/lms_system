@@ -16,7 +16,6 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { toast } from "sonner";
 
 const localizer = momentLocalizer(moment);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const BigCalendar = Calendar as React.ComponentType<any>;
 const sastDateFormatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Africa/Johannesburg',
@@ -808,6 +807,7 @@ const CalendarSection = () => {
         const isHoliday = isPublicHoliday(date);
         const isDarkMode = theme === 'dark';
         const isPastDate = moment(date).startOf('day').isBefore(moment().startOf('day'));
+        const isFutureDate = moment(date).startOf('day').isAfter(moment().startOf('day'));
         const previewRange = dragPreviewRange || selectedSlotRange;
         const isInPreviewRange = previewRange
             ? moment(date).startOf('day').isBetween(
@@ -845,6 +845,20 @@ const CalendarSection = () => {
                     cursor: isPastDate ? 'not-allowed' : 'help',
                     opacity: isPastDate ? 0.7 : 1,
                     zIndex: 1
+                } as React.CSSProperties
+            };
+        }
+
+        if (isFutureDate && !isHoliday) {
+            return {
+                className: 'future-date-cell',
+                style: {
+                    // backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc',
+                    border: isDarkMode ? '1px solid #475569' : '1px solid #cbd5e1',
+                    color: isDarkMode ? '#64748b' : '#94a3b8',
+                    opacity: 0.9,
+                    cursor: 'pointer',
+                    position: 'relative'
                 } as React.CSSProperties
             };
         }
@@ -1091,12 +1105,15 @@ const CalendarSection = () => {
             {/* Enhanced Custom Modal for both leave and birthday events */}
             {isDialogOpen && selectedEvent && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] transform animate-in zoom-in-95 duration-300 border border-gray-200/50 dark:border-slate-600/50">
-                        {/* Header with conditional styling for birthdays */}
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden transform animate-in zoom-in-95 duration-300 border border-gray-200/50 dark:border-slate-600/50">
+                        {/* ↑ Added overflow-hidden here — this is the critical fix */}
+
+                        {/* Header */}
                         <div className={`relative p-6 border-b border-gray-200/50 dark:border-slate-600/50 ${isBirthdayEvent(selectedEvent)
                             ? 'bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20'
                             : 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600'
                             }`}>
+                            {/* header content unchanged */}
                             <div className="relative flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="relative">
@@ -1157,9 +1174,9 @@ const CalendarSection = () => {
                             </div>
                         </div>
 
-                        <div className="p-6 space-y-5 bg-gradient-to-b from-gray-50/30 to-white dark:from-slate-800/30 dark:to-slate-800">
+                        {/* Body — add overflow-y-auto so content scrolls instead of breaking layout */}
+                        <div className="p-6 space-y-5 overflow-y-auto bg-gradient-to-b from-gray-50/30 to-white dark:from-slate-800/30 dark:to-slate-800">
                             {isBirthdayEvent(selectedEvent) ? (
-                                // Birthday event details
                                 <>
                                     {(selectedEvent.resource.groupedPeople && selectedEvent.resource.groupedPeople.length > 1
                                         ? selectedEvent.resource.groupedPeople
@@ -1197,9 +1214,8 @@ const CalendarSection = () => {
                                     ))}
                                 </>
                             ) : (
-                                // Leave event details (existing)
                                 <>
-                                    <div className="bg-white dark:bg-slate-700/50 rounded-2xl p-4 border border-gray-100 dark:border-slate-600/30 hover:shadow-md transition-shadow duration-200">
+                                    <div className="bg-white dark:bg-slate-700/50 rounded-2xl overflow-hidden p-4 border border-gray-100 dark:border-slate-600/30 hover:shadow-md transition-shadow duration-200">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-500/20 rounded-lg flex items-center justify-center">
                                                 <span className="text-blue-600 dark:text-blue-300 text-lg">👤</span>
@@ -1213,7 +1229,7 @@ const CalendarSection = () => {
                                         </div>
                                     </div>
 
-                                    <div className="bg-white dark:bg-slate-700/50 rounded-2xl p-4 border border-gray-100 dark:border-slate-600/30 hover:shadow-md transition-shadow duration-200">
+                                    <div className="bg-white dark:bg-slate-700/50 rounded-2xl overflow-hidden p-4 border border-gray-100 dark:border-slate-600/30 hover:shadow-md transition-shadow duration-200">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 bg-green-100 dark:bg-green-500/20 rounded-lg flex items-center justify-center">
                                                 <span className="text-green-600 dark:text-green-300 text-lg">🗓️</span>
@@ -1227,9 +1243,8 @@ const CalendarSection = () => {
                                         </div>
                                     </div>
 
-                                    {/* Description Card (if exists) */}
                                     {selectedEvent.resource.description && (
-                                        <div className="bg-gray-50 dark:bg-slate-700/30 rounded-2xl p-4 border border-gray-200 dark:border-slate-600/30">
+                                        <div className="bg-gray-50 dark:bg-slate-700/30 rounded-2xl overflow-hidden p-4 border border-gray-200 dark:border-slate-600/30">
                                             <div className="flex items-start gap-3">
                                                 <div className="w-10 h-10 bg-gray-100 dark:bg-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
                                                     <span className="text-gray-600 dark:text-gray-300 text-sm font-semibold">📝</span>
@@ -1245,15 +1260,12 @@ const CalendarSection = () => {
                             )}
                         </div>
 
-                        {/* Footer with action buttons */}
+                        {/* Footer */}
                         <div className="p-4 bg-gray-50 dark:bg-slate-700/30 border-t border-gray-100 dark:border-slate-600/30">
                             <div className="flex gap-2">
                                 {isBirthdayEvent(selectedEvent) && (
                                     <button
-                                        onClick={() => {
-                                            // Could implement send birthday message functionality
-                                            console.log('Send birthday message to:', selectedEvent.resource.email);
-                                        }}
+                                        onClick={() => console.log('Send birthday message to:', selectedEvent.resource.email)}
                                         className="flex-1 bg-pink-500 hover:bg-pink-600 text-white font-medium py-2.5 px-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl mr-2"
                                     >
                                         🎉 Send Wishes
@@ -1478,29 +1490,41 @@ const CalendarSection = () => {
                 .rbc-month-row {
                     min-height: 130px;
                     overflow: visible;
-                    border-bottom: 1px solid #d1d9e0;
+                    border-bottom: none; /* let rbc-day-bg handle bottom borders */
                 }
                 .rbc-month-row:last-child { border-bottom: none; }
-                .dark .rbc-month-row { border-bottom: 1px solid #334155; }
+                .dark .rbc-month-row { border-bottom: none; }
                 .dark .rbc-month-row:last-child { border-bottom: none; }
                 @media (min-width: 640px) { .rbc-month-row { min-height: 150px; } }
                 @media (max-width: 640px) { .rbc-month-row { min-height: 110px; } }
+
+                /* Force the row container to use a full border grid */
+                .rbc-month-view .rbc-row-bg {
+                    border-top: 1px solid #d1d9e0;
+                }
+                .dark .rbc-month-view .rbc-row-bg {
+                    border-top: 1px solid #334155;
+                }
+                .rbc-month-view .rbc-row-bg:first-child {
+                    border-top: none;
+                }
+
 
                 /* ── Day blocks — current-month cells ──────────────────────── */
                 .rbc-day-bg {
                     background: #ffffff;
                     border-right: 1px solid #d1d9e0;
-                    min-height: 130px;
+                    border-bottom: 1px solid #d1d9e0;
+                    min-height: 150px;
                     cursor: pointer;
                     transition: background 0.1s ease;
                 }
                 .rbc-day-bg:last-child { border-right: none; }
-                @media (min-width: 640px) { .rbc-day-bg { min-height: 150px; } }
-                @media (max-width: 640px) { .rbc-day-bg { min-height: 110px; } }
 
                 .dark .rbc-day-bg {
                     background: #1e293b;
                     border-right: 1px solid #334155;
+                    border-bottom: 1px solid #334155;
                 }
                 .dark .rbc-day-bg:last-child { border-right: none; }
 
