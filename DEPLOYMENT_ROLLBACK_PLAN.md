@@ -1,9 +1,7 @@
 # Deployment & Rollback Plan — `dev` → `main`
 
 **Branch:** `dev`  
-**Target:** `main` (Production on AWS / CloudFront + Lambda + RDS)  
-**Date prepared:** 2026-05-06  
-**Prepared by:** Glen Mogane  
+**Target:** `main` (Production on AWS / CloudFront + Lambda + RDS)
 
 ---
 
