@@ -424,7 +424,19 @@ export class LmsBackendStack extends cdk.Stack {
           'jsonwebtoken',
           'zod',
           'dayjs',
+          '@prisma/client',
+          'prisma',
         ],
+        commandHooks: {
+          beforeInstall: () => [],
+          beforeBundling: () => [],
+          afterBundling: (inputDir: string, outputDir: string) => [
+            // Copy the generated Prisma query engine binary for Lambda (RHEL)
+            `cp ${inputDir}/lib/generated/prisma/libquery_engine-rhel-openssl-3.0.x.so.node ${outputDir}/lib/generated/prisma/libquery_engine-rhel-openssl-3.0.x.so.node`,
+            // Copy the Prisma schema
+            `cp ${inputDir}/prisma/schema.prisma ${outputDir}/prisma/schema.prisma`,
+          ],
+        },
       },
       runtime: lambda.Runtime.NODEJS_22_X,
       role: lambdaRole,
