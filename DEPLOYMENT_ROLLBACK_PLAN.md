@@ -1,6 +1,6 @@
-# Deployment & Rollback Plan — `feat/performancce-review` → `main`
+# Deployment & Rollback Plan — `dev` → `main`
 
-**Branch:** `feat/performancce-review`  
+**Branch:** `dev`  
 **Target:** `main` (Production on AWS / CloudFront + Lambda + RDS)  
 **Date prepared:** 2026-05-06  
 **Prepared by:** Glen Mogane  
@@ -9,7 +9,7 @@
 
 ## 1. Overview
 
-This document covers the step-by-step deployment of all changes on `feat/performancce-review` into `main`, including three Prisma database migrations against the live RDS MySQL instance, and a full rollback path back to the pre-merge state of `main`.
+This document covers the step-by-step deployment of all changes on `dev` into `main`, including three Prisma database migrations against the live RDS MySQL instance, and a full rollback path back to the pre-merge state of `main`.
 
 ### What is being deployed
 
@@ -51,11 +51,11 @@ git rev-parse main
 # e.g. outputs: a3f9c2e1d4b7...
 
 # 3. Create an annotated tag at the current main tip
-git tag -a rollback/pre-performance-review \
-  -m "Rollback point before feat/performancce-review merge ($(date +%Y-%m-%d))"
+git tag -a rollback/pre-dev \
+  -m "Rollback point before dev merge ($(date +%Y-%m-%d))"
 
 # 4. Push the tag to the remote so the whole team can use it
-git push origin rollback/pre-performance-review
+git push origin rollback/pre-dev
 
 # 5. Verify the tag is visible on the remote
 git ls-remote --tags origin | grep rollback
@@ -64,7 +64,7 @@ git ls-remote --tags origin | grep rollback
 To restore to this exact point later:
 ```bash
 git checkout main
-git reset --hard rollback/pre-performance-review
+git reset --hard rollback/pre-dev
 git push origin main --force-with-lease
 ```
 
@@ -201,7 +201,7 @@ npx prisma studio   # or run manual SQL checks
 ```bash
 git checkout main
 git pull origin main
-git merge --no-ff feat/performancce-review -m "feat: merge performance review, notification center, and infra improvements"
+git merge --no-ff dev -m "feat: merge performance review, notification center, and infra improvements"
 git push origin main
 ```
 
@@ -283,10 +283,10 @@ aws cloudfront create-invalidation \
   --paths "/*"
 ```
 
-Or re-trigger the CI pipeline on the `rollback/pre-performance-review` tag:
+Or re-trigger the CI pipeline on the `rollback/pre-dev` tag:
 
 ```bash
-git push origin rollback/pre-performance-review:refs/heads/main --force
+git push origin rollback/pre-dev:refs/heads/main --force
 # Then trigger workflow_dispatch → deploy → frontend-only → prod
 ```
 
@@ -297,7 +297,7 @@ git push origin rollback/pre-performance-review:refs/heads/main --force
 ```bash
 # Revert main to the pre-merge SHA
 git checkout main
-git reset --hard rollback/pre-performance-review
+git reset --hard rollback/pre-dev
 git push origin main --force-with-lease
 
 # Trigger CI: deploy → backend-only → prod
@@ -328,7 +328,7 @@ aws lambda update-function-configuration \
 
 ```bash
 git checkout main
-git reset --hard rollback/pre-performance-review
+git reset --hard rollback/pre-dev
 git push origin main --force-with-lease
 
 # Trigger CI: deploy → both → prod
@@ -412,6 +412,5 @@ DROP TABLE IF EXISTS `document_reminders`;
 | Name | Role | Responsibility |
 |------|------|---------------|
 | Glen Mogane | Lead Engineer | Deployment execution, rollback decision |
-| Hanness | 2nd Engineer | Lambda / CDK troubleshooting, deployment support |
-| Pontsho | DB Admin | RDS snapshot, restore, and manual SQL fallback |
-| AWS account holder | Cloud Access | IAM / secrets access if CI credentials fail |
+| Hanness S. | 2nd Lead Engineer | Lambda / CDK troubleshooting, deployment support |
+| Pontsho M. | DB Admin | RDS snapshot, restore, and manual SQL fallback |
