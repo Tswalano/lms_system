@@ -23,6 +23,15 @@ on:
         options:
           - deploy
           - destroy
+      target:
+        description: "What to deploy"
+        required: true
+        default: "both"
+        type: choice
+        options:
+          - both
+          - backend-only
+          - frontend-only
   release:
     types: [ published ]
 
@@ -133,9 +142,9 @@ jobs:
   frontend-deploy:
     needs: [ detect-changes, semantic-release ]
     if: |
-      always() && 
+      always() &&
       (
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' && github.event.inputs.target != 'backend-only') ||
         (needs.detect-changes.result == 'success' && needs.detect-changes.outputs.frontend == 'true') ||
         (github.event_name == 'release') ||
         (needs.semantic-release.result == 'success')
@@ -244,9 +253,13 @@ jobs:
 
   backend:
     needs: [ frontend-deploy, detect-changes ]
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action ==
-      'deploy' || needs.detect-changes.outputs.backend == 'true' ||
-      github.event_name == 'release'
+    if: |
+      always() &&
+      (
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' && github.event.inputs.target != 'frontend-only') ||
+        (needs.detect-changes.result == 'success' && needs.detect-changes.outputs.backend == 'true') ||
+        github.event_name == 'release'
+      )
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -257,6 +270,8 @@ jobs:
         with:
           node-version: "18.x"
       - run: npm ci
+      - name: Generate Prisma Client
+        run: npx prisma generate
       - run: npm run build
       - uses: aws-actions/configure-aws-credentials@v2
         with:
