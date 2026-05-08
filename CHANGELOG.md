@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.3.0...v1.3.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* prod cognito and prisma migrations ([0b8a5b1](https://github.com/Disraptor-Devs/employee-management-system/commit/0b8a5b189142290184d66caf3f9d1c0665c4baa4))
+
 # [1.3.0](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.2.4...v1.3.0) (2026-05-08)
 
 
