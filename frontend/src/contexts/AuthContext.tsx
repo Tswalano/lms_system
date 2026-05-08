@@ -39,7 +39,7 @@ interface AuthContextType {
     logout: () => Promise<void>;
     forgotPassword: (username: string) => Promise<AuthResponse>;
     changePassword: (username: string, newPassword: string, session: string) => Promise<ChangePasswordResponse>;
-    checkAuthStatus: () => Promise<void>;
+    checkAuthStatus: () => Promise<boolean>;
     authFetch: typeof fetch; // Matches standard fetch API
     resetPassword: (email: string, code: string, newPassword: string) => Promise<AuthResponse>;
     getAuthToken: () => string | null;
@@ -161,14 +161,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
-    const checkAuthStatus = async (): Promise<void> => {
+    const checkAuthStatus = async (): Promise<boolean> => {
         try {
             const token = getAuthToken();
             console.log('[Auth] checkAuthStatus - Token:', token ? `${token.substring(0, 50)}...` : 'null');
 
             if (!token) {
                 setLoading(false);
-                return;
+                return false;
             }
 
             let response = await fetch(`${API_BASE_URL}/users/me`, {
@@ -202,6 +202,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 const userData: ApiAuthResponse = await response.json();
                 setUser(userData.payload);
                 setIsAuthenticated(true);
+                return true;
             } else {
                 throw new Error('Authentication check failed');
             }
@@ -211,6 +212,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             localStorage.removeItem('refreshToken');
             setUser(null);
             setIsAuthenticated(false);
+            return false;
         } finally {
             setLoading(false);
         }
@@ -230,8 +232,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (response.ok) {
                 const data: LoginApiResponse = await response.json();
 
-                console.log('Running on NODE_ENV:', process.env.NODE_ENV);
-
                 if (data.requiresNewPassword) {
                     return {
                         success: false,
@@ -246,7 +246,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 localStorage.setItem('authToken', data.user.idToken);
                 localStorage.setItem('accessToken', data.user.accessToken);
                 localStorage.setItem('refreshToken', data.user.refreshToken);
-                await checkAuthStatus();
+
+                const authOk = await checkAuthStatus();
+                if (!authOk) {
+                    return { success: false, error: 'ERR_CODE: DB, Your account exists, but it has not yet been configured. Please contact your administrator.' };
+                }
 
                 return { success: true };
             } else {
