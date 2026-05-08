@@ -270,6 +270,17 @@ jobs:
         with:
           node-version: "18.x"
       - run: npm ci
+      - name: Run Prisma database migration 
+        run: |
+          echo "Running Prisma database migration"
+        
+          if [ "$BRANCH" = "main" ]; then
+            export DATABASE_URL=${{ secrets.PROD_DB_URL }}
+          else
+            export DATABASE_URL=${{ secrets.DEV_DB_URL }}
+          fi
+
+          npx prisma migrate deploy 
       - name: Generate Prisma Client
         run: npx prisma generate
       - run: npm run build
