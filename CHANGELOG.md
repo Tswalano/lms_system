@@ -1,3 +1,15 @@
+# [1.4.0-dev.1](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.3.0...v1.4.0-dev.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* github branch resolution for prisma migration ([0052347](https://github.com/Disraptor-Devs/employee-management-system/commit/00523474b33c468f01086464d5bb14b4e1aab255))
+
+
+### Features
+
+* **database:** add initial Prisma schema and SQL sync script for leave management system ([2ebdd38](https://github.com/Disraptor-Devs/employee-management-system/commit/2ebdd38f8b21684e29a86119141f0481589e02c4))
+
 # [1.3.0](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.2.4...v1.3.0) (2026-05-08)
 
 
