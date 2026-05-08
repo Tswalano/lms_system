@@ -86,15 +86,30 @@ const PerformanceReviewPeerPage = () => {
     const gradient = getEmployeeGradient(detail.reviewee.id);
     const initials = getInitials(detail.reviewee.name);
 
+    const saveAllResponses = async (rid: string) => {
+        await Promise.all(
+            detail.questions.map((q) => {
+                const resp = peerResponsesRef.current[q.id] ?? { rating: null, text: "" };
+                return saveResponse.mutateAsync({ reviewId: rid, questionId: q.id, reviewerType: "peer", ratingResponse: resp.rating, textResponse: resp.text });
+            })
+        );
+    };
+
+    const handleSaveAndClose = async () => {
+        if (!reviewId) { navigate("/performance-review"); return; }
+        try {
+            await saveAllResponses(reviewId);
+            toast.success("Progress saved");
+            navigate("/performance-review");
+        } catch {
+            toast.error("Failed to save progress");
+        }
+    };
+
     const handleSubmit = async () => {
         if (!reviewId) return;
         try {
-            await Promise.all(
-                detail.questions.map((q) => {
-                    const resp = peerResponsesRef.current[q.id] ?? { rating: null, text: "" };
-                    return saveResponse.mutateAsync({ reviewId, questionId: q.id, reviewerType: "peer", ratingResponse: resp.rating, textResponse: resp.text });
-                })
-            );
+            await saveAllResponses(reviewId);
             await submitReview.mutateAsync(reviewId);
             toast.success("Peer review submitted");
             navigate("/performance-review");
@@ -184,10 +199,11 @@ const PerformanceReviewPeerPage = () => {
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5 flex justify-end gap-2">
                 <Button
                     variant="outline"
-                    onClick={() => navigate("/performance-review")}
+                    onClick={handleSaveAndClose}
+                    disabled={saveResponse.isPending}
                     className="rounded-xl border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-gray-100"
                 >
-                    Save & close
+                    {saveResponse.isPending ? "Saving…" : "Save & close"}
                 </Button>
                 {!submitted && (
                     <Button
