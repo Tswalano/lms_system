@@ -14,16 +14,24 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": false,
     "inlineSourceMap": true,
-    "inlineSources": true,
+    "inlineSources": false,
+    "sourceRoot": "./lambda",
+    // "sourceMap": true,
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
     "types": ["node"],
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
+    // "moduleResolution": "node",
     "resolveJsonModule": true,
     "skipLibCheck": true
   },
-  "exclude": ["node_modules", "cdk.out"]
+  "exclude": [
+    "node_modules",
+    "cdk.out"
+  ],
+  "include": [
+    "./lambda/**/*.ts"
+  ]
 }

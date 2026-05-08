@@ -1,0 +1,2035 @@
+openapi: 3.0.3
+info:
+  title: LMS Employee Management API
+  description: |
+    REST API for the LMS Employee Management System.
+    Covers authentication, leave management, document management, notifications, and performance reviews.
+  version: 1.0.0
+  contact:
+    name: Disraptor
+
+servers:
+  - url: https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod
+    description: Production
+  - url: https://xrdpcrhluc.execute-api.af-south-1.amazonaws.com/dev
+    description: Development
+  - url: http://localhost:3000
+    description: Local
+
+tags:
+  - name: Auth
+    description: Authentication & session management
+  - name: Users
+    description: User profiles and department management
+  - name: Leave
+    description: Leave requests, approvals and calendar
+  - name: User Documents
+    description: Employee-facing document viewing and signing
+  - name: Admin Documents
+    description: Admin document, category and assignment management
+  - name: Notifications
+    description: In-app notifications and settings
+  - name: Performance
+    description: Performance review sessions and responses
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Pass the `idToken` returned from `/auth/login`
+
+  schemas:
+    # ── Generic ──────────────────────────────────────────────────────────────
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Unauthorized
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+
+    # ── Auth ─────────────────────────────────────────────────────────────────
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        idToken:
+          type: string
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+        challengeName:
+          type: string
+          description: Set when Cognito requires a challenge (e.g. NEW_PASSWORD_REQUIRED)
+        session:
+          type: string
+
+    OtpRequest:
+      type: object
+      required: [email, action]
+      properties:
+        email:
+          type: string
+          format: email
+        otp:
+          type: string
+        action:
+          type: string
+          enum: [verify, resend]
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    ResetPasswordRequest:
+      type: object
+      required: [email, code, newPassword]
+      properties:
+        email:
+          type: string
+          format: email
+        code:
+          type: string
+        newPassword:
+          type: string
+          format: password
+
+    CompleteNewPasswordRequest:
+      type: object
+      required: [email, session, newPassword]
+      properties:
+        email:
+          type: string
+          format: email
+        session:
+          type: string
+        newPassword:
+          type: string
+          format: password
+
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          format: password
+        newPassword:
+          type: string
+          format: password
+
+    # ── Users ─────────────────────────────────────────────────────────────────
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [admin, manager, employee]
+        jobTitle:
+          type: string
+        department:
+          type: string
+        phoneNumber:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateUserRequest:
+      type: object
+      required: [email, firstName, lastName, role]
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [admin, manager, employee]
+        jobTitle:
+          type: string
+        departmentId:
+          type: integer
+        phoneNumber:
+          type: string
+
+    Department:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+
+    # ── Leave ─────────────────────────────────────────────────────────────────
+    LeaveRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        leaveType:
+          type: string
+          enum: [Annual Leave, Sick Leave, Paternity Leave, Family Responsibility]
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        leaveLength:
+          type: string
+          enum: [full_day, half_day]
+        reason:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected, cancelled]
+        duration:
+          type: integer
+          description: Number of working days
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ApplyLeaveRequest:
+      type: object
+      required: [leave_type, leave_start, leave_end, leave_comment, leave_length]
+      properties:
+        leave_type:
+          type: string
+          enum: [Annual Leave, Sick Leave, Paternity Leave, Family Responsibility]
+        leave_start:
+          type: string
+          format: date
+        leave_end:
+          type: string
+          format: date
+        leave_comment:
+          type: string
+        leave_length:
+          type: string
+          enum: [full_day, half_day]
+
+    LeaveStats:
+      type: object
+      properties:
+        annualLeaveBalance:
+          type: number
+        annualLeaveTaken:
+          type: number
+        sickLeaveTaken:
+          type: number
+        pendingRequests:
+          type: integer
+
+    # ── Documents ─────────────────────────────────────────────────────────────
+    DocumentCategory:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+        departmentId:
+          type: integer
+        fileCount:
+          type: integer
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+          enum: [pending, viewed, signed, completed, overdue]
+        size:
+          type: string
+        priority:
+          type: string
+          enum: [high, medium, low]
+        fileUrl:
+          type: string
+        signedDate:
+          type: string
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Notifications ─────────────────────────────────────────────────────────
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        recipientId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [info, success, warning, error, reminder, action_required]
+        category:
+          type: string
+          enum: [leave_management, document_management, performance_reviews, system_updates, security, general]
+        title:
+          type: string
+        message:
+          type: string
+        actionUrl:
+          type: string
+        actionText:
+          type: string
+        isRead:
+          type: boolean
+        isArchived:
+          type: boolean
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+        createdAt:
+          type: string
+          format: date-time
+
+    SendNotificationRequest:
+      type: object
+      required: [recipientId, type, category, title, message]
+      properties:
+        recipientId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [info, success, warning, error, reminder, action_required]
+        category:
+          type: string
+          enum: [leave_management, document_management, performance_reviews, system_updates, security, general]
+        title:
+          type: string
+        message:
+          type: string
+        actionUrl:
+          type: string
+        actionText:
+          type: string
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+
+paths:
+  # ══════════════════════════════════════════════════════
+  # AUTH
+  # ══════════════════════════════════════════════════════
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      description: Authenticate with email and password. Returns tokens and user profile.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful (or challenge required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/otp:
+    post:
+      tags: [Auth]
+      summary: Verify or resend OTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpRequest'
+      responses:
+        '200':
+          description: OTP verified or resent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /auth/verify:
+    get:
+      tags: [Auth]
+      summary: Verify access token
+      security: []
+      responses:
+        '200':
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: Token invalid or expired
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      description: Uses the `refreshToken` cookie to issue new tokens.
+      security: []
+      responses:
+        '200':
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Refresh token invalid or expired
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Initiate password reset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Reset code sent to email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Complete password reset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /auth/complete-new-password:
+    post:
+      tags: [Auth]
+      summary: Respond to NEW_PASSWORD_REQUIRED challenge
+      description: "Called after login returns challengeName: NEW_PASSWORD_REQUIRED."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteNewPasswordRequest'
+      responses:
+        '200':
+          description: Password set, tokens returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password (authenticated)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout
+      description: Clears session cookies and invalidates refresh token.
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ══════════════════════════════════════════════════════
+  # USERS
+  # ══════════════════════════════════════════════════════
+  /users/:
+    get:
+      tags: [Users]
+      summary: List all users
+      description: Returns all users with their department assignments. Requires admin or manager role.
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user
+      description: Returns the authenticated user's profile.
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+
+  /users/me/update:
+    post:
+      tags: [Users]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                phoneNumber:
+                  type: string
+                jobTitle:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /users/on-leave:
+    get:
+      tags: [Users]
+      summary: Get users currently on leave
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: includeUpcoming
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Team members with leave status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /users/departments:
+    get:
+      tags: [Users]
+      summary: List departments
+      responses:
+        '200':
+          description: List of departments
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Department'
+
+  /users/add-user:
+    post:
+      tags: [Users]
+      summary: Create a new user (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /users/update-user:
+    post:
+      tags: [Users]
+      summary: Update any user (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - type: object
+                  required: [userId]
+                  properties:
+                    userId:
+                      type: string
+                      format: uuid
+                - $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /users/delete-user:
+    delete:
+      tags: [Users]
+      summary: Delete a user (admin)
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ══════════════════════════════════════════════════════
+  # LEAVE
+  # ══════════════════════════════════════════════════════
+  /leave/apply-leave:
+    post:
+      tags: [Leave]
+      summary: Apply for leave
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyLeaveRequest'
+      responses:
+        '200':
+          description: Leave request submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leave/leave-history:
+    get:
+      tags: [Leave]
+      summary: Get current user's leave history
+      responses:
+        '200':
+          description: Leave history list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LeaveRequest'
+
+  /leave/leave-history/{uid}:
+    get:
+      tags: [Leave]
+      summary: Get a specific user's leave history
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User's leave history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leave/all-leave-requests:
+    get:
+      tags: [Leave]
+      summary: Get all leave requests (managers/admin)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected, cancelled]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: All leave requests
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LeaveRequest'
+                      meta:
+                        $ref: '#/components/schemas/PaginationMeta'
+
+  /leave/leave/{id}:
+    get:
+      tags: [Leave]
+      summary: Get a specific leave request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Leave request details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LeaveRequest'
+    delete:
+      tags: [Leave]
+      summary: Delete a pending leave request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Leave request deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leave/{id}:
+    put:
+      tags: [Leave]
+      summary: Update a pending leave request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyLeaveRequest'
+      responses:
+        '200':
+          description: Leave request updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leave/{id}/approve:
+    put:
+      tags: [Leave]
+      summary: Approve or reject a leave request (manager/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [approved, rejected]
+                comment:
+                  type: string
+      responses:
+        '200':
+          description: Leave request updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leave/{id}/cancel:
+    put:
+      tags: [Leave]
+      summary: Cancel an approved leave request (manager/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Leave cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    patch:
+      tags: [Leave]
+      summary: Cancel a pending leave request (owner)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Leave cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leave/leave-calculation:
+    post:
+      tags: [Leave]
+      summary: Preview leave day calculation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leave_start, leave_end, leave_length]
+              properties:
+                leave_start:
+                  type: string
+                  format: date
+                leave_end:
+                  type: string
+                  format: date
+                leave_length:
+                  type: string
+                  enum: [full_day, half_day]
+      responses:
+        '200':
+          description: Calculation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leave/leave-calendar:
+    get:
+      tags: [Leave]
+      summary: Get leave calendar
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Leave calendar events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leave/leave-calendar-with-birthdays:
+    get:
+      tags: [Leave]
+      summary: Get leave calendar including birthdays
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Calendar events including birthdays
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leave/birthdays:
+    get:
+      tags: [Leave]
+      summary: Get birthdays in date range
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Birthday list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leave/leave-stats/personal:
+    get:
+      tags: [Leave]
+      summary: Get personal leave statistics
+      responses:
+        '200':
+          description: Leave statistics for current user
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LeaveStats'
+
+  /leave/leave-types:
+    get:
+      tags: [Leave]
+      summary: Get available leave types with balances
+      responses:
+        '200':
+          description: Leave types and current balances
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leave/leave/{id}/upload-document:
+    post:
+      tags: [Leave]
+      summary: Upload supporting document for a leave request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Document uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ══════════════════════════════════════════════════════
+  # USER DOCUMENTS
+  # ══════════════════════════════════════════════════════
+  /user-docs/by-category/{userId}:
+    get:
+      tags: [User Documents]
+      summary: Get documents grouped by category
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Documents grouped by category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /user-docs/documents/{userId}:
+    get:
+      tags: [User Documents]
+      summary: Get assigned documents for a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User's documents
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Document'
+
+  /user-docs/document-content/{documentId}/{userId}:
+    get:
+      tags: [User Documents]
+      summary: Get document content (marks as viewed)
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Document content URL and metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /user-docs/document-progress:
+    post:
+      tags: [User Documents]
+      summary: Track document reading progress
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, document_id]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                document_id:
+                  type: integer
+                progress_data:
+                  type: object
+                time_spent:
+                  type: integer
+                  description: Seconds spent reading
+                duration:
+                  type: integer
+      responses:
+        '200':
+          description: Progress recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /user-docs/document-completion:
+    post:
+      tags: [User Documents]
+      summary: Mark document as signed/completed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, document_id, acknowledgement_checked]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                document_id:
+                  type: integer
+                acknowledgement_checked:
+                  type: boolean
+      responses:
+        '200':
+          description: Document marked as signed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /user-docs/document-stats/{userId}:
+    get:
+      tags: [User Documents]
+      summary: Get document statistics for a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Document statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /user-docs/document-activity/{userId}:
+    get:
+      tags: [User Documents]
+      summary: Get document activity history
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Activity history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ══════════════════════════════════════════════════════
+  # ADMIN DOCUMENTS
+  # ══════════════════════════════════════════════════════
+  /admin-docs/categories:
+    get:
+      tags: [Admin Documents]
+      summary: List all document categories
+      responses:
+        '200':
+          description: Categories list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DocumentCategory'
+    put:
+      tags: [Admin Documents]
+      summary: Create a document category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                color:
+                  type: string
+                  example: bg-blue-500
+                departmentId:
+                  type: integer
+      responses:
+        '201':
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /admin-docs/categories/{category_id}:
+    put:
+      tags: [Admin Documents]
+      summary: Update a document category
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                color:
+                  type: string
+                departmentId:
+                  type: integer
+      responses:
+        '200':
+          description: Category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    delete:
+      tags: [Admin Documents]
+      summary: Delete a document category
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /admin-docs/:
+    post:
+      tags: [Admin Documents]
+      summary: Upload a new document
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, name, categoryId]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                name:
+                  type: string
+                categoryId:
+                  type: string
+                description:
+                  type: string
+                priority:
+                  type: string
+                  enum: [high, medium, low]
+      responses:
+        '201':
+          description: Document uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /admin-docs/by-category:
+    get:
+      tags: [Admin Documents]
+      summary: Get documents grouped by category with stats
+      responses:
+        '200':
+          description: Documents with category stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /admin-docs/assignments:
+    post:
+      tags: [Admin Documents]
+      summary: Assign a document to a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documentId, userId]
+              properties:
+                documentId:
+                  type: integer
+                userId:
+                  type: string
+                  format: uuid
+                dueDate:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Document assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /admin-docs/{document_id}/signatures:
+    get:
+      tags: [Admin Documents]
+      summary: Get signature status for a document
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Signature status per assignee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /admin-docs/departments:
+    get:
+      tags: [Admin Documents]
+      summary: List departments
+      responses:
+        '200':
+          description: Departments list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Admin Documents]
+      summary: Create a department
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Department created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /admin-docs/departments/{department_id}:
+    put:
+      tags: [Admin Documents]
+      summary: Update a department
+      parameters:
+        - name: department_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Department updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    delete:
+      tags: [Admin Documents]
+      summary: Delete a department
+      parameters:
+        - name: department_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Department deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ══════════════════════════════════════════════════════
+  # NOTIFICATIONS
+  # ══════════════════════════════════════════════════════
+  /notifications/:
+    get:
+      tags: [Notifications]
+      summary: List notifications
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [info, success, warning, error, reminder, action_required]
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [low, normal, high, urgent]
+        - name: isRead
+          in: query
+          schema:
+            type: boolean
+        - name: isArchived
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Notifications list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Notification'
+                      meta:
+                        $ref: '#/components/schemas/PaginationMeta'
+
+  /notifications/counts:
+    get:
+      tags: [Notifications]
+      summary: Get notification count summary
+      description: Returns total, unread, and archived counts.
+      responses:
+        '200':
+          description: Count summary
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          unread:
+                            type: integer
+                          archived:
+                            type: integer
+
+  /notifications/{id}:
+    get:
+      tags: [Notifications]
+      summary: Get a specific notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Notification'
+    delete:
+      tags: [Notifications]
+      summary: Permanently delete a notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/{id}/unread:
+    patch:
+      tags: [Notifications]
+      summary: Mark notification as unread
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Marked as unread
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/mark-all-read:
+    patch:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      responses:
+        '200':
+          description: All marked as read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/{id}/archive:
+    patch:
+      tags: [Notifications]
+      summary: Archive a notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/{id}/unarchive:
+    patch:
+      tags: [Notifications]
+      summary: Unarchive a notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Unarchived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/settings:
+    get:
+      tags: [Notifications]
+      summary: Get notification settings
+      responses:
+        '200':
+          description: User's notification settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    patch:
+      tags: [Notifications]
+      summary: Update notification settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                emailEnabled:
+                  type: boolean
+                pushEnabled:
+                  type: boolean
+                digestFrequency:
+                  type: string
+                  enum: [never, daily, weekly]
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/send:
+    post:
+      tags: [Notifications]
+      summary: Send a notification to a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendNotificationRequest'
+      responses:
+        '201':
+          description: Notification sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/broadcast:
+    post:
+      tags: [Notifications]
+      summary: Broadcast notification to multiple users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/SendNotificationRequest'
+                - type: object
+                  properties:
+                    recipientIds:
+                      type: array
+                      items:
+                        type: string
+                        format: uuid
+                    recipientId:
+                      description: Ignored for broadcasts — use recipientIds
+                      readOnly: true
+      responses:
+        '201':
+          description: Broadcast sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ══════════════════════════════════════════════════════
+  # PERFORMANCE
+  # ══════════════════════════════════════════════════════
+  /performance/current:
+    get:
+      tags: [Performance]
+      summary: Get current active review
+      responses:
+        '200':
+          description: Active review details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /performance/session:
+    post:
+      tags: [Performance]
+      summary: Generate question session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reviewId:
+                  type: string
+                  format: uuid
+                categoryId:
+                  type: string
+      responses:
+        '200':
+          description: Question session generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /performance/team-members:
+    get:
+      tags: [Performance]
+      summary: Get team members for nominations
+      responses:
+        '200':
+          description: Team members list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /performance/categories:
+    get:
+      tags: [Performance]
+      summary: Get question categories
+      responses:
+        '200':
+          description: Question categories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /performance/response:
+    post:
+      tags: [Performance]
+      summary: Submit or update a review response
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reviewId, questionId, response]
+              properties:
+                reviewId:
+                  type: string
+                  format: uuid
+                questionId:
+                  type: string
+                response:
+                  type: string
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+      responses:
+        '200':
+          description: Response saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /performance/responses/{reviewId}:
+    get:
+      tags: [Performance]
+      summary: Get all responses for a review
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Review responses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /performance/{reviewId}/complete:
+    post:
+      tags: [Performance]
+      summary: Complete employee portion of a review
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Review completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /performance/progress/{reviewId}:
+    get:
+      tags: [Performance]
+      summary: Get review progress
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Progress summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ══════════════════════════════════════════════════════
+  # SYSTEM
+  # ══════════════════════════════════════════════════════
+  /health:
+    get:
+      tags: [Auth]
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  db:
+                    type: string
+                    example: connected

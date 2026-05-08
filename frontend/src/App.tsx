@@ -4,22 +4,37 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import Index from "./pages/Index";
-import TeamAvailability from "./pages/TeamAvailability";
-import ApplyLeave from "./pages/ApplyLeave";
-import LeaveHistory from "./pages/LeaveHistory";
-import ApproveLeave from "./pages/ApproveLeave";
-import ManageEmployees from "./pages/ManageEmployees";
-import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import NotFound from "./pages/NotFound";
+import DashboardPage from "./pages/DashboardPage";
+import TeamAvailability from "./pages/TeamAvailabilityPage";
+import ApplyLeave from "./pages/ApplyLeavePage";
+import LeaveHistory from "./pages/LeaveHistoryPage";
+import ApproveLeave from "./pages/ApproveLeavePage";
+import ManageEmployees from "./pages/ManageEmployeesPage";
+import Login from "./pages/LoginPage";
+import ForgotPassword from "./pages/ForgotPasswordPage";
+import NotFound from "./components/NotFound";
 import type { ReactNode } from "react";
-import ChangePassword from "./pages/ChangePassword";
-import TeamListLeaveHistory from "./pages/TeamLeaveHistory";
-import UserProfile from "./pages/UserProfile";
-import PermissionDenied from "./pages/PermissionDenied";
+import ChangePassword from "./pages/ChangePasswordPage";
+import TeamListLeaveHistory from "./pages/TeamLeaveHistoryPage";
+import UserProfile from "./pages/UserProfilePage";
+import PermissionDenied from "./components/PermissionDenied";
 import DashboardLayout from "./components/DashboardLayout";
-import ProjectManagement from "./pages/ProjectManagement";
+import AdminDocumentsPage from "./pages/AdminDocumentsPage";
+import EmployeeDocumentsPage from "./pages/EmployeeDocumentsPage";
+// Import Performance Review Components
+import PerformanceReviewAdminPage from "./pages/PerformanceReviewAdminPage";
+import PerformanceReviewEmployeePage from "./pages/PerformanceReviewEmployeePage";
+import PerformanceReviewPeerPage from "./pages/PerformanceReviewPeerPage";
+import PerformanceReviewSubmissionsPage from "./pages/PerformanceReviewSubmissionsPage";
+import PerformanceReviewManagerAppraisalPage from "./pages/PerformanceReviewManagerAppraisalPage";
+import PerformanceReviewHistoryPage from "./pages/PerformanceReviewHistoryPage";
+// end of Performance Review imports
+import NotificationCenterPage from "./pages/NotificationCenterPage";
+import SupportPage from "./pages/SupportPage";
+import features from "./config/features";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
+import BackendDownPage from "./pages/BackendDownPage";
+import LandingPage from "./pages/LandingPage";
 
 const queryClient = new QueryClient();
 
@@ -52,7 +67,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
     return <Navigate to="/login" replace />;
   }
 
-  // Role-based access control
   if (allowedRoles && (!user?.role || !allowedRoles.includes(user.role as 'admin' | 'user'))) {
     return <Navigate to="/permission-denied" replace />;
   }
@@ -62,7 +76,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   )
 };
 
-// Public Route Component (redirects to dashboard if already authenticated)
+// Public Route Component
 const PublicRoute: React.FC<RouteProps> = ({ children }) => {
   const { isAuthenticated } = useAuth();
 
@@ -80,7 +94,7 @@ const App: React.FC = () => (
               {/* Protected Routes */}
               <Route path="/" element={
                 <ProtectedRoute>
-                  <Index />
+                  <DashboardPage />
                 </ProtectedRoute>
               } />
               <Route path="/profile" element={
@@ -103,23 +117,81 @@ const App: React.FC = () => (
                   <LeaveHistory />
                 </ProtectedRoute>
               } />
-              <Route path="/project-management" element={
+              <Route path="/support" element={
                 <ProtectedRoute>
-                  <ProjectManagement />
+                  <SupportPage />
                 </ProtectedRoute>
               } />
+              <Route path="/terms-of-service" element={
+                <ProtectedRoute>
+                  <TermsOfServicePage />
+                </ProtectedRoute>
+              } />
+
+              {/* Performance Review Routes */}
+              <Route path="/performance-review" element={
+                <ProtectedRoute allowedRoles={['user', 'admin']}>
+                  <PerformanceReviewEmployeePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance-review/peer/:assignmentId" element={
+                <ProtectedRoute allowedRoles={['user', 'admin']}>
+                  <PerformanceReviewPeerPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance-review-admin" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <PerformanceReviewAdminPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance-review-admin/submissions/:employeeId" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <PerformanceReviewSubmissionsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance-review/appraisal/:reviewId" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <PerformanceReviewManagerAppraisalPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/performance-review-history" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <PerformanceReviewHistoryPage />
+                </ProtectedRoute>
+              } />
+              {/* End of Performance Review Routes */}
+
+              {/* Notification Center */}
+              <Route path="/notifications" element={
+                <ProtectedRoute>
+                  <NotificationCenterPage />
+                </ProtectedRoute>
+              } />
+
+              {features.employeeDocuments && (
+                <Route path="/employee-document" element={
+                  <ProtectedRoute>
+                    <EmployeeDocumentsPage />
+                  </ProtectedRoute>
+                } />
+              )}
+              {features.adminDocuments && (
+                <Route path="/admin-document" element={
+                  <ProtectedRoute>
+                    <AdminDocumentsPage />
+                  </ProtectedRoute>
+                } />
+              )}
               <Route path="/approve-leave" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <ApproveLeave />
                 </ProtectedRoute>
               } />
-
               <Route path="/manage-employees" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <ManageEmployees />
                 </ProtectedRoute>
               } />
-
               <Route path="/team-leave-history" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <TeamListLeaveHistory />
@@ -137,12 +209,17 @@ const App: React.FC = () => (
                   <ForgotPassword />
                 </PublicRoute>
               } />
-
               <Route path="/change-password" element={
                 <PublicRoute>
                   <ChangePassword />
                 </PublicRoute>
               } />
+
+              {/* Status Route */}
+              <Route path="/status" element={<BackendDownPage />} />
+
+              {/* Lnding Route */}
+              <Route path="/welcome" element={<LandingPage />} />
 
               {/* Permission Denied Route */}
               <Route path="/permission-denied" element={<PermissionDenied />} />

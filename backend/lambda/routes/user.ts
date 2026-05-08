@@ -48,8 +48,7 @@ interface ApiResponse<T> {
 
 const client = new CognitoIdentityProviderClient({});
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID!;
-const USER_POOL_ID = process.env.USER_POOL_ID!;
-
+const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
 
 // Response utilities
 class ResponseService {
@@ -119,7 +118,10 @@ class UserService {
 
         try {
             // First get basic user info
-            const userSql = `SELECT * FROM users WHERE id = ?`;
+            const userSql = `SELECT u.*, d.name as department, d.description
+                FROM users u
+                JOIN departments d ON u.departmentId = d.id
+                WHERE u.id = ?`;
             const [userRows] = await connection.execute(userSql, [userId]);
             const user = (userRows as any[])[0];
 
@@ -152,8 +154,25 @@ class UserService {
         const connection = await DatabaseService.createConnection();
 
         try {
-            const sql = `SELECT * FROM users`;
+            const sql = `SELECT 
+                        u.*,
+                        d.name AS department
+                    FROM users u
+                    LEFT JOIN user_departments ud ON ud.user_id = u.id
+                    LEFT JOIN departments d ON d.id = ud.department_id;`;
             const [rows] = await connection.execute(sql);
+            return rows;
+        } finally {
+            await connection.end();
+        }
+    }
+
+    static async getAllDepartments() {
+        const connection = await DatabaseService.createConnection();
+
+        try {
+            const sql = `SELECT * FROM departments`;
+            const [rows] = await connection.execute(sql); // rows is of type QueryResult
             return rows;
         } finally {
             await connection.end();
@@ -261,10 +280,11 @@ app.get('/me/full', async (c) => {
 app.get('/', async (c) => {
     try {
         const users = await UserService.getAllUsers();
+        const departments = await UserService.getAllDepartments();
 
         const response = ResponseService.success(
             "Users retrieved successfully",
-            users
+            { users, departments }
         );
         return c.json(response, 200);
 
@@ -285,11 +305,26 @@ app.get('/on-leave', async (c) => {
     const connection = await DatabaseService.createConnection();
 
     try {
-        // Get query params or default to today
-        const startDate = c.req.query('startDate') || c.req.query('start_date') || new Date().toISOString().split('T')[0];
+        // Compute today's date in SAST (Africa/Johannesburg, UTC+2) as a YYYY-MM-DD string.
+        // Using toISOString() would give the UTC date, which is 2h behind SAST and causes
+        // the last day of leave to be missed (e.g. Friday shows as not-on-leave).
+        const SAST_TZ = 'Africa/Johannesburg';
+        const toSastDateStr = (d: Date): string =>
+            new Intl.DateTimeFormat('en-CA', {
+                timeZone: SAST_TZ,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            }).format(d);
+
+        const nowSast = toSastDateStr(new Date());
+
+        // Get query params or default to today (SAST)
+        const startDate = c.req.query('startDate') || c.req.query('start_date') || nowSast;
         const endDate = c.req.query('endDate') || c.req.query('end_date') || startDate;
 
-        console.log('Debug - Query params:', { startDate, endDate });
+        // Current date string in SAST for status determination
+        const currentDate = nowSast;
 
         // Validate parameters exist
         if (!startDate || !endDate) {
@@ -316,7 +351,7 @@ app.get('/on-leave', async (c) => {
             ), 400);
         }
 
-        // FIXED: Get ALL users with their leave status using LEFT JOIN
+        // Get ALL users with their leave requests (not just approved ones in the query range)
         const query = `
             SELECT 
                 u.id,
@@ -333,21 +368,15 @@ app.get('/on-leave', async (c) => {
             FROM users u
             LEFT JOIN leave_requests lr ON u.id = lr.uid 
                 AND lr.status = 'approved'
-                AND DATE(lr.start_date) <= ? 
-                AND DATE(lr.end_date) >= ?
             ORDER BY u.firstName, u.lastName, lr.start_date
         `;
 
-        console.log('Debug - Executing query with params:', [endDate, startDate]);
-
-        const [rows] = await connection.execute(query, [endDate, startDate]);
-
-        console.log('Debug - Total rows returned:', (rows as any[]).length);
+        const [rows] = await connection.execute(query);
 
         // Group users and their leave data
         const userMap = new Map<string, {
             user: any;
-            leaves: any[];
+            allLeaves: any[];
         }>();
 
         for (const row of rows as any[]) {
@@ -362,7 +391,7 @@ app.get('/on-leave', async (c) => {
                         email: row.email,
                         jobTitle: row.jobTitle
                     },
-                    leaves: []
+                    allLeaves: []
                 });
             }
 
@@ -370,107 +399,133 @@ app.get('/on-leave', async (c) => {
             if (row.leave_type && row.start_date && row.end_date) {
                 const leaveStartDate = new Date(row.start_date);
                 const leaveEndDate = new Date(row.end_date);
-                const queryStartDate = new Date(startDate);
-                const queryEndDate = new Date(endDate);
-
-                // Calculate overlapping period within the query range
-                const overlapStart = new Date(Math.max(leaveStartDate.getTime(), queryStartDate.getTime()));
-                const overlapEnd = new Date(Math.min(leaveEndDate.getTime(), queryEndDate.getTime()));
-
-                // Calculate overlapping days
-                const overlappingDays = Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
                 // Calculate total leave duration
                 const totalDuration = Math.floor((leaveEndDate.getTime() - leaveStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-                userMap.get(userId)!.leaves.push({
+                // Extract SAST calendar dates from the raw mysql2 Date objects.
+                // mysql2 may return DATE columns as SAST midnight encoded in UTC
+                // (e.g. "2026-05-01T22:00:00Z" = May 2 00:00 SAST), so comparing
+                // toISOString() dates against a UTC currentDate string will fail on the
+                // last day of leave. Using Intl.DateTimeFormat in SAST gives correct dates.
+                const startDateOnly = toSastDateStr(leaveStartDate);
+                const endDateOnly = toSastDateStr(leaveEndDate);
+
+                userMap.get(userId)!.allLeaves.push({
                     leaveType: row.leave_type,
                     startDate: leaveStartDate.toISOString(),
                     endDate: leaveEndDate.toISOString(),
+                    startDateOnly,
+                    endDateOnly,
                     duration: totalDuration,
-                    overlappingDays
+                    status: row.status
                 });
             }
         }
 
-        console.log('Debug - Unique users processed:', userMap.size);
-
         // Build team member output
-        const teamMembers = Array.from(userMap.values()).map(({ user, leaves }) => {
+        const teamMembers = Array.from(userMap.values()).map(({ user, allLeaves }) => {
             const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
             const initials = `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase();
 
-            // Determine if user is on leave
-            const isOnLeave = leaves.length > 0;
+            // All date comparisons use YYYY-MM-DD string ordering (ISO lexicographic = chronological)
+            // Find leave that covers current date
+            const currentLeave = allLeaves.find(leave =>
+                currentDate >= leave.startDateOnly && currentDate <= leave.endDateOnly
+            );
 
-            // If on leave, get the primary leave info (could be the longest or most recent)
+            // Find upcoming leaves (start after current date)
+            const upcomingLeaves = allLeaves
+                .filter(leave => leave.startDateOnly > currentDate)
+                .sort((a, b) => a.startDateOnly.localeCompare(b.startDateOnly));
+
+            // Find past leaves (ended before current date)
+            const pastLeaves = allLeaves
+                .filter(leave => leave.endDateOnly < currentDate)
+                .sort((a, b) => b.endDateOnly.localeCompare(a.endDateOnly));
+
+            // Determine status
+            let status = 'available';
             let primaryLeave = null;
-            if (isOnLeave) {
-                // Sort by overlapping days (descending) then by start date (most recent first)
-                leaves.sort((a, b) => {
-                    if (b.overlappingDays !== a.overlappingDays) {
-                        return b.overlappingDays - a.overlappingDays;
-                    }
-                    return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
-                });
 
-                primaryLeave = leaves[0];
+            if (currentLeave) {
+                status = 'on-leave';
+                primaryLeave = currentLeave;
+            } else if (upcomingLeaves.length > 0) {
+                // All date strings are YYYY-MM-DD (lexicographic = chronological)
+                const relevantUpcomingLeave = upcomingLeaves.find(leave =>
+                    leave.startDateOnly <= endDate && leave.endDateOnly >= startDate
+                );
+
+                if (relevantUpcomingLeave) {
+                    status = 'upcoming-leave';
+                    primaryLeave = relevantUpcomingLeave;
+                }
             }
+
+            // Calculate overlapping days using date-only strings (YYYY-MM-DD)
+            let overlappingDays = 0;
+            if (primaryLeave) {
+                const overlapStartStr = primaryLeave.startDateOnly > startDate ? primaryLeave.startDateOnly : startDate;
+                const overlapEndStr = primaryLeave.endDateOnly < endDate ? primaryLeave.endDateOnly : endDate;
+
+                if (overlapStartStr <= overlapEndStr) {
+                    const ms = new Date(overlapEndStr).getTime() - new Date(overlapStartStr).getTime();
+                    overlappingDays = Math.floor(ms / (1000 * 60 * 60 * 24)) + 1;
+                }
+            }
+
+            const toDisplayDate = (d: Date): string =>
+                new Intl.DateTimeFormat('en-US', {
+                    timeZone: SAST_TZ,
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                }).format(d);
 
             const member = {
                 id: user.id,
                 name: fullName,
                 email: user.email,
                 jobTitle: user.jobTitle || null,
-                status: isOnLeave ? 'on-leave' : 'available',
+                status: status,
                 avatar: initials,
                 leaveType: primaryLeave?.leaveType || null,
                 leaveDates: primaryLeave ?
-                    `${new Date(primaryLeave.startDate).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                    })} - ${new Date(primaryLeave.endDate).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                    })}` : null,
+                    `${toDisplayDate(new Date(primaryLeave.startDate))} - ${toDisplayDate(new Date(primaryLeave.endDate))}` : null,
                 startDate: primaryLeave?.startDate || null,
                 endDate: primaryLeave?.endDate || null,
                 duration: primaryLeave?.duration || null,
-                overlappingDays: primaryLeave?.overlappingDays || null,
-                // All leaves for this user in the date range
-                allLeaves: leaves
+                overlappingDays: overlappingDays,
+                // Categorized leaves
+                currentLeave: currentLeave || null,
+                upcomingLeaves: upcomingLeaves,
+                pastLeaves: pastLeaves.slice(0, 5) // Limit to recent 5 past leaves
             };
-
-            console.log(`Debug - User ${user.id} (${fullName}): ${member.status}`,
-                isOnLeave ? {
-                    leaveType: member.leaveType,
-                    dates: member.leaveDates,
-                    overlappingDays: member.overlappingDays
-                } : 'Available');
 
             return member;
         });
 
-        // Calculate summary
+        // Calculate summary based on current status
         const onLeaveCount = teamMembers.filter(m => m.status === 'on-leave').length;
         const availableCount = teamMembers.filter(m => m.status === 'available').length;
+        const upcomingLeaveCount = teamMembers.filter(m => m.status === 'upcoming-leave').length;
 
-        console.log('Debug - Final Summary:', {
-            totalUsers: teamMembers.length,
-            onLeave: onLeaveCount,
-            available: availableCount,
-            queryRange: `${startDate} to ${endDate}`
-        });
+        // Count people who will be on leave during the query period
+        const onLeaveInPeriod = teamMembers.filter(m =>
+            m.status === 'on-leave' || (m.status === 'upcoming-leave' && m.overlappingDays > 0)
+        ).length;
 
         const response = ResponseService.success("Leave status fetched successfully", {
             teamMembers,
             summary: {
                 totalUsers: teamMembers.length,
-                onLeave: onLeaveCount,
+                currentlyOnLeave: onLeaveCount,
                 available: availableCount,
-                queryRange: `${startDate} to ${endDate}`
+                upcomingLeave: upcomingLeaveCount,
+                onLeaveInPeriod: onLeaveInPeriod,
+                queryRange: `${startDate} to ${endDate}`,
+                currentDate: currentDate
             }
         });
 
@@ -560,7 +615,7 @@ app.delete('/delete-user', async (c) => {
 // This endpoint is for admin to add a new user. It will create the user in Cognito and add to the database
 app.post('/add-user', async (c) => {
     try {
-        const { firstName, lastName, jobTitle, isAdmin } = await c.req.json();
+        const { firstName, lastName, jobTitle, isAdmin, departmentId } = await c.req.json();
 
         // Validate required fields
         if (!firstName || !lastName || !jobTitle) {
@@ -657,8 +712,8 @@ app.post('/add-user', async (c) => {
 
             // Add user to database
             const insertSql = `
-                INSERT INTO users (id, email, firstName, lastName, role, jobTitle, phoneNumber, dob, gender, createdAt, updatedAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                INSERT INTO users (id, email, firstName, lastName, role, jobTitle, departmentId, phoneNumber, dob, gender, createdAt, updatedAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             `;
 
             await connection.execute(insertSql, [
@@ -668,19 +723,30 @@ app.post('/add-user', async (c) => {
                 lastName,
                 role,
                 jobTitle || '', // Pass null if jobTitle is empty/undefined for DB
+                departmentId,
                 '+27000000000', // Hardcoded - consider making dynamic or optional
                 '0000-01-01',   // Hardcoded - consider making dynamic or optional
                 '-'             // Hardcoded - consider making dynamic or optional
             ]);
 
             // Get the created user
-            // const [createdRows] = await connection.execute(checkSql, [email]);
-            // const createdUser = (createdRows as any[])[0];
+            const [createdRows] = await connection.execute(checkSql, [email]);
+            const createdUser = {
+                uuid,
+                email,
+                firstName,
+                lastName,
+                role,
+                jobTitle: jobTitle || '',
+                phoneNumber: '+27000000000',
+                dob: '0000-01-01',
+                gender: '-'
+            };
 
             const response = ResponseService.success(
                 "User created successfully. Welcome email sent with temporary password.",
                 {
-                    // user: createdUser,
+                    users: createdUser,
                     cognitoUsername: cognitoUser.User?.Username,
                     userStatus: cognitoUser.User?.UserStatus
                 }
@@ -728,7 +794,7 @@ app.post('/me/update', async (c) => {
         try {
             const updateSql = `
                 UPDATE users
-                SET firstName = ?, lastName = ?, jobTitle = ?, phoneNumber = ?, dob = ?, gender = ?
+                SET firstName = ?, lastName = ?, jobTitle = ?, phoneNumber = ?, dob = ?, gender = ?, updatedAt = NOW()
                 WHERE id = ? AND email = ?
             `;
 
@@ -768,13 +834,19 @@ app.post('/me/update', async (c) => {
 // This endpoint is for admin to update any user attributes
 app.post('/update-user', async (c) => {
     try {
-        const { id, firstName, lastName, jobTitle, phoneNumber, dob, gender } = await c.req.json();
+        const { id, firstName, lastName, jobTitle, departmentId } = await c.req.json();
 
         // Validate required fields
         if (!id || !firstName || !lastName || !jobTitle) {
             const response = ResponseService.error(
                 "INVALID_INPUT",
                 "id, jobTitle, firstName, lastName are required"
+            );
+            return c.json(response, 400);
+        } else if (!departmentId) {
+            const response = ResponseService.error(
+                "INVALID_INPUT",
+                "User must be assigned to a department, but department is not provided"
             );
             return c.json(response, 400);
         }
@@ -784,7 +856,7 @@ app.post('/update-user', async (c) => {
         try {
             const updateSql = `
                 UPDATE users
-                SET firstName = ?, lastName = ?, jobTitle = ?, phoneNumber = ?, dob = ?, gender = ?
+                SET firstName = ?, lastName = ?, jobTitle = ?, departmentId = ?, updatedAt = NOW()
                 WHERE id = ?
             `;
 
@@ -792,9 +864,7 @@ app.post('/update-user', async (c) => {
                 firstName,
                 lastName,
                 jobTitle,
-                phoneNumber,
-                dob,
-                gender,
+                departmentId,
                 id
             ]);
 
@@ -802,6 +872,7 @@ app.post('/update-user', async (c) => {
                 "User updated successfully",
                 { firstName, lastName, jobTitle }
             );
+
             return c.json(response, 200);
 
         } finally {
@@ -819,4 +890,58 @@ app.post('/update-user', async (c) => {
     }
 });
 
-export { app as users };
+// GET All departments - This endpoint retrieves all departments
+app.get('/departments', async (c) => {
+    try {
+        const connection = await DatabaseService.createConnection();
+
+        try {
+            const sql = `SELECT * FROM departments`;
+            const [rows] = await connection.execute(sql);
+            const response = ResponseService.success(
+                "Departments retrieved successfully",
+                rows
+            );
+            return c.json(response, 200);
+        } finally {
+            await connection.end();
+        }
+    } catch (error) {
+        console.error('Get departments error:', error);
+        const response = ResponseService.error(
+            "INTERNAL_SERVER_ERROR",
+            "Internal server error",
+            error
+        );
+        return c.json(response, 500);
+    }
+});
+
+// POST: Seed departments data
+app.post('/seed-departments', async (c) => {
+    try {
+        const connection = await DatabaseService.createConnection();
+
+        try {
+            const sql = `INSERT INTO departments (name) VALUES ('IT'), ('HR'), ('Admin'), ('Finance')`;
+            await connection.execute(sql);
+            const response = ResponseService.success(
+                "Departments seeded successfully",
+                []
+            );
+            return c.json(response, 200);
+        } finally {
+            await connection.end();
+        }
+    } catch (error) {
+        console.error('Seed departments error:', error);
+        const response = ResponseService.error(
+            "INTERNAL_SERVER_ERROR",
+            "Internal server error",
+            error
+        );
+        return c.json(response, 500);
+    }
+});
+
+export { app as userApp };
