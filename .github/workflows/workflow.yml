@@ -274,7 +274,7 @@ jobs:
         run: |
           echo "Running Prisma database migration"
         
-          if [ "$BRANCH" = "main" ]; then
+          if [ "$BRANCH" = "dev" ]; then
             DATABASE_URL=${{ secrets.DEV_DB_URL }}
           else
             DATABASE_URL=${{ secrets.PROD_DB_URL }}
