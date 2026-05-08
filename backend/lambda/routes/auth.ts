@@ -10,6 +10,8 @@ import {
     RespondToAuthChallengeCommand,
     ChangePasswordCommand
 } from '@aws-sdk/client-cognito-identity-provider';
+// import * as dotenv from 'dotenv';
+// dotenv.config();
 
 import { changePasswordSchema, forgotPasswordSchema, loginSchema, refreshTokenSchema, resetPasswordSchema } from '../schemas/validationSchemas';
 import z from 'zod';
@@ -65,7 +67,7 @@ const initiateAuth = async ({ username, password }: { username: string; password
                 success: false,
                 statusCode: 401,
                 data: {
-                    message: "User sign in failed - Not Authorized",
+                    message: "Incorrect username or password. Please try again.",
                     code: "NotAuthorizedException",
                     error: true,
                     payload: error
@@ -77,7 +79,7 @@ const initiateAuth = async ({ username, password }: { username: string; password
                 success: false,
                 statusCode: 403,
                 data: {
-                    message: "User sign in failed - User Is Not Confirmed",
+                    message: "User sign-in failed - Account not confirmed.",
                     code: "UserNotConfirmedException",
                     redirect: "/confirm-account",
                     error: true,
@@ -90,7 +92,7 @@ const initiateAuth = async ({ username, password }: { username: string; password
             success: false,
             statusCode: 500,
             data: {
-                message: "User sign in failed",
+                message: "Sign-in failed - Username not found or password incorrect.",
                 code: "UserSignedInError",
                 error: true,
                 payload: error
@@ -183,7 +185,7 @@ app.post('/login', async (c) => {
 
         // If authentication is successful, set cookies
         if (authResult.data.payload?.AccessToken) {
-            const tokenToStore = authResult.data.payload.IdToken || authResult.data.payload.AccessToken;
+            const tokenToStore = authResult.data.payload.AccessToken || authResult.data.payload.IdToken;
 
             setCookie(c, 'sessionId', tokenToStore, {
                 path: '/',
@@ -309,8 +311,8 @@ app.get('/verify', async (c) => {
                 const refreshResult = await refreshAccessToken(refreshToken);
 
                 if (refreshResult.success && refreshResult.data?.AccessToken) {
-                    // Store the new token (prefer ID token if available)
-                    const newTokenToStore = refreshResult.data.IdToken || refreshResult.data.AccessToken;
+                    // Store the new token (prefer access token for API auth)
+                    const newTokenToStore = refreshResult.data.AccessToken || refreshResult.data.IdToken || '';
 
                     setCookie(c, 'sessionId', newTokenToStore, {
                         path: '/',
@@ -400,9 +402,9 @@ app.post('/refresh', async (c) => {
             }, 401);
         }
 
-        // Update cookies with new tokens (prefer ID token)
+        // Update cookies with new tokens (prefer access token for API auth)
         if (refreshResult.data?.AccessToken) {
-            const tokenToStore = refreshResult.data.IdToken || refreshResult.data.AccessToken;
+            const tokenToStore = refreshResult.data.AccessToken || refreshResult.data.IdToken || '';
 
             setCookie(c, 'sessionId', tokenToStore, {
                 path: '/',
@@ -662,4 +664,4 @@ app.post('/logout', async (c) => {
     }
 });
 
-export { app as auth };
+export { app as authApp };

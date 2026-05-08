@@ -52,3 +52,10 @@ yarn-error.log*
 
 .cdk.staging
 cdk.out
+**/*.js.map
+**/.npmrc
+
+# claude
+.claude
+*.claude
+.claude/*

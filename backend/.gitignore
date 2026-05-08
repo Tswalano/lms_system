@@ -9,3 +9,5 @@ cdk.out
 
 node_modules
 
+
+/lib/generated/prisma

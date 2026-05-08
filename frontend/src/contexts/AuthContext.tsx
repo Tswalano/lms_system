@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
 // Types and Interfaces
-interface User {
+export interface User {
     id: string;
     firstName: string;
     lastName: string;
@@ -96,10 +96,14 @@ interface TokenRefreshResponse {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Sync with the backend API base URL for development and production
-// const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-// export const API_BASE_URL: string = 'https://xrdpcrhluc.execute-api.af-south-1.amazonaws.com/dev';
-export const API_BASE_URL: string = 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
+// if development environment
+export const API_BASE_URL: string =
+    process.env.NODE_ENV === 'development'
+        ? 'http://localhost:3000'
+        : process.env.NODE_ENV === 'dev'
+            ? 'https://xrdpcrhluc.execute-api.af-south-1.amazonaws.com/dev'
+            : 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
+
 
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
@@ -139,7 +143,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             if (response.ok) {
                 const data = await response.json();
-                localStorage.setItem('authToken', data.idToken);
+                localStorage.setItem('authToken', data.idToken || data.accessToken);
                 localStorage.setItem('accessToken', data.accessToken);
                 localStorage.setItem('refreshToken', data.refreshToken);
                 return {
@@ -160,6 +164,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkAuthStatus = async (): Promise<void> => {
         try {
             const token = getAuthToken();
+            console.log('[Auth] checkAuthStatus - Token:', token ? `${token.substring(0, 50)}...` : 'null');
+
             if (!token) {
                 setLoading(false);
                 return;
@@ -173,6 +179,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     'Accept': 'application/json'
                 },
             });
+
+            console.log('[Auth] /users/me response status:', response.status);
 
             if (response.status === 401) {
                 const refreshResult = await refreshAuthToken();
@@ -221,6 +229,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             if (response.ok) {
                 const data: LoginApiResponse = await response.json();
+
+                console.log('Running on NODE_ENV:', process.env.NODE_ENV);
 
                 if (data.requiresNewPassword) {
                     return {
