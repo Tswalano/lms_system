@@ -274,6 +274,7 @@ jobs:
         run: |
           echo "Running Prisma database migration"
         
+          BRANCH=${GITHUB_REF##*/}
           if [ "$BRANCH" = "main" ]; then
             export DATABASE_URL=${{ secrets.PROD_DB_URL }}
           else
