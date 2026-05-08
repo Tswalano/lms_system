@@ -275,9 +275,9 @@ jobs:
           echo "Running Prisma database migration"
         
           if [ "$BRANCH" = "main" ]; then
-            DATABASE_URL=${{ secrets.PROD_DB_URL }}
+            export DATABASE_URL=${{ secrets.PROD_DB_URL }}
           else
-            DATABASE_URL=${{ secrets.DEV_DB_URL }}
+            export DATABASE_URL=${{ secrets.DEV_DB_URL }}
           fi
 
           npx prisma migrate deploy 
