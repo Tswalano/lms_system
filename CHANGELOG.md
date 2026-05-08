@@ -1,3 +1,49 @@
+# [1.3.0-dev.1](https://github.com/Disraptor-Devs/employee-management-system/compare/v1.2.4...v1.3.0-dev.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* trigger build ([8e08d8f](https://github.com/Disraptor-Devs/employee-management-system/commit/8e08d8f3507d61c5f35d26a365f112f1d9a0360e))
+* **UI&backend:** Rfined the APIS for users and admin to show metric data such as views, signed, and percentage of signed users ([607d4a4](https://github.com/Disraptor-Devs/employee-management-system/commit/607d4a40c61df21258552f0e22892935d01b8053))
+* update deployment and rollback plan to reflect changes from `dev` branch instead of `feat/performancce-review` ([5e2bfb8](https://github.com/Disraptor-Devs/employee-management-system/commit/5e2bfb8c522efa9afb7e14297a9cb708f26658d3))
+* update pagination settings across multiple components to use a default page size of 5; update copyright text to reflect company name change ([4aae255](https://github.com/Disraptor-Devs/employee-management-system/commit/4aae255bf5b671128343956cf3a888b96e902aec))
+
+
+### Features
+
+* add API docs serving, dev scripts, and team sort ([0a7fd0f](https://github.com/Disraptor-Devs/employee-management-system/commit/0a7fd0f327f3ba04f5787704b26a307a6a42f867))
+* add console log for selected event in CalendarSection; update copyright text in DashboardLayout ([7450df4](https://github.com/Disraptor-Devs/employee-management-system/commit/7450df4c4e75d853e169f0c4110890b3bafa23f7))
+* add document signing reminder system ([3a8fa98](https://github.com/Disraptor-Devs/employee-management-system/commit/3a8fa98de6fe821278f26375ed0619501fd79695))
+* add drag-to-select leave application on calendar ([98f7f5e](https://github.com/Disraptor-Devs/employee-management-system/commit/98f7f5ece366edcd3054fe67ba217c4eb7399085))
+* add manager-role appraisals, cycle export, and dark mode toggle ([8366767](https://github.com/Disraptor-Devs/employee-management-system/commit/83667678ec5694d4b18893df8cf376d5484079cc))
+* add pagination component and hooks for improved data navigation ([a89866e](https://github.com/Disraptor-Devs/employee-management-system/commit/a89866ed67206a8e969562af31150f8d9080ccac))
+* add Performance Review Employee page with self and peer review functionality ([d3ae316](https://github.com/Disraptor-Devs/employee-management-system/commit/d3ae316d41ce1f4e46afa9f65a0189d777544ecc))
+* Add Performance Review page, Admin Document Management for contracts, and Employee page for digital contract viewing/signing ([fd04409](https://github.com/Disraptor-Devs/employee-management-system/commit/fd04409e69c61d7fd28ab61348c858e634eb12c5))
+* add Performance Review Peer and Submissions pages ([67e09c8](https://github.com/Disraptor-Devs/employee-management-system/commit/67e09c8f3bcb9472235914564a6d8432de792b9d))
+* add Prisma client and command hooks for Lambda deployment ([1ead072](https://github.com/Disraptor-Devs/employee-management-system/commit/1ead072e1d8aa6714ceaec43947748874d3187e1))
+* add target input for deployment options in workflow; update frontend and backend deployment conditions ([e7e5f00](https://github.com/Disraptor-Devs/employee-management-system/commit/e7e5f00d55f0d422cf8fb2c1bc5a474631eaebfe))
+* add test infrastructure, fix leave routes, and redesign notification UI ([21cd24a](https://github.com/Disraptor-Devs/employee-management-system/commit/21cd24abdd0fb1552f67984aa1feedf847f8a023))
+* **admin:** add bulk send reminders button to documents page ([6be62ce](https://github.com/Disraptor-Devs/employee-management-system/commit/6be62ce1b34d42f2bc5c8eecb0cba6ffb916a9e8))
+* allow backdated leaves with warning; unify button styles ([b85f6e1](https://github.com/Disraptor-Devs/employee-management-system/commit/b85f6e1de30d3d8155530db6ec6eac8e2438defc))
+* **backend:** Added a Multi-Environment CDK Deployment ([5ae0082](https://github.com/Disraptor-Devs/employee-management-system/commit/5ae0082cbdfc22604b2e8f1a067f314cb403b1fb))
+* enhance birthday display logic with observed date handling ([42c7eba](https://github.com/Disraptor-Devs/employee-management-system/commit/42c7ebafd402f43d33e497254477ad3ac43c920d))
+* Enhance birthday handling and leave date formatting ([f00f4ec](https://github.com/Disraptor-Devs/employee-management-system/commit/f00f4ec8abbeeea737bfbadd985c4680219b2f83))
+* enhance peer review functionality with auto-creation of performance review records and improved response handling ([29e23f8](https://github.com/Disraptor-Devs/employee-management-system/commit/29e23f8ddbcdb3e977a2e105c92ad6ac0d188edf))
+* enhance stat cards with hover animations and dark mode fixes ([427450c](https://github.com/Disraptor-Devs/employee-management-system/commit/427450ceafe127fcc3c38f8871d1d73afef2357e))
+* enhance token validation logic to return structured results with error handling ([133d374](https://github.com/Disraptor-Devs/employee-management-system/commit/133d3747f8f724b344722348ea8aabe8be1c0b89))
+* **FE&BE:** Added Notifiction center and Progress on Performance Review UI Flow ([3710ac9](https://github.com/Disraptor-Devs/employee-management-system/commit/3710ac98dc3ff2c092b9479edd2dfa1480936502))
+* **frotend:** itergrated the API functionalities in the frontend v1 ([899c650](https://github.com/Disraptor-Devs/employee-management-system/commit/899c65029a1c87feab28409e7b9ab96deccba7cb))
+* Implement employee management page with add, edit, and delete functionality ([8feb7a4](https://github.com/Disraptor-Devs/employee-management-system/commit/8feb7a41fa4aedbec73bb204da0e9aa7fd81d476))
+* implement performance review integration with backend API ([36b2e09](https://github.com/Disraptor-Devs/employee-management-system/commit/36b2e09ea5c890d413da23249f6d8424e0e98e47))
+* integrate Outlook calendar events with leave approval/cancellation ([34fb6ed](https://github.com/Disraptor-Devs/employee-management-system/commit/34fb6ed8430cb3f8c01f1e8baec58080f68715d5))
+* refactor CORS configuration to use allowedOrigins array for improved maintainability ([ab47619](https://github.com/Disraptor-Devs/employee-management-system/commit/ab476195b3b82e5dcf13924f599ff72481616f88))
+* **ui:** DocumentViewer for Policy Intergration ([e38d0df](https://github.com/Disraptor-Devs/employee-management-system/commit/e38d0dfd04336f3124e7d291a401c2f855446357))
+* **UI:** Fixed the department assignemnet on the Manage team page and adjusted the APIs for getting all users to return the departmens ([1a44cf7](https://github.com/Disraptor-Devs/employee-management-system/commit/1a44cf7cebf1f664a02c5708c693d35ff7f30890))
+* **UI:** Intergrated Update and Delete folders and added a footer ([fdd4204](https://github.com/Disraptor-Devs/employee-management-system/commit/fdd42048db6b6349dfa00ad16a40e2cdbcea2531))
+* update CORS origin handling to return null for undefined origins; add binaryTargets to Prisma client configuration ([79aa4aa](https://github.com/Disraptor-Devs/employee-management-system/commit/79aa4aadf63fbd6250e8a687f9bffe40e0dcbca9))
+* update Lambda deployment script to create necessary directories for Prisma binaries and schema ([8323e7e](https://github.com/Disraptor-Devs/employee-management-system/commit/8323e7e1116e8e224aab05f7474d2bd1823efbd2))
+* update LeaveBalanceCards to improve layout and rename Family Responsibility leave ([119b94b](https://github.com/Disraptor-Devs/employee-management-system/commit/119b94b8fe15c70e36c6dcd3452233d66cf5caa5))
+
 # 1.0.0-dev.1 (2026-05-06)
 
 
