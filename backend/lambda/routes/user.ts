@@ -120,7 +120,7 @@ class UserService {
             // First get basic user info
             const userSql = `SELECT u.*, d.name as department, d.description
                 FROM users u
-                JOIN departments d ON u.departmentId = d.id
+                LEFT JOIN departments d ON u.departmentId = d.id
                 WHERE u.id = ?`;
             const [userRows] = await connection.execute(userSql, [userId]);
             const user = (userRows as any[])[0];
