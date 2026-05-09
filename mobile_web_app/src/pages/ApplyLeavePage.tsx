@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from "@/contexts/AuthContext";
+import MobilePageHeader from "@/components/layout/MobilePageHeader";
 import moment from "moment";
 
 interface LeaveApplicationData {
@@ -136,42 +137,40 @@ const ApplyLeavePage = () => {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4">Unauthorized</h2>
-                    <p className="text-gray-600 dark:text-gray-400">Please log in to apply for leave.</p>
+                    <h2 className="mb-4 text-2xl font-bold text-slate-900 dark:text-gray-200">Unauthorized</h2>
+                    <p className="text-slate-600 dark:text-gray-400">Please log in to apply for leave.</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
-            {/* // <div className="max-w-2xl mx-auto px-4"> */}
-            {/* Page Header */}
-            <div className="mb-8">
-                <div className="flex items-center gap-3 mb-2">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
-                        <CalendarRange className="w-5 h-5" />
+        <div className="mx-auto w-full max-w-md px-4 pb-32">
+            <MobilePageHeader className="mb-4" />
+            <div className="mb-4">
+                <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-md">
+                        <CalendarRange className="h-4 w-4" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Apply for Leave</h1>
-                        <p className="text-gray-600 dark:text-gray-400">Submit your leave application</p>
+                        <h1 className="text-xl font-semibold text-slate-950 dark:text-slate-100 md:text-2xl">Apply for Leave</h1>
+                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Submit your leave application</p>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-gray-200/50 dark:border-slate-600/50 overflow-hidden">
-                {/* Form header band */}
-                <div className="p-6 border-b border-gray-200/50 dark:border-slate-600/50 bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 dark:from-slate-700 dark:via-slate-800 dark:to-slate-900">
-                    <div className="flex items-center justify-between">
+            <div className="overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white/88 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95 dark:shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
+                <div className="border-b border-slate-200/80 bg-gradient-to-br from-cyan-500/10 via-white/75 to-emerald-500/10 p-4 dark:border-slate-700 dark:from-cyan-950/40 dark:via-slate-800/90 dark:to-emerald-950/30">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                            <p className="text-sm text-slate-600 dark:text-slate-300">
                                 {formData.startDate && formData.endDate
                                     ? `${moment(formData.startDate).format('MMM D, YYYY')} — ${moment(formData.endDate).format('MMM D, YYYY')}`
                                     : 'Select your leave dates below'}
                             </p>
                         </div>
                         {selectedDayCount > 0 && (
-                            <div className="inline-flex items-center gap-2 rounded-full bg-white/80 dark:bg-slate-800/80 px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 border border-gray-200/80 dark:border-slate-600">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200">
                                 <span className="font-bold">{selectedDayCount}</span>
                                 <span>{selectedDayCount === 1 ? 'day selected' : 'days selected'}</span>
                             </div>
@@ -179,21 +178,20 @@ const ApplyLeavePage = () => {
                     </div>
                 </div>
 
-                <div className="p-6">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* Leave Type */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2 md:col-span-2">
-                                <Label className="text-gray-700 dark:text-gray-300">Leave Type *</Label>
+                <div className="p-4 sm:p-5">
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">Leave Type *</Label>
                                 <Select
                                     value={formData.leaveType}
                                     onValueChange={(value) => setFormData({ ...formData, leaveType: value })}
                                     disabled={isPending}
                                 >
-                                    <SelectTrigger className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                    <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100">
                                         <SelectValue placeholder="Select leave type" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600">
+                                    <SelectContent className="border-slate-200 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
                                         <SelectItem value="Annual Leave">Annual Leave</SelectItem>
                                         <SelectItem value="Sick Leave">Sick Leave</SelectItem>
                                         <SelectItem value="Paternity Leave">Paternity Leave</SelectItem>
@@ -202,115 +200,117 @@ const ApplyLeavePage = () => {
                                 </Select>
                             </div>
 
-                            {/* Leave Length */}
-                            <div className="space-y-3 md:col-span-2">
-                                <Label className="text-gray-700 dark:text-gray-300">Leave Length *</Label>
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">Leave Length *</Label>
                                 <RadioGroup
                                     value={formData.leaveLength}
                                     onValueChange={(value: 'half_day' | 'full_day') => setFormData({ ...formData, leaveLength: value })}
-                                    className="flex flex-col sm:flex-row gap-4"
+                                    className="grid grid-cols-2 gap-3"
                                     disabled={isPending}
                                 >
                                     <Label htmlFor="apply_full_day" className={cn(
-                                        "flex items-center space-x-2 rounded-xl border px-4 py-3 flex-1 cursor-pointer transition-colors",
+                                        "flex min-h-12 items-center space-x-2 rounded-2xl border px-4 py-3 cursor-pointer transition-colors",
                                         formData.leaveLength === 'full_day'
-                                            ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600'
-                                            : 'border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50'
+                                            ? 'border-cyan-400/50 bg-cyan-500/12 text-cyan-700 dark:border-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-200'
+                                            : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300'
                                     )}>
                                         <RadioGroupItem value="full_day" id="apply_full_day" />
-                                        <span>Full Day</span>
+                                        <span className="text-sm">Full Day</span>
                                     </Label>
                                     <Label htmlFor="apply_half_day" className={cn(
-                                        "flex items-center space-x-2 rounded-xl border px-4 py-3 flex-1 cursor-pointer transition-colors",
+                                        "flex min-h-12 items-center space-x-2 rounded-2xl border px-4 py-3 cursor-pointer transition-colors",
                                         formData.leaveLength === 'half_day'
-                                            ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600'
-                                            : 'border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50'
+                                            ? 'border-cyan-400/50 bg-cyan-500/12 text-cyan-700 dark:border-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-200'
+                                            : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300'
                                     )}>
                                         <RadioGroupItem value="half_day" id="apply_half_day" />
-                                        <span>Half Day</span>
+                                        <span className="text-sm">Half Day</span>
                                     </Label>
                                 </RadioGroup>
                             </div>
 
-                            {/* Start Date */}
-                            <div className="space-y-2">
-                                <Label className="text-gray-700 dark:text-gray-300">Start Date *</Label>
-                                <input
-                                    type="date"
-                                    value={formData.startDate}
-                                    onChange={(e) => setFormData(prev => ({
-                                        ...prev,
-                                        startDate: e.target.value,
-                                        endDate: prev.leaveLength === 'half_day'
-                                            ? e.target.value
-                                            : (prev.endDate && prev.endDate < e.target.value ? e.target.value : prev.endDate)
-                                    }))}
-                                    className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 px-4 py-3 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                    disabled={isPending}
-                                />
-                            </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">Start Date *</Label>
+                                    <input
+                                        type="date"
+                                        value={formData.startDate}
+                                        onChange={(e) => setFormData(prev => ({
+                                            ...prev,
+                                            startDate: e.target.value,
+                                            endDate: prev.leaveLength === 'half_day'
+                                                ? e.target.value
+                                                : (prev.endDate && prev.endDate < e.target.value ? e.target.value : prev.endDate)
+                                        }))}
+                                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100"
+                                        disabled={isPending}
+                                    />
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">Start date for the leave request.</p>
+                                </div>
 
-                            {/* End Date */}
-                            <div className="space-y-2">
-                                <Label className="text-gray-700 dark:text-gray-300">End Date *</Label>
-                                <input
-                                    type="date"
-                                    value={formData.endDate}
-                                    min={formData.startDate}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                                    className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 px-4 py-3 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60"
-                                    disabled={isPending || formData.leaveLength === 'half_day'}
-                                />
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">End Date *</Label>
+                                    <input
+                                        type="date"
+                                        value={formData.endDate}
+                                        min={formData.startDate}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100"
+                                        disabled={isPending || formData.leaveLength === 'half_day'}
+                                    />
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        {formData.leaveLength === 'half_day' ? 'Half day leave uses the same start and end date.' : 'End date cannot be before the start date.'}
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Past-date warning */}
                         {formData.startDate && moment(formData.startDate).isBefore(moment(), 'day') && (
-                            <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 flex items-start gap-3">
-                                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                            <div className="flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3">
+                                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-300" />
                                 <div>
-                                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Backdated Leave Application</p>
-                                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">You are applying for leave starting in the past. Make sure this is intentional.</p>
+                                    <p className="text-sm font-medium text-amber-100">Backdated Leave Application</p>
+                                    <p className="mt-0.5 text-xs text-amber-200/80">You are applying for leave starting in the past.</p>
                                 </div>
                             </div>
                         )}
 
-                        {/* Reason */}
                         <div className="space-y-2">
-                            <Label htmlFor="reason" className="text-gray-700 dark:text-gray-300">Reason for Leave *</Label>
+                            <Label htmlFor="reason" className="text-sm font-medium text-slate-700 dark:text-slate-200">Reason for Leave *</Label>
                             <Textarea
                                 id="reason"
-                                placeholder="Please provide a detailed reason for your leave request..."
+                                placeholder="Please provide a brief reason for your leave request..."
                                 value={formData.reason}
                                 onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                                className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600 min-h-[120px]"
+                                className="min-h-[104px] rounded-2xl border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:placeholder:text-slate-500"
+                                rows={4}
                                 disabled={isPending}
                             />
                         </div>
 
                         {isError && (
-                            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-                                <p className="text-red-600 dark:text-red-400 text-sm">
+                            <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 p-3">
+                                <p className="text-sm text-rose-200">
                                     {error instanceof Error ? error.message : 'An error occurred while submitting your application.'}
                                 </p>
                             </div>
                         )}
 
-                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                        <div className="space-y-3 pt-2 pb-2">
                             <Button
                                 type="submit"
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                className="h-12 w-full rounded-2xl bg-cyan-500 text-slate-950 shadow-sm hover:bg-cyan-400"
                                 disabled={isPending}
                             >
                                 {isPending ? (
-                                    <><Loader2 className="w-4 h-4 animate-spin mr-2" />Submitting...</>
+                                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</>
                                 ) : 'Submit Application'}
                             </Button>
                             <Button
                                 type="button"
                                 onClick={clearForm}
                                 variant="outline"
-                                className="bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600"
+                                className="h-11 w-full rounded-2xl border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800"
                                 disabled={isPending}
                             >
                                 Clear Form

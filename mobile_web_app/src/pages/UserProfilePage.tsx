@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     User, Mail, Phone, Lock, Edit2, Save, X, Eye, EyeOff,
-    Camera, Loader2, Calendar as CalendarIcon, Users2, Info,
+    Loader2, Calendar as CalendarIcon, Users2, Info,
     Clock, Shield, ChevronRight, Briefcase
 } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import MobilePageHeader from '@/components/layout/MobilePageHeader';
 import { toast } from 'sonner';
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover';
@@ -85,7 +86,8 @@ const EditableInput: React.FC<{
     placeholder?: string;
     readOnly?: boolean;
     note?: string;
-}> = ({ label, type = 'text', value, onChange, disabled, placeholder, readOnly, note }) => (
+    autoComplete?: string;
+}> = ({ label, type = 'text', value, onChange, disabled, placeholder, readOnly, note, autoComplete = 'off' }) => (
     <div className="space-y-1.5">
         <label className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
             {label}
@@ -101,11 +103,12 @@ const EditableInput: React.FC<{
             onChange={e => onChange(e.target.value)}
             disabled={disabled || readOnly}
             placeholder={placeholder}
+            autoComplete={autoComplete}
             className={cn(
                 "w-full px-3 py-2.5 rounded-xl text-sm border transition-all duration-150 outline-none",
                 readOnly
                     ? "bg-gray-50 dark:bg-slate-800/60 border-gray-100 dark:border-slate-700 text-gray-400 dark:text-gray-500 cursor-default"
-                    : "bg-white dark:bg-slate-700 border-gray-200 dark:border-slate-600 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    : "bg-white dark:bg-slate-700 border-gray-200 dark:border-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
             )}
         />
         {note && (
@@ -123,7 +126,8 @@ const PasswordInput: React.FC<{
     show: boolean;
     onToggle: () => void;
     disabled?: boolean;
-}> = ({ label, value, onChange, show, onToggle, disabled }) => (
+    autoComplete?: string;
+}> = ({ label, value, onChange, show, onToggle, disabled, autoComplete = 'off' }) => (
     <div className="space-y-1.5">
         <label className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">{label}</label>
         <div className="relative">
@@ -132,7 +136,8 @@ const PasswordInput: React.FC<{
                 value={value}
                 onChange={e => onChange(e.target.value)}
                 disabled={disabled}
-                className="w-full px-3 py-2.5 pr-10 rounded-xl text-sm border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all"
+                autoComplete={autoComplete}
+                className="w-full px-3 py-2.5 pr-10 rounded-xl text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all"
             />
             <button
                 type="button"
@@ -265,6 +270,12 @@ const UserProfilePage: React.FC = () => {
         }
     };
 
+    const closePasswordSheet = () => {
+        if (isChangingPasswordLoading) return;
+        setIsChangingPassword(false);
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    };
+
     const cancelEdit = () => {
         if (userData) {
             setProfileData({
@@ -274,6 +285,11 @@ const UserProfilePage: React.FC = () => {
             });
         }
         setIsEditing(false);
+    };
+
+    const closeEditSheet = () => {
+        if (isSaving) return;
+        cancelEdit();
     };
 
     const getInitials = (f: string, l: string) =>
@@ -312,55 +328,32 @@ const UserProfilePage: React.FC = () => {
     // ── Render ─────────────────────────────────────────────────────────────
 
     return (
-        <div className="max-w-5xl mx-auto px-4 py-2 space-y-6">
+        <div className="max-w-5xl mx-auto px-4 py-2 space-y-5">
+            <MobilePageHeader />
 
             {/* ── Page header ── */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">My Profile</h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                    <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">My Profile</h1>
+                    <p className="mt-0.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
                         Manage your personal information and account security
                     </p>
                 </div>
 
-                {!isEditing ? (
-                    <Button
-                        onClick={() => setIsEditing(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 h-9 text-sm font-medium shadow-sm"
-                    >
-                        <Edit2 className="w-3.5 h-3.5 mr-1.5" />
-                        Edit Profile
-                    </Button>
-                ) : (
-                    <div className="flex items-center gap-2">
-                        <Button
-                            onClick={cancelEdit}
-                            disabled={isSaving}
-                            variant="outline"
-                            className="rounded-xl h-9 text-sm border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300"
-                        >
-                            <X className="w-3.5 h-3.5 mr-1.5" />
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSaveProfile}
-                            disabled={isSaving}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-9 text-sm shadow-sm"
-                        >
-                            {isSaving
-                                ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />Saving…</>
-                                : <><Save className="w-3.5 h-3.5 mr-1.5" />Save Changes</>
-                            }
-                        </Button>
-                    </div>
-                )}
+                <Button
+                    onClick={() => setIsEditing(true)}
+                    className="h-9 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 sm:self-start"
+                >
+                    <Edit2 className="mr-1.5 w-3.5 h-3.5" />
+                    Edit Profile
+                </Button>
             </div>
 
             {/* ── Main grid ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
 
                 {/* ── LEFT SIDEBAR ── */}
-                <div className="space-y-5">
+                <div className="space-y-4">
 
                     {/* Identity card */}
                     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 overflow-hidden">
@@ -370,17 +363,12 @@ const UserProfilePage: React.FC = () => {
                                 style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
                         </div>
 
-                        <div className="px-5 pb-5">
+                        <div className="px-4 pb-4">
                             {/* Avatar */}
                             <div className="relative inline-block -mt-9 mb-3">
                                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-lg font-bold ring-4 ring-white dark:ring-slate-800 shadow-lg">
                                     {getInitials(profileData.firstName, profileData.lastName)}
                                 </div>
-                                {isEditing && (
-                                    <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center shadow-md transition-colors">
-                                        <Camera className="w-3 h-3" />
-                                    </button>
-                                )}
                             </div>
 
                             <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 leading-tight">
@@ -395,7 +383,7 @@ const UserProfilePage: React.FC = () => {
                                     {roleConfig.label}
                                 </span>
                                 {userData.department && (
-                                    <span className="text-xs font-medium px-2.5 py-1 rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-600 dark:text-gray-400 border border-gray-100 dark:border-slate-600">
+                                    <span className="text-xs font-medium px-2.5 py-1 rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-600 dark:text-gray-400 border border-gray-100 dark:border-slate-700">
                                         {userData.department}
                                     </span>
                                 )}
@@ -425,8 +413,8 @@ const UserProfilePage: React.FC = () => {
 
                     {/* Leave balance */}
                     {userData.leaveData?.length > 0 && (
-                        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-5">
-                            <div className="flex items-center gap-2 mb-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4">
+                            <div className="flex items-center gap-2 mb-3">
                                 <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
                                     <CalendarIcon className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                                 </div>
@@ -454,11 +442,11 @@ const UserProfilePage: React.FC = () => {
                 </div>
 
                 {/* ── RIGHT CONTENT ── */}
-                <div className="lg:col-span-2 space-y-5">
+                <div className="lg:col-span-2 space-y-4">
 
                     {/* Personal information */}
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-6">
-                        <div className="flex items-center gap-2.5 mb-6">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4 sm:p-5">
+                        <div className="mb-4 flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
                                 <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </div>
@@ -468,26 +456,209 @@ const UserProfilePage: React.FC = () => {
                             </div>
                         </div>
 
-                        {isEditing ? (
-                            /* ─ Edit mode grid ─ */
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                <EditableInput label="First Name" value={profileData.firstName} onChange={setField('firstName')} disabled={isSaving} />
-                                <EditableInput label="Last Name" value={profileData.lastName} onChange={setField('lastName')} disabled={isSaving} />
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                            <ReadOnlyField label="First Name" value={profileData.firstName} />
+                            <ReadOnlyField label="Last Name" value={profileData.lastName} />
+                            <ReadOnlyField
+                                label="Email Address"
+                                value={profileData.email}
+                                icon={<Mail className="w-3.5 h-3.5" />}
+                            />
+                            <ReadOnlyField
+                                label="Phone Number"
+                                value={profileData.phoneNumber || 'Not provided'}
+                                icon={<Phone className="w-3.5 h-3.5" />}
+                            />
+                            <ReadOnlyField
+                                label="Date of Birth"
+                                value={profileData.dob ? getBirthdayDisplayDate(profileData.dob).date : 'Not provided'}
+                                icon={<CalendarIcon className="w-3.5 h-3.5" />}
+                                note={profileData.dob ? getBirthdayDisplayDate(profileData.dob).note : undefined}
+                            />
+                            <ReadOnlyField
+                                label="Gender"
+                                value={profileData.gender === '-' ? 'Prefer not to say' : profileData.gender || 'Not provided'}
+                                icon={<Users2 className="w-3.5 h-3.5" />}
+                            />
+                            <ReadOnlyField
+                                label="Job Title"
+                                value={profileData.jobTitle || 'Not set'}
+                                icon={<Briefcase className="w-3.5 h-3.5" />}
+                            />
+                            <ReadOnlyField
+                                label="Department"
+                                value={userData.department || 'Not assigned'}
+                                icon={<Users2 className="w-3.5 h-3.5" />}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Security / password */}
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4 sm:p-5">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center">
+                                    <Shield className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">Security</h4>
+                                    <p className="text-xs text-gray-400 dark:text-gray-500">Manage your password and login security</p>
+                                </div>
+                            </div>
+                            {!isChangingPassword && (
+                                <button
+                                    onClick={() => setIsChangingPassword(true)}
+                                    className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors"
+                                >
+                                    Change password
+                                    <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                            )}
+                        </div>
+                        <div className="mt-3 flex items-center gap-3 rounded-xl bg-gray-50 p-3 dark:bg-slate-700/50">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30">
+                                <Lock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Password protected</p>
+                                <p className="text-[11px] text-gray-400 dark:text-gray-500">Your account is secured with a password</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {isChangingPassword && (
+                <div className="fixed inset-0 z-50 flex items-end bg-black/55 backdrop-blur-sm" onClick={closePasswordSheet}>
+                    <div
+                        className="max-h-[80vh] w-full overflow-hidden rounded-t-[1.75rem] border border-slate-200 bg-white shadow-2xl animate-in slide-in-from-bottom duration-300 dark:border-slate-700 dark:bg-slate-800"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-600" />
+                        <div className="flex items-start justify-between gap-3 px-4 pb-4 pt-3 sm:px-5">
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Change Password</h3>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Update your password without leaving this page.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closePasswordSheet}
+                                className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-700"
+                                aria-label="Close password sheet"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <div className="max-h-[calc(80vh-92px)] overflow-y-auto px-4 pb-5 sm:px-5">
+                            <div className="space-y-4">
+                                <PasswordInput
+                                    label="Current Password"
+                                    value={passwordData.currentPassword}
+                                    onChange={setPwField('currentPassword')}
+                                    show={showCurrentPassword}
+                                    onToggle={() => setShowCurrentPassword(p => !p)}
+                                    disabled={isChangingPasswordLoading}
+                                />
+
+                                <PasswordInput
+                                    label="New Password"
+                                    value={passwordData.newPassword}
+                                    onChange={setPwField('newPassword')}
+                                    show={showNewPassword}
+                                    onToggle={() => setShowNewPassword(p => !p)}
+                                    disabled={isChangingPasswordLoading}
+                                />
+
+                                <PasswordInput
+                                    label="Confirm New Password"
+                                    value={passwordData.confirmPassword}
+                                    onChange={setPwField('confirmPassword')}
+                                    show={showConfirmPassword}
+                                    onToggle={() => setShowConfirmPassword(p => !p)}
+                                    disabled={isChangingPasswordLoading}
+                                />
+
+                                <p className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500">
+                                    <Info className="w-3 h-3 shrink-0" />
+                                    Must be at least 8 characters
+                                </p>
+                            </div>
+
+                            <div className="mt-5 grid grid-cols-2 gap-3 border-t border-gray-100 pt-4 dark:border-slate-700">
+                                <Button
+                                    onClick={closePasswordSheet}
+                                    disabled={isChangingPasswordLoading}
+                                    variant="outline"
+                                    className="h-10 rounded-xl border-gray-200 text-sm text-gray-600 dark:border-slate-700 dark:text-gray-300"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={handleChangePassword}
+                                    disabled={isChangingPasswordLoading}
+                                    className="h-10 rounded-xl bg-rose-600 text-sm text-white shadow-sm hover:bg-rose-700"
+                                >
+                                    {isChangingPasswordLoading
+                                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />Updating…</>
+                                        : <><Lock className="w-3.5 h-3.5 mr-1.5" />Update Password</>
+                                    }
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isEditing && (
+                <div className="fixed inset-0 z-50 flex items-end bg-black/55 backdrop-blur-sm" onClick={closeEditSheet}>
+                    <div
+                        className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-slate-200 bg-white shadow-2xl animate-in slide-in-from-bottom duration-300 dark:border-slate-700 dark:bg-slate-800"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-600" />
+                        <div className="shrink-0 border-b border-gray-100 px-4 pb-4 pt-3 dark:border-slate-700 sm:px-5">
+                            <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit Profile</h3>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Update your personal details without leaving this page.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeEditSheet}
+                                className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-700"
+                                aria-label="Close edit profile sheet"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4 sm:px-5">
+                            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                                <EditableInput label="First Name" value={profileData.firstName} onChange={setField('firstName')} disabled={isSaving} autoComplete="given-name" />
+                                <EditableInput label="Last Name" value={profileData.lastName} onChange={setField('lastName')} disabled={isSaving} autoComplete="family-name" />
 
                                 <EditableInput
-                                    label="Email Address" type="email"
-                                    value={profileData.email} onChange={setField('email')}
+                                    label="Email Address"
+                                    type="email"
+                                    value={profileData.email}
+                                    onChange={setField('email')}
                                     readOnly
-                                // note="Email cannot be changed for security reasons"
+                                    note="Email cannot be changed here"
+                                    autoComplete="off"
                                 />
 
                                 <EditableInput
-                                    label="Phone Number" type="tel"
-                                    value={profileData.phoneNumber} onChange={setField('phoneNumber')}
-                                    disabled={isSaving} placeholder="+27 xx xxx xxxx"
+                                    label="Phone Number"
+                                    type="tel"
+                                    value={profileData.phoneNumber}
+                                    onChange={setField('phoneNumber')}
+                                    disabled={isSaving}
+                                    placeholder="+27 xx xxx xxxx"
+                                    autoComplete="tel"
                                 />
 
-                                {/* Date of Birth */}
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
                                         Date of Birth
@@ -498,15 +669,12 @@ const UserProfilePage: React.FC = () => {
                                                 variant="outline"
                                                 disabled={isSaving}
                                                 className={cn(
-                                                    "w-full justify-start text-left font-normal h-10 rounded-xl border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm",
+                                                    "h-10 w-full justify-start rounded-xl border-gray-200 bg-white text-left text-sm font-normal dark:border-slate-700 dark:bg-slate-700",
                                                     !profileData.dob && "text-gray-400"
                                                 )}
                                             >
                                                 <CalendarIcon className="mr-2 h-3.5 w-3.5 text-gray-400" />
-                                                {profileData.dob
-                                                    ? format(new Date(profileData.dob), "PPP")
-                                                    : <span>Pick a date</span>
-                                                }
+                                                {profileData.dob ? format(new Date(profileData.dob), "PPP") : <span>Pick a date</span>}
                                             </Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-auto p-0" align="start">
@@ -532,14 +700,14 @@ const UserProfilePage: React.FC = () => {
                                     </Popover>
                                 </div>
 
-                                {/* Gender */}
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Gender</label>
                                     <select
                                         value={profileData.gender}
                                         onChange={e => setField('gender')(e.target.value)}
                                         disabled={isSaving}
-                                        className="w-full px-3 py-2.5 h-10 rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all"
+                                        autoComplete="sex"
+                                        className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-700 dark:bg-slate-700 dark:text-gray-100"
                                     >
                                         <option value="">Select gender</option>
                                         <option value="Male">Male</option>
@@ -548,170 +716,51 @@ const UserProfilePage: React.FC = () => {
                                         <option value="-">Prefer not to say</option>
                                     </select>
                                 </div>
-                            </div>
-                        ) : (
-                            /* ─ View mode grid ─ */
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
-                                <ReadOnlyField label="First Name" value={profileData.firstName} />
-                                <ReadOnlyField label="Last Name" value={profileData.lastName} />
-                                <ReadOnlyField
-                                    label="Email Address"
-                                    value={profileData.email}
-                                    icon={<Mail className="w-3.5 h-3.5" />}
-                                // note="Cannot be changed for security reasons"
-                                />
-                                <ReadOnlyField
-                                    label="Phone Number"
-                                    value={profileData.phoneNumber || 'Not provided'}
-                                    icon={<Phone className="w-3.5 h-3.5" />}
-                                />
-                                <ReadOnlyField
-                                    label="Date of Birth"
-                                    value={profileData.dob ? getBirthdayDisplayDate(profileData.dob).date : 'Not provided'}
-                                    icon={<CalendarIcon className="w-3.5 h-3.5" />}
-                                    note={profileData.dob ? getBirthdayDisplayDate(profileData.dob).note : undefined}
-                                />
-                                <ReadOnlyField
-                                    label="Gender"
-                                    value={profileData.gender === '-' ? 'Prefer not to say' : profileData.gender || 'Not provided'}
-                                    icon={<Users2 className="w-3.5 h-3.5" />}
-                                />
-                                <ReadOnlyField
+
+                                <EditableInput
                                     label="Job Title"
-                                    value={profileData.jobTitle || 'Not set'}
-                                    icon={<Briefcase className="w-3.5 h-3.5" />}
+                                    value={profileData.jobTitle}
+                                    onChange={setField('jobTitle')}
+                                    disabled={isSaving}
+                                    autoComplete="organization-title"
                                 />
-                                <ReadOnlyField
+
+                                <EditableInput
                                     label="Department"
                                     value={userData.department || 'Not assigned'}
-                                    icon={<Users2 className="w-3.5 h-3.5" />}
+                                    onChange={() => undefined}
+                                    readOnly
+                                    note="Department is managed by your administrator"
+                                    autoComplete="off"
                                 />
                             </div>
-                        )}
-                    </div>
-
-                    {/* Security / password */}
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-6">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center">
-                                    <Shield className="w-4 h-4 text-rose-500 dark:text-rose-400" />
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">Security</h4>
-                                    <p className="text-xs text-gray-400 dark:text-gray-500">Manage your password and login security</p>
-                                </div>
-                            </div>
-                            {!isChangingPassword && (
-                                <button
-                                    onClick={() => setIsChangingPassword(true)}
-                                    className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors"
-                                >
-                                    Change password
-                                    <ChevronRight className="w-3.5 h-3.5" />
-                                </button>
-                            )}
                         </div>
 
-                        {isChangingPassword && (
-                            <div className="mt-6">
-                                <div className="h-px bg-gray-100 dark:bg-slate-700 -mx-6 mb-6" />
-
-                                {/* Step 1 — verify current password */}
-                                <div>
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <span className="w-5 h-5 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-[11px] font-bold flex items-center justify-center shrink-0">1</span>
-                                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Verify your current password</p>
-                                    </div>
-                                    <PasswordInput
-                                        label="Current Password"
-                                        value={passwordData.currentPassword}
-                                        onChange={setPwField('currentPassword')}
-                                        show={showCurrentPassword}
-                                        onToggle={() => setShowCurrentPassword(p => !p)}
-                                        disabled={isChangingPasswordLoading}
-                                    />
-                                </div>
-
-                                {/* Step divider */}
-                                <div className="flex items-center gap-3 my-5">
-                                    <div className="flex-1 h-px bg-gray-100 dark:bg-slate-700" />
-                                    <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">then</span>
-                                    <div className="flex-1 h-px bg-gray-100 dark:bg-slate-700" />
-                                </div>
-
-                                {/* Step 2 — set new password */}
-                                <div>
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <span className="w-5 h-5 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-[11px] font-bold flex items-center justify-center shrink-0">2</span>
-                                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Set your new password</p>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <PasswordInput
-                                            label="New Password"
-                                            value={passwordData.newPassword}
-                                            onChange={setPwField('newPassword')}
-                                            show={showNewPassword}
-                                            onToggle={() => setShowNewPassword(p => !p)}
-                                            disabled={isChangingPasswordLoading}
-                                        />
-                                        <PasswordInput
-                                            label="Confirm New Password"
-                                            value={passwordData.confirmPassword}
-                                            onChange={setPwField('confirmPassword')}
-                                            show={showConfirmPassword}
-                                            onToggle={() => setShowConfirmPassword(p => !p)}
-                                            disabled={isChangingPasswordLoading}
-                                        />
-                                    </div>
-                                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2.5 flex items-center gap-1">
-                                        <Info className="w-3 h-3 shrink-0" />
-                                        Must be at least 8 characters
-                                    </p>
-                                </div>
-
-                                <div className="flex items-center gap-3 mt-6 pt-5 border-t border-gray-100 dark:border-slate-700">
-                                    <Button
-                                        onClick={() => {
-                                            setIsChangingPassword(false);
-                                            setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                                        }}
-                                        disabled={isChangingPasswordLoading}
-                                        variant="outline"
-                                        size="sm"
-                                        className="rounded-xl border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300 h-9 text-xs"
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        onClick={handleChangePassword}
-                                        disabled={isChangingPasswordLoading}
-                                        size="sm"
-                                        className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white h-9 text-xs shadow-sm"
-                                    >
-                                        {isChangingPasswordLoading
-                                            ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />Updating…</>
-                                            : <><Lock className="w-3.5 h-3.5 mr-1.5" />Update Password</>
-                                        }
-                                    </Button>
-                                </div>
+                        <div className="shrink-0 border-t border-gray-100 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95 sm:px-5">
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button
+                                    onClick={closeEditSheet}
+                                    disabled={isSaving}
+                                    variant="outline"
+                                    className="h-10 rounded-xl border-gray-200 text-sm text-gray-600 dark:border-slate-700 dark:text-gray-300"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={handleSaveProfile}
+                                    disabled={isSaving}
+                                    className="h-10 rounded-xl bg-emerald-600 text-sm text-white shadow-sm hover:bg-emerald-700"
+                                >
+                                    {isSaving
+                                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />Saving…</>
+                                        : <><Save className="w-3.5 h-3.5 mr-1.5" />Save Changes</>
+                                    }
+                                </Button>
                             </div>
-                        )}
-
-                        {!isChangingPassword && (
-                            <div className="mt-4 flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-slate-700/50">
-                                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                                    <Lock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                </div>
-                                <div>
-                                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Password protected</p>
-                                    <p className="text-[11px] text-gray-400 dark:text-gray-500">Your account is secured with a password</p>
-                                </div>
-                            </div>
-                        )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

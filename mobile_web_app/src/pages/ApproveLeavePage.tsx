@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Clock, Eye, RefreshCw, AlertCircle, Loader2, X, MessageSquare, Users, User, Ban, Square, CheckSquare } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Eye, RefreshCw, AlertCircle, Loader2, X, MessageSquare, User, Ban, Square, CheckSquare } from "lucide-react";
 import { Pagination } from "@/components/ui/Pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,9 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils"
-import StatsCard from "@/components/ui/StatsCard";
+import { Link } from "react-router-dom";
+import MobilePageHeader from "@/components/layout/MobilePageHeader";
+import ProcessedRequestCompactCard from "@/components/approvals/ProcessedRequestCompactCard";
 
 interface LeaveRequest {
     id: number;
@@ -25,7 +27,7 @@ interface LeaveRequest {
     leave_comment: string;
     leave_length: 'half_day' | 'full_day';
     createdAt: string;
-    status: 'pending' | 'approved' | 'rejected';
+    status: 'pending' | 'approved' | 'rejected' | 'cancelled';
     feedback?: string;
 }
 
@@ -276,8 +278,11 @@ const ApproveLeavePage = () => {
 
     const pendingRequests = requests.filter(req => req.status.toLowerCase() === 'pending');
     const processedRequests = requests.filter(req => req.status.toLowerCase() !== 'pending');
+    const approvedCount = processedRequests.filter(req => req.status === 'approved').length;
+    const recentProcessedRequests = [...processedRequests]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
     const pendingPagination = usePagination(pendingRequests, 5);
-    const processedPagination = usePagination(processedRequests, 5);
 
     const processLeaveMutation = useMutation({
         mutationFn: async ({ requestId, action, comment }: { requestId: number; action: 'approve' | 'reject'; comment: string }) => {
@@ -442,99 +447,94 @@ const ApproveLeavePage = () => {
     }
 
     const selectedRequests = pendingRequests.filter(r => selectedIds.has(r.id));
+    const summaryStats = [
+        { label: "Pending", value: pendingRequests.length, helper: "awaiting review", className: "border-amber-200/70 bg-amber-50/75 dark:border-amber-900/40 dark:bg-amber-950/20" },
+        { label: "Approved", value: approvedCount, helper: "approved", className: "border-emerald-200/70 bg-emerald-50/75 dark:border-emerald-900/40 dark:bg-emerald-950/20" },
+        { label: "Total", value: requests.length, helper: "all requests", className: "border-cyan-200/70 bg-cyan-50/75 dark:border-cyan-900/40 dark:bg-cyan-950/20" },
+    ] as const;
 
     return (
-        <div>
-            <div className="mb-8">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                            <CheckCircle className="w-5 h-5 text-white" />
+        <div className="mx-auto w-full max-w-5xl px-4 pb-28">
+            <MobilePageHeader className="mb-4" />
+            <section className="rounded-[1.5rem] border border-slate-200/80 bg-white/85 p-3 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_18px_48px_rgba(2,6,23,0.28)] md:p-5">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2.5">
+                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md">
+                                <CheckCircle className="h-4 w-4" />
+                            </div>
+                            <h1 className="text-xl font-semibold text-slate-950 dark:text-gray-100 md:text-2xl">Leave Approvals</h1>
                         </div>
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Approve Leave Requests</h1>
-                            <p className="text-gray-600 dark:text-gray-400">Review and approve employee leave applications</p>
-                        </div>
+                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Review, approve, reject, or cancel employee leave requests.</p>
                     </div>
                     <Button
                         onClick={handleRefresh}
                         variant="outline"
-                        className="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600"
+                        className="h-9 min-w-9 rounded-xl border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                         disabled={isFetching}
                     >
                         <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-                        Refresh
                     </Button>
                 </div>
 
-                {/* Statistics */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <StatsCard
-                        label="Pending Requests"
-                        value={pendingRequests.length}
-                        subtitle="awaiting review"
-                        tone="yellow"
-                        icon={<Clock className="w-5 h-5" />}
-                    />
-                    <StatsCard
-                        label="Recently Approved"
-                        value={processedRequests.filter(r => r.status === 'approved').length}
-                        subtitle="leave approved"
-                        tone="green"
-                        icon={<CheckCircle className="w-5 h-5" />}
-                    />
-                    <StatsCard
-                        label="Total Requests"
-                        value={requests.length}
-                        subtitle="all employees"
-                        tone="blue"
-                        icon={<Users className="w-5 h-5" />}
-                    />
+                <div className="mt-3 grid grid-cols-3 gap-2 md:mt-4 md:gap-3">
+                    {summaryStats.map((stat) => (
+                        <div
+                            key={stat.label}
+                            className={cn(
+                                "min-w-0 rounded-2xl border px-3 py-2.5 shadow-sm",
+                                stat.className
+                            )}
+                        >
+                            <p className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                                {stat.label}
+                            </p>
+                            <p className="mt-1 text-xl font-bold text-slate-950 dark:text-slate-100 md:text-2xl">
+                                {stat.value}
+                            </p>
+                            <p className="truncate text-[11px] text-slate-600 dark:text-slate-400">
+                                {stat.helper}
+                            </p>
+                        </div>
+                    ))}
                 </div>
-            </div>
+            </section>
 
             {isLoading ? (
-                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12">
-                    <div className="text-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
-                        <p className="text-gray-600 dark:text-gray-400">Loading leave requests...</p>
-                    </div>
+                <div className="mt-6 rounded-[1.5rem] border border-slate-200/80 bg-white/85 p-10 text-center shadow-[0_18px_48px_rgba(15,23,42,0.12)] dark:border-slate-700 dark:bg-slate-800">
+                    <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-cyan-500" />
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Loading leave requests...</p>
                 </div>
             ) : error ? (
-                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12">
-                    <div className="text-center">
-                        <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                        <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">Error loading requests</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{error instanceof Error ? error.message : 'Something went wrong'}</p>
-                        <Button onClick={() => refetch()} className="bg-blue-500 hover:bg-blue-600 text-white">Try Again</Button>
-                    </div>
+                <div className="mt-6 rounded-[1.5rem] border border-rose-200 bg-rose-50/80 p-10 text-center dark:border-rose-900/40 dark:bg-rose-950/20">
+                    <AlertCircle className="mx-auto mb-4 h-12 w-12 text-rose-500" />
+                    <p className="mb-2 font-medium text-slate-900 dark:text-slate-100">Error loading requests</p>
+                    <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">{error instanceof Error ? error.message : 'Something went wrong'}</p>
+                    <Button onClick={() => refetch()} className="rounded-2xl bg-blue-600 hover:bg-blue-700 text-white">Try Again</Button>
                 </div>
             ) : (
                 <>
-                    {/* Pending Requests */}
-                    <div className="mb-8">
-                        {/* Pending section header with select-all */}
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                                {pendingRequests.length > 0 && (
-                                    <button
-                                        onClick={toggleSelectAll}
-                                        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                                    >
-                                        {allPendingSelected ? (
-                                            <CheckSquare className="w-4 h-4 text-blue-500" />
-                                        ) : somePendingSelected ? (
-                                            <CheckSquare className="w-4 h-4 text-blue-300" />
-                                        ) : (
-                                            <Square className="w-4 h-4" />
-                                        )}
-                                        {allPendingSelected ? 'Deselect all' : 'Select all'}
-                                    </button>
-                                )}
-                                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
-                                    Pending Requests ({pendingRequests.length})
-                                </h2>
+                    <section className="mt-6">
+                        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-950 dark:text-slate-100">Pending Requests</h2>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">{pendingRequests.length} request{pendingRequests.length === 1 ? '' : 's'} waiting for review</p>
                             </div>
+                            {pendingRequests.length > 0 && (
+                                <button
+                                    onClick={toggleSelectAll}
+                                    className="inline-flex items-center gap-2 self-start rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                                >
+                                    {allPendingSelected ? (
+                                        <CheckSquare className="h-4 w-4 text-blue-500" />
+                                    ) : somePendingSelected ? (
+                                        <CheckSquare className="h-4 w-4 text-blue-300" />
+                                    ) : (
+                                        <Square className="h-4 w-4" />
+                                    )}
+                                    {allPendingSelected ? 'Deselect all' : 'Select all'}
+                                </button>
+                            )}
                         </div>
 
                         {pendingRequests.length > 0 ? (
@@ -542,222 +542,198 @@ const ApproveLeavePage = () => {
                                 {pendingPagination.paginatedItems.map((request) => {
                                     const isSelected = selectedIds.has(request.id);
                                     return (
-                                        <div
+                                        <article
                                             key={request.id}
                                             className={cn(
-                                                "bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden hover:shadow-md transition-all border-l-4",
+                                                "rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl transition-all dark:border-slate-700 dark:bg-slate-800",
                                                 isSelected
-                                                    ? "border-l-blue-500 dark:border-l-blue-400 ring-2 ring-blue-200 dark:ring-blue-800"
-                                                    : "border-l-amber-500 dark:border-l-amber-400"
+                                                    ? "ring-2 ring-blue-200 dark:ring-blue-900/60"
+                                                    : ""
                                             )}
                                         >
-                                            <div className="p-5">
-                                                <div className="flex items-start gap-3">
-                                                    {/* Checkbox */}
-                                                    <button
-                                                        onClick={() => toggleSelect(request.id)}
-                                                        className="mt-1 flex-shrink-0 text-gray-400 hover:text-blue-500 transition-colors"
-                                                        aria-label={isSelected ? 'Deselect' : 'Select'}
-                                                    >
-                                                        {isSelected
-                                                            ? <CheckSquare className="w-5 h-5 text-blue-500" />
-                                                            : <Square className="w-5 h-5" />
-                                                        }
-                                                    </button>
+                                            <div className="flex items-start gap-3">
+                                                <button
+                                                    onClick={() => toggleSelect(request.id)}
+                                                    className="mt-1 flex-shrink-0 text-slate-400 transition-colors hover:text-blue-500"
+                                                    aria-label={isSelected ? 'Deselect' : 'Select'}
+                                                >
+                                                    {isSelected ? <CheckSquare className="h-5 w-5 text-blue-500" /> : <Square className="h-5 w-5" />}
+                                                </button>
 
-                                                    <div className="flex items-start justify-between gap-4 flex-1">
-                                                        <div className="flex items-start gap-4">
-                                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="flex min-w-0 items-start gap-3">
+                                                            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-sm font-bold text-white">
                                                                 {request.firstName[0]}{request.lastName[0]}
                                                             </div>
-                                                            <div>
-                                                                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                                    <h3 className="font-semibold text-gray-800 dark:text-gray-200">
+                                                            <div className="min-w-0">
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <h3 className="truncate text-base font-semibold text-slate-950 dark:text-slate-100">
                                                                         {request.firstName} {request.lastName}
                                                                     </h3>
-                                                                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 font-medium">
+                                                                    <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                                                                         {request.leave_type}
-                                                                    </span>
-                                                                    {request.leave_length === 'half_day' && (
-                                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-medium">
-                                                                            Half Day
-                                                                        </span>
-                                                                    )}
+                                                                    </Badge>
+                                                                    {request.leave_length === 'half_day' ? (
+                                                                        <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Half Day</Badge>
+                                                                    ) : null}
                                                                 </div>
-                                                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{request.jobTitle}</p>
-                                                                <div className="flex flex-wrap gap-3 text-sm text-gray-600 dark:text-gray-400">
-                                                                    <span>{formatDate(request.start_date)} → {formatDate(request.end_date)}</span>
-                                                                    <span className="text-gray-300 dark:text-gray-600">•</span>
-                                                                    <span>{request.duration} day{request.duration > 1 ? 's' : ''}</span>
-                                                                </div>
-                                                                {request.leave_comment && (
-                                                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 italic line-clamp-2 max-w-lg">
-                                                                        "{request.leave_comment}"
-                                                                    </p>
-                                                                )}
+                                                                <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{request.jobTitle || request.email}</p>
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => openApprovalModal(request, 'approve')}
-                                                                className="border-green-200 text-green-600 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/40"
-                                                                disabled={processLeaveMutation.isPending}
-                                                            >
-                                                                <CheckCircle className="w-4 h-4 mr-1" /> Approve
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => openApprovalModal(request, 'reject')}
-                                                                className="border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40"
-                                                                disabled={processLeaveMutation.isPending}
-                                                            >
-                                                                <XCircle className="w-4 h-4 mr-1" /> Reject
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => openDetailsModal(request)}
-                                                                className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40"
-                                                            >
-                                                                <Eye className="w-4 h-4" /> View
-                                                            </Button>
-                                                        </div>
+                                                        <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                            Pending
+                                                        </Badge>
                                                     </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12 text-center text-gray-500 dark:text-gray-400">
-                                <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                                <p className="font-medium">No pending leave requests</p>
-                                <p className="text-sm">All requests have been processed</p>
-                            </div>
-                        )}
-                    </div>
 
-                    {/* Processed Requests */}
-                    {processedRequests.length > 0 && (
-                        <div>
-                            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
-                                Recently Processed ({processedRequests.length})
-                            </h2>
-                            <div className="space-y-3">
-                                {processedPagination.paginatedItems.map((request) => {
-                                    const leftBorderColor = request.status === 'approved'
-                                        ? 'border-l-green-500 dark:border-l-green-400'
-                                        : request.status === 'rejected'
-                                            ? 'border-l-red-500 dark:border-l-red-400'
-                                            : 'border-l-gray-500 dark:border-l-gray-400';
-                                    return (
-                                        <div key={request.id} className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow border-l-4 ${leftBorderColor}`}>
-                                            <div className="p-5">
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="flex items-start gap-4">
-                                                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${request.status === 'approved' ? 'from-green-500 to-green-600' : request.status === 'rejected' ? 'from-red-500 to-red-600' : 'from-gray-500 to-gray-600'} flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>
-                                                            {request.firstName[0]}{request.lastName[0]}
-                                                        </div>
-                                                        <div>
-                                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                                <h3 className="font-semibold text-gray-800 dark:text-gray-200">{request.firstName} {request.lastName}</h3>
-                                                                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300">{request.leave_type}</span>
-                                                                <Badge className={getStatusColor(request.status)}>
-                                                                    {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                                                                </Badge>
-                                                            </div>
-                                                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{request.jobTitle}</p>
-                                                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                                {formatDate(request.start_date)} → {formatDate(request.end_date)}
+                                                    <div className="mt-4 grid grid-cols-2 gap-3">
+                                                        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 p-3 dark:border-slate-700 dark:bg-slate-700/40">
+                                                            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Dates</p>
+                                                            <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                {formatDate(request.start_date)} - {formatDate(request.end_date)}
                                                             </p>
-                                                            {request.feedback && (
-                                                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 italic line-clamp-1">"{request.feedback}"</p>
-                                                            )}
+                                                        </div>
+                                                        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 p-3 dark:border-slate-700 dark:bg-slate-700/40">
+                                                            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Duration</p>
+                                                            <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                {request.duration} day{request.duration !== 1 ? 's' : ''}
+                                                            </p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                                        {(() => {
-                                                            const cancelActive = request.status === 'approved' && isFutureLeave(request);
-                                                            return (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => { if (cancelActive) handleCancelLeave(request); }}
-                                                                    disabled={cancelLeaveMutation.isPending || !cancelActive}
-                                                                    className={cancelActive
-                                                                        ? "border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40"
-                                                                        : "border-gray-200 text-gray-400 bg-gray-50 dark:bg-gray-800/20 dark:border-gray-700 dark:text-gray-500 cursor-not-allowed"
-                                                                    }
-                                                                >
-                                                                    <Ban className="w-4 h-4 mr-1" /> Cancel
-                                                                </Button>
-                                                            );
-                                                        })()}
+
+                                                    {request.leave_comment ? (
+                                                        <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-700 dark:bg-slate-900/60">
+                                                            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Employee Comment</p>
+                                                            <p className="mt-1 text-sm text-slate-600 line-clamp-3 dark:text-slate-300">"{request.leave_comment}"</p>
+                                                        </div>
+                                                    ) : null}
+
+                                                    <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => openApprovalModal(request, 'approve')}
+                                                            className="h-11 rounded-2xl border-green-200 bg-green-50 text-green-600 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40"
+                                                            disabled={processLeaveMutation.isPending}
+                                                        >
+                                                            <CheckCircle className="mr-2 h-4 w-4" />Approve
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => openApprovalModal(request, 'reject')}
+                                                            className="h-11 rounded-2xl border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+                                                            disabled={processLeaveMutation.isPending}
+                                                        >
+                                                            <XCircle className="mr-2 h-4 w-4" />Reject
+                                                        </Button>
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() => openDetailsModal(request)}
-                                                            className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40"
+                                                            className="h-11 rounded-2xl border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
                                                         >
-                                                            <Eye className="w-4 h-4" /> View
+                                                            <Eye className="mr-2 h-4 w-4" />View Details
                                                         </Button>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        </article>
                                     );
                                 })}
                                 <Pagination
-                                    currentPage={processedPagination.page}
-                                    totalPages={processedPagination.totalPages}
-                                    pageSize={processedPagination.pageSize}
-                                    totalItems={processedPagination.totalItems}
-                                    onPageChange={processedPagination.setPage}
-                                    onPageSizeChange={processedPagination.setPageSize}
-                                    className="mt-2 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700"
+                                    currentPage={pendingPagination.page}
+                                    totalPages={pendingPagination.totalPages}
+                                    pageSize={pendingPagination.pageSize}
+                                    totalItems={pendingPagination.totalItems}
+                                    onPageChange={pendingPagination.setPage}
+                                    onPageSizeChange={pendingPagination.setPageSize}
+                                    className="mt-2 rounded-2xl border border-gray-100 bg-white dark:border-slate-700 dark:bg-slate-800"
                                 />
                             </div>
-                        </div>
+                        ) : (
+                            <div className="rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-10 text-center dark:border-slate-700 dark:bg-slate-800">
+                                <Clock className="mx-auto mb-4 h-12 w-12 text-slate-400" />
+                                <p className="font-medium text-slate-900 dark:text-slate-100">No pending leave requests</p>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">All requests have been processed.</p>
+                            </div>
+                        )}
+                    </section>
+
+                    {processedRequests.length > 0 && (
+                        <section className="mt-8">
+                            <div className="mb-4 flex items-end justify-between gap-3">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-slate-950 dark:text-slate-100">Recently Processed</h2>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                                        Showing {recentProcessedRequests.length} of {processedRequests.length}
+                                    </p>
+                                </div>
+                                <Link
+                                    to="/approve-leave/processed"
+                                    className="inline-flex h-9 items-center rounded-full border border-cyan-200 bg-cyan-50 px-4 text-sm font-medium text-cyan-700 transition-colors hover:bg-cyan-100 dark:border-cyan-800 dark:bg-cyan-950/30 dark:text-cyan-300 dark:hover:bg-cyan-950/50"
+                                >
+                                    View all processed requests
+                                </Link>
+                            </div>
+
+                            {recentProcessedRequests.length > 0 ? (
+                                <div className="space-y-3">
+                                    {recentProcessedRequests.map((request) => (
+                                        <ProcessedRequestCompactCard
+                                            key={request.id}
+                                            request={request}
+                                            formatDate={formatDate}
+                                            onOpenDetails={(item) => openDetailsModal(item as LeaveRequest)}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-6 text-center dark:border-slate-700 dark:bg-slate-800">
+                                    <p className="font-medium text-slate-900 dark:text-slate-100">No processed requests yet</p>
+                                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Processed approvals will appear here once requests are reviewed.</p>
+                                </div>
+                            )}
+                        </section>
                     )}
                 </>
             )}
 
             {/* Floating bulk action bar */}
             {selectedIds.size > 0 && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 lg:translate-x-16 z-40 flex items-center gap-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-2xl shadow-2xl px-5 py-3">
-                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                <div className="fixed inset-x-4 bottom-24 z-40 rounded-[1.5rem] border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95 lg:left-[calc(50%+8rem)] lg:right-auto lg:w-auto lg:-translate-x-1/2">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                         {selectedIds.size} selected
-                    </span>
-                    <div className="w-px h-5 bg-gray-200 dark:bg-slate-600" />
-                    <Button
-                        size="sm"
-                        onClick={() => openBulkModal('approve')}
-                        className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
-                        disabled={bulkActionMutation.isPending}
-                    >
-                        <CheckCircle className="w-4 h-4" />
-                        Approve all
-                    </Button>
-                    <Button
-                        size="sm"
-                        onClick={() => openBulkModal('reject')}
-                        className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
-                        disabled={bulkActionMutation.isPending}
-                    >
-                        <XCircle className="w-4 h-4" />
-                        Reject all
-                    </Button>
-                    <button
-                        onClick={() => setSelectedIds(new Set())}
-                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                        aria-label="Clear selection"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
+                        </span>
+                        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                            <Button
+                                size="sm"
+                                onClick={() => openBulkModal('approve')}
+                                className="h-10 rounded-2xl bg-green-600 hover:bg-green-700 text-white gap-1.5"
+                                disabled={bulkActionMutation.isPending}
+                            >
+                                <CheckCircle className="w-4 h-4" />
+                                Approve
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => openBulkModal('reject')}
+                                className="h-10 rounded-2xl bg-red-600 hover:bg-red-700 text-white gap-1.5"
+                                disabled={bulkActionMutation.isPending}
+                            >
+                                <XCircle className="w-4 h-4" />
+                                Reject
+                            </Button>
+                        </div>
+                        <button
+                            onClick={() => setSelectedIds(new Set())}
+                            className="self-end text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-200 sm:self-auto"
+                            aria-label="Clear selection"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
             )}
 

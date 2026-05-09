@@ -1,34 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ArrowRight, Calendar, Clock, Users, Shield, CheckCircle, Bell, BarChart3, FileText, Zap, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const LandingPage: React.FC = (): JSX.Element => {
     const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
-    const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+    const { theme, toggleTheme } = useTheme();
 
-    // Initialize dark mode from localStorage or system preference
-    useEffect(() => {
-        const savedTheme = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-            setIsDarkMode(true);
-            document.documentElement.classList.add('dark');
-        } else {
-            setIsDarkMode(false);
-            document.documentElement.classList.remove('dark');
-        }
-    }, []);
-
-    const toggleDarkMode = () => {
-        setIsDarkMode(!isDarkMode);
-        if (!isDarkMode) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-        }
-    };
+    const isDarkMode = theme === "dark";
 
     const features = [
         {
@@ -115,14 +93,14 @@ const LandingPage: React.FC = (): JSX.Element => {
                                 About
                             </a>
                             <button
-                                onClick={toggleDarkMode}
+                                onClick={toggleTheme}
                                 className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                                 aria-label="Toggle dark mode"
                             >
                                 {isDarkMode ? (
                                     <Sun className="w-5 h-5 text-yellow-500" />
                                 ) : (
-                                    <Moon className="w-5 h-5 text-gray-600" />
+                                    <Moon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                                 )}
                             </button>
                             <a
@@ -161,7 +139,7 @@ const LandingPage: React.FC = (): JSX.Element => {
                                     About
                                 </a>
                                 <button
-                                    onClick={toggleDarkMode}
+                                    onClick={toggleTheme}
                                     className="flex items-center gap-2 p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors self-start"
                                     aria-label="Toggle dark mode"
                                 >
@@ -172,7 +150,7 @@ const LandingPage: React.FC = (): JSX.Element => {
                                         </>
                                     ) : (
                                         <>
-                                            <Moon className="w-5 h-5 text-gray-600" />
+                                            <Moon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                                             <span className="text-gray-700 dark:text-gray-300">Dark Mode</span>
                                         </>
                                     )}

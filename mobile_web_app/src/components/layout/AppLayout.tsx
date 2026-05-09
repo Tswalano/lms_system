@@ -9,7 +9,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
 
     return (
-        <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.16),_transparent_28%),linear-gradient(180deg,#08101e_0%,#0d1728_44%,#101c2f_100%)]">
+        <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.14),_transparent_28%),linear-gradient(180deg,rgba(248,250,252,1)_0%,rgba(236,253,245,1)_40%,rgba(236,254,255,1)_100%)] text-slate-950 dark:bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.14),_transparent_24%),linear-gradient(180deg,#0f172a_0%,#111827_46%,#0b1220_100%)] dark:text-slate-100">
             <AppNavigation
                 isMobileMenuOpen={isMobileSheetOpen}
                 onOpenMobileMenu={() => setIsMobileSheetOpen(true)}

@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     CalendarClock,
     CheckCircle2,
     Clock3,
-    ClipboardList,
     Plane,
     Stethoscope,
     Users,
@@ -14,7 +13,6 @@ import MobileCalendarCard, { type MobileCalendarEvent } from "@/components/dashb
 import MobileDashboardHeader from "@/components/dashboard/MobileDashboardHeader";
 import MobileStatCard from "@/components/dashboard/MobileStatCard";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
 
 const quotes = [
     { text: "Keep momentum small and consistent.", author: "Daily focus" },
@@ -32,49 +30,41 @@ const statCards = [
     {
         title: "Annual Leave",
         value: "12",
-        description: "Days taken this year",
+        description: "Used this year",
         progress: 60,
-        icon: <Plane className="h-5 w-5" />,
+        icon: <Plane className="h-4 w-4" />,
         accentClassName: "from-emerald-400 to-teal-500",
     },
     {
         title: "Sick Leave",
         value: "3",
-        description: "Days used this year",
+        description: "Taken so far",
         progress: 25,
-        icon: <Stethoscope className="h-5 w-5" />,
+        icon: <Stethoscope className="h-4 w-4" />,
         accentClassName: "from-amber-400 to-orange-500",
     },
     {
         title: "Pending",
         value: "2",
-        description: "Requests awaiting action",
+        description: "Awaiting action",
         progress: 40,
-        icon: <Clock3 className="h-5 w-5" />,
+        icon: <Clock3 className="h-4 w-4" />,
         accentClassName: "from-sky-400 to-cyan-500",
     },
     {
         title: "Approved",
         value: "8",
-        description: "Requests cleared this cycle",
+        description: "Approved this cycle",
         progress: 82,
-        icon: <CheckCircle2 className="h-5 w-5" />,
+        icon: <CheckCircle2 className="h-4 w-4" />,
         accentClassName: "from-lime-400 to-emerald-500",
-    },
-    {
-        title: "Remaining Annual",
-        value: "8",
-        description: "Days still available",
-        progress: 40,
-        icon: <ClipboardList className="h-5 w-5" />,
-        accentClassName: "from-violet-400 to-fuchsia-500",
     },
     {
         title: "Team Away Today",
         value: "4",
-        description: "Members currently on leave",
+        description: "Away right now",
         progress: 33,
-        icon: <Users className="h-5 w-5" />,
+        icon: <Users className="h-4 w-4" />,
         accentClassName: "from-pink-400 to-rose-500",
     },
 ];
@@ -100,11 +90,18 @@ const formatIsoDate = (date: Date) => {
 
 const DashboardPage = () => {
     const { user } = useAuth();
-    const { theme, toggleTheme } = useTheme();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [showNotifications, setShowNotifications] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(() => new Date());
     const [selectedDate, setSelectedDate] = useState(() => formatIsoDate(new Date()));
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+    const statsCarouselRef = useRef<HTMLDivElement | null>(null);
+    const statsResumeTimeoutRef = useRef<number | null>(null);
+    const statsCarouselPausedRef = useRef(false);
+    const statsCarouselPaddingRef = useRef(0);
+    const statsCarouselLoopWidthRef = useRef(0);
+
+    const loopedStatCards = useMemo(() => [...statCards, ...statCards], []);
 
     useEffect(() => {
         const timer = window.setInterval(() => setCurrentTime(new Date()), 60000);
@@ -117,12 +114,83 @@ const DashboardPage = () => {
         setSelectedDate(formatIsoDate(today));
     }, []);
 
-    const greeting = useMemo(() => {
-        const hour = currentTime.getHours();
-        if (hour < 12) return "Good morning";
-        if (hour < 18) return "Good afternoon";
-        return "Good evening";
-    }, [currentTime]);
+    useEffect(() => {
+        const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+        const updatePreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+        updatePreference();
+        mediaQuery.addEventListener("change", updatePreference);
+
+        return () => mediaQuery.removeEventListener("change", updatePreference);
+    }, []);
+
+    useEffect(() => {
+        const carousel = statsCarouselRef.current;
+        if (!carousel) return;
+
+        const setLoopMetrics = () => {
+            const computedStyle = window.getComputedStyle(carousel);
+            const paddingLeft = Number.parseFloat(computedStyle.paddingLeft || "0");
+            const paddingRight = Number.parseFloat(computedStyle.paddingRight || "0");
+            const totalHorizontalPadding = paddingLeft + paddingRight;
+            const loopWidth = (carousel.scrollWidth - totalHorizontalPadding) / 2;
+
+            statsCarouselPaddingRef.current = paddingLeft;
+            statsCarouselLoopWidthRef.current = loopWidth;
+
+            if (carousel.scrollLeft < paddingLeft || carousel.scrollLeft > paddingLeft + loopWidth) {
+                carousel.scrollLeft = paddingLeft;
+            }
+        };
+
+        setLoopMetrics();
+        window.addEventListener("resize", setLoopMetrics);
+
+        if (prefersReducedMotion) {
+            return () => window.removeEventListener("resize", setLoopMetrics);
+        }
+
+        let frameId = 0;
+        let lastFrameTime = 0;
+        const pixelsPerMillisecond = 0.06;
+
+        const step = (timestamp: number) => {
+            if (!lastFrameTime) lastFrameTime = timestamp;
+            const delta = timestamp - lastFrameTime;
+            lastFrameTime = timestamp;
+
+            if (!statsCarouselPausedRef.current) {
+                const loopWidth = statsCarouselLoopWidthRef.current;
+                const startOffset = statsCarouselPaddingRef.current;
+                const endOffset = startOffset + loopWidth;
+
+                carousel.scrollLeft += delta * pixelsPerMillisecond;
+
+                if (carousel.scrollLeft >= endOffset) {
+                    carousel.scrollLeft -= loopWidth;
+                } else if (carousel.scrollLeft < startOffset) {
+                    carousel.scrollLeft += loopWidth;
+                }
+            }
+
+            frameId = window.requestAnimationFrame(step);
+        };
+
+        frameId = window.requestAnimationFrame(step);
+
+        return () => {
+            window.removeEventListener("resize", setLoopMetrics);
+            window.cancelAnimationFrame(frameId);
+        };
+    }, [prefersReducedMotion]);
+
+    useEffect(() => {
+        return () => {
+            if (statsResumeTimeoutRef.current) {
+                window.clearTimeout(statsResumeTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const quote = useMemo(() => {
         const dayIndex = currentTime.getDate() % quotes.length;
@@ -192,33 +260,64 @@ const DashboardPage = () => {
         [currentMonth]
     );
 
+    const pauseStatsCarousel = () => {
+        if (statsResumeTimeoutRef.current) {
+            window.clearTimeout(statsResumeTimeoutRef.current);
+            statsResumeTimeoutRef.current = null;
+        }
+        statsCarouselPausedRef.current = true;
+    };
+
+    const resumeStatsCarousel = (delay = 1400) => {
+        if (prefersReducedMotion) return;
+        if (statsResumeTimeoutRef.current) {
+            window.clearTimeout(statsResumeTimeoutRef.current);
+        }
+        statsResumeTimeoutRef.current = window.setTimeout(() => {
+            statsCarouselPausedRef.current = false;
+            statsResumeTimeoutRef.current = null;
+        }, delay);
+    };
+
+    const handleStatsCarouselScroll = () => {
+        const carousel = statsCarouselRef.current;
+        if (!carousel) return;
+
+        const loopWidth = statsCarouselLoopWidthRef.current;
+        const startOffset = statsCarouselPaddingRef.current;
+        const endOffset = startOffset + loopWidth;
+
+        if (!loopWidth) return;
+
+        if (carousel.scrollLeft >= endOffset) {
+            carousel.scrollLeft -= loopWidth;
+        } else if (carousel.scrollLeft < startOffset) {
+            carousel.scrollLeft += loopWidth;
+        }
+    };
+
     return (
-        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col pb-6 pt-1">
+        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col pb-28 pt-1">
                 <MobileDashboardHeader
-                    userName={`${user?.firstName ?? "Team"} ${user?.lastName ?? ""}`.trim()}
-                    greeting={greeting}
                     formattedDateTime={formattedDateTime}
-                    notificationCount={notificationItems.length}
-                    theme={theme}
-                    onToggleTheme={toggleTheme}
                     onOpenNotifications={() => setShowNotifications((value) => !value)}
                     quote={quote}
                     leadingIcon={<Waves className="h-5 w-5" />}
                 />
 
                 {showNotifications && (
-                    <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-[#0d1627]/95 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.24)] backdrop-blur-xl">
+                    <section className="mt-4 rounded-[1.6rem] border border-slate-200/80 bg-white/90 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-white/10 dark:bg-[#0d1627]/95 dark:shadow-[0_18px_48px_rgba(15,23,42,0.24)]">
                         <div className="mb-3 flex items-center justify-between">
-                            <h2 className="text-sm font-semibold text-white">Notifications</h2>
+                            <h2 className="text-sm font-semibold text-slate-950 dark:text-white">Notifications</h2>
                             <Link to="/notifications" className="text-xs font-medium text-cyan-300">
                                 View all
                             </Link>
                         </div>
                         <div className="space-y-2">
                             {notificationItems.map((item) => (
-                                <div key={item.id} className="rounded-2xl border border-white/8 bg-white/6 px-3 py-3">
-                                    <p className="text-sm font-medium text-white">{item.title}</p>
-                                    <p className="mt-1 text-xs text-slate-400">{item.time}</p>
+                                <div key={item.id} className="rounded-2xl border border-slate-200/80 bg-slate-50/90 px-3 py-3 dark:border-white/8 dark:bg-white/6">
+                                    <p className="text-sm font-medium text-slate-950 dark:text-white">{item.title}</p>
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.time}</p>
                                 </div>
                             ))}
                         </div>
@@ -228,17 +327,31 @@ const DashboardPage = () => {
                 <section className="mt-5">
                     <div className="mb-3 flex items-center justify-between">
                         <div>
-                            <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/55">
-                                Leave Overview
+                            <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-white/55">
+                                Dashboard Snapshot
                             </p>
-                            <h2 className="text-lg font-semibold text-white">Quick stats</h2>
+                            <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Quick stats overview</h2>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        {statCards.map((card) => (
-                            <MobileStatCard key={card.title} {...card} />
-                        ))}
+                    <div className="relative overflow-hidden px-4">
+                        <div
+                            ref={statsCarouselRef}
+                            className="flex gap-3 overflow-x-auto px-1 pb-1 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                            onMouseEnter={pauseStatsCarousel}
+                            onMouseLeave={() => resumeStatsCarousel(300)}
+                            onPointerDown={pauseStatsCarousel}
+                            onPointerUp={() => resumeStatsCarousel()}
+                            onPointerCancel={() => resumeStatsCarousel()}
+                            onTouchStart={pauseStatsCarousel}
+                            onTouchEnd={() => resumeStatsCarousel()}
+                            onTouchCancel={() => resumeStatsCarousel()}
+                            onScroll={handleStatsCarouselScroll}
+                        >
+                            {loopedStatCards.map((card, index) => (
+                                <MobileStatCard key={`${card.title}-${index}`} {...card} />
+                            ))}
+                        </div>
                     </div>
                 </section>
 
@@ -263,17 +376,17 @@ const DashboardPage = () => {
                     />
                 </section>
 
-                <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-white/10 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.24)] backdrop-blur-xl">
+                <section className="mt-5 rounded-[1.75rem] border border-slate-200/80 bg-white/80 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-white/10 dark:bg-white/10 dark:shadow-[0_18px_48px_rgba(15,23,42,0.24)]">
                     <div className="flex items-center justify-between gap-3">
                         <div>
-                            <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/55">
+                            <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-white/55">
                                 Next action
                             </p>
-                            <h2 className="text-base font-semibold text-white">Keep requests moving</h2>
+                            <h2 className="text-base font-semibold text-slate-950 dark:text-white">Keep requests moving</h2>
                         </div>
                         <CalendarClock className="h-5 w-5 text-cyan-300" />
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                    <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
                         Your pending leave request for 12 May needs manager approval. Open requests to review status or submit a new application.
                     </p>
                 </section>

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { toCamelCase } from '@/lib/helper';
 import StatsCard from "@/components/ui/StatsCard";
+import MobilePageHeader from "@/components/layout/MobilePageHeader";
 
 // Type definitions matching API response
 interface Notification {
@@ -329,6 +330,7 @@ const NotificationCenterPage: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
+            <MobilePageHeader />
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>

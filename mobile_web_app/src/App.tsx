@@ -9,6 +9,7 @@ import TeamAvailability from "./pages/TeamAvailabilityPage";
 import ApplyLeave from "./pages/ApplyLeavePage";
 import LeaveHistory from "./pages/LeaveHistoryPage";
 import ApproveLeave from "./pages/ApproveLeavePage";
+import ProcessedLeaveRequestsPage from "./pages/ProcessedLeaveRequestsPage";
 import ManageEmployees from "./pages/ManageEmployeesPage";
 import Login from "./pages/LoginPage";
 import ForgotPassword from "./pages/ForgotPasswordPage";
@@ -190,6 +191,11 @@ const App: React.FC = () => (
               <Route path="/approve-leave" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <ApproveLeave />
+                </ProtectedRoute>
+              } />
+              <Route path="/approve-leave/processed" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <ProcessedLeaveRequestsPage />
                 </ProtectedRoute>
               } />
               <Route path="/manage-employees" element={
