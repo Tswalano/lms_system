@@ -88,7 +88,7 @@ const BottomNav = ({
         <button
           type="button"
           onClick={onSignOut}
-          className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+          className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-medium text-red-400 transition-colors hover:text-red-300"
         >
           <LogOut className="h-5 w-5" />
           <span className="truncate">Sign out</span>
