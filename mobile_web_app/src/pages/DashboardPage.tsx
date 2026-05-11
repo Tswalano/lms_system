@@ -703,7 +703,7 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col pb-28 pt-1">
+    <div className="mx-auto flex w-full max-w-md flex-col pt-1">
       <MobileDashboardHeader
         formattedDateTime={formattedDateTime}
         onOpenNotifications={() => setShowNotifications((value) => !value)}

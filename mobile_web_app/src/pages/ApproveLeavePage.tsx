@@ -301,7 +301,7 @@ const ApproveLeavePage = () => {
     const approvedCount = processedRequests.filter(req => req.status === 'approved').length;
     const recentProcessedRequests = [...processedRequests]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 5);
+        .slice(0, 6);
     const pendingPagination = usePagination(pendingRequests, 5);
 
     const processLeaveMutation = useMutation({
@@ -498,7 +498,7 @@ const ApproveLeavePage = () => {
     ] as const;
 
     return (
-        <div className="mx-auto w-full max-w-2xl px-4 pb-28">
+        <div className="mx-auto w-full max-w-2xl px-4">
             <MobilePageHeader className="mb-4" />
             <section className="rounded-[1.5rem] border border-slate-200/80 bg-white/85 p-3 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_18px_48px_rgba(2,6,23,0.28)] md:p-4">
                 <div className="flex items-start gap-3">
@@ -698,8 +698,8 @@ const ApproveLeavePage = () => {
 
                     {processedRequests.length > 0 && (
                         <section className="mt-8">
-                            <div className="mb-4 flex items-end justify-between gap-3">
-                                <div>
+                            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                                <div className="min-w-0">
                                     <h2 className="text-lg font-semibold text-slate-950 dark:text-slate-100">Recently Processed</h2>
                                     <p className="text-sm text-slate-600 dark:text-slate-400">
                                         Showing {recentProcessedRequests.length} of {processedRequests.length}
@@ -707,7 +707,7 @@ const ApproveLeavePage = () => {
                                 </div>
                                 <Link
                                     to="/approve-leave/processed"
-                                    className="inline-flex h-9 items-center rounded-full border border-cyan-200 bg-cyan-50 px-4 text-sm font-medium text-cyan-700 transition-colors hover:bg-cyan-100 dark:border-cyan-800 dark:bg-cyan-950/30 dark:text-cyan-300 dark:hover:bg-cyan-950/50"
+                                    className="inline-flex h-9 w-full items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 px-3.5 text-sm font-medium text-cyan-700 transition-colors hover:bg-cyan-100 dark:border-cyan-800 dark:bg-cyan-950/30 dark:text-cyan-300 dark:hover:bg-cyan-950/50 sm:w-auto sm:self-end"
                                 >
                                     View all processed requests
                                 </Link>

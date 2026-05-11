@@ -266,7 +266,7 @@ const ProcessedLeaveRequestsPage = () => {
   }, []);
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 pb-28">
+    <div className="mx-auto w-full max-w-2xl px-4">
       <MobilePageHeader className="mb-4" />
       <section className="rounded-[1.5rem] border border-slate-200/80 bg-white/85 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_18px_48px_rgba(2,6,23,0.28)] md:p-4">
         <div className="flex items-start gap-3">

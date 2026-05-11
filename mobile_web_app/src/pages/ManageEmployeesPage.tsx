@@ -583,7 +583,7 @@ const ManageEmployeesPage = () => {
 
     return (
         <>
-            <div className="pb-28">
+            <div>
             <MobilePageHeader className="mb-4" />
             <div className="mb-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

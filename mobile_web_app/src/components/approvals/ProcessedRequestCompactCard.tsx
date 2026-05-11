@@ -23,10 +23,25 @@ const ProcessedRequestCompactCard = ({
   formatDate,
   onOpenDetails,
 }: ProcessedRequestCompactCardProps) => {
+  const normalizedStatus = String(request.status ?? "").toLowerCase();
   const badgeColor =
-    request.status === "approved"
+    normalizedStatus === "approved"
       ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-      : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300";
+      : normalizedStatus === "cancelled"
+        ? "bg-slate-200 text-slate-700 dark:bg-slate-700/70 dark:text-slate-200"
+        : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300";
+  const avatarGradient =
+    normalizedStatus === "approved"
+      ? "from-green-500 to-green-600"
+      : normalizedStatus === "cancelled"
+        ? "from-slate-500 to-slate-600"
+        : "from-red-500 to-red-600";
+  const statusLabel =
+    normalizedStatus === "approved"
+      ? "Approved"
+      : normalizedStatus === "cancelled"
+        ? "Cancelled"
+        : "Rejected";
 
   return (
     <button
@@ -36,11 +51,7 @@ const ProcessedRequestCompactCard = ({
     >
       <div className="flex items-start gap-3">
         <div
-          className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${
-            request.status === "approved"
-              ? "from-green-500 to-green-600"
-              : "from-red-500 to-red-600"
-          } text-sm font-bold text-white`}
+          className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${avatarGradient} text-sm font-bold text-white`}
         >
           {request.firstName[0]}
           {request.lastName[0]}
@@ -57,7 +68,7 @@ const ProcessedRequestCompactCard = ({
               </p>
             </div>
             <Badge className={badgeColor}>
-              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+              {statusLabel}
             </Badge>
           </div>
 

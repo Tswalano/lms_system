@@ -53,7 +53,7 @@ const ChangePasswordPage: React.FC = (): JSX.Element => {
             const result = await changePassword(username, newPassword, session);
 
             if (result.success) {
-                navigate("/", {
+                navigate("/login", {
                     replace: true,
                     state: { passwordChanged: true }
                 });

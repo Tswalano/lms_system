@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import features from "@/config/features";
 import { useAuth } from "@/contexts/AuthContext";
 import BottomNav from "./BottomNav";
@@ -267,6 +267,7 @@ const AppNavigation = ({
   onCloseMobileMenu: () => void;
 }) => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const items = useNavigationItems();
   const applyItem = items.find((item) => item.key === "apply");
   const mobileMenuItems = getMobileMenuItems(items);
@@ -283,6 +284,12 @@ const AppNavigation = ({
             ? "history"
             : "";
 
+  const handleSignOut = async () => {
+    await logout();
+    onCloseMobileMenu();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <>
       <BottomNav
@@ -290,7 +297,7 @@ const AppNavigation = ({
         activeKey={bottomNavActiveKey}
         isMenuOpen={isMobileMenuOpen}
         onOpenMenu={onOpenMobileMenu}
-        onSignOut={logout}
+        onSignOut={handleSignOut}
       />
       <MobileMenuSheet
         user={user}

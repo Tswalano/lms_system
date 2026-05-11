@@ -413,7 +413,7 @@ const LeaveHistoryPage = () => {
     }
 
     return (
-        <div className="mx-auto max-w-2xl space-y-5 px-4 pb-28">
+        <div className="mx-auto max-w-2xl space-y-5 px-4">
             <MobilePageHeader />
             {/* Header */}
             <div className="space-y-4">

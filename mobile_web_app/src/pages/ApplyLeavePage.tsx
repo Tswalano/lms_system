@@ -145,7 +145,7 @@ const ApplyLeavePage = () => {
     }
 
     return (
-        <div className="mx-auto w-full max-w-md px-4 pb-32">
+        <div className="mx-auto w-full max-w-md px-4">
             <MobilePageHeader className="mb-4" />
             <div className="mb-4">
                 <div className="flex items-start gap-3">

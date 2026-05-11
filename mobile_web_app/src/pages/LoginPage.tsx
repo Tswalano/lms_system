@@ -13,10 +13,10 @@ const LoginPage: React.FC = (): JSX.Element => {
     const navigate: NavigateFunction = useNavigate();
 
     useEffect((): void => {
-        if (isAuthenticated) {
-            navigate("/");
+        if (!loading && isAuthenticated) {
+            navigate("/", { replace: true });
         }
-    }, [isAuthenticated, navigate]);
+    }, [isAuthenticated, loading, navigate]);
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
         e.preventDefault();

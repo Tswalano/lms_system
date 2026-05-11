@@ -19,7 +19,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 
             <FloatingApplyLeaveButton hidden={isMobileSheetOpen} />
 
-            <main className="relative min-h-screen px-4 pb-32 pt-4">
+            <main className="relative min-h-screen px-4 pb-28 pt-4">
                 <div className="mx-auto w-full max-w-2xl">
                     {children}
                 </div>

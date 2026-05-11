@@ -1,7 +1,7 @@
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import DashboardPage from "./pages/DashboardPage";
@@ -48,25 +48,43 @@ interface ProtectedRouteProps extends RouteProps {
   allowedRoles?: Array<'admin' | 'user'>;
 }
 
+const RouteLoadingScreen = ({ authSurface = false }: { authSurface?: boolean }) => (
+  <div
+    className={
+      authSurface
+        ? "relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(180deg,#0f172a_0%,#111827_46%,#0b1220_100%)] text-slate-100"
+        : "flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.14),_transparent_28%),linear-gradient(180deg,rgba(248,250,252,1)_0%,rgba(236,253,245,1)_40%,rgba(236,254,255,1)_100%)] text-slate-950 dark:bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.14),_transparent_24%),linear-gradient(180deg,#0f172a_0%,#111827_46%,#0b1220_100%)] dark:text-slate-100"
+    }
+  >
+    {authSurface ? (
+      <>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.14),_transparent_24%)]" />
+        <div className="absolute -top-8 left-0 h-40 w-40 rounded-full bg-green-800/20 blur-3xl" />
+        <div className="absolute right-0 top-1/3 h-44 w-44 rounded-full bg-cyan-800/20 blur-3xl" />
+        <div className="absolute bottom-10 left-10 h-36 w-36 rounded-full bg-emerald-800/20 blur-3xl" />
+      </>
+    ) : null}
+
+    <div className="relative z-10 flex flex-col items-center justify-center px-6 text-center">
+      <div className="h-12 w-12 animate-spin rounded-full border-4 border-cyan-500/20 border-t-cyan-500" />
+      <p className={`mt-4 text-sm ${authSurface ? "text-slate-300" : "text-slate-600 dark:text-slate-300"}`}>
+        Loading, fetching your profile...
+      </p>
+    </div>
+  </div>
+);
+
 // Protected Route Component
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
   const { isAuthenticated, loading, user } = useAuth();
+  const location = useLocation();
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600">
-          <span className="sr-only">Loading...</span>
-        </div>
-        <p className="text-center mt-4 text-gray-600 dark:text-gray-300">
-          Loading, fetching your profile...
-        </p>
-      </div>
-    );
+    return <RouteLoadingScreen />;
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   if (allowedRoles && (!user?.role || !allowedRoles.includes(user.role as 'admin' | 'user'))) {
@@ -80,7 +98,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
 
 // Public Route Component
 const PublicRoute: React.FC<RouteProps> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <RouteLoadingScreen authSurface />;
+  }
 
   return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
 };
