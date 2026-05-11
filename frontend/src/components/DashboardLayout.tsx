@@ -99,7 +99,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 )}
 
                 {/* App-wide alert banners */}
-                banner
                 <AppBanners />
 
                 {/* Main Content - Flex grow to push footer down */}
