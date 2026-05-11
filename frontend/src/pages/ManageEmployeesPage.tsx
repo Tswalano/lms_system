@@ -542,8 +542,8 @@ const ManageEmployeesPage = () => {
             department.description.toLowerCase().includes(searchLower);
     });
 
-    const employeesPagination = usePagination(filteredEmployees, 5);
-    const departmentsPagination = usePagination(filteredDepartments, 5);
+    const employeesPagination = usePagination(filteredEmployees, 10);
+    const departmentsPagination = usePagination(filteredDepartments, 10);
 
     if (!token) {
         return (
@@ -667,85 +667,85 @@ const ManageEmployeesPage = () => {
                             </div>
                         ) : (
                             <>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="border-gray-100 dark:border-slate-700">
-                                        <TableHead className="text-gray-700 dark:text-gray-300">Employee</TableHead>
-                                        <TableHead className="text-gray-700 dark:text-gray-300">Occupation</TableHead>
-                                        <TableHead className="text-gray-700 dark:text-gray-300">Department</TableHead>
-                                        <TableHead className="text-gray-700 dark:text-gray-300">Role</TableHead>
-                                        <TableHead className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Actions
-                                        </TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {employeesPagination.paginatedItems.map((employee) => (
-                                        <TableRow key={employee.id} className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700">
-                                            <TableCell>
-                                                <div>
-                                                    <div className="font-medium text-gray-800 dark:text-gray-200">
-                                                        {employee.firstName} {employee.lastName}
-                                                    </div>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400">{employee.email}</div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-gray-600 dark:text-gray-400">{employee.jobTitle}</TableCell>
-                                            <TableCell className="text-gray-600 dark:text-gray-400">
-                                                {getDepartmentName(employee.departmentId || employee.departmentId, employee.department)}
-                                            </TableCell>
-                                            <TableCell>
-                                                {employee.role === 'admin' ? (
-                                                    <Badge className="bg-green-100 text-green-600 dark:bg-green-700 dark:text-green-200 flex items-center gap-1 w-fit">
-                                                        <Shield className="w-3 h-3" />
-                                                        Admin
-                                                    </Badge>
-                                                ) : employee.role === 'manager' ? (
-                                                    <Badge className="bg-blue-100 text-blue-600 dark:bg-blue-700 dark:text-blue-200 flex items-center gap-1 w-fit">
-                                                        <User className="w-3 h-3" />
-                                                        Manager
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200 flex items-center gap-1 w-fit">
-                                                        <User className="w-3 h-3" />
-                                                        Employee
-                                                    </Badge>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="px-6 py-4 whitespace-nowrap text-right">
-                                                <div className="inline-flex items-center gap-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
-                                                        onClick={() => handleOpenEditEmployeeDialog(employee)}
-                                                    >
-                                                        <Edit className="w-4 h-4 mr-1" />
-                                                        <span className="text-sm font-medium">Edit</span>
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
-                                                        onClick={() => handleOpenDeleteEmployeeDialog(employee)}
-                                                    >
-                                                        <UserMinus className="w-4 h-4 mr-1" />
-                                                        <span className="text-sm font-medium">Delete</span>
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="border-gray-100 dark:border-slate-700">
+                                            <TableHead className="text-gray-700 dark:text-gray-300">Employee</TableHead>
+                                            <TableHead className="text-gray-700 dark:text-gray-300">Occupation</TableHead>
+                                            <TableHead className="text-gray-700 dark:text-gray-300">Department</TableHead>
+                                            <TableHead className="text-gray-700 dark:text-gray-300">Role</TableHead>
+                                            <TableHead className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Actions
+                                            </TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                            <Pagination
-                                currentPage={employeesPagination.page}
-                                totalPages={employeesPagination.totalPages}
-                                pageSize={employeesPagination.pageSize}
-                                totalItems={employeesPagination.totalItems}
-                                onPageChange={employeesPagination.setPage}
-                                onPageSizeChange={employeesPagination.setPageSize}
-                            />
+                                    </TableHeader>
+                                    <TableBody>
+                                        {employeesPagination.paginatedItems.map((employee) => (
+                                            <TableRow key={employee.id} className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700">
+                                                <TableCell>
+                                                    <div>
+                                                        <div className="font-medium text-gray-800 dark:text-gray-200">
+                                                            {employee.firstName} {employee.lastName}
+                                                        </div>
+                                                        <div className="text-sm text-gray-500 dark:text-gray-400">{employee.email}</div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-gray-600 dark:text-gray-400">{employee.jobTitle}</TableCell>
+                                                <TableCell className="text-gray-600 dark:text-gray-400">
+                                                    {getDepartmentName(employee.departmentId || employee.departmentId, employee.department)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {employee.role === 'admin' ? (
+                                                        <Badge className="bg-green-100 text-green-600 dark:bg-green-700 dark:text-green-200 flex items-center gap-1 w-fit">
+                                                            <Shield className="w-3 h-3" />
+                                                            Admin
+                                                        </Badge>
+                                                    ) : employee.role === 'manager' ? (
+                                                        <Badge className="bg-blue-100 text-blue-600 dark:bg-blue-700 dark:text-blue-200 flex items-center gap-1 w-fit">
+                                                            <User className="w-3 h-3" />
+                                                            Manager
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200 flex items-center gap-1 w-fit">
+                                                            <User className="w-3 h-3" />
+                                                            Employee
+                                                        </Badge>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="px-6 py-4 whitespace-nowrap text-right">
+                                                    <div className="inline-flex items-center gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
+                                                            onClick={() => handleOpenEditEmployeeDialog(employee)}
+                                                        >
+                                                            <Edit className="w-4 h-4 mr-1" />
+                                                            <span className="text-sm font-medium">Edit</span>
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
+                                                            onClick={() => handleOpenDeleteEmployeeDialog(employee)}
+                                                        >
+                                                            <UserMinus className="w-4 h-4 mr-1" />
+                                                            <span className="text-sm font-medium">Delete</span>
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                <Pagination
+                                    currentPage={employeesPagination.page}
+                                    totalPages={employeesPagination.totalPages}
+                                    pageSize={employeesPagination.pageSize}
+                                    totalItems={employeesPagination.totalItems}
+                                    onPageChange={employeesPagination.setPage}
+                                    onPageSizeChange={employeesPagination.setPageSize}
+                                />
                             </>
                         )}
                     </div>
@@ -796,78 +796,78 @@ const ManageEmployeesPage = () => {
                             </div>
                         ) : (
                             <>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="border-gray-100 dark:border-slate-700">
-                                        <TableHead className="text-gray-700 dark:text-gray-300">Department</TableHead>
-                                        <TableHead className="text-gray-700 dark:text-gray-300">Employees</TableHead>
-                                        <TableHead className="text-gray-700 dark:text-gray-300">Created</TableHead>
-                                        <TableHead className="text-gray-700 dark:text-gray-300">Last Updated</TableHead>
-                                        <TableHead className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Actions
-                                        </TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {departmentsPagination.paginatedItems.map((department) => (
-                                        <TableRow key={department.id} className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700">
-                                            <TableCell>
-                                                <div>
-                                                    <div className="font-medium text-gray-800 dark:text-gray-200">
-                                                        {department.name}
-                                                    </div>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400 max-w-md truncate">
-                                                        {department.description || 'No description'}
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge className="bg-blue-100 text-blue-600 dark:bg-blue-700 dark:text-blue-200 flex items-center gap-1 w-fit">
-                                                    <Users className="w-3 h-3" />
-                                                    {employees.filter(emp => emp.departmentId === department.id).length}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-gray-600 dark:text-gray-400">
-                                                {department.createdAt ? formatDate(department.createdAt) : 'N/A'}
-                                            </TableCell>
-                                            <TableCell className="text-gray-600 dark:text-gray-400">
-                                                {department.updatedAt ? formatDate(department.updatedAt) : 'N/A'}
-                                            </TableCell>
-                                            <TableCell className="px-6 py-4 whitespace-nowrap text-right">
-                                                <div className="inline-flex items-center gap-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
-                                                        onClick={() => handleOpenEditDepartmentDialog(department)}
-                                                    >
-                                                        <Edit className="w-4 h-4 mr-1" />
-                                                        <span className="text-sm font-medium">Edit</span>
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
-                                                        onClick={() => handleOpenDeleteDepartmentDialog(department)}
-                                                        disabled={employees.filter(emp => emp.departmentId === department.id).length > 0}
-                                                    >
-                                                        <Trash2 className="w-4 h-4 mr-1" />
-                                                        <span className="text-sm font-medium">Delete</span>
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="border-gray-100 dark:border-slate-700">
+                                            <TableHead className="text-gray-700 dark:text-gray-300">Department</TableHead>
+                                            <TableHead className="text-gray-700 dark:text-gray-300">Employees</TableHead>
+                                            <TableHead className="text-gray-700 dark:text-gray-300">Created</TableHead>
+                                            <TableHead className="text-gray-700 dark:text-gray-300">Last Updated</TableHead>
+                                            <TableHead className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Actions
+                                            </TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                            <Pagination
-                                currentPage={departmentsPagination.page}
-                                totalPages={departmentsPagination.totalPages}
-                                pageSize={departmentsPagination.pageSize}
-                                totalItems={departmentsPagination.totalItems}
-                                onPageChange={departmentsPagination.setPage}
-                                onPageSizeChange={departmentsPagination.setPageSize}
-                            />
+                                    </TableHeader>
+                                    <TableBody>
+                                        {departmentsPagination.paginatedItems.map((department) => (
+                                            <TableRow key={department.id} className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700">
+                                                <TableCell>
+                                                    <div>
+                                                        <div className="font-medium text-gray-800 dark:text-gray-200">
+                                                            {department.name}
+                                                        </div>
+                                                        <div className="text-sm text-gray-500 dark:text-gray-400 max-w-md truncate">
+                                                            {department.description || 'No description'}
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge className="bg-blue-100 text-blue-600 dark:bg-blue-700 dark:text-blue-200 flex items-center gap-1 w-fit">
+                                                        <Users className="w-3 h-3" />
+                                                        {employees.filter(emp => emp.departmentId === department.id).length}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-gray-600 dark:text-gray-400">
+                                                    {department.createdAt ? formatDate(department.createdAt) : 'N/A'}
+                                                </TableCell>
+                                                <TableCell className="text-gray-600 dark:text-gray-400">
+                                                    {department.updatedAt ? formatDate(department.updatedAt) : 'N/A'}
+                                                </TableCell>
+                                                <TableCell className="px-6 py-4 whitespace-nowrap text-right">
+                                                    <div className="inline-flex items-center gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
+                                                            onClick={() => handleOpenEditDepartmentDialog(department)}
+                                                        >
+                                                            <Edit className="w-4 h-4 mr-1" />
+                                                            <span className="text-sm font-medium">Edit</span>
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
+                                                            onClick={() => handleOpenDeleteDepartmentDialog(department)}
+                                                            disabled={employees.filter(emp => emp.departmentId === department.id).length > 0}
+                                                        >
+                                                            <Trash2 className="w-4 h-4 mr-1" />
+                                                            <span className="text-sm font-medium">Delete</span>
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                <Pagination
+                                    currentPage={departmentsPagination.page}
+                                    totalPages={departmentsPagination.totalPages}
+                                    pageSize={departmentsPagination.pageSize}
+                                    totalItems={departmentsPagination.totalItems}
+                                    onPageChange={departmentsPagination.setPage}
+                                    onPageSizeChange={departmentsPagination.setPageSize}
+                                />
                             </>
                         )}
                     </div>

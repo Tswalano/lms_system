@@ -35,6 +35,7 @@ import features from "./config/features";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
 import BackendDownPage from "./pages/BackendDownPage";
 import LandingPage from "./pages/LandingPage";
+import BannerPreview from "./components/dev/BannerPreview";
 
 const queryClient = new QueryClient();
 
@@ -214,6 +215,11 @@ const App: React.FC = () => (
                   <ChangePassword />
                 </PublicRoute>
               } />
+
+              {/* Dev-only banner preview — not available in production builds */}
+              {import.meta.env.DEV && (
+                <Route path="/dev/banners" element={<BannerPreview />} />
+              )}
 
               {/* Status Route */}
               <Route path="/status" element={<BackendDownPage />} />

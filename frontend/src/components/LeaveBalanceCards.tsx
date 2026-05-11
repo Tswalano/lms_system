@@ -46,15 +46,19 @@ const LeaveBalanceCards = () => {
 
     const normalize = (str: string) => str.trim().toLowerCase();
 
+    // Aliases that should count toward the same card
+    const aliases: Record<string, string> = {
+        "family responsibility": "family responsibility leave",
+    };
+
     const getLeaveData = (): LeaveType[] => {
         if (!user?.leaveData) return [];
 
-        const leaveMap = new Map(
-            user.leaveData.map((leave) => [
-                normalize(leave.leave_type),
-                leave.leave_count,
-            ])
-        );
+        const leaveMap = new Map<string, number>();
+        for (const leave of user.leaveData) {
+            const key = aliases[normalize(leave.leave_type)] ?? normalize(leave.leave_type);
+            leaveMap.set(key, (leaveMap.get(key) ?? 0) + leave.leave_count);
+        }
 
         return Object.entries(leaveTypeConfig).map(([type, config]) => {
             const count = leaveMap.get(normalize(type)) ?? 0;
