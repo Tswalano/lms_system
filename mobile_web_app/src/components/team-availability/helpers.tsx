@@ -71,10 +71,10 @@ export const getStatusConfig = (status: string, member: TeamMember) => {
     switch (status.toLowerCase()) {
         case "available":
             return {
-                badgeClassName: "bg-emerald-500/15 text-emerald-300 border border-emerald-400/20",
+                badgeClassName: "border border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/15 dark:text-emerald-300",
                 cardGlow: "from-emerald-500/14 to-teal-500/8",
-                dotClassName: "bg-emerald-400",
-                icon: <UserCheck className="h-4 w-4 text-emerald-300" />,
+                dotClassName: "bg-emerald-500 dark:bg-emerald-400",
+                icon: <UserCheck className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />,
                 label: "Available",
                 description: "Ready for work",
             };
@@ -83,10 +83,10 @@ export const getStatusConfig = (status: string, member: TeamMember) => {
                 ? Math.ceil((new Date(member.endDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
                 : null;
             return {
-                badgeClassName: "bg-rose-500/15 text-rose-300 border border-rose-400/20",
+                badgeClassName: "border border-rose-200 bg-rose-100 text-rose-700 dark:border-rose-400/20 dark:bg-rose-500/15 dark:text-rose-300",
                 cardGlow: "from-rose-500/14 to-orange-500/8",
-                dotClassName: "bg-rose-400",
-                icon: <UserX className="h-4 w-4 text-rose-300" />,
+                dotClassName: "bg-rose-500 dark:bg-rose-400",
+                icon: <UserX className="h-4 w-4 text-rose-700 dark:text-rose-300" />,
                 label: "On Leave",
                 description: daysLeft && daysLeft > 0 ? `Returns in ${daysLeft} day${daysLeft > 1 ? "s" : ""}` : "Currently away",
             };
@@ -98,20 +98,20 @@ export const getStatusConfig = (status: string, member: TeamMember) => {
                 ? Math.ceil((new Date(nextLeave.startDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
                 : null;
             return {
-                badgeClassName: "bg-amber-500/15 text-amber-200 border border-amber-400/20",
+                badgeClassName: "border border-amber-200 bg-amber-100 text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/15 dark:text-amber-200",
                 cardGlow: "from-amber-500/14 to-yellow-500/8",
-                dotClassName: "bg-amber-300",
-                icon: <Clock className="h-4 w-4 text-amber-200" />,
+                dotClassName: "bg-amber-500 dark:bg-amber-300",
+                icon: <Clock className="h-4 w-4 text-amber-700 dark:text-amber-200" />,
                 label: "Upcoming Leave",
                 description: daysUntil ? `Starts in ${daysUntil} day${daysUntil > 1 ? "s" : ""}` : "Leave scheduled",
             };
         }
         default:
             return {
-                badgeClassName: "bg-slate-500/15 text-slate-200 border border-slate-400/20",
+                badgeClassName: "border border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-400/20 dark:bg-slate-500/15 dark:text-slate-200",
                 cardGlow: "from-slate-500/14 to-slate-600/8",
-                dotClassName: "bg-slate-400",
-                icon: <Users className="h-4 w-4 text-slate-200" />,
+                dotClassName: "bg-slate-500 dark:bg-slate-400",
+                icon: <Users className="h-4 w-4 text-slate-700 dark:text-slate-200" />,
                 label: status,
                 description: "Status unavailable",
             };
@@ -153,29 +153,29 @@ export const getStatCards = (teamMembers: TeamMember[]) => {
             title: "Team Members",
             value: String(teamMembers.length),
             description: "Visible in current filters",
-            icon: <Users className="h-5 w-5 text-cyan-200" />,
-            accentClassName: "from-cyan-500/30 to-blue-500/15",
+            icon: <Users className="h-5 w-5 text-cyan-700 dark:text-cyan-300" />,
+            iconBadgeClassName: "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300",
         },
         {
             title: "Available",
             value: String(availableCount),
             description: "Ready to work today",
-            icon: <CheckCircle className="h-5 w-5 text-emerald-200" />,
-            accentClassName: "from-emerald-500/30 to-teal-500/15",
+            icon: <CheckCircle className="h-5 w-5 text-emerald-700 dark:text-emerald-300" />,
+            iconBadgeClassName: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
         },
         {
             title: "On Leave",
             value: String(onLeaveCount),
             description: "Currently away",
-            icon: <UserX className="h-5 w-5 text-rose-200" />,
-            accentClassName: "from-rose-500/30 to-orange-500/15",
+            icon: <UserX className="h-5 w-5 text-rose-700 dark:text-rose-300" />,
+            iconBadgeClassName: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300",
         },
         {
             title: "Upcoming",
             value: String(upcomingLeaveCount),
             description: `${totalUpcomingDays} leave days scheduled`,
-            icon: <Clock className="h-5 w-5 text-amber-100" />,
-            accentClassName: "from-amber-500/30 to-yellow-500/15",
+            icon: <Clock className="h-5 w-5 text-amber-700 dark:text-amber-300" />,
+            iconBadgeClassName: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
         },
     ];
 };

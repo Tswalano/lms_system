@@ -5,7 +5,7 @@ interface TeamStat {
     value: string;
     description: string;
     icon: ReactNode;
-    accentClassName: string;
+    iconBadgeClassName: string;
 }
 
 const TeamStats = ({ stats }: { stats: TeamStat[] }) => {
@@ -28,8 +28,8 @@ const TeamStats = ({ stats }: { stats: TeamStat[] }) => {
                                     {stat.description}
                                 </p>
                             </div>
-                            <div className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${stat.accentClassName}`}>
-                                <div className="scale-[0.8] text-white">
+                            <div className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl ${stat.iconBadgeClassName}`}>
+                                <div className="scale-[0.8]">
                                     {stat.icon}
                                 </div>
                             </div>
