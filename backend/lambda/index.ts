@@ -17,11 +17,12 @@ import { DatabaseService } from './helpers/databaseHeler';
 export const app = new Hono();
 
 const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:3001',
-    'https://d2m4zkv512jna9.cloudfront.net',
-    'https://d1eqa63aq0eyfn.cloudfront.net',
-    'https://lms.disraptor-internal.net'
+    'http://localhost:5173', // Localhost URL for frontend development
+    'http://localhost:3001', // Localhost URL for API docs
+    'https://d2m4zkv512jna9.cloudfront.net', // CloudFront URL for Staging (alternate)
+    'https://d1eqa63aq0eyfn.cloudfront.net', // CloudFront URL for Production (alternate)
+    'https://staging.disraptor-internal.net', // Staging URL
+    'https://lms.disraptor-internal.net' // Production URL
 ];
 
 app.use(
