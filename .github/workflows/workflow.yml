@@ -244,7 +244,26 @@ jobs:
           fi
 
           echo "Syncing version $VERSION to $TARGET"
-          aws s3 sync dist/ "$TARGET" --delete --acl public-read
+
+          # Archive the current prod before deploying (prod only)
+          if [ "$ENV" = "prod" ]; then
+            PREV_VERSION=$(aws s3 cp "${TARGET}version.json" - 2>/dev/null | \
+              python3 -c "import sys,json; print(json.load(sys.stdin).get('version',''))" 2>/dev/null || echo "")
+
+            if [ -n "$PREV_VERSION" ] && [ "$PREV_VERSION" != "$VERSION" ]; then
+              echo "Archiving v$PREV_VERSION to ${TARGET}v${PREV_VERSION}/"
+              aws s3 cp "$TARGET" "${TARGET}v${PREV_VERSION}/" \
+                --recursive \
+                --exclude "v[0-9]*/*"
+            fi
+          fi
+
+          # Stamp version.json into the build output before syncing
+          echo "{\"version\":\"$VERSION\",\"deployedAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" \
+            > dist/version.json
+
+          # Sync new build; --exclude preserves archived version folders from --delete
+          aws s3 sync dist/ "$TARGET" --delete --exclude "v[0-9]*/*"
 
           echo "Invalidating CloudFront ($CF_ID) cache"
           aws cloudfront create-invalidation \
