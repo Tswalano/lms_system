@@ -6,15 +6,17 @@
  *   import features from '@/config/features';
  *   if (features.adminDocuments) { ... }
  */
-const isDev = import.meta.env.DEV;
+const isDevEnabled = import.meta.env.DEV || import.meta.env.MODE === 'dev';
+
+const flag = (key: string): boolean =>
+  isDevEnabled || import.meta.env[key] === 'true';
 
 const features = {
-  adminDocuments: isDev || import.meta.env.VITE_FEATURE_ADMIN_DOCUMENTS === 'true',
-  employeeDocuments: isDev || import.meta.env.VITE_FEATURE_EMPLOYEE_DOCUMENTS === 'true',
-  performanceAdmin: isDev || import.meta.env.VITE_FEATURE_PERFORMANCE_ADMIN === 'true',
-  performance: isDev || import.meta.env.VITE_FEATURE_PERFORMANCE === 'true',
+  adminDocuments: flag('VITE_FEATURE_ADMIN_DOCUMENTS'),
+  employeeDocuments: flag('VITE_FEATURE_EMPLOYEE_DOCUMENTS'),
+  performanceAdmin: flag('VITE_FEATURE_PERFORMANCE_ADMIN'),
+  performance: flag('VITE_FEATURE_PERFORMANCE'),
 } as const;
 
 export type FeatureFlag = keyof typeof features;
-
 export default features;
