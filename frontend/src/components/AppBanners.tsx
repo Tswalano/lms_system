@@ -15,8 +15,10 @@ function localDateStr(d: Date) {
 
 function isTodayBirthday(dob: string): boolean {
     const today = new Date();
-    const birth = new Date(dob);
-    return birth.getMonth() === today.getMonth() && birth.getDate() === today.getDate();
+    // Slice the date part from ISO strings like "1985-05-19T22:00:00.000Z"
+    // to avoid timezone shifting the day when parsing via Date constructor
+    const [, mm, dd] = dob.split('T')[0].split('-').map(Number);
+    return mm - 1 === today.getMonth() && dd === today.getDate();
 }
 
 function isBirthdayObservedToday(birthdayDate: string): boolean {
@@ -102,7 +104,8 @@ const AppBanners: React.FC = () => {
 
     useEffect(() => {
         if (!user) return;
-        if (!user.dob) {
+        const hasDob = user.dob && user.dob !== '0000-00-00';
+        if (!hasDob) {
             const dismissedFor = localStorage.getItem(DISMISSED_BIRTHDAY_PROMPT_KEY);
             if (dismissedFor !== user.id) setShowBirthdayPrompt(true);
             return;

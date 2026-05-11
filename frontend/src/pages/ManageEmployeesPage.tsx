@@ -23,6 +23,7 @@ interface Employee {
     firstName: string;
     lastName: string;
     email: string;
+    dob: string;
     jobTitle: string;
     departmentId: number | null;
     department: string | null;
@@ -671,6 +672,7 @@ const ManageEmployeesPage = () => {
                                     <TableHeader>
                                         <TableRow className="border-gray-100 dark:border-slate-700">
                                             <TableHead className="text-gray-700 dark:text-gray-300">Employee</TableHead>
+                                            <TableHead className="text-gray-700 dark:text-gray-300">Date of Birth</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Occupation</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Department</TableHead>
                                             <TableHead className="text-gray-700 dark:text-gray-300">Role</TableHead>
@@ -690,6 +692,7 @@ const ManageEmployeesPage = () => {
                                                         <div className="text-sm text-gray-500 dark:text-gray-400">{employee.email}</div>
                                                     </div>
                                                 </TableCell>
+                                                <TableCell className="text-gray-600 dark:text-gray-400">{formatDate(employee.dob)}</TableCell>
                                                 <TableCell className="text-gray-600 dark:text-gray-400">{employee.jobTitle}</TableCell>
                                                 <TableCell className="text-gray-600 dark:text-gray-400">
                                                     {getDepartmentName(employee.departmentId || employee.departmentId, employee.department)}
