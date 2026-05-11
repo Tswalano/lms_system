@@ -98,9 +98,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // if development environment
 export const API_BASE_URL: string =
-    process.env.NODE_ENV === 'development'
+    import.meta.env.DEV
         ? 'http://localhost:3000'
-        : process.env.NODE_ENV === 'dev'
+        : import.meta.env.MODE === 'dev'
             ? 'https://xrdpcrhluc.execute-api.af-south-1.amazonaws.com/dev'
             : 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
 
