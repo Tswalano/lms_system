@@ -25,7 +25,8 @@ interface LeaveRequest {
     leave_comment: string;
     leave_length: 'half_day' | 'full_day';
     createdAt: string;
-    status: 'pending' | 'approved' | 'rejected';
+    updatedAt?: string;
+    status: 'pending' | 'approved' | 'rejected' | 'cancelled';
     feedback?: string;
 }
 
@@ -274,10 +275,45 @@ const ApproveLeavePage = () => {
         retry: 2,
     });
 
-    const pendingRequests = requests.filter(req => req.status.toLowerCase() === 'pending');
-    const processedRequests = requests.filter(req => req.status.toLowerCase() !== 'pending');
+    const todayMs = new Date(new Date().toDateString()).getTime();
+    const lastUpdated = (r: LeaveRequest) =>
+        new Date(r.updatedAt ?? r.createdAt).getTime();
+
+    const pendingRequests = requests
+        .filter(req => req.status === 'pending')
+        .sort((a, b) => {
+            const aMs = new Date(a.start_date).getTime();
+            const bMs = new Date(b.start_date).getTime();
+            const aFuture = aMs >= todayMs;
+            const bFuture = bMs >= todayMs;
+            // Upcoming leaves first
+            if (aFuture !== bFuture) return aFuture ? -1 : 1;
+            // Both upcoming → nearest start date first
+            if (aFuture) return aMs - bMs;
+            // Both past → most recently updated first
+            return lastUpdated(b) - lastUpdated(a);
+        });
+
+    const processedRequests = requests
+        .filter(req => req.status !== 'pending')
+        .sort((a, b) => {
+            const aMs = new Date(a.start_date).getTime();
+            const bMs = new Date(b.start_date).getTime();
+            const aUpcoming = aMs >= todayMs && a.status === 'approved';
+            const bUpcoming = bMs >= todayMs && b.status === 'approved';
+            const aClosed = a.status === 'cancelled' || a.status === 'rejected';
+            const bClosed = b.status === 'cancelled' || b.status === 'rejected';
+            // Upcoming approved first
+            if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
+            // Cancelled / rejected last
+            if (aClosed !== bClosed) return aClosed ? 1 : -1;
+            // Upcoming group → nearest start date first
+            if (aUpcoming) return aMs - bMs;
+            // Everything else → most recently updated first
+            return lastUpdated(b) - lastUpdated(a);
+        });
     const pendingPagination = usePagination(pendingRequests, 5);
-    const processedPagination = usePagination(processedRequests, 5);
+    const processedPagination = usePagination(processedRequests, 10);
 
     const processLeaveMutation = useMutation({
         mutationFn: async ({ requestId, action, comment }: { requestId: number; action: 'approve' | 'reject'; comment: string }) => {

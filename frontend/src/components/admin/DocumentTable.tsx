@@ -52,7 +52,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     onDelete,
     onSendReminder,
 }) => {
-    const pagination = usePagination(documents, 5);
+    const pagination = usePagination(documents, 10);
 
     if (documents.length === 0) {
         return (

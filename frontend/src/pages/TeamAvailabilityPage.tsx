@@ -203,7 +203,7 @@ const TeamAvailabilityPage = () => {
             return getNextLeaveDate(a) - getNextLeaveDate(b);
         });
 
-    const pagination = usePagination(filteredMembers, 5);
+    const pagination = usePagination(filteredMembers, 10);
 
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['teamAvailability'] });
@@ -670,323 +670,323 @@ const TeamAvailabilityPage = () => {
                     </div>
                 ) : (
                     <>
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="border-gray-100 dark:border-slate-700">
-                                <TableHead className="text-gray-700 dark:text-gray-300">Team Member</TableHead>
-                                <TableHead className="text-gray-700 dark:text-gray-300">Status</TableHead>
-                                <TableHead className="text-gray-700 dark:text-gray-300">Current/Next Leave</TableHead>
-                                <TableHead className="text-gray-700 dark:text-gray-300">Upcoming Leaves</TableHead>
-                                <TableHead className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {pagination.paginatedItems.map((member) => {
-                                const upcomingSummary = getUpcomingLeavesSummary(member);
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="border-gray-100 dark:border-slate-700">
+                                    <TableHead className="text-gray-700 dark:text-gray-300">Team Member</TableHead>
+                                    <TableHead className="text-gray-700 dark:text-gray-300">Status</TableHead>
+                                    <TableHead className="text-gray-700 dark:text-gray-300">Current/Next Leave</TableHead>
+                                    <TableHead className="text-gray-700 dark:text-gray-300">Upcoming Leaves</TableHead>
+                                    <TableHead className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {pagination.paginatedItems.map((member) => {
+                                    const upcomingSummary = getUpcomingLeavesSummary(member);
 
-                                return (
-                                    <React.Fragment key={member.id}>
-                                        <TableRow
-                                            key={member.id}
-                                            className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
-                                        >
-                                            <TableCell className="font-medium text-gray-800 dark:text-gray-200">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                                        <span className="text-white font-semibold text-sm">
-                                                            {member.avatar}
-                                                        </span>
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-medium text-gray-900 dark:text-gray-100">
-                                                            {member.name}
+                                    return (
+                                        <React.Fragment key={member.id}>
+                                            <TableRow
+                                                key={member.id}
+                                                className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
+                                            >
+                                                <TableCell className="font-medium text-gray-800 dark:text-gray-200">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                                            <span className="text-white font-semibold text-sm">
+                                                                {member.avatar}
+                                                            </span>
                                                         </div>
-                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                            {member.email}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <StatusDisplay member={member} />
-                                            </TableCell>
-                                            <TableCell className="text-gray-600 dark:text-gray-400">
-                                                {member.status === 'on-leave' && member.leaveType && member.startDate && member.endDate ? (
-                                                    <div>
-                                                        <div className="font-medium">{member.leaveType}</div>
-                                                        <div className="text-sm">{formatDateRange(member.startDate, member.endDate)}</div>
-                                                        {member.duration && (
-                                                            <div className="text-xs text-gray-400">
-                                                                {member.duration} day{member.duration > 1 ? 's' : ''}
+                                                        <div>
+                                                            <div className="font-medium text-gray-900 dark:text-gray-100">
+                                                                {member.name}
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                ) : upcomingSummary && upcomingSummary.nextLeave ? (
-                                                    <div>
-                                                        <div className="font-medium text-orange-600 dark:text-orange-400">
-                                                            {upcomingSummary.nextLeave.leaveType}
-                                                        </div>
-                                                        <div className="text-sm">
-                                                            {formatDateRange(upcomingSummary.nextLeave.startDate, upcomingSummary.nextLeave.endDate)}
-                                                        </div>
-                                                        <div className="text-xs text-gray-400">
-                                                            {upcomingSummary.nextLeave.duration} day{upcomingSummary.nextLeave.duration > 1 ? 's' : ''}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-gray-400">—</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-gray-600 dark:text-gray-400">
-                                                {upcomingSummary ? (
-                                                    <div>
-                                                        <div className="font-medium text-blue-600 dark:text-blue-400">
-                                                            {upcomingSummary.count} leave{upcomingSummary.count > 1 ? 's' : ''} planned
-                                                        </div>
-                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                            {upcomingSummary.totalDays} total day{upcomingSummary.totalDays > 1 ? 's' : ''}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-gray-400">No upcoming leaves</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="px-6 py-4 whitespace-nowrap text-right">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40"
-                                                    onClick={() => openMemberDetails(member.id)}
-                                                >
-                                                    {expandedRow === member.id ? (
-                                                        <>
-                                                            Hide Details <ChevronDown className="w-4 h-4" />
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            View Details <ChevronRight className="w-4 h-4" />
-                                                        </>
-                                                    )}
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-
-                                        {/* Expanded Row */}
-                                        {expandedRow === member.id && (
-                                            <TableRow className="border-0">
-                                                <TableCell colSpan={5} className="p-0">
-                                                    <div className={cn(
-                                                        "border-l-4 px-6 py-6",
-                                                        member.status === 'available' ? 'border-l-emerald-400 dark:border-l-emerald-300 bg-emerald-50/40 dark:bg-emerald-900/5' :
-                                                            member.status === 'on-leave' ? 'border-l-red-400 dark:border-l-red-300 bg-red-50/40 dark:bg-red-900/5' :
-                                                                'border-l-amber-400 dark:border-l-amber-300 bg-amber-50/40 dark:bg-amber-900/5'
-                                                    )}>
-                                                        {/* Member header inside expanded row */}
-                                                        <div className="flex items-center gap-3 mb-5 pb-4 border-b border-gray-200/60 dark:border-slate-700/60">
-                                                            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                                                <span className="text-white font-semibold text-xs">{member.avatar}</span>
-                                                            </div>
-                                                            <div>
-                                                                <p className="font-semibold text-gray-900 dark:text-white text-sm">{member.name}</p>
-                                                                <p className="text-xs text-gray-500 dark:text-gray-400">{member.department || member.email}</p>
-                                                            </div>
-                                                            <div className={cn(
-                                                                "ml-auto px-3 py-1 rounded-full text-xs font-medium",
-                                                                member.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
-                                                                    member.status === 'on-leave' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                                                                        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                                                            )}>
-                                                                {member.status === 'available' ? 'Available' : member.status === 'on-leave' ? 'On Leave' : 'Upcoming Leave'}
+                                                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                                {member.email}
                                                             </div>
                                                         </div>
-
-                                                        <div className={cn(
-                                                            "grid gap-6",
-                                                            (member.status === 'on-leave' || (member.status === 'upcoming-leave' && member.leaveType))
-                                                                ? "grid-cols-1 lg:grid-cols-2"
-                                                                : "grid-cols-1"
-                                                        )}>
-                                                            {/* Left: Status panel */}
-                                                            <div className="space-y-3">
-                                                                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Status</p>
-                                                                {member.status === 'available' ? (
-                                                                    <div className="flex items-start gap-3 bg-white dark:bg-slate-800 rounded-xl p-4 border border-emerald-100 dark:border-emerald-900/30 shadow-sm">
-                                                                        <div className="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                                            <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                                                                        </div>
-                                                                        <div>
-                                                                            <p className="font-semibold text-gray-900 dark:text-white text-sm">Available for Work</p>
-                                                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Ready to take on tasks and projects</p>
-                                                                        </div>
-                                                                    </div>
-                                                                ) : member.status === 'on-leave' ? (
-                                                                    <div className="flex items-start gap-3 bg-white dark:bg-slate-800 rounded-xl p-4 border border-red-100 dark:border-red-900/30 shadow-sm">
-                                                                        <div className="w-9 h-9 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                                            <UserX className="w-4 h-4 text-red-600 dark:text-red-400" />
-                                                                        </div>
-                                                                        <div>
-                                                                            <p className="font-semibold text-gray-900 dark:text-white text-sm">Currently On Leave</p>
-                                                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Temporarily unavailable for work</p>
-                                                                            {member.currentLeave && (
-                                                                                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                                                                                    {member.currentLeave.leaveType} · {member.leaveDates}
-                                                                                </p>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex items-start gap-3 bg-white dark:bg-slate-800 rounded-xl p-4 border border-amber-100 dark:border-amber-900/30 shadow-sm">
-                                                                        <div className="w-9 h-9 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                                            <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                                                                        </div>
-                                                                        <div>
-                                                                            <p className="font-semibold text-gray-900 dark:text-white text-sm">Upcoming Leave Scheduled</p>
-                                                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Available now but leave planned soon</p>
-                                                                            {member.upcomingLeaves && member.upcomingLeaves.length > 0 && (
-                                                                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                                                                                    Next: {member.upcomingLeaves[0].leaveType} · {formatDate(member.upcomingLeaves[0].startDate)}
-                                                                                </p>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-
-                                                                {/* Employee info pills */}
-                                                                {(member.jobTitle || member.department) && (
-                                                                    <div className="flex flex-wrap gap-2 pt-1">
-                                                                        {member.jobTitle && (
-                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs text-gray-600 dark:text-gray-400 shadow-sm">
-                                                                                {member.jobTitle}
-                                                                            </span>
-                                                                        )}
-                                                                        {member.department && (
-                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs text-gray-600 dark:text-gray-400 shadow-sm">
-                                                                                {member.department}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-
-                                                            {/* Right: Active/next leave detail */}
-                                                            {(member.status === 'on-leave' || member.status === 'upcoming-leave') && member.leaveType && member.startDate && member.endDate && (
-                                                                <div className="space-y-3">
-                                                                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                                        {member.status === 'on-leave' ? 'Active Leave' : 'Next Leave'}
-                                                                    </p>
-                                                                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                                                                        <div className={cn(
-                                                                            "h-1",
-                                                                            member.status === 'on-leave' ? 'bg-gradient-to-r from-red-500 to-rose-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'
-                                                                        )} />
-                                                                        <div className="p-4 space-y-3">
-                                                                            <div className="flex items-center justify-between">
-                                                                                <p className="font-semibold text-gray-900 dark:text-white">{member.leaveType}</p>
-                                                                                {member.duration && (
-                                                                                    <Badge className={cn(
-                                                                                        "text-xs",
-                                                                                        member.status === 'on-leave'
-                                                                                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                                                                                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                                                                                    )}>
-                                                                                        {member.duration} day{member.duration > 1 ? 's' : ''}{member.leave_length === 'half_day' ? ' (Half)' : ''}
-                                                                                    </Badge>
-                                                                                )}
-                                                                            </div>
-                                                                            <div className="grid grid-cols-2 gap-2">
-                                                                                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
-                                                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">From</p>
-                                                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(member.startDate)}</p>
-                                                                                </div>
-                                                                                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
-                                                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Until</p>
-                                                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(member.endDate)}</p>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <StatusDisplay member={member} />
+                                                </TableCell>
+                                                <TableCell className="text-gray-600 dark:text-gray-400">
+                                                    {member.status === 'on-leave' && member.leaveType && member.startDate && member.endDate ? (
+                                                        <div>
+                                                            <div className="font-medium">{member.leaveType}</div>
+                                                            <div className="text-sm">{formatDateRange(member.startDate, member.endDate)}</div>
+                                                            {member.duration && (
+                                                                <div className="text-xs text-gray-400">
+                                                                    {member.duration} day{member.duration > 1 ? 's' : ''}
                                                                 </div>
                                                             )}
                                                         </div>
+                                                    ) : upcomingSummary && upcomingSummary.nextLeave ? (
+                                                        <div>
+                                                            <div className="font-medium text-orange-600 dark:text-orange-400">
+                                                                {upcomingSummary.nextLeave.leaveType}
+                                                            </div>
+                                                            <div className="text-sm">
+                                                                {formatDateRange(upcomingSummary.nextLeave.startDate, upcomingSummary.nextLeave.endDate)}
+                                                            </div>
+                                                            <div className="text-xs text-gray-400">
+                                                                {upcomingSummary.nextLeave.duration} day{upcomingSummary.nextLeave.duration > 1 ? 's' : ''}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400">—</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-gray-600 dark:text-gray-400">
+                                                    {upcomingSummary ? (
+                                                        <div>
+                                                            <div className="font-medium text-blue-600 dark:text-blue-400">
+                                                                {upcomingSummary.count} leave{upcomingSummary.count > 1 ? 's' : ''} planned
+                                                            </div>
+                                                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                                {upcomingSummary.totalDays} total day{upcomingSummary.totalDays > 1 ? 's' : ''}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400">No upcoming leaves</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="px-6 py-4 whitespace-nowrap text-right">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40"
+                                                        onClick={() => openMemberDetails(member.id)}
+                                                    >
+                                                        {expandedRow === member.id ? (
+                                                            <>
+                                                                Hide Details <ChevronDown className="w-4 h-4" />
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                View Details <ChevronRight className="w-4 h-4" />
+                                                            </>
+                                                        )}
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
 
-                                                        {/* Upcoming Leaves Timeline */}
-                                                        {member.upcomingLeaves && member.upcomingLeaves.length > 0 && (
-                                                            <div className="mt-6 space-y-3">
-                                                                <div className="flex items-center justify-between">
-                                                                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                                        Upcoming Leaves
-                                                                    </p>
-                                                                    <span className="text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-2 py-0.5 rounded-full shadow-sm">
-                                                                        {member.upcomingLeaves.length} leave{member.upcomingLeaves.length !== 1 ? 's' : ''} · {member.totalUpcomingLeaveDays} day{(member.totalUpcomingLeaveDays || 0) > 1 ? 's' : ''} total
-                                                                    </span>
+                                            {/* Expanded Row */}
+                                            {expandedRow === member.id && (
+                                                <TableRow className="border-0">
+                                                    <TableCell colSpan={5} className="p-0">
+                                                        <div className={cn(
+                                                            "border-l-4 px-6 py-6",
+                                                            member.status === 'available' ? 'border-l-emerald-400 dark:border-l-emerald-300 bg-emerald-50/40 dark:bg-emerald-900/5' :
+                                                                member.status === 'on-leave' ? 'border-l-red-400 dark:border-l-red-300 bg-red-50/40 dark:bg-red-900/5' :
+                                                                    'border-l-amber-400 dark:border-l-amber-300 bg-amber-50/40 dark:bg-amber-900/5'
+                                                        )}>
+                                                            {/* Member header inside expanded row */}
+                                                            <div className="flex items-center gap-3 mb-5 pb-4 border-b border-gray-200/60 dark:border-slate-700/60">
+                                                                <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                                                    <span className="text-white font-semibold text-xs">{member.avatar}</span>
                                                                 </div>
-                                                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                                                                    {member.upcomingLeaves.map((leave) => (
-                                                                        <div key={leave.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                                                                            <div className={cn(
-                                                                                "h-1",
-                                                                                leave.status === 'approved' ? 'bg-gradient-to-r from-emerald-500 to-green-500' :
-                                                                                    leave.status === 'pending' ? 'bg-gradient-to-r from-amber-400 to-yellow-400' :
-                                                                                        'bg-gradient-to-r from-red-400 to-rose-400'
-                                                                            )} />
-                                                                            <div className="p-4">
-                                                                                <div className="flex items-start justify-between mb-3">
-                                                                                    <div>
-                                                                                        <p className="font-semibold text-gray-900 dark:text-white text-sm">{leave.leaveType}</p>
-                                                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                                                            {leave.duration} day{leave.duration > 1 ? 's' : ''}{leave.leave_length === 'half_day' ? ' (Half)' : ''}
-                                                                                        </p>
-                                                                                    </div>
-                                                                                    <Badge className={cn(
-                                                                                        "text-xs",
-                                                                                        leave.status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
-                                                                                            leave.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
-                                                                                                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                                                                                    )}>
-                                                                                        {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
-                                                                                    </Badge>
-                                                                                </div>
-                                                                                <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                                                                                    <CalendarIcon className="w-3 h-3" />
-                                                                                    {formatDateRange(leave.startDate, leave.endDate)}
-                                                                                </div>
-                                                                                {leave.reason && (
-                                                                                    <p className="mt-2 pt-2 border-t border-gray-100 dark:border-slate-700 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-                                                                                        {leave.reason}
+                                                                <div>
+                                                                    <p className="font-semibold text-gray-900 dark:text-white text-sm">{member.name}</p>
+                                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{member.department || member.email}</p>
+                                                                </div>
+                                                                <div className={cn(
+                                                                    "ml-auto px-3 py-1 rounded-full text-xs font-medium",
+                                                                    member.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
+                                                                        member.status === 'on-leave' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                                                                            'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                                                                )}>
+                                                                    {member.status === 'available' ? 'Available' : member.status === 'on-leave' ? 'On Leave' : 'Upcoming Leave'}
+                                                                </div>
+                                                            </div>
+
+                                                            <div className={cn(
+                                                                "grid gap-6",
+                                                                (member.status === 'on-leave' || (member.status === 'upcoming-leave' && member.leaveType))
+                                                                    ? "grid-cols-1 lg:grid-cols-2"
+                                                                    : "grid-cols-1"
+                                                            )}>
+                                                                {/* Left: Status panel */}
+                                                                <div className="space-y-3">
+                                                                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Status</p>
+                                                                    {member.status === 'available' ? (
+                                                                        <div className="flex items-start gap-3 bg-white dark:bg-slate-800 rounded-xl p-4 border border-emerald-100 dark:border-emerald-900/30 shadow-sm">
+                                                                            <div className="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                                <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                                                            </div>
+                                                                            <div>
+                                                                                <p className="font-semibold text-gray-900 dark:text-white text-sm">Available for Work</p>
+                                                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Ready to take on tasks and projects</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : member.status === 'on-leave' ? (
+                                                                        <div className="flex items-start gap-3 bg-white dark:bg-slate-800 rounded-xl p-4 border border-red-100 dark:border-red-900/30 shadow-sm">
+                                                                            <div className="w-9 h-9 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                                <UserX className="w-4 h-4 text-red-600 dark:text-red-400" />
+                                                                            </div>
+                                                                            <div>
+                                                                                <p className="font-semibold text-gray-900 dark:text-white text-sm">Currently On Leave</p>
+                                                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Temporarily unavailable for work</p>
+                                                                                {member.currentLeave && (
+                                                                                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                                                                        {member.currentLeave.leaveType} · {member.leaveDates}
                                                                                     </p>
                                                                                 )}
                                                                             </div>
                                                                         </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
+                                                                    ) : (
+                                                                        <div className="flex items-start gap-3 bg-white dark:bg-slate-800 rounded-xl p-4 border border-amber-100 dark:border-amber-900/30 shadow-sm">
+                                                                            <div className="w-9 h-9 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                                <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                                                            </div>
+                                                                            <div>
+                                                                                <p className="font-semibold text-gray-900 dark:text-white text-sm">Upcoming Leave Scheduled</p>
+                                                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Available now but leave planned soon</p>
+                                                                                {member.upcomingLeaves && member.upcomingLeaves.length > 0 && (
+                                                                                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                                                                        Next: {member.upcomingLeaves[0].leaveType} · {formatDate(member.upcomingLeaves[0].startDate)}
+                                                                                    </p>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
 
-                                                        {/* No upcoming leaves */}
-                                                        {(!member.upcomingLeaves || member.upcomingLeaves.length === 0) && member.status !== 'on-leave' && (
-                                                            <div className="mt-5 text-center py-6 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
-                                                                <CalendarIcon className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-                                                                <p className="text-sm text-gray-500 dark:text-gray-400">No upcoming leaves in the selected period</p>
+                                                                    {/* Employee info pills */}
+                                                                    {(member.jobTitle || member.department) && (
+                                                                        <div className="flex flex-wrap gap-2 pt-1">
+                                                                            {member.jobTitle && (
+                                                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs text-gray-600 dark:text-gray-400 shadow-sm">
+                                                                                    {member.jobTitle}
+                                                                                </span>
+                                                                            )}
+                                                                            {member.department && (
+                                                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs text-gray-600 dark:text-gray-400 shadow-sm">
+                                                                                    {member.department}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Right: Active/next leave detail */}
+                                                                {(member.status === 'on-leave' || member.status === 'upcoming-leave') && member.leaveType && member.startDate && member.endDate && (
+                                                                    <div className="space-y-3">
+                                                                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                            {member.status === 'on-leave' ? 'Active Leave' : 'Next Leave'}
+                                                                        </p>
+                                                                        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                                                                            <div className={cn(
+                                                                                "h-1",
+                                                                                member.status === 'on-leave' ? 'bg-gradient-to-r from-red-500 to-rose-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'
+                                                                            )} />
+                                                                            <div className="p-4 space-y-3">
+                                                                                <div className="flex items-center justify-between">
+                                                                                    <p className="font-semibold text-gray-900 dark:text-white">{member.leaveType}</p>
+                                                                                    {member.duration && (
+                                                                                        <Badge className={cn(
+                                                                                            "text-xs",
+                                                                                            member.status === 'on-leave'
+                                                                                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                                                                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                                                                                        )}>
+                                                                                            {member.duration} day{member.duration > 1 ? 's' : ''}{member.leave_length === 'half_day' ? ' (Half)' : ''}
+                                                                                        </Badge>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="grid grid-cols-2 gap-2">
+                                                                                    <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
+                                                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">From</p>
+                                                                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(member.startDate)}</p>
+                                                                                    </div>
+                                                                                    <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
+                                                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Until</p>
+                                                                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(member.endDate)}</p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </React.Fragment >
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-                    <Pagination
-                        currentPage={pagination.page}
-                        totalPages={pagination.totalPages}
-                        pageSize={pagination.pageSize}
-                        totalItems={pagination.totalItems}
-                        onPageChange={pagination.setPage}
-                        onPageSizeChange={pagination.setPageSize}
-                        pageSizeOptions={[5, 10, 15, 20, 50]}
-                    />
+
+                                                            {/* Upcoming Leaves Timeline */}
+                                                            {member.upcomingLeaves && member.upcomingLeaves.length > 0 && (
+                                                                <div className="mt-6 space-y-3">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                            Upcoming Leaves
+                                                                        </p>
+                                                                        <span className="text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-2 py-0.5 rounded-full shadow-sm">
+                                                                            {member.upcomingLeaves.length} leave{member.upcomingLeaves.length !== 1 ? 's' : ''} · {member.totalUpcomingLeaveDays} day{(member.totalUpcomingLeaveDays || 0) > 1 ? 's' : ''} total
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                                                                        {member.upcomingLeaves.map((leave) => (
+                                                                            <div key={leave.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                                                                                <div className={cn(
+                                                                                    "h-1",
+                                                                                    leave.status === 'approved' ? 'bg-gradient-to-r from-emerald-500 to-green-500' :
+                                                                                        leave.status === 'pending' ? 'bg-gradient-to-r from-amber-400 to-yellow-400' :
+                                                                                            'bg-gradient-to-r from-red-400 to-rose-400'
+                                                                                )} />
+                                                                                <div className="p-4">
+                                                                                    <div className="flex items-start justify-between mb-3">
+                                                                                        <div>
+                                                                                            <p className="font-semibold text-gray-900 dark:text-white text-sm">{leave.leaveType}</p>
+                                                                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                                                                {leave.duration} day{leave.duration > 1 ? 's' : ''}{leave.leave_length === 'half_day' ? ' (Half)' : ''}
+                                                                                            </p>
+                                                                                        </div>
+                                                                                        <Badge className={cn(
+                                                                                            "text-xs",
+                                                                                            leave.status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
+                                                                                                leave.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                                                                                                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                                                                        )}>
+                                                                                            {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+                                                                                        </Badge>
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                                                                        <CalendarIcon className="w-3 h-3" />
+                                                                                        {formatDateRange(leave.startDate, leave.endDate)}
+                                                                                    </div>
+                                                                                    {leave.reason && (
+                                                                                        <p className="mt-2 pt-2 border-t border-gray-100 dark:border-slate-700 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                                                                                            {leave.reason}
+                                                                                        </p>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* No upcoming leaves */}
+                                                            {(!member.upcomingLeaves || member.upcomingLeaves.length === 0) && member.status !== 'on-leave' && (
+                                                                <div className="mt-5 text-center py-6 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
+                                                                    <CalendarIcon className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+                                                                    <p className="text-sm text-gray-500 dark:text-gray-400">No upcoming leaves in the selected period</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </React.Fragment >
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                        <Pagination
+                            currentPage={pagination.page}
+                            totalPages={pagination.totalPages}
+                            pageSize={pagination.pageSize}
+                            totalItems={pagination.totalItems}
+                            onPageChange={pagination.setPage}
+                            onPageSizeChange={pagination.setPageSize}
+                            pageSizeOptions={[5, 10, 15, 20, 50]}
+                        />
                     </>
                 )}
             </div>

@@ -209,13 +209,13 @@ const TeamListLeaveHistoryPage = () => {
         user.jobTitle.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const usersPagination = usePagination(filteredUsers, 5);
-    const leavePagination = usePagination(leaveHistory, 5);
+    const usersPagination = usePagination(filteredUsers, 10);
+    const leavePagination = usePagination(leaveHistory, 10);
 
     // Reset leave pagination when switching users
     useEffect(() => {
         leavePagination.resetPage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedUser?.id]);
 
     const getStatusBadge = (status: string) => {
@@ -492,14 +492,14 @@ const TeamListLeaveHistoryPage = () => {
                                         </div>
                                     );
                                 })}
-                            <Pagination
-                                currentPage={leavePagination.page}
-                                totalPages={leavePagination.totalPages}
-                                pageSize={leavePagination.pageSize}
-                                totalItems={leavePagination.totalItems}
-                                onPageChange={leavePagination.setPage}
-                                onPageSizeChange={leavePagination.setPageSize}
-                            />
+                                <Pagination
+                                    currentPage={leavePagination.page}
+                                    totalPages={leavePagination.totalPages}
+                                    pageSize={leavePagination.pageSize}
+                                    totalItems={leavePagination.totalItems}
+                                    onPageChange={leavePagination.setPage}
+                                    onPageSizeChange={leavePagination.setPageSize}
+                                />
                             </div>
                         )}
                     </div>
@@ -581,66 +581,66 @@ const TeamListLeaveHistoryPage = () => {
                         </div>
                     ) : (
                         <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-                            {usersPagination.paginatedItems.map((user) => (
-                                <div
-                                    key={user.id}
-                                    className={`relative bg-white dark:bg-slate-800 border-l-4 ${getCardAccent(user.id)} rounded-xl shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/20 transition-all duration-300 overflow-hidden group hover:scale-[1.02]`}
-                                >
-                                    <div className="p-6">
-                                        <div className="flex items-start gap-4 mb-4">
-                                            <div className={`w-14 h-14 bg-gradient-to-br ${getUserGradient(user.id)} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200`}>
-                                                <span className="text-white font-semibold text-lg">
-                                                    {getUserInitials(user.firstName, user.lastName)}
-                                                </span>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-lg leading-tight mb-1 truncate">
-                                                    {toTitleCase(user.firstName)} {toTitleCase(user.lastName)}
-                                                </h3>
-                                                <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 mb-2">
-                                                    <Briefcase className="w-3 h-3 flex-shrink-0" />
-                                                    <p className="text-sm font-medium truncate">{user.jobTitle} - {user.department ?? 'Unknown Department'}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3 mb-4">
-                                            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                                                <Mail className="w-4 h-4 flex-shrink-0" />
-                                                <span className="text-sm truncate">{user.email}</span>
-                                            </div>
-
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex gap-2">
-                                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
-                                                        Active
-                                                    </span>
-                                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
-                                                        {toTitleCase(user.role)}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+                                {usersPagination.paginatedItems.map((user) => (
+                                    <div
+                                        key={user.id}
+                                        className={`relative bg-white dark:bg-slate-800 border-l-4 ${getCardAccent(user.id)} rounded-xl shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/20 transition-all duration-300 overflow-hidden group hover:scale-[1.02]`}
+                                    >
+                                        <div className="p-6">
+                                            <div className="flex items-start gap-4 mb-4">
+                                                <div className={`w-14 h-14 bg-gradient-to-br ${getUserGradient(user.id)} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200`}>
+                                                    <span className="text-white font-semibold text-lg">
+                                                        {getUserInitials(user.firstName, user.lastName)}
                                                     </span>
                                                 </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-lg leading-tight mb-1 truncate">
+                                                        {toTitleCase(user.firstName)} {toTitleCase(user.lastName)}
+                                                    </h3>
+                                                    <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 mb-2">
+                                                        <Briefcase className="w-3 h-3 flex-shrink-0" />
+                                                        <p className="text-sm font-medium truncate">{user.jobTitle} - {user.department ?? 'Unknown Department'}</p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        <Button
-                                            onClick={() => setSelectedUser(user)}
-                                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white flex items-center justify-center gap-2 py-2.5 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
-                                        >
-                                            View Leave History
-                                        </Button>
+                                            <div className="space-y-3 mb-4">
+                                                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                                    <Mail className="w-4 h-4 flex-shrink-0" />
+                                                    <span className="text-sm truncate">{user.email}</span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex gap-2">
+                                                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
+                                                            Active
+                                                        </span>
+                                                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+                                                            {toTitleCase(user.role)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <Button
+                                                onClick={() => setSelectedUser(user)}
+                                                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white flex items-center justify-center gap-2 py-2.5 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+                                            >
+                                                View Leave History
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                        <Pagination
-                            currentPage={usersPagination.page}
-                            totalPages={usersPagination.totalPages}
-                            pageSize={usersPagination.pageSize}
-                            totalItems={usersPagination.totalItems}
-                            onPageChange={usersPagination.setPage}
-                            onPageSizeChange={usersPagination.setPageSize}
-                        />
+                                ))}
+                            </div>
+                            <Pagination
+                                currentPage={usersPagination.page}
+                                totalPages={usersPagination.totalPages}
+                                pageSize={usersPagination.pageSize}
+                                totalItems={usersPagination.totalItems}
+                                onPageChange={usersPagination.setPage}
+                                onPageSizeChange={usersPagination.setPageSize}
+                            />
                         </>
                     )}
                 </div>
