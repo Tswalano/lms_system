@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 export interface MobileCalendarEvent {
     id: string;
     title: string;
-    type: "annual" | "sick" | "pending" | "team";
+    type: "annual" | "sick" | "pending";
     date: string;
     time: string;
 }
@@ -30,7 +30,6 @@ const eventStyles: Record<MobileCalendarEvent["type"], string> = {
     annual: "bg-emerald-400",
     sick: "bg-amber-400",
     pending: "bg-sky-400",
-    team: "bg-fuchsia-400",
 };
 
 const MobileCalendarCard = ({
@@ -85,10 +84,6 @@ const MobileCalendarCard = ({
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 dark:border-slate-700 dark:bg-slate-700/60 dark:text-slate-300">
                     <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
                     Pending
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 dark:border-slate-700 dark:bg-slate-700/60 dark:text-slate-300">
-                    <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-400" />
-                    Team
                 </span>
             </div>
 

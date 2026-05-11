@@ -27,7 +27,8 @@ const MobilePageHeader = ({
     return "Good evening";
   }, []);
 
-  const userName = `${user?.firstName ?? "Team"} ${user?.lastName ?? ""}`.trim();
+  const userName =
+    `${user?.firstName ?? "Team"} ${user?.lastName ?? ""}`.trim();
   const unreadCount = Number(countsResponse?.data?.totalUnread) || 0;
 
   return (
@@ -49,9 +50,9 @@ const MobilePageHeader = ({
           aria-label="Toggle theme"
         >
           {theme === "dark" ? (
-            <Sun className="h-5 w-5 text-amber-300" />
-          ) : (
             <Moon className="h-5 w-5 text-cyan-200" />
+          ) : (
+            <Sun className="h-5 w-5 text-amber-300" />
           )}
         </button>
 

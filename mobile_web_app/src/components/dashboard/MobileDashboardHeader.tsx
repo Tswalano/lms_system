@@ -12,7 +12,6 @@ interface MobileDashboardHeaderProps {
 }
 
 const MobileDashboardHeader = ({
-    formattedDateTime,
     onOpenNotifications,
     quote,
     leadingIcon,
@@ -32,12 +31,12 @@ const MobileDashboardHeader = ({
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200/80 bg-slate-100/90 px-3 py-2 text-right shadow-inner dark:border-slate-700 dark:bg-slate-900/80">
+                {/* <div className="rounded-2xl border border-slate-200/80 bg-slate-100/90 px-3 py-2 text-right shadow-inner dark:border-slate-700 dark:bg-slate-900/80">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                         Now
                     </p>
                     <p className="text-xs font-medium text-slate-900 dark:text-gray-100">{formattedDateTime}</p>
-                </div>
+                </div> */}
             </div>
         </header>
     );

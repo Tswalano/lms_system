@@ -23,6 +23,7 @@ import MobileMenuSheet from "./MobileMenuSheet";
 export interface AppNavItem {
   key: string;
   label: string;
+  description?: string;
   shortLabel?: string;
   to: string;
   icon: LucideIcon;
@@ -38,6 +39,7 @@ const allNavItems: AppNavItem[] = [
   {
     key: "home",
     label: "Dashboard",
+    description: "Overview, balances, and calendar",
     shortLabel: "Dashboard",
     to: "/",
     icon: Home,
@@ -48,6 +50,7 @@ const allNavItems: AppNavItem[] = [
   {
     key: "calendar",
     label: "Team Availability",
+    description: "View team schedules and calendar",
     shortLabel: "Availability",
     to: "/calendar",
     icon: CalendarDays,
@@ -59,10 +62,11 @@ const allNavItems: AppNavItem[] = [
   {
     key: "requests-user",
     label: "Leave History",
+    description: "Review past and current leave requests",
     shortLabel: "History",
     to: "/leave-history",
     icon: FileText,
-    mobile: true,
+    mobile: false,
     desktop: false,
     roles: ["user"],
     matchPaths: ["/apply-leave"],
@@ -70,6 +74,7 @@ const allNavItems: AppNavItem[] = [
   {
     key: "requests-admin",
     label: "Leave Approvals",
+    description: "Review and approve leave requests",
     shortLabel: "Approvals",
     to: "/approve-leave",
     icon: CheckCircle2,
@@ -80,6 +85,7 @@ const allNavItems: AppNavItem[] = [
   {
     key: "employees-admin",
     label: "Manage Employees",
+    description: "Admin employee and team management",
     shortLabel: "Employees",
     to: "/manage-employees",
     icon: Users,
@@ -91,6 +97,7 @@ const allNavItems: AppNavItem[] = [
   {
     key: "profile",
     label: "Profile",
+    description: "Your account and personal details",
     to: "/profile",
     icon: UserCircle2,
     mobile: true,
@@ -100,6 +107,7 @@ const allNavItems: AppNavItem[] = [
   {
     key: "apply",
     label: "Apply Leave",
+    description: "Create a new leave request",
     shortLabel: "Apply",
     to: "/apply-leave",
     icon: LayoutGrid,
@@ -110,45 +118,50 @@ const allNavItems: AppNavItem[] = [
   {
     key: "history",
     label: "Leave History",
+    description: "Review past and current leave requests",
     to: "/leave-history",
     icon: History,
-    mobile: false,
+    mobile: true,
     desktop: true,
     roles: ["admin", "user"],
   },
   {
     key: "support",
     label: "Support",
+    description: "Help, contacts, and support resources",
     to: "/support",
     icon: LifeBuoy,
-    mobile: false,
+    mobile: true,
     desktop: true,
     roles: ["admin", "user"],
   },
   {
     key: "employee-docs",
     label: "Documents",
+    description: "Access employee documents",
     to: "/employee-document",
     icon: Archive,
-    mobile: false,
+    mobile: true,
     desktop: true,
     roles: ["user"],
   },
   {
     key: "my-reviews",
     label: "My Reviews",
+    description: "View and complete your reviews",
     to: "/performance-review",
     icon: Sparkles,
-    mobile: false,
+    mobile: true,
     desktop: true,
     roles: ["user"],
   },
   {
     key: "admin-reviews",
     label: "Performance Reviews",
+    description: "Manage employee review cycles",
     to: "/performance-review-admin",
     icon: ClipboardCheck,
-    mobile: false,
+    mobile: true,
     desktop: true,
     roles: ["admin"],
     matchPaths: [
@@ -160,9 +173,10 @@ const allNavItems: AppNavItem[] = [
   {
     key: "admin-docs",
     label: "Document Library",
+    description: "Manage company documents",
     to: "/admin-document",
     icon: Archive,
-    mobile: false,
+    mobile: true,
     desktop: true,
     roles: ["admin"],
   },
@@ -215,6 +229,34 @@ export const useActiveNavigationKey = (items: AppNavItem[]) => {
   }, [items, location.pathname]);
 };
 
+const MOBILE_MENU_ORDER = [
+  "profile",
+  "history",
+  "calendar",
+  "support",
+  "employee-docs",
+  "my-reviews",
+  "employees-admin",
+  "requests-admin",
+  "admin-reviews",
+  "admin-docs",
+] as const;
+
+export const getMobileMenuItems = (items: AppNavItem[]) => {
+  const mobileItems = items.filter(
+    (item) => item.mobile && item.key !== "home" && item.key !== "apply" && item.key !== "requests-user",
+  );
+
+  return [...mobileItems].sort((left, right) => {
+    const leftIndex = MOBILE_MENU_ORDER.indexOf(left.key as (typeof MOBILE_MENU_ORDER)[number]);
+    const rightIndex = MOBILE_MENU_ORDER.indexOf(right.key as (typeof MOBILE_MENU_ORDER)[number]);
+    const normalizedLeft = leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex;
+    const normalizedRight = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
+
+    return normalizedLeft - normalizedRight;
+  });
+};
+
 const AppNavigation = ({
   isMobileMenuOpen,
   onOpenMobileMenu,
@@ -226,6 +268,8 @@ const AppNavigation = ({
 }) => {
   const { user, logout } = useAuth();
   const items = useNavigationItems();
+  const applyItem = items.find((item) => item.key === "apply");
+  const mobileMenuItems = getMobileMenuItems(items);
   const activeKey = useActiveNavigationKey(items);
   const role = user?.role === "admin" ? "admin" : "user";
   const bottomNavActiveKey: MobileActiveKey =
@@ -248,7 +292,14 @@ const AppNavigation = ({
         onOpenMenu={onOpenMobileMenu}
         onSignOut={logout}
       />
-      <MobileMenuSheet user={user} isOpen={isMobileMenuOpen} role={role} onClose={onCloseMobileMenu} />
+      <MobileMenuSheet
+        user={user}
+        isOpen={isMobileMenuOpen}
+        role={role}
+        applyItem={applyItem}
+        items={mobileMenuItems}
+        onClose={onCloseMobileMenu}
+      />
     </>
   );
 };

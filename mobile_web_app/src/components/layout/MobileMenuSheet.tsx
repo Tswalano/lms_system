@@ -1,22 +1,15 @@
-import {
-  CalendarDays,
-  LayoutGrid,
-  LifeBuoy,
-  Settings,
-  UserCircle2,
-  Users,
-  X,
-  History,
-  CheckCircle2,
-} from "lucide-react";
+import { X } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import type { User } from "@/contexts/AuthContext";
+import type { AppNavItem } from "./AppNavigation";
 import NavItem from "./NavItem";
 
 interface MobileMenuSheetProps {
   user: User | null;
   isOpen: boolean;
   role: "admin" | "user";
+  applyItem?: AppNavItem;
+  items: AppNavItem[];
   onClose: () => void;
 }
 
@@ -27,52 +20,11 @@ const MobileMenuSheet = ({
   user,
   isOpen,
   role,
+  applyItem,
+  items,
   onClose,
 }: MobileMenuSheetProps) => {
   const location = useLocation();
-
-  const items = [
-    {
-      label: "Profile",
-      description: "Your account and personal details",
-      to: "/profile",
-      icon: UserCircle2,
-    },
-    {
-      label: "Apply Leave",
-      description: "Create a new leave request",
-      to: "/apply-leave",
-      icon: LayoutGrid,
-    },
-    {
-      label: "Leave History",
-      description: "Review past and current leave requests",
-      to: "/leave-history",
-      icon: History,
-    },
-    {
-      label: "Team Availability",
-      description: "View team schedules and calendar",
-      to: "/calendar",
-      icon: CalendarDays,
-    },
-    ...(role === "admin"
-      ? [
-          {
-            label: "Manage Employees",
-            description: "Admin employee and team management",
-            to: "/manage-employees",
-            icon: Users,
-          },
-          {
-            label: "Leave Approvals",
-            description: "Review and approve leave requests",
-            to: "/approve-leave",
-            icon: CheckCircle2,
-          },
-        ]
-      : []),
-  ];
 
   return (
     <>
@@ -116,14 +68,29 @@ const MobileMenuSheet = ({
         </div>
 
         <div className="max-h-[62vh] space-y-2 overflow-y-auto pb-2">
+          {applyItem ? (
+            <NavItem
+              key={applyItem.key}
+              icon={applyItem.icon}
+              label={applyItem.label}
+              description={applyItem.description}
+              to={applyItem.to}
+              onClick={onClose}
+              active={Boolean(
+                applyItem.to &&
+                (location.pathname === applyItem.to ||
+                  location.pathname.startsWith(applyItem.to + "/")),
+              )}
+            />
+          ) : null}
+
           {items.map((item) => (
             <NavItem
-              key={item.label}
+              key={item.key}
               icon={item.icon}
               label={item.label}
               description={item.description}
               to={item.to}
-              disabled={item.disabled}
               active={Boolean(
                 item.to &&
                 (location.pathname === item.to ||

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import AppNavigation from "./AppNavigation";
+import FloatingApplyLeaveButton from "./FloatingApplyLeaveButton";
 
 interface AppLayoutProps {
     children: ReactNode;
@@ -15,6 +16,8 @@ const AppLayout = ({ children }: AppLayoutProps) => {
                 onOpenMobileMenu={() => setIsMobileSheetOpen(true)}
                 onCloseMobileMenu={() => setIsMobileSheetOpen(false)}
             />
+
+            <FloatingApplyLeaveButton hidden={isMobileSheetOpen} />
 
             <main className="relative min-h-screen px-4 pb-32 pt-4">
                 <div className="mx-auto w-full max-w-2xl">
