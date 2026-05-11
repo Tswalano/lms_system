@@ -105,6 +105,9 @@ export const API_BASE_URL: string =
             : 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
 
 
+console.log(`[AuthContext] Environment set to: ${import.meta.env.DEV}`);
+
+
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
     if (!context) {
@@ -164,7 +167,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkAuthStatus = async (): Promise<boolean> => {
         try {
             const token = getAuthToken();
-            console.log('[Auth] checkAuthStatus - Token:', token ? `${token.substring(0, 50)}...` : 'null');
+            console.log(`[AuthContext] Environment set to: ${import.meta.env.DEV}`);
 
             if (!token) {
                 setLoading(false);
