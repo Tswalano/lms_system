@@ -638,6 +638,14 @@ const ApproveLeavePage = () => {
   const isFutureLeave = (r: LeaveRequest) =>
     new Date(r.start_date) > new Date(new Date().toDateString());
 
+  const canCancelLeave = (request: LeaveRequest | null) => {
+    if (!request) return false;
+
+    const status = String(request.status ?? "").toLowerCase();
+
+    return status === "approved" && Boolean(request.id) && isFutureLeave(request);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved":
@@ -1082,7 +1090,7 @@ const ApproveLeavePage = () => {
       {activeSheet === "cancelConfirm" &&
         sheetRequest &&
         sheetRequest.status === "approved" &&
-        handleCanCancel(sheetRequest) && (
+        canCancelLeave(sheetRequest) && (
           <BottomSheet
             isOpen={activeSheet === "cancelConfirm"}
             onClose={() => {
@@ -1239,7 +1247,7 @@ const ApproveLeavePage = () => {
           </div>
           {sheetRequest.status === "pending" ||
           (sheetRequest.status === "approved" &&
-            handleCanCancel(sheetRequest)) ? (
+            canCancelLeave(sheetRequest)) ? (
             <div className="border-t border-slate-200/80 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95">
               {sheetRequest.status === "pending" ? (
                 <div className="grid grid-cols-2 gap-3">
@@ -1268,7 +1276,7 @@ const ApproveLeavePage = () => {
                 </div>
               ) : null}
               {sheetRequest.status === "approved" &&
-              handleCanCancel(sheetRequest) ? (
+              canCancelLeave(sheetRequest) ? (
                 <Button
                   onClick={() => handleCancelLeave(sheetRequest)}
                   className="h-11 w-full rounded-2xl bg-red-600 text-white hover:bg-red-700"

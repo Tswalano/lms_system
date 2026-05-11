@@ -213,6 +213,14 @@ const ProcessedLeaveRequestsPage = () => {
   const isFutureLeave = (request: LeaveRequest) =>
     new Date(request.start_date) > new Date(new Date().toDateString());
 
+  const canCancelLeave = (request: LeaveRequest | null) => {
+    if (!request) return false;
+
+    const status = String(request.status ?? "").toLowerCase();
+
+    return status === "approved" && Boolean(request.id) && isFutureLeave(request);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved":
@@ -420,7 +428,7 @@ const ProcessedLeaveRequestsPage = () => {
         )}
       </section>
 
-      {activeSheet === "cancelConfirm" && selectedRequest && selectedRequest.status === "approved" && isFutureLeave(selectedRequest) && (
+      {activeSheet === "cancelConfirm" && selectedRequest && canCancelLeave(selectedRequest) && (
         <BottomSheet
           isOpen={activeSheet === "cancelConfirm"}
           onClose={() => {
@@ -531,7 +539,7 @@ const ProcessedLeaveRequestsPage = () => {
             ) : null}
           </div>
 
-          {selectedRequest.status === "approved" && isFutureLeave(selectedRequest) ? (
+          {canCancelLeave(selectedRequest) ? (
             <div className="border-t border-slate-200/80 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95">
               <Button
                 onClick={() => handleCancelLeave(selectedRequest)}
