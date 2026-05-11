@@ -104,7 +104,8 @@ const AppBanners: React.FC = () => {
 
     useEffect(() => {
         if (!user) return;
-        const hasDob = user.dob && user.dob !== '0000-00-00';
+        const dobDate = user.dob?.split('T')[0];
+        const hasDob = dobDate && dobDate !== '0000-00-00';
         if (!hasDob) {
             const dismissedFor = localStorage.getItem(DISMISSED_BIRTHDAY_PROMPT_KEY);
             if (dismissedFor !== user.id) setShowBirthdayPrompt(true);
