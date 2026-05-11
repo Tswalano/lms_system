@@ -22,6 +22,7 @@ import PermissionDenied from "./components/PermissionDenied";
 import AdminDocumentsPage from "./pages/AdminDocumentsPage";
 import EmployeeDocumentsPage from "./pages/EmployeeDocumentsPage";
 import AppLayout from "./components/layout/AppLayout";
+import AuthLayout from "./components/layout/AuthLayout";
 // Import Performance Review Components
 import PerformanceReviewAdminPage from "./pages/PerformanceReviewAdminPage";
 import PerformanceReviewEmployeePage from "./pages/PerformanceReviewEmployeePage";
@@ -83,6 +84,12 @@ const PublicRoute: React.FC<RouteProps> = ({ children }) => {
 
   return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
 };
+
+const PublicAuthLayout = () => (
+  <PublicRoute>
+    <AuthLayout />
+  </PublicRoute>
+);
 
 const App: React.FC = () => (
   <QueryClientProvider client={queryClient}>
@@ -210,16 +217,10 @@ const App: React.FC = () => (
               } />
 
               {/* Public Routes */}
-              <Route path="/login" element={
-                <PublicRoute>
-                  <Login />
-                </PublicRoute>
-              } />
-              <Route path="/forgot-password" element={
-                <PublicRoute>
-                  <ForgotPassword />
-                </PublicRoute>
-              } />
+              <Route element={<PublicAuthLayout />}>
+                <Route path="/login" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+              </Route>
               <Route path="/change-password" element={
                 <PublicRoute>
                   <ChangePassword />

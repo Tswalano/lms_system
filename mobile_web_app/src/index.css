@@ -61,10 +61,22 @@
 }
 
 @layer base {
+  html {
+    min-height: 100%;
+    background-color: #0f172a;
+    color-scheme: dark;
+  }
+
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply min-h-screen bg-background text-foreground;
+    background-color: #0f172a;
+  }
+
+  #root {
+    @apply min-h-screen bg-transparent;
   }
 }

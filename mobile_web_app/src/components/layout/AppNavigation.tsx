@@ -18,7 +18,6 @@ import { useLocation } from "react-router-dom";
 import features from "@/config/features";
 import { useAuth } from "@/contexts/AuthContext";
 import BottomNav from "./BottomNav";
-import DesktopSidebar from "./DesktopSidebar";
 import MobileMenuSheet from "./MobileMenuSheet";
 
 export interface AppNavItem {
@@ -33,7 +32,7 @@ export interface AppNavItem {
   matchPaths?: string[];
 }
 
-export type MobileActiveKey = "dashboard" | "availability" | "requests" | "approvals" | "";
+export type MobileActiveKey = "dashboard" | "availability" | "history" | "approvals" | "";
 
 const allNavItems: AppNavItem[] = [
   {
@@ -236,16 +235,12 @@ const AppNavigation = ({
         ? "availability"
         : activeKey === "requests-admin"
           ? "approvals"
-          : activeKey === "requests-user" || activeKey === "apply" || activeKey === "history"
-            ? "requests"
+          : activeKey === "requests-user"
+            ? "history"
             : "";
 
   return (
     <>
-      <DesktopSidebar
-        items={items.filter((item) => item.desktop)}
-        activeKey={activeKey}
-      />
       <BottomNav
         role={role}
         activeKey={bottomNavActiveKey}

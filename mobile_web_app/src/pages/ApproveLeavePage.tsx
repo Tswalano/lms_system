@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
-import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Clock, Eye, RefreshCw, AlertCircle, Loader2, X, MessageSquare, User, Ban, Square, CheckSquare } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CheckCircle, XCircle, Clock, Eye, AlertCircle, Loader2, X, MessageSquare, User, Ban, Square, CheckSquare } from "lucide-react";
 import { Pagination } from "@/components/ui/Pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,51 @@ interface CommentModalProps {
     isSubmitting: boolean;
 }
 
+type ActiveSheet = 'details' | 'cancelConfirm' | null;
+
+const BottomSheet = ({
+    isOpen,
+    onClose,
+    children,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    children: React.ReactNode;
+}) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50">
+            <button
+                type="button"
+                aria-label="Close sheet"
+                onClick={onClose}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <section className="fixed inset-x-0 bottom-0 mx-auto flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+                <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-600" />
+                {children}
+            </section>
+        </div>
+    );
+};
+
+const DetailField = ({
+    label,
+    value,
+    note,
+}: {
+    label: string;
+    value: React.ReactNode;
+    note?: React.ReactNode;
+}) => (
+    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 p-3 dark:border-slate-700 dark:bg-slate-900/60">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{label}</p>
+        <div className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{value}</div>
+        {note ? <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{note}</div> : null}
+    </div>
+);
+
 const CommentModal = ({ isOpen, onClose, onSubmit, action, employeeName, leaveType, isSubmitting }: CommentModalProps) => {
     const [comment, setComment] = useState('');
 
@@ -66,64 +111,52 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, employeeName, leaveTy
         );
     }, [action]);
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 lg:pl-72">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full border border-gray-200/50 dark:border-slate-600/50">
-                <div className="p-6 border-b border-gray-200/50 dark:border-slate-600/50">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${action === 'approve' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-                                {action === 'approve' ? <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" /> : <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />}
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                                    {action === 'approve' ? 'Approve' : 'Reject'} Leave Request
-                                </h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">{employeeName} - {leaveType}</p>
-                            </div>
-                        </div>
-                        <Button onClick={onClose} variant="ghost" size="icon" className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700" disabled={isSubmitting}>
-                            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                        </Button>
+        <BottomSheet isOpen={isOpen} onClose={onClose}>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 px-4 pb-4 pt-3 dark:border-slate-700">
+                <div className="flex min-w-0 items-center gap-3">
+                    <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${action === 'approve' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
+                        {action === 'approve' ? <CheckCircle className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
+                    </div>
+                    <div className="min-w-0">
+                        <h3 className="truncate text-base font-semibold text-slate-900 dark:text-slate-100">
+                            {action === 'approve' ? 'Approve Leave' : 'Reject Leave'}
+                        </h3>
+                        <p className="truncate text-sm text-slate-600 dark:text-slate-400">{employeeName}</p>
+                        <p className="truncate text-xs text-slate-500 dark:text-slate-400">{leaveType}</p>
                     </div>
                 </div>
-                <div className="p-6 space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            <MessageSquare className="w-4 h-4 inline mr-2" />Comment (Optional)
-                        </label>
-                        <Textarea
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            placeholder={`Add a comment for the ${action === 'approve' ? 'approval' : 'rejection'}...`}
-                            className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600 min-h-[120px] resize-none"
-                            disabled={isSubmitting}
-                        />
-                    </div>
-                </div>
-                <div className="p-6 border-t border-gray-200/50 dark:border-slate-600/50">
-                    <div className="flex gap-3">
-                        <Button variant="outline" onClick={() => setComment('')} className="bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600" disabled={isSubmitting}>
-                            Clear
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => onSubmit(comment)}
-                            className={`flex-1 ${action === 'approve' ? 'border-green-200 text-green-600 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/40' : 'border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40'}`}
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting ? (
-                                <><Loader2 className="w-4 h-4 animate-spin mr-2" />{action === 'approve' ? 'Approving...' : 'Rejecting...'}</>
-                            ) : (
-                                <>{action === 'approve' ? <CheckCircle className="w-4 h-4 mr-2" /> : <XCircle className="w-4 h-4 mr-2" />}{action === 'approve' ? 'Approve' : 'Reject'}</>
-                            )}
-                        </Button>
-                    </div>
-                </div>
+                <Button onClick={onClose} variant="ghost" size="icon" className="h-9 w-9 rounded-xl" disabled={isSubmitting}>
+                    <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+                </Button>
             </div>
-        </div>
+            <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <MessageSquare className="mr-2 inline h-4 w-4" />
+                    Comment
+                </label>
+                <Textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder={`Add a comment for the ${action === 'approve' ? 'approval' : 'rejection'}...`}
+                    className="min-h-[160px] rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60"
+                    disabled={isSubmitting}
+                />
+            </div>
+            <div className="border-t border-slate-200/80 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95">
+                <Button
+                    onClick={() => onSubmit(comment)}
+                    className={cn("h-11 w-full rounded-2xl text-white", action === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700')}
+                    disabled={isSubmitting}
+                >
+                    {isSubmitting ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{action === 'approve' ? 'Approving...' : 'Rejecting...'}</>
+                    ) : (
+                        <>{action === 'approve' ? <CheckCircle className="mr-2 h-4 w-4" /> : <XCircle className="mr-2 h-4 w-4" />}{action === 'approve' ? 'Approve Request' : 'Reject Request'}</>
+                    )}
+                </Button>
+            </div>
+        </BottomSheet>
     );
 };
 
@@ -149,79 +182,68 @@ const BulkActionModal = ({ isOpen, onClose, onSubmit, action, selectedRequests, 
         }
     }, [isOpen, action]);
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 lg:pl-72">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-lg w-full border border-gray-200/50 dark:border-slate-600/50">
-                <div className="p-6 border-b border-gray-200/50 dark:border-slate-600/50">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${action === 'approve' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-                                {action === 'approve' ? <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" /> : <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />}
+        <BottomSheet isOpen={isOpen} onClose={onClose}>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 px-4 pb-4 pt-3 dark:border-slate-700">
+                <div className="flex min-w-0 items-center gap-3">
+                    <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${action === 'approve' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
+                        {action === 'approve' ? <CheckCircle className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
+                    </div>
+                    <div className="min-w-0">
+                        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                            Bulk {action === 'approve' ? 'Approve' : 'Reject'}
+                        </h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                            {selectedRequests.length} request{selectedRequests.length !== 1 ? 's' : ''} selected
+                        </p>
+                    </div>
+                </div>
+                <Button onClick={onClose} variant="ghost" size="icon" className="h-9 w-9 rounded-xl" disabled={isSubmitting}>
+                    <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+                </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
+                <div className="space-y-2">
+                    {selectedRequests.map((request) => (
+                        <div key={request.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 text-sm dark:bg-slate-900/60">
+                            <div className="min-w-0">
+                                <p className="truncate font-medium text-slate-900 dark:text-slate-100">{request.firstName} {request.lastName}</p>
+                                <p className="truncate text-xs text-slate-500 dark:text-slate-400">{request.leave_type}</p>
                             </div>
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                                    Bulk {action === 'approve' ? 'Approve' : 'Reject'}
-                                </h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {selectedRequests.length} request{selectedRequests.length !== 1 ? 's' : ''} selected
-                                </p>
-                            </div>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">{request.duration} day{request.duration !== 1 ? 's' : ''}</span>
                         </div>
-                        <Button onClick={onClose} variant="ghost" size="icon" className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700" disabled={isSubmitting}>
-                            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                        </Button>
-                    </div>
+                    ))}
                 </div>
 
-                <div className="p-6 space-y-4 max-h-80 overflow-y-auto">
-                    <div className="space-y-2">
-                        {selectedRequests.map(r => (
-                            <div key={r.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-xl text-sm">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                                        {r.firstName[0]}{r.lastName[0]}
-                                    </div>
-                                    <span className="font-medium text-gray-800 dark:text-gray-200">{r.firstName} {r.lastName}</span>
-                                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{r.leave_type}</span>
-                                </div>
-                                <span className="text-gray-500 dark:text-gray-400 text-xs">{r.duration} day{r.duration !== 1 ? 's' : ''}</span>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            <MessageSquare className="w-4 h-4 inline mr-2" />Feedback (applied to all)
-                        </label>
-                        <Textarea
-                            value={feedback}
-                            onChange={(e) => setFeedback(e.target.value)}
-                            className="bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600 min-h-[100px] resize-none"
-                            disabled={isSubmitting}
-                        />
-                    </div>
-                </div>
-
-                <div className="p-6 border-t border-gray-200/50 dark:border-slate-600/50 flex gap-3">
-                    <Button variant="outline" onClick={onClose} className="flex-1" disabled={isSubmitting}>
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={() => onSubmit(feedback)}
-                        className={`flex-1 text-white ${action === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
+                <div className="mt-4">
+                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        <MessageSquare className="mr-2 inline h-4 w-4" />
+                        Feedback
+                    </label>
+                    <Textarea
+                        value={feedback}
+                        onChange={(e) => setFeedback(e.target.value)}
+                        className="min-h-[140px] rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60"
                         disabled={isSubmitting}
-                    >
-                        {isSubmitting ? (
-                            <><Loader2 className="w-4 h-4 animate-spin mr-2" />{action === 'approve' ? 'Approving...' : 'Rejecting...'}</>
-                        ) : (
-                            <>{action === 'approve' ? <CheckCircle className="w-4 h-4 mr-2" /> : <XCircle className="w-4 h-4 mr-2" />}{action === 'approve' ? `Approve ${selectedRequests.length}` : `Reject ${selectedRequests.length}`}</>
-                        )}
-                    </Button>
+                    />
                 </div>
             </div>
-        </div>
+
+            <div className="border-t border-slate-200/80 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95">
+                <Button
+                    onClick={() => onSubmit(feedback)}
+                    className={cn("h-11 w-full rounded-2xl text-white", action === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700')}
+                    disabled={isSubmitting}
+                >
+                    {isSubmitting ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{action === 'approve' ? 'Approving...' : 'Rejecting...'}</>
+                    ) : (
+                        <>{action === 'approve' ? <CheckCircle className="mr-2 h-4 w-4" /> : <XCircle className="mr-2 h-4 w-4" />}{action === 'approve' ? `Approve ${selectedRequests.length}` : `Reject ${selectedRequests.length}`}</>
+                    )}
+                </Button>
+            </div>
+        </BottomSheet>
     );
 };
 
@@ -230,10 +252,9 @@ const ApproveLeavePage = () => {
     const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
     const [modalAction, setModalAction] = useState<'approve' | 'reject'>('approve');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedLeaveDetails, setSelectedLeaveDetails] = useState<LeaveRequest | null>(null);
-    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-    const [leaveToCancel, setLeaveToCancel] = useState<LeaveRequest | null>(null);
+    const [sheetRequest, setSheetRequest] = useState<LeaveRequest | null>(null);
+    const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
+    const sheetHistoryActive = useRef(false);
 
     // Bulk selection state
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -267,8 +288,7 @@ const ApproveLeavePage = () => {
         data: requests = [],
         isLoading,
         error,
-        refetch,
-        isFetching
+        refetch
     } = useQuery({
         queryKey: ['leaveApprovalRequests'],
         queryFn: fetchLeaveRequests,
@@ -359,20 +379,14 @@ const ApproveLeavePage = () => {
             queryClient.invalidateQueries({ queryKey: ['teamAvailability'] });
             queryClient.invalidateQueries({ queryKey: ['leaveCalendar'] });
             toast.success('Leave Cancelled', { description: 'The approved leave has been cancelled successfully.' });
-            setShowCancelConfirm(false);
-            setLeaveToCancel(null);
-            setIsDetailsModalOpen(false);
-            setSelectedLeaveDetails(null);
+            sheetHistoryActive.current = false;
+            setActiveSheet(null);
+            setSheetRequest(null);
         },
         onError: (error) => {
             toast.error('Cancellation Failed', { description: error instanceof Error ? error.message : 'Failed to cancel leave' });
         },
     });
-
-    const handleRefresh = () => {
-        setSelectedIds(new Set());
-        queryClient.invalidateQueries({ queryKey: ['leaveApprovalRequests'] });
-    };
 
     const openApprovalModal = (request: LeaveRequest, action: 'approve' | 'reject') => {
         setSelectedRequest(request);
@@ -380,15 +394,45 @@ const ApproveLeavePage = () => {
         setIsModalOpen(true);
     };
 
+    const closeActiveSheet = () => {
+        if (sheetHistoryActive.current) {
+            window.history.back();
+            return;
+        }
+
+        setActiveSheet(null);
+        setSheetRequest(null);
+    };
+
     const openDetailsModal = (request: LeaveRequest) => {
-        setSelectedLeaveDetails(request);
-        setIsDetailsModalOpen(true);
+        setSheetRequest(request);
+        setActiveSheet('details');
     };
 
     const handleCancelLeave = (request: LeaveRequest) => {
-        setLeaveToCancel(request);
-        setShowCancelConfirm(true);
+        setSheetRequest(request);
+        setActiveSheet('cancelConfirm');
     };
+
+    useEffect(() => {
+        if (activeSheet && !sheetHistoryActive.current) {
+            window.history.pushState({ approvalsSheet: true }, '');
+            sheetHistoryActive.current = true;
+        }
+    }, [activeSheet]);
+
+    useEffect(() => {
+        const handlePopState = () => {
+            if (!sheetHistoryActive.current) return;
+
+            sheetHistoryActive.current = false;
+            setActiveSheet(null);
+            setSheetRequest(null);
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
 
     // Checkbox helpers
     const allPendingSelected = pendingRequests.length > 0 && pendingRequests.every(r => selectedIds.has(r.id));
@@ -454,10 +498,10 @@ const ApproveLeavePage = () => {
     ] as const;
 
     return (
-        <div className="mx-auto w-full max-w-5xl px-4 pb-28">
+        <div className="mx-auto w-full max-w-2xl px-4 pb-28">
             <MobilePageHeader className="mb-4" />
-            <section className="rounded-[1.5rem] border border-slate-200/80 bg-white/85 p-3 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_18px_48px_rgba(2,6,23,0.28)] md:p-5">
-                <div className="flex items-start justify-between gap-3">
+            <section className="rounded-[1.5rem] border border-slate-200/80 bg-white/85 p-3 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_18px_48px_rgba(2,6,23,0.28)] md:p-4">
+                <div className="flex items-start gap-3">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2.5">
                             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md">
@@ -465,16 +509,8 @@ const ApproveLeavePage = () => {
                             </div>
                             <h1 className="text-xl font-semibold text-slate-950 dark:text-gray-100 md:text-2xl">Leave Approvals</h1>
                         </div>
-                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Review, approve, reject, or cancel employee leave requests.</p>
+                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Review and process employee leave requests.</p>
                     </div>
-                    <Button
-                        onClick={handleRefresh}
-                        variant="outline"
-                        className="h-9 min-w-9 rounded-xl border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                        disabled={isFetching}
-                    >
-                        <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-                    </Button>
                 </div>
 
                 <div className="mt-3 grid grid-cols-3 gap-2 md:mt-4 md:gap-3">
@@ -538,14 +574,14 @@ const ApproveLeavePage = () => {
                         </div>
 
                         {pendingRequests.length > 0 ? (
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 {pendingPagination.paginatedItems.map((request) => {
                                     const isSelected = selectedIds.has(request.id);
                                     return (
                                         <article
                                             key={request.id}
                                             className={cn(
-                                                "rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl transition-all dark:border-slate-700 dark:bg-slate-800",
+                                                "rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-3.5 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl transition-all dark:border-slate-700 dark:bg-slate-800",
                                                 isSelected
                                                     ? "ring-2 ring-blue-200 dark:ring-blue-900/60"
                                                     : ""
@@ -586,7 +622,7 @@ const ApproveLeavePage = () => {
                                                         </Badge>
                                                     </div>
 
-                                                    <div className="mt-4 grid grid-cols-2 gap-3">
+                                                    <div className="mt-3 grid grid-cols-2 gap-2.5">
                                                         <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 p-3 dark:border-slate-700 dark:bg-slate-700/40">
                                                             <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Dates</p>
                                                             <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -608,12 +644,12 @@ const ApproveLeavePage = () => {
                                                         </div>
                                                     ) : null}
 
-                                                    <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() => openApprovalModal(request, 'approve')}
-                                                            className="h-11 rounded-2xl border-green-200 bg-green-50 text-green-600 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40"
+                                                            className="h-10 rounded-2xl border-green-200 bg-green-50 text-green-600 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40"
                                                             disabled={processLeaveMutation.isPending}
                                                         >
                                                             <CheckCircle className="mr-2 h-4 w-4" />Approve
@@ -622,7 +658,7 @@ const ApproveLeavePage = () => {
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() => openApprovalModal(request, 'reject')}
-                                                            className="h-11 rounded-2xl border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+                                                            className="h-10 rounded-2xl border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
                                                             disabled={processLeaveMutation.isPending}
                                                         >
                                                             <XCircle className="mr-2 h-4 w-4" />Reject
@@ -631,7 +667,7 @@ const ApproveLeavePage = () => {
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() => openDetailsModal(request)}
-                                                            className="h-11 rounded-2xl border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
+                                                            className="h-10 rounded-2xl border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
                                                         >
                                                             <Eye className="mr-2 h-4 w-4" />View Details
                                                         </Button>
@@ -701,7 +737,7 @@ const ApproveLeavePage = () => {
 
             {/* Floating bulk action bar */}
             {selectedIds.size > 0 && (
-                <div className="fixed inset-x-4 bottom-24 z-40 rounded-[1.5rem] border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95 lg:left-[calc(50%+8rem)] lg:right-auto lg:w-auto lg:-translate-x-1/2">
+                <div className="fixed inset-x-4 bottom-24 z-40 mx-auto w-[calc(100%-2rem)] max-w-2xl rounded-[1.5rem] border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                         {selectedIds.size} selected
@@ -759,154 +795,121 @@ const ApproveLeavePage = () => {
             />
 
             {/* Cancel Confirmation Modal */}
-            {showCancelConfirm && leaveToCancel && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 lg:pl-72">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full border border-gray-200/50 dark:border-slate-600/50">
-                        <div className="p-6 border-b border-gray-200/50 dark:border-slate-600/50">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
-                                    <Ban className="w-5 h-5 text-red-600 dark:text-red-400" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Cancel Approved Leave</h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">This action cannot be undone</p>
-                                </div>
+            {activeSheet === 'cancelConfirm' && sheetRequest && sheetRequest.status === 'approved' && handleCanCancel(sheetRequest) && (
+                <BottomSheet
+                    isOpen={activeSheet === 'cancelConfirm'}
+                    onClose={() => {
+                        if (!cancelLeaveMutation.isPending) {
+                            closeActiveSheet();
+                        }
+                    }}
+                >
+                    <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 px-4 pb-4 pt-3 dark:border-slate-700">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                                <Ban className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Cancel Approved Leave</h3>
+                                <p className="truncate text-sm text-slate-600 dark:text-slate-400">{sheetRequest.firstName} {sheetRequest.lastName}</p>
                             </div>
                         </div>
-                        <div className="p-6">
-                            <p className="text-gray-700 dark:text-gray-300">
-                                Are you sure you want to cancel the approved leave for{' '}
-                                <span className="font-semibold">{leaveToCancel.firstName} {leaveToCancel.lastName}</span>?
-                            </p>
-                            <div className="mt-4 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                                <p className="text-sm text-gray-600 dark:text-gray-400"><strong>Leave Type:</strong> {leaveToCancel.leave_type}</p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    <strong>Duration:</strong> {formatDate(leaveToCancel.start_date)} - {formatDate(leaveToCancel.end_date)}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="p-6 border-t border-gray-200/50 dark:border-slate-600/50 flex gap-3">
-                            <Button variant="outline" onClick={() => { setShowCancelConfirm(false); setLeaveToCancel(null); }} className="flex-1" disabled={cancelLeaveMutation.isPending}>
-                                No, Keep It
-                            </Button>
-                            <Button onClick={() => leaveToCancel && cancelLeaveMutation.mutate(leaveToCancel.id)} className="flex-1 bg-red-600 hover:bg-red-700 text-white" disabled={cancelLeaveMutation.isPending}>
-                                {cancelLeaveMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Cancelling...</> : <><Ban className="w-4 h-4 mr-2" />Yes, Cancel Leave</>}
-                            </Button>
+                        <Button
+                            onClick={() => {
+                                if (!cancelLeaveMutation.isPending) {
+                                    closeActiveSheet();
+                                }
+                            }}
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 rounded-xl"
+                            disabled={cancelLeaveMutation.isPending}
+                        >
+                            <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+                        </Button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
+                        <p className="text-sm text-slate-600 dark:text-slate-300">
+                            This action cannot be undone. Confirm if you want to cancel this approved leave request.
+                        </p>
+                        <div className="mt-4 grid gap-3">
+                            <DetailField label="Leave Type" value={sheetRequest.leave_type} />
+                            <DetailField label="Date Range" value={`${formatDate(sheetRequest.start_date)} - ${formatDate(sheetRequest.end_date)}`} />
                         </div>
                     </div>
-                </div>
+                    <div className="border-t border-slate-200/80 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95">
+                        <Button
+                            onClick={() => cancelLeaveMutation.mutate(sheetRequest.id)}
+                            className="h-11 w-full rounded-2xl bg-red-600 text-white hover:bg-red-700"
+                            disabled={cancelLeaveMutation.isPending}
+                        >
+                            {cancelLeaveMutation.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cancelling...</> : <><Ban className="mr-2 h-4 w-4" />Cancel Leave</>}
+                        </Button>
+                    </div>
+                </BottomSheet>
             )}
 
             {/* Leave Details Modal */}
-            {isDetailsModalOpen && selectedLeaveDetails && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 lg:pl-72">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-600/50">
-                        <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                                        <User className="w-6 h-6 text-white" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
-                                            {selectedLeaveDetails.leave_type} Leave Request
-                                        </h3>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            {selectedLeaveDetails.firstName} {selectedLeaveDetails.lastName}
-                                        </p>
-                                    </div>
-                                </div>
-                                <Button onClick={() => setIsDetailsModalOpen(false)} variant="ghost" size="icon" className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80">
-                                    <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                                </Button>
+            {activeSheet === 'details' && sheetRequest && (
+                <BottomSheet isOpen={activeSheet === 'details'} onClose={closeActiveSheet}>
+                    <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 px-4 pb-4 pt-3 dark:border-slate-700">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                                <User className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                                <h3 className="truncate text-base font-semibold text-slate-900 dark:text-slate-100">{sheetRequest.leave_type}</h3>
+                                <p className="truncate text-sm text-slate-600 dark:text-slate-400">{sheetRequest.firstName} {sheetRequest.lastName}</p>
                             </div>
                         </div>
-                        <div className="p-6 space-y-6 max-h-[calc(90vh-200px)] overflow-y-auto">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Employee</label>
-                                        <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">{selectedLeaveDetails.firstName} {selectedLeaveDetails.lastName}</p>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">{selectedLeaveDetails.jobTitle}</p>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Start Date</label>
-                                        <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">{formatDate(selectedLeaveDetails.start_date)}</p>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">End Date</label>
-                                        <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">{formatDate(selectedLeaveDetails.end_date)}</p>
-                                    </div>
-                                </div>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Leave Type</label>
-                                        <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">{selectedLeaveDetails.leave_type}</p>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Duration</label>
-                                        <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                                            {`${selectedLeaveDetails.duration} day${selectedLeaveDetails.duration > 1 ? 's' : ''}${selectedLeaveDetails.leave_length === 'half_day' ? ' (Half Day)' : ''}`}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
-                                        <div className="mt-1">
-                                            <Badge className={getStatusColor(selectedLeaveDetails.status)}>
-                                                {selectedLeaveDetails.status.charAt(0).toUpperCase() + selectedLeaveDetails.status.slice(1)}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Applied Date</label>
-                                        <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">{formatDate(selectedLeaveDetails.createdAt)}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            {selectedLeaveDetails.leave_comment && (
-                                <div>
-                                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Employee Comment</label>
-                                    <div className="mt-2 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                                        <p className="text-gray-700 dark:text-gray-300">{selectedLeaveDetails.leave_comment}</p>
-                                    </div>
-                                </div>
-                            )}
-                            {selectedLeaveDetails.feedback && (
-                                <div>
-                                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Manager Feedback</label>
-                                    <div className="mt-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                                        <p className="text-gray-700 dark:text-gray-300">{selectedLeaveDetails.feedback}</p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <div className="p-6 bg-gray-50 dark:bg-slate-700/30 border-t border-gray-100 dark:border-slate-600/30">
-                            <div className="flex gap-3">
-                                {selectedLeaveDetails.status === 'pending' && (
-                                    <>
-                                        <Button variant="outline" onClick={() => { setIsDetailsModalOpen(false); openApprovalModal(selectedLeaveDetails, 'approve'); }} className="flex-1 border-green-200 text-green-600 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/40">
-                                            <CheckCircle className="w-4 h-4 mr-2" />Approve
-                                        </Button>
-                                        <Button variant="outline" onClick={() => { setIsDetailsModalOpen(false); openApprovalModal(selectedLeaveDetails, 'reject'); }} className="flex-1 border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40">
-                                            <XCircle className="w-4 h-4 mr-2" />Reject
-                                        </Button>
-                                    </>
-                                )}
-                                <Button
-                                    onClick={() => setIsDetailsModalOpen(false)}
-                                    className={cn("px-4 py-2 rounded-lg font-medium transition-colors duration-200",
-                                        selectedLeaveDetails.status === 'pending'
-                                            ? 'flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-300 dark:border-slate-700'
-                                            : 'w-full bg-slate-700 hover:bg-slate-800 dark:bg-slate-500 dark:hover:bg-slate-400 text-white'
-                                    )}
-                                    variant={selectedLeaveDetails.status === 'pending' ? "outline" : "default"}
-                                >
-                                    Close
-                                </Button>
-                            </div>
-                        </div>
+                        <Button onClick={closeActiveSheet} variant="ghost" size="icon" className="h-9 w-9 rounded-xl">
+                            <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+                        </Button>
                     </div>
-                </div>
+                    <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <DetailField label="Employee" value={`${sheetRequest.firstName} ${sheetRequest.lastName}`} note={sheetRequest.jobTitle || sheetRequest.email} />
+                            <DetailField label="Status" value={<Badge className={getStatusColor(sheetRequest.status)}>{sheetRequest.status.charAt(0).toUpperCase() + sheetRequest.status.slice(1)}</Badge>} />
+                            <DetailField label="Start Date" value={formatDate(sheetRequest.start_date)} />
+                            <DetailField label="End Date" value={formatDate(sheetRequest.end_date)} />
+                            <DetailField label="Leave Type" value={sheetRequest.leave_type} />
+                            <DetailField label="Duration" value={`${sheetRequest.duration} day${sheetRequest.duration > 1 ? 's' : ''}${sheetRequest.leave_length === 'half_day' ? ' (Half Day)' : ''}`} />
+                            <DetailField label="Applied Date" value={formatDate(sheetRequest.createdAt)} />
+                        </div>
+                        {sheetRequest.leave_comment ? (
+                            <div className="mt-4">
+                                <DetailField label="Employee Comment" value={sheetRequest.leave_comment} />
+                            </div>
+                        ) : null}
+                        {sheetRequest.feedback ? (
+                            <div className="mt-4">
+                                <DetailField label="Manager Feedback" value={sheetRequest.feedback} />
+                            </div>
+                        ) : null}
+                    </div>
+                    {(sheetRequest.status === 'pending' || (sheetRequest.status === 'approved' && handleCanCancel(sheetRequest))) ? (
+                        <div className="border-t border-slate-200/80 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95">
+                            {sheetRequest.status === 'pending' ? (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Button variant="outline" onClick={() => { closeActiveSheet(); openApprovalModal(sheetRequest, 'approve'); }} className="h-11 rounded-2xl border-green-200 bg-green-50 text-green-600 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40">
+                                        <CheckCircle className="mr-2 h-4 w-4" />Approve
+                                    </Button>
+                                    <Button variant="outline" onClick={() => { closeActiveSheet(); openApprovalModal(sheetRequest, 'reject'); }} className="h-11 rounded-2xl border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40">
+                                        <XCircle className="mr-2 h-4 w-4" />Reject
+                                    </Button>
+                                </div>
+                            ) : null}
+                            {sheetRequest.status === 'approved' && handleCanCancel(sheetRequest) ? (
+                                <Button
+                                    onClick={() => handleCancelLeave(sheetRequest)}
+                                    className="h-11 w-full rounded-2xl bg-red-600 text-white hover:bg-red-700"
+                                >
+                                    <Ban className="mr-2 h-4 w-4" />Cancel Leave
+                                </Button>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </BottomSheet>
             )}
         </div>
     );

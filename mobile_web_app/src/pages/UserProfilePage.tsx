@@ -328,7 +328,7 @@ const UserProfilePage: React.FC = () => {
     // ── Render ─────────────────────────────────────────────────────────────
 
     return (
-        <div className="max-w-5xl mx-auto px-4 py-2 space-y-5">
+        <div className="mx-auto max-w-2xl px-4 py-2 space-y-5">
             <MobilePageHeader />
 
             {/* ── Page header ── */}
@@ -350,7 +350,7 @@ const UserProfilePage: React.FC = () => {
             </div>
 
             {/* ── Main grid ── */}
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
+            <div className="space-y-5">
 
                 {/* ── LEFT SIDEBAR ── */}
                 <div className="space-y-4">
@@ -442,7 +442,7 @@ const UserProfilePage: React.FC = () => {
                 </div>
 
                 {/* ── RIGHT CONTENT ── */}
-                <div className="lg:col-span-2 space-y-4">
+                <div className="space-y-4">
 
                     {/* Personal information */}
                     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4 sm:p-5">

@@ -16,8 +16,8 @@ const AppLayout = ({ children }: AppLayoutProps) => {
                 onCloseMobileMenu={() => setIsMobileSheetOpen(false)}
             />
 
-            <main className="relative min-h-screen px-4 pb-32 pt-4 lg:ml-80 lg:px-8 lg:pb-8 lg:pt-8">
-                <div className="mx-auto w-full max-w-7xl">
+            <main className="relative min-h-screen px-4 pb-32 pt-4">
+                <div className="mx-auto w-full max-w-2xl">
                     {children}
                 </div>
             </main>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { addDays, format } from "date-fns";
 import {
     AlertCircle,
@@ -13,14 +13,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pagination } from "@/components/ui/Pagination";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import MobilePageHeader from "@/components/layout/MobilePageHeader";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePagination } from "@/hooks/usePagination";
 import AvailabilityFilterChips from "@/components/team-availability/AvailabilityFilterChips";
+import TeamMemberCard from "@/components/team-availability/TeamMemberCard";
 import TeamMemberCarousel from "@/components/team-availability/TeamMemberCarousel";
-import TeamMemberTable from "@/components/team-availability/TeamMemberTable";
 import TeamStats from "@/components/team-availability/TeamStats";
 import type { ApiResponse, TeamMember } from "@/components/team-availability/types";
 import {
@@ -34,7 +32,6 @@ const TeamAvailabilityPage = () => {
     const { authFetch } = useAuth();
     const [filter, setFilter] = useState<string>("all");
     const [searchTerm, setSearchTerm] = useState<string>("");
-    const [expandedRow, setExpandedRow] = useState<string | null>(null);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
         const today = new Date();
         const endDate = addDays(today, 30);
@@ -141,12 +138,7 @@ const TeamAvailabilityPage = () => {
         [teamMembers, searchTerm, filter, dateRange]
     );
 
-    const pagination = usePagination(filteredMembers, 6);
     const statCards = getStatCards(filteredMembers);
-
-    const openMemberDetails = (memberId: string) => {
-        setExpandedRow((current) => (current === memberId ? null : memberId));
-    };
 
     const chipOptions = [
         { key: "all", label: "All", count: filteredMembers.length },
@@ -168,7 +160,7 @@ const TeamAvailabilityPage = () => {
     }
 
     return (
-        <div className="mx-auto w-full max-w-6xl pb-24">
+        <div className="mx-auto w-full max-w-2xl pb-24">
             <MobilePageHeader className="mb-4" />
             <section className="rounded-[1.5rem] border border-slate-200/80 bg-white/85 p-3 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_18px_48px_rgba(2,6,23,0.28)] md:p-5">
                 <div className="flex items-start gap-3">
@@ -262,24 +254,12 @@ const TeamAvailabilityPage = () => {
                     </div>
                 ) : (
                     <>
-                        <TeamMemberCarousel members={pagination.paginatedItems} />
+                        <TeamMemberCarousel members={filteredMembers} />
 
-                        <TeamMemberTable
-                            members={pagination.paginatedItems}
-                            expandedRow={expandedRow}
-                            onToggle={openMemberDetails}
-                        />
-
-                        <div className="mt-5 hidden md:block">
-                            <Pagination
-                                currentPage={pagination.page}
-                                totalPages={pagination.totalPages}
-                                pageSize={pagination.pageSize}
-                                totalItems={pagination.totalItems}
-                                onPageChange={pagination.setPage}
-                                onPageSizeChange={pagination.setPageSize}
-                                pageSizeOptions={[6, 10, 15, 20, 50]}
-                            />
+                        <div className="mt-4 hidden gap-4 sm:grid sm:grid-cols-2">
+                            {filteredMembers.map((member) => (
+                                <TeamMemberCard key={member.id} member={member} />
+                            ))}
                         </div>
                     </>
                 )}

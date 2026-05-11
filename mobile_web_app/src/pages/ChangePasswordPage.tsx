@@ -319,7 +319,7 @@ const ChangePasswordPage: React.FC = (): JSX.Element => {
                                 <div>
                                     <button
                                         type="button"
-                                        onClick={() => window.history.back()}
+                                        onClick={() => navigate("/login")}
                                         className="inline-flex items-center text-sm text-green-600 hover:text-green-500 dark:text-green-400 transition-colors"
                                     >
                                         <ArrowLeft className="w-4 h-4 mr-1" />
