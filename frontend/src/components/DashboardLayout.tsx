@@ -1,6 +1,7 @@
 import React, { useState, type ReactNode } from 'react';
 import Sidebar from './Sidebar';
 import DashboardHeader from './DashboardHeader';
+import AppBanners from './AppBanners';
 import { Link } from 'react-router-dom';
 
 interface DashboardLayoutProps {
@@ -96,6 +97,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 {showHeader && (
                     <DashboardHeader />
                 )}
+
+                {/* App-wide alert banners */}
+                <AppBanners />
 
                 {/* Main Content - Flex grow to push footer down */}
                 <main className={`flex-grow p-4 lg:p-8 ${contentClassName}`}>
