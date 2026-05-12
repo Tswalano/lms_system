@@ -444,7 +444,7 @@ export class LmsBackendStack extends cdk.Stack {
       // No VPC configuration - Lambda runs outside VPC for better performance and lower cost
       environment: {
         COGNITO_CLIENT_ID: USE_EXISTING_COGNITO && EXISTING_USER_POOL_CLIENT_ID ? EXISTING_USER_POOL_CLIENT_ID : userPoolClient.userPoolClientId,
-        USER_POOL_ID: USE_EXISTING_COGNITO && EXISTING_USER_POOL_ID ? EXISTING_USER_POOL_ID : userPool.userPoolId,
+        COGNITO_USER_POOL_ID: USE_EXISTING_COGNITO && EXISTING_USER_POOL_ID ? EXISTING_USER_POOL_ID : userPool.userPoolId,
         DATABASE_SECRET_ARN: databaseCredentials.secretArn,
         GOOGLE_CALENDAR_API_KEY_SECRET_NAME: 'calendar_api',
         SECRET_VALUE_KEY: 'calendarAPI',
