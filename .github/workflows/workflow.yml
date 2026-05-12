@@ -218,10 +218,9 @@ jobs:
           echo "=== ENVIRONMENT: $ENV ==="
 
       - name: Build with version
-        run: npm run build
+        run: npm run build -- --mode ${{ steps.set-version.outputs.environment }}
         env:
           VITE_VERSION: ${{ env.VITE_VERSION }}
-          NODE_ENV: ${{ steps.set-version.outputs.environment }}
 
       - uses: aws-actions/configure-aws-credentials@v2
         with:
