@@ -10,7 +10,7 @@ import {
     useSubmitReview,
     type ReviewQuestion,
 } from "@/hooks/usePerformanceReview";
-import { ArrowLeft, CheckCircle, AlertCircle, CheckCircle2, Loader2, UserCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -40,6 +40,16 @@ const PerformanceReviewPeerPage = () => {
     const { data: detail, isLoading } = usePeerReviewDetail(assignmentId);
     const saveResponse = useSaveResponse();
     const submitReview = useSubmitReview();
+
+    // Collect latest values from PeerQuestionRow children; keyed by questionId
+    const peerResponsesRef = useRef<Record<string, { rating: RatingValue | null; text: string }>>({});
+    const [answeredIds, setAnsweredIds] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        if (detail) {
+            setAnsweredIds(new Set(detail.responses.filter((r) => r.ratingResponse != null).map((r) => r.questionId)));
+        }
+    }, [detail]);
 
     if (isLoading) {
         return (
@@ -76,12 +86,30 @@ const PerformanceReviewPeerPage = () => {
     const gradient = getEmployeeGradient(detail.reviewee.id);
     const initials = getInitials(detail.reviewee.name);
 
-    // Count answered based on initial server data; PeerQuestionRow manages local state
-    const answered = detail.responses.filter((r) => r.ratingResponse != null).length;
+    const saveAllResponses = async (rid: string) => {
+        await Promise.all(
+            detail.questions.map((q) => {
+                const resp = peerResponsesRef.current[q.id] ?? { rating: null, text: "" };
+                return saveResponse.mutateAsync({ reviewId: rid, questionId: q.id, reviewerType: "peer", ratingResponse: resp.rating, textResponse: resp.text });
+            })
+        );
+    };
+
+    const handleSaveAndClose = async () => {
+        if (!reviewId) { navigate("/performance-review"); return; }
+        try {
+            await saveAllResponses(reviewId);
+            toast.success("Progress saved");
+            navigate("/performance-review");
+        } catch {
+            toast.error("Failed to save progress");
+        }
+    };
 
     const handleSubmit = async () => {
         if (!reviewId) return;
         try {
+            await saveAllResponses(reviewId);
             await submitReview.mutateAsync(reviewId);
             toast.success("Peer review submitted");
             navigate("/performance-review");
@@ -127,7 +155,7 @@ const PerformanceReviewPeerPage = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
-                        <ScorePill label="Answered" value={`${answered}/${detail.questions.length}`} highlight />
+                        <ScorePill label="Answered" value={`${answeredIds.size}/${detail.questions.length}`} highlight />
                         {submitted && (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                                 <CheckCircle2 className="w-4 h-4" /> Submitted
@@ -153,8 +181,14 @@ const PerformanceReviewPeerPage = () => {
                                 initialRating={(initialResp?.ratingResponse as RatingValue) ?? null}
                                 initialText={initialResp?.textResponse ?? ""}
                                 disabled={submitted || !reviewId}
-                                reviewId={reviewId ?? ""}
-                                saveResponse={saveResponse}
+                                onUpdate={(rating, text) => {
+                                    peerResponsesRef.current[q.id] = { rating, text };
+                                    setAnsweredIds((prev) => {
+                                        const next = new Set(prev);
+                                        if (rating != null) next.add(q.id); else next.delete(q.id);
+                                        return next;
+                                    });
+                                }}
                             />
                         );
                     })}
@@ -165,18 +199,19 @@ const PerformanceReviewPeerPage = () => {
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5 flex justify-end gap-2">
                 <Button
                     variant="outline"
-                    onClick={() => navigate("/performance-review")}
+                    onClick={handleSaveAndClose}
+                    disabled={saveResponse.isPending}
                     className="rounded-xl border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-gray-100"
                 >
-                    Save & close
+                    {saveResponse.isPending ? "Saving…" : "Save & close"}
                 </Button>
                 {!submitted && (
                     <Button
                         className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm disabled:opacity-50"
                         onClick={handleSubmit}
-                        disabled={answered < detail.questions.length || !reviewId || submitReview.isPending}
+                        disabled={answeredIds.size < detail.questions.length || !reviewId || saveResponse.isPending || submitReview.isPending}
                     >
-                        {submitReview.isPending ? "Submitting…" : "Submit review"}
+                        {saveResponse.isPending ? "Saving…" : submitReview.isPending ? "Submitting…" : "Submit review"}
                         <CheckCircle2 className="h-4 w-4 ml-1" />
                     </Button>
                 )}
@@ -185,65 +220,21 @@ const PerformanceReviewPeerPage = () => {
     );
 };
 
-// ─── PeerQuestionRow ──────────────────────────────────────────────────────────
-// Maintains local state so the textarea is never reset by server refetches.
-// Rating saves immediately; text is debounced (800 ms) and flushed on blur.
-
 const PeerQuestionRow = ({
     question,
     initialRating,
     initialText,
     disabled,
-    reviewId,
-    saveResponse,
+    onUpdate,
 }: {
     question: ReviewQuestion;
     initialRating: RatingValue;
     initialText: string;
     disabled: boolean;
-    reviewId: string;
-    saveResponse: ReturnType<typeof useSaveResponse>;
+    onUpdate: (rating: RatingValue | null, text: string) => void;
 }) => {
-    // Lazy initialisers: run only once on mount (parent never renders this
-    // component until detail is loaded), so prop changes from refetches are
-    // intentionally ignored — local state is the single source of truth.
     const [rating, setRating] = useState<RatingValue>(() => initialRating);
     const [text, setText] = useState(() => initialText);
-    const [saveStatus, setSaveStatus] = useState<"idle" | "typing" | "saving" | "saved" | "error">("idle");
-    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    useEffect(() => () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); }, []);
-
-    const save = (ratingVal: RatingValue, textVal: string) => {
-        setSaveStatus("saving");
-        saveResponse.mutate(
-            { reviewId, questionId: question.id, reviewerType: "peer", ratingResponse: ratingVal, textResponse: textVal },
-            {
-                onSuccess: () => { setSaveStatus("saved"); setTimeout(() => setSaveStatus("idle"), 2000); },
-                onError: () => setSaveStatus("error"),
-            }
-        );
-    };
-
-    // Always save both values together — same pattern as SelfQuestionRow
-    const handleRatingChange = (v: RatingValue) => {
-        setRating(v);
-        // Flush any pending text debounce so we don't fire a stale text-only save after this
-        if (debounceTimer.current) { clearTimeout(debounceTimer.current); debounceTimer.current = null; }
-        save(v, text);
-    };
-
-    const handleTextChange = (t: string) => {
-        setText(t);
-        setSaveStatus("typing");
-        if (debounceTimer.current) clearTimeout(debounceTimer.current);
-        debounceTimer.current = setTimeout(() => save(rating, t), 800);
-    };
-
-    const handleTextBlur = (t: string) => {
-        if (debounceTimer.current) { clearTimeout(debounceTimer.current); debounceTimer.current = null; }
-        if (saveStatus !== "saved" && saveStatus !== "saving") save(rating, t);
-    };
 
     return (
         <div className="p-5 grid grid-cols-12 gap-4 items-start">
@@ -259,40 +250,17 @@ const PeerQuestionRow = ({
                     size="sm"
                     disabled={disabled}
                     value={rating}
-                    onChange={handleRatingChange}
+                    onChange={(v) => { setRating(v); onUpdate(v, text); }}
                 />
             </div>
-            <div className="col-span-12 md:col-span-5 space-y-1">
+            <div className="col-span-12 md:col-span-5">
                 <Textarea
                     disabled={disabled}
                     placeholder="Written feedback…"
                     value={text}
-                    onChange={(e) => handleTextChange(e.target.value)}
-                    onBlur={(e) => handleTextBlur(e.target.value)}
+                    onChange={(e) => { setText(e.target.value); onUpdate(rating, e.target.value); }}
                     className="min-h-[110px] text-sm rounded-xl border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:ring-blue-500/30 focus-visible:border-blue-400 dark:focus-visible:border-blue-500 resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                 />
-                <div className="flex justify-end h-4">
-                    {saveStatus === "typing" && (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 animate-pulse">
-                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />Typing…
-                        </span>
-                    )}
-                    {saveStatus === "saving" && (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-blue-500">
-                            <Loader2 className="w-3 h-3 animate-spin" />Saving…
-                        </span>
-                    )}
-                    {saveStatus === "saved" && (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
-                            <CheckCircle className="w-3 h-3" />Saved
-                        </span>
-                    )}
-                    {saveStatus === "error" && (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-red-500">
-                            <AlertCircle className="w-3 h-3" />Save failed
-                        </span>
-                    )}
-                </div>
             </div>
         </div>
     );

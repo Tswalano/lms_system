@@ -739,7 +739,7 @@ app.post('/responses', async (c: Context): Promise<Response> => {
         });
 
         // Bump review to in_progress
-        if (review.status === 'not_started') {
+        if (review.status === 'not_started' || review.status === 'peer_reviews_in_progress') {
             await prisma.performance_reviews.update({
                 where: { id: data.reviewId },
                 data: { status: 'employee_in_progress' },

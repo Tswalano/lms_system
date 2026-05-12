@@ -9,7 +9,7 @@ export interface User {
     lastName: string;
     email: string;
     phoneNumber: string;
-    dob: string | null;
+    dob: string;
     gender: string;
     jobTitle: string;
     role: 'admin' | 'user' | string;
@@ -39,7 +39,7 @@ interface AuthContextType {
     logout: () => Promise<void>;
     forgotPassword: (username: string) => Promise<AuthResponse>;
     changePassword: (username: string, newPassword: string, session: string) => Promise<ChangePasswordResponse>;
-    checkAuthStatus: () => Promise<void>;
+    checkAuthStatus: () => Promise<boolean>;
     authFetch: typeof fetch; // Matches standard fetch API
     resetPassword: (email: string, code: string, newPassword: string) => Promise<AuthResponse>;
     getAuthToken: () => string | null;
@@ -98,11 +98,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // if development environment
 export const API_BASE_URL: string =
-    process.env.NODE_ENV === 'development'
+    import.meta.env.DEV
         ? 'http://localhost:3000'
-        : process.env.NODE_ENV === 'dev'
+        : import.meta.env.MODE === 'dev'
             ? 'https://xrdpcrhluc.execute-api.af-south-1.amazonaws.com/dev'
             : 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
+
+
+console.log(`[AuthContext] Environment set to: ${import.meta.env.MODE}`);
 
 
 export const useAuth = (): AuthContextType => {
@@ -161,14 +164,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
-    const checkAuthStatus = async (): Promise<void> => {
+    const checkAuthStatus = async (): Promise<boolean> => {
         try {
             const token = getAuthToken();
-            console.log('[Auth] checkAuthStatus - Token:', token ? `${token.substring(0, 50)}...` : 'null');
 
             if (!token) {
                 setLoading(false);
-                return;
+                return false;
             }
 
             let response = await fetch(`${API_BASE_URL}/users/me`, {
@@ -202,6 +204,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 const userData: ApiAuthResponse = await response.json();
                 setUser(userData.payload);
                 setIsAuthenticated(true);
+                return true;
             } else {
                 throw new Error('Authentication check failed');
             }
@@ -211,6 +214,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             localStorage.removeItem('refreshToken');
             setUser(null);
             setIsAuthenticated(false);
+            return false;
         } finally {
             setLoading(false);
         }
@@ -230,8 +234,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (response.ok) {
                 const data: LoginApiResponse = await response.json();
 
-                console.log('Running on NODE_ENV:', process.env.NODE_ENV);
-
                 if (data.requiresNewPassword) {
                     return {
                         success: false,
@@ -246,7 +248,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 localStorage.setItem('authToken', data.user.idToken);
                 localStorage.setItem('accessToken', data.user.accessToken);
                 localStorage.setItem('refreshToken', data.user.refreshToken);
-                await checkAuthStatus();
+
+                const authOk = await checkAuthStatus();
+                if (!authOk) {
+                    return { success: false, error: 'ERR_CODE: DB, Your account exists, but it has not yet been configured. Please contact your administrator.' };
+                }
 
                 return { success: true };
             } else {

@@ -339,7 +339,7 @@ The admin submissions page currently shows each peer reviewer's name and individ
 
 ---
 
-## 9. Mobile / PWA Improvements 🔲
+## 9. Mobile / PWA Improvements 🚧 In Progress
 
 **Goal:** Employees frequently check leave status and sign documents on mobile. The current app is responsive but not optimised for mobile-first usage.
 

@@ -10,7 +10,7 @@ import {
     useSubmitReview,
     type ManagerAppraisalQuestion,
 } from "@/hooks/usePerformanceReview";
-import { ArrowLeft, CheckCircle2, UserCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -41,28 +41,23 @@ const PerformanceReviewManagerAppraisalPage = () => {
     const saveResponse = useSaveResponse();
     const submitReview = useSubmitReview();
 
-    // Local text state so typing doesn't wait on API round-trips
     const [localTexts, setLocalTexts] = useState<Record<string, string>>({});
-    const [saveStatusMap, setSaveStatusMap] = useState<Record<string, 'idle' | 'typing' | 'saving' | 'saved' | 'error'>>({});
-    const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+    const [localRatings, setLocalRatings] = useState<Record<string, RatingValue | null>>({});
     const initialized = useRef(false);
 
-    // Initialise local text from server data once on load
     useEffect(() => {
         if (detail && !initialized.current) {
             const texts: Record<string, string> = {};
+            const ratings: Record<string, RatingValue | null> = {};
             for (const q of detail.questions) {
                 texts[q.id] = q.response?.textResponse ?? "";
+                ratings[q.id] = (q.response?.ratingResponse as RatingValue) ?? null;
             }
             setLocalTexts(texts);
+            setLocalRatings(ratings);
             initialized.current = true;
         }
     }, [detail]);
-
-    // Cleanup debounce timers on unmount
-    useEffect(() => {
-        return () => { Object.values(debounceTimers.current).forEach(clearTimeout); };
-    }, []);
 
     if (isLoading) {
         return (
@@ -94,72 +89,35 @@ const PerformanceReviewManagerAppraisalPage = () => {
     const submitted = detail.status === "final_review_complete" || detail.status === "employee_completed";
     const gradient = getEmployeeGradient(detail.employee.id);
     const initials = getInitials(detail.employee.name);
-    const ratedQuestions = detail.questions.filter((q) => q.response?.ratingResponse != null);
-    const answered = ratedQuestions.length;
+    const answered = detail.questions.filter((q) => localRatings[q.id] != null).length;
     const allAnswered = answered >= detail.questions.length;
     const avgScore = answered > 0
-        ? ratedQuestions.reduce((sum, q) => sum + (q.response!.ratingResponse as number), 0) / answered
+        ? detail.questions.filter((q) => localRatings[q.id] != null)
+            .reduce((sum, q) => sum + (localRatings[q.id] as number), 0) / answered
         : null;
 
     const handleRatingChange = (questionId: string, v: RatingValue) => {
-        if (!reviewId) return;
-        // Always include current text so the server doesn't overwrite it with null
-        saveResponse.mutate({
-            reviewId,
-            questionId,
-            ratingResponse: v,
-            textResponse: localTexts[questionId] ?? null,
-            reviewerType: "manager",
-        });
+        setLocalRatings((prev) => ({ ...prev, [questionId]: v }));
     };
 
-    const handleTextChange = (questionId: string, text: string, currentRating: RatingValue | null) => {
-        if (!reviewId) return;
+    const handleTextChange = (questionId: string, text: string) => {
         setLocalTexts((prev) => ({ ...prev, [questionId]: text }));
-        setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'typing' }));
-
-        if (debounceTimers.current[questionId]) clearTimeout(debounceTimers.current[questionId]);
-
-        debounceTimers.current[questionId] = setTimeout(() => {
-            setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'saving' }));
-            saveResponse.mutate(
-                { reviewId: reviewId!, questionId, textResponse: text, ratingResponse: currentRating ?? null, reviewerType: "manager" },
-                {
-                    onSuccess: () => {
-                        setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'saved' }));
-                        setTimeout(() => setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'idle' })), 2000);
-                    },
-                    onError: () => setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'error' })),
-                }
-            );
-        }, 800);
-    };
-
-    const handleTextBlur = (questionId: string, text: string, currentRating: RatingValue | null) => {
-        if (!reviewId) return;
-        if (debounceTimers.current[questionId]) {
-            clearTimeout(debounceTimers.current[questionId]);
-            delete debounceTimers.current[questionId];
-        }
-        const status = saveStatusMap[questionId];
-        if (status !== 'saved' && status !== 'saving') {
-            setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'saving' }));
-            saveResponse.mutate(
-                { reviewId: reviewId!, questionId, textResponse: text, ratingResponse: currentRating ?? null, reviewerType: "manager" },
-                {
-                    onSuccess: () => {
-                        setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'saved' }));
-                        setTimeout(() => setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'idle' })), 2000);
-                    },
-                    onError: () => setSaveStatusMap((prev) => ({ ...prev, [questionId]: 'error' })),
-                }
-            );
-        }
     };
 
     const handleSubmit = async () => {
         if (!reviewId) return;
         try {
+            await Promise.all(
+                detail.questions.map((q) =>
+                    saveResponse.mutateAsync({
+                        reviewId: reviewId!,
+                        questionId: q.id,
+                        ratingResponse: localRatings[q.id] ?? null,
+                        textResponse: localTexts[q.id] ?? "",
+                        reviewerType: "manager",
+                    })
+                )
+            );
             await submitReview.mutateAsync(reviewId);
             toast.success("Appraisal submitted successfully");
             navigate("/performance-review-admin");
@@ -244,7 +202,7 @@ const PerformanceReviewManagerAppraisalPage = () => {
                                     <RatingScale
                                         size="sm"
                                         disabled={submitted}
-                                        value={(q.response?.ratingResponse as RatingValue) ?? null}
+                                        value={localRatings[q.id] ?? null}
                                         onChange={(v) => handleRatingChange(q.id, v)}
                                     />
                                 </div>
@@ -253,19 +211,9 @@ const PerformanceReviewManagerAppraisalPage = () => {
                                         disabled={submitted}
                                         placeholder="Optional notes…"
                                         value={localTexts[q.id] ?? ""}
-                                        onChange={(e) => handleTextChange(q.id, e.target.value, (q.response?.ratingResponse as RatingValue) ?? null)}
-                                        onBlur={(e) => handleTextBlur(q.id, e.target.value, (q.response?.ratingResponse as RatingValue) ?? null)}
+                                        onChange={(e) => handleTextChange(q.id, e.target.value)}
                                         className="min-h-[90px] text-sm rounded-xl border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-400 dark:focus-visible:border-indigo-500 resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                                     />
-                                    {saveStatusMap[q.id] === 'saving' && (
-                                        <p className="mt-1 text-xs text-gray-400">Saving…</p>
-                                    )}
-                                    {saveStatusMap[q.id] === 'saved' && (
-                                        <p className="mt-1 text-xs text-emerald-500">Saved</p>
-                                    )}
-                                    {saveStatusMap[q.id] === 'error' && (
-                                        <p className="mt-1 text-xs text-red-500">Failed to save</p>
-                                    )}
                                 </div>
                             </div>
                         ))}
@@ -286,9 +234,9 @@ const PerformanceReviewManagerAppraisalPage = () => {
                     <Button
                         className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-sm disabled:opacity-50"
                         onClick={handleSubmit}
-                        disabled={!allAnswered || submitReview.isPending}
+                        disabled={!allAnswered || saveResponse.isPending || submitReview.isPending}
                     >
-                        {submitReview.isPending ? "Submitting…" : "Submit appraisal"}
+                        {saveResponse.isPending ? "Saving…" : submitReview.isPending ? "Submitting…" : "Submit appraisal"}
                         <CheckCircle2 className="h-4 w-4 ml-1" />
                     </Button>
                 )}

@@ -24,7 +24,7 @@
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mime-types": "^3.0.1",
-    "@types/node": "^22.19.17",
+    "@types/node": "^22.19.18",
     "@types/supertest": "^7.2.0",
     "aws-cdk": "2.1019.0",
     "aws-sdk-client-mock": "^4.0.0",
