@@ -34,12 +34,14 @@ interface TokenUser {
 interface AuthContextType {
     user: User | null;
     loading: boolean;
+    initializing: boolean;
+    authLoading: boolean;
     isAuthenticated: boolean;
     login: (username: string, password: string) => Promise<AuthResponse>;
     logout: () => Promise<void>;
     forgotPassword: (username: string) => Promise<AuthResponse>;
     changePassword: (username: string, newPassword: string, session: string) => Promise<ChangePasswordResponse>;
-    checkAuthStatus: () => Promise<void>;
+    checkAuthStatus: () => Promise<boolean>;
     authFetch: typeof fetch; // Matches standard fetch API
     resetPassword: (email: string, code: string, newPassword: string) => Promise<AuthResponse>;
     getAuthToken: () => string | null;
@@ -96,11 +98,11 @@ interface TokenRefreshResponse {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// if development environment
+// Match the desktop frontend by using Vite environment flags in the browser bundle.
 export const API_BASE_URL: string =
-    process.env.NODE_ENV === 'development'
+    import.meta.env.DEV
         ? 'http://localhost:3000'
-        : process.env.NODE_ENV === 'dev'
+        : import.meta.env.MODE === 'dev'
             ? 'https://xrdpcrhluc.execute-api.af-south-1.amazonaws.com/dev'
             : 'https://9z3skhtfwi.execute-api.af-south-1.amazonaws.com/prod';
 
@@ -115,7 +117,8 @@ export const useAuth = (): AuthContextType => {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState<boolean>(true);
+    const [initializing, setInitializing] = useState<boolean>(true);
+    const [authLoading, setAuthLoading] = useState<boolean>(false);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
     useEffect(() => {
@@ -161,14 +164,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
-    const checkAuthStatus = async (): Promise<void> => {
+    const checkAuthStatus = async (): Promise<boolean> => {
         try {
             const token = getAuthToken();
-            console.log('[Auth] checkAuthStatus - Token:', token ? `${token.substring(0, 50)}...` : 'null');
 
             if (!token) {
-                setLoading(false);
-                return;
+                setInitializing(false);
+                return false;
             }
 
             let response = await fetch(`${API_BASE_URL}/users/me`, {
@@ -202,6 +204,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 const userData: ApiAuthResponse = await response.json();
                 setUser(userData.payload);
                 setIsAuthenticated(true);
+                return true;
             } else {
                 throw new Error('Authentication check failed');
             }
@@ -211,14 +214,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             localStorage.removeItem('refreshToken');
             setUser(null);
             setIsAuthenticated(false);
+            return false;
         } finally {
-            setLoading(false);
+            setInitializing(false);
         }
     };
 
     const login = async (username: string, password: string): Promise<AuthResponse> => {
         try {
-            setLoading(true);
+            setAuthLoading(true);
             const response = await fetch(`${API_BASE_URL}/auth/login`, {
                 method: 'POST',
                 headers: {
@@ -229,8 +233,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             if (response.ok) {
                 const data: LoginApiResponse = await response.json();
-
-                console.log('Running on NODE_ENV:', process.env.NODE_ENV);
 
                 if (data.requiresNewPassword) {
                     return {
@@ -246,7 +248,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 localStorage.setItem('authToken', data.user.idToken);
                 localStorage.setItem('accessToken', data.user.accessToken);
                 localStorage.setItem('refreshToken', data.user.refreshToken);
-                await checkAuthStatus();
+
+                const authOk = await checkAuthStatus();
+                if (!authOk) {
+                    return { success: false, error: 'Your account exists, but profile loading failed. Please contact your administrator.' };
+                }
 
                 return { success: true };
             } else {
@@ -257,7 +263,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.error('Login error:', error);
             return { success: false, error: 'Network error. Please try again.' };
         } finally {
-            setLoading(false);
+            setAuthLoading(false);
         }
     };
 
@@ -285,7 +291,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const forgotPassword = async (email: string): Promise<AuthResponse> => {
         try {
-            setLoading(true);
+            setAuthLoading(true);
             const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
                 method: 'POST',
                 headers: {
@@ -304,13 +310,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.error('Forgot password error:', error);
             return { success: false, message: 'Sorry, something went wrong. Please try again.' };
         } finally {
-            setLoading(false);
+            setAuthLoading(false);
         }
     };
 
     const resetPassword = async (email: string, code: string, newPassword: string): Promise<AuthResponse> => {
         try {
-            setLoading(true);
+            setAuthLoading(true);
             const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
                 method: 'POST',
                 headers: {
@@ -338,7 +344,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 error: 'Network error. Please try again.'
             };
         } finally {
-            setLoading(false);
+            setAuthLoading(false);
         }
     };
 
@@ -425,7 +431,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const value: AuthContextType = {
         user,
-        loading,
+        loading: initializing,
+        initializing,
+        authLoading,
         isAuthenticated,
         login,
         logout,

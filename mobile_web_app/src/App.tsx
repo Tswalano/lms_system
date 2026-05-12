@@ -76,10 +76,10 @@ const RouteLoadingScreen = ({ authSurface = false }: { authSurface?: boolean }) 
 
 // Protected Route Component
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, initializing, user } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  if (initializing) {
     return <RouteLoadingScreen />;
   }
 
@@ -98,9 +98,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
 
 // Public Route Component
 const PublicRoute: React.FC<RouteProps> = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, initializing } = useAuth();
 
-  if (loading) {
+  if (initializing) {
     return <RouteLoadingScreen authSurface />;
   }
 
