@@ -322,10 +322,9 @@ jobs:
           echo "=== ENVIRONMENT: dev ==="
 
       - name: Build with version
-        run: npm run build
+        run: npm run build -- --mode dev
         env:
           VITE_VERSION: ${{ env.VITE_VERSION }}
-          NODE_ENV: dev
 
       - uses: aws-actions/configure-aws-credentials@v2
         with:

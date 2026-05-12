@@ -88,8 +88,8 @@ const MobileCalendarCard = ({
             </div>
 
             <div className="grid grid-cols-7 gap-1.5 text-center">
-                {weekdays.map((weekday) => (
-                    <div key={weekday} className="pb-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                {weekdays.map((weekday, index) => (
+                    <div key={`${weekday}-${index}`} className="pb-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
                         {weekday}
                     </div>
                 ))}

@@ -9,14 +9,14 @@ const LoginPage: React.FC = (): JSX.Element => {
     const [password, setPassword] = useState<string>("");
     const [error, setError] = useState<string | null>(null);
 
-    const { login, loading, isAuthenticated } = useAuth();
+    const { login, authLoading, isAuthenticated, initializing } = useAuth();
     const navigate: NavigateFunction = useNavigate();
 
     useEffect((): void => {
-        if (!loading && isAuthenticated) {
+        if (!initializing && isAuthenticated) {
             navigate("/", { replace: true });
         }
-    }, [isAuthenticated, loading, navigate]);
+    }, [isAuthenticated, initializing, navigate]);
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
         e.preventDefault();
@@ -123,7 +123,7 @@ const LoginPage: React.FC = (): JSX.Element => {
                                 onChange={handleEmailChange}
                                 className="h-12 w-full rounded-full border border-slate-700 bg-slate-800/70 pl-11 pr-4 text-[15px] text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/30"
                                 required
-                                disabled={loading}
+                                disabled={authLoading}
                                 autoComplete="username"
                             />
                         </div>
@@ -143,14 +143,14 @@ const LoginPage: React.FC = (): JSX.Element => {
                                 onChange={handlePasswordChange}
                                 className="h-12 w-full rounded-full border border-slate-700 bg-slate-800/70 pl-11 pr-12 text-[15px] text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/30"
                                 required
-                                disabled={loading}
+                                disabled={authLoading}
                                 autoComplete="current-password"
                             />
                             <button
                                 type="button"
                                 onClick={togglePasswordVisibility}
                                 className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-300 disabled:cursor-not-allowed"
-                                disabled={loading}
+                                disabled={authLoading}
                                 aria-label={showPassword ? "Hide password" : "Show password"}
                             >
                                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -179,10 +179,10 @@ const LoginPage: React.FC = (): JSX.Element => {
 
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={authLoading}
                         className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-green-500 to-cyan-500 px-6 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:from-green-600 hover:to-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        {loading ? (
+                        {authLoading ? (
                             <>
                                 <Loader2 className="h-5 w-5 animate-spin" />
                                 Signing in...
