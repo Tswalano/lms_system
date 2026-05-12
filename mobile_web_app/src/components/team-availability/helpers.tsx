@@ -1,4 +1,4 @@
-import { CheckCircle, Clock, UserCheck, UserX, Users } from "lucide-react";
+import { Clock, UserX, Users } from "lucide-react";
 import { format } from "date-fns";
 import type { LeaveRequest, TeamMember } from "./types";
 
@@ -143,25 +143,16 @@ export const getMemberOverview = (member: TeamMember) => {
 };
 
 export const getStatCards = (teamMembers: TeamMember[]) => {
-    const availableCount = teamMembers.filter((member) => member.status === "available").length;
     const onLeaveCount = teamMembers.filter((member) => member.status === "on-leave").length;
     const upcomingLeaveCount = teamMembers.filter((member) => member.status === "upcoming-leave").length;
-    const totalUpcomingDays = teamMembers.reduce((total, member) => total + (member.totalUpcomingLeaveDays || 0), 0);
 
     return [
         {
             title: "Team Members",
             value: String(teamMembers.length),
-            description: "Visible in current filters",
+            description: "Shown in this list",
             icon: <Users className="h-5 w-5 text-cyan-700 dark:text-cyan-300" />,
             iconBadgeClassName: "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300",
-        },
-        {
-            title: "Available",
-            value: String(availableCount),
-            description: "Ready to work today",
-            icon: <CheckCircle className="h-5 w-5 text-emerald-700 dark:text-emerald-300" />,
-            iconBadgeClassName: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
         },
         {
             title: "On Leave",
@@ -173,7 +164,7 @@ export const getStatCards = (teamMembers: TeamMember[]) => {
         {
             title: "Upcoming",
             value: String(upcomingLeaveCount),
-            description: `${totalUpcomingDays} leave days scheduled`,
+            description: "Starting soon",
             icon: <Clock className="h-5 w-5 text-amber-700 dark:text-amber-300" />,
             iconBadgeClassName: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
         },
