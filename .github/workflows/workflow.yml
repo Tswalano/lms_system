@@ -32,6 +32,7 @@ on:
           - both
           - backend-only
           - frontend-only
+          - mobile-frontend-only
   release:
     types: [ published ]
 
@@ -41,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
+      mobile_frontend: ${{ steps.filter.outputs.mobile_frontend }}
       backend: ${{ steps.filter.outputs.backend }}
       branch: ${{ steps.filter.outputs.branch }}
     steps:
@@ -50,6 +52,7 @@ jobs:
       - id: filter
         run: |
           FRONTEND=false
+          MOBILE_FRONTEND=false
           BACKEND=false
           BRANCH=${GITHUB_REF##*/}
 
@@ -72,15 +75,20 @@ jobs:
             FRONTEND=true
             echo "Frontend changes detected"
           fi
+          if grep -q "^mobile_web_app/" changes.txt; then
+            MOBILE_FRONTEND=true
+            echo "Mobile frontend changes detected"
+          fi
           if grep -q "^backend/" changes.txt; then 
             BACKEND=true
             echo "Backend changes detected"
           fi
 
           echo "frontend=$FRONTEND" >> $GITHUB_OUTPUT
+          echo "mobile_frontend=$MOBILE_FRONTEND" >> $GITHUB_OUTPUT
           echo "backend=$BACKEND" >> $GITHUB_OUTPUT
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
-          echo "Frontend: $FRONTEND, Backend: $BACKEND, Branch: $BRANCH"
+          echo "Frontend: $FRONTEND, Mobile frontend: $MOBILE_FRONTEND, Backend: $BACKEND, Branch: $BRANCH"
 
   semantic-release:
     needs: [ detect-changes ]
@@ -144,7 +152,7 @@ jobs:
     if: |
       always() &&
       (
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' && github.event.inputs.target != 'backend-only') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' && (github.event.inputs.target == 'both' || github.event.inputs.target == 'frontend-only')) ||
         (needs.detect-changes.result == 'success' && needs.detect-changes.outputs.frontend == 'true') ||
         (github.event_name == 'release') ||
         (needs.semantic-release.result == 'success')
@@ -251,12 +259,83 @@ jobs:
             --distribution-id "$CF_ID" \
             --paths "/*"
 
+  mobile-frontend-deploy:
+    needs: [ detect-changes, semantic-release ]
+    if: |
+      always() &&
+      (
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' && (github.event.inputs.target == 'both' || github.event.inputs.target == 'mobile-frontend-only')) ||
+        (needs.detect-changes.result == 'success' && needs.detect-changes.outputs.mobile_frontend == 'true')
+      )
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./mobile_web_app
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "18.x"
+      - run: npm ci
+      - name: Set version environment variable
+        id: set-version
+        run: |
+          VERSION=""
+
+          echo "Event: ${{ github.event_name }}"
+          echo "Semantic release published: ${{ needs.semantic-release.outputs.new-release-published }}"
+          echo "Semantic release version: ${{ needs.semantic-release.outputs.new-release-version }}"
+
+          if [ "${{ needs.semantic-release.outputs.new-release-published }}" = "true" ]; then
+            VERSION="${{ needs.semantic-release.outputs.new-release-version }}"
+          else
+            BASE_VERSION=$(node -p "require('../package.json').version")
+            SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+            VERSION="${BASE_VERSION}-dev.${SHORT_SHA}"
+          fi
+
+          echo "VITE_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "environment=dev" >> $GITHUB_OUTPUT
+          echo "=== MOBILE FRONTEND VERSION: $VERSION ==="
+          echo "=== ENVIRONMENT: dev ==="
+
+      - name: Build with version
+        run: npm run build
+        env:
+          VITE_VERSION: ${{ env.VITE_VERSION }}
+          NODE_ENV: dev
+
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload to S3 and invalidate CloudFront
+        run: |
+          BUCKET=${{ secrets.AWS_S3_BUCKET }}
+          VERSION=${{ steps.set-version.outputs.version }}
+          TARGET="s3://$BUCKET/dev-mobile-fe/"
+          CF_ID="${{ secrets.MOBILE_DEV_CLOUDFRONT_DISTRIBUTION_ID }}"
+
+          echo "Syncing version $VERSION to $TARGET"
+          aws s3 sync dist/ "$TARGET" --delete --acl public-read
+
+          echo "Invalidating CloudFront ($CF_ID) cache"
+          aws cloudfront create-invalidation \
+            --distribution-id "$CF_ID" \
+            --paths "/*"
+
   backend:
     needs: [ frontend-deploy, detect-changes ]
     if: |
       always() &&
       (
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' && github.event.inputs.target != 'frontend-only') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy' && (github.event.inputs.target == 'both' || github.event.inputs.target == 'backend-only')) ||
         (needs.detect-changes.result == 'success' && needs.detect-changes.outputs.backend == 'true') ||
         github.event_name == 'release'
       )
