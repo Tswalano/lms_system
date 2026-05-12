@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { addDays, format } from "date-fns";
 import {
     AlertCircle,
-    Calendar as CalendarIcon,
     Loader2,
     Search,
     UserSearch,
@@ -10,15 +9,11 @@ import {
 } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import MobilePageHeader from "@/components/layout/MobilePageHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import AvailabilityFilterChips from "@/components/team-availability/AvailabilityFilterChips";
 import TeamMemberCard from "@/components/team-availability/TeamMemberCard";
-import TeamMemberCarousel from "@/components/team-availability/TeamMemberCarousel";
 import TeamStats from "@/components/team-availability/TeamStats";
 import type { ApiResponse, TeamMember } from "@/components/team-availability/types";
 import {
@@ -30,7 +25,7 @@ import {
 
 const TeamAvailabilityPage = () => {
     const { authFetch } = useAuth();
-    const [filter, setFilter] = useState<string>("all");
+    const [filter, setFilter] = useState<string>("on-leave");
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
         const today = new Date();
@@ -119,32 +114,36 @@ const TeamAvailabilityPage = () => {
         return true;
     };
 
-    const filteredMembers = useMemo(
+    const visibleMembers = useMemo(
         () =>
             teamMembers
                 .filter((member) => {
                     const matchesSearch =
                         member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        member.email.toLowerCase().includes(searchTerm.toLowerCase());
-                    const matchesStatus = filter === "all" || member.status === filter;
+                        member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        (member.jobTitle || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        (member.department || "").toLowerCase().includes(searchTerm.toLowerCase());
 
-                    return matchesSearch && matchesStatus && isWithinDateRange(member);
+                    return matchesSearch && isWithinDateRange(member);
                 })
                 .sort((a, b) => {
                     const statusDiff = (STATUS_SORT_ORDER[a.status] ?? 3) - (STATUS_SORT_ORDER[b.status] ?? 3);
                     if (statusDiff !== 0) return statusDiff;
                     return getNextLeaveDate(a) - getNextLeaveDate(b);
                 }),
-        [teamMembers, searchTerm, filter, dateRange]
+        [teamMembers, searchTerm, dateRange]
     );
 
-    const statCards = getStatCards(filteredMembers);
+    const filteredMembers = useMemo(
+        () => visibleMembers.filter((member) => member.status === filter),
+        [visibleMembers, filter]
+    );
+
+    const statCards = getStatCards(visibleMembers);
 
     const chipOptions = [
-        { key: "all", label: "All", count: filteredMembers.length },
-        { key: "available", label: "Available", count: filteredMembers.filter((member) => member.status === "available").length },
-        { key: "on-leave", label: "On Leave", count: filteredMembers.filter((member) => member.status === "on-leave").length },
-        { key: "upcoming-leave", label: "Upcoming", count: filteredMembers.filter((member) => member.status === "upcoming-leave").length },
+        { key: "on-leave", label: "On Leave", count: visibleMembers.filter((member) => member.status === "on-leave").length },
+        { key: "upcoming-leave", label: "Upcoming", count: visibleMembers.filter((member) => member.status === "upcoming-leave").length },
     ];
 
     if (!token) {
@@ -162,60 +161,30 @@ const TeamAvailabilityPage = () => {
     return (
         <div className="mx-auto w-full max-w-2xl">
             <MobilePageHeader className="mb-4" />
-            <section className="rounded-[1.5rem] border border-slate-200/80 bg-white/85 p-3 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_18px_48px_rgba(2,6,23,0.28)] md:p-5">
+            <section className="rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-4 shadow-[0_18px_40px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-800 md:p-5">
                 <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">
                         <Users className="h-4 w-4 text-white" />
                     </div>
                     <div>
                         <h1 className="text-xl font-semibold text-slate-950 dark:text-gray-100 md:text-2xl">Team Availability</h1>
                         <p className="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-                            View who is available, away, or scheduled for leave.
+                            See who is currently away and who is due to go on leave soon.
                         </p>
                     </div>
-                </div>
-
-                <div className="mt-3">
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <button
-                                type="button"
-                                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
-                            >
-                                <CalendarIcon className="h-4 w-4 text-cyan-500 dark:text-cyan-300" />
-                                <span>
-                                    {dateRange?.from ? format(dateRange.from, "MMM d, yyyy") : "Any date"} -{" "}
-                                    {dateRange?.to ? format(dateRange.to, "MMM d, yyyy") : "Any date"}
-                                </span>
-                            </button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto border-slate-200 bg-white p-3 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-                            <div className="mb-3 space-y-1">
-                                <Label className="text-slate-700 dark:text-slate-300">Date range</Label>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">Adjust the leave visibility window.</p>
-                            </div>
-                            <Calendar
-                                mode="range"
-                                selected={dateRange}
-                                onSelect={setDateRange}
-                                numberOfMonths={1}
-                                className="rounded-xl border border-slate-200 bg-transparent dark:border-slate-700"
-                            />
-                        </PopoverContent>
-                    </Popover>
                 </div>
 
                 <div className="mt-3">
                     <TeamStats stats={statCards} />
                 </div>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                <div className="mt-4">
                     <div className="relative">
                         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
                         <Input
                             value={searchTerm}
                             onChange={(event) => setSearchTerm(event.target.value)}
-                            placeholder="Search by name or email..."
+                            placeholder="Search by name, role, department, or email..."
                             className="h-12 rounded-2xl border-slate-200 bg-white pl-11 text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500"
                         />
                     </div>
@@ -246,22 +215,18 @@ const TeamAvailabilityPage = () => {
                     <div className="rounded-[1.5rem] border border-slate-200/80 bg-white/85 p-8 text-center dark:border-slate-700 dark:bg-slate-800">
                         <UserSearch className="mx-auto h-12 w-12 text-slate-500" />
                         <h2 className="mt-4 text-lg font-semibold text-slate-950 dark:text-gray-100">
-                            {filter === "all" ? "No team members found" : `No ${getStatusLabel(filter).toLowerCase()} team members found`}
+                            {`No ${getStatusLabel(filter).toLowerCase()} team members found`}
                         </h2>
                         <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                            Try adjusting your search, status chips, or date range.
+                            Try adjusting your search or switching filters.
                         </p>
                     </div>
                 ) : (
-                    <>
-                        <TeamMemberCarousel members={filteredMembers} />
-
-                        <div className="mt-4 hidden gap-4 sm:grid sm:grid-cols-2">
-                            {filteredMembers.map((member) => (
-                                <TeamMemberCard key={member.id} member={member} />
-                            ))}
-                        </div>
-                    </>
+                    <div className="space-y-4">
+                        {filteredMembers.map((member) => (
+                            <TeamMemberCard key={member.id} member={member} />
+                        ))}
+                    </div>
                 )}
             </div>
         </div>

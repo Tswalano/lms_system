@@ -11,11 +11,7 @@ import {
   MessageSquare,
   User,
   Ban,
-  Square,
-  CheckSquare,
 } from "lucide-react";
-import { Pagination } from "@/components/ui/Pagination";
-import { usePagination } from "@/hooks/usePagination";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,6 +65,7 @@ interface CommentModalProps {
 }
 
 type ActiveSheet = "details" | "cancelConfirm" | null;
+const AUTO_ROTATE_INTERVAL_MS = 6000;
 
 const BottomSheet = ({
   isOpen,
@@ -220,139 +217,6 @@ const CommentModal = ({
   );
 };
 
-interface BulkActionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (feedback: string) => void;
-  action: "approve" | "reject";
-  selectedRequests: LeaveRequest[];
-  isSubmitting: boolean;
-}
-
-const BulkActionModal = ({
-  isOpen,
-  onClose,
-  onSubmit,
-  action,
-  selectedRequests,
-  isSubmitting,
-}: BulkActionModalProps) => {
-  const [feedback, setFeedback] = useState("");
-
-  useEffect(() => {
-    if (isOpen) {
-      setFeedback(
-        action === "approve"
-          ? "Leave approved. Enjoy your time off!"
-          : "Leave request has been reviewed and rejected. Please contact your manager for more information.",
-      );
-    }
-  }, [isOpen, action]);
-
-  return (
-    <BottomSheet isOpen={isOpen} onClose={onClose}>
-      <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 px-4 pb-4 pt-3 dark:border-slate-700">
-        <div className="flex min-w-0 items-center gap-3">
-          <div
-            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${action === "approve" ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"}`}
-          >
-            {action === "approve" ? (
-              <CheckCircle className="h-5 w-5" />
-            ) : (
-              <XCircle className="h-5 w-5" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-              Bulk {action === "approve" ? "Approve" : "Reject"}
-            </h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              {selectedRequests.length} request
-              {selectedRequests.length !== 1 ? "s" : ""} selected
-            </p>
-          </div>
-        </div>
-        <Button
-          onClick={onClose}
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 rounded-xl"
-          disabled={isSubmitting}
-        >
-          <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-        </Button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
-        <div className="space-y-2">
-          {selectedRequests.map((request) => (
-            <div
-              key={request.id}
-              className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 text-sm dark:bg-slate-900/60"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium text-slate-900 dark:text-slate-100">
-                  {request.firstName} {request.lastName}
-                </p>
-                <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                  {request.leave_type}
-                </p>
-              </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                {request.duration} day{request.duration !== 1 ? "s" : ""}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4">
-          <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-            <MessageSquare className="mr-2 inline h-4 w-4" />
-            Feedback
-          </label>
-          <Textarea
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            className="min-h-[140px] rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60"
-            disabled={isSubmitting}
-          />
-        </div>
-      </div>
-
-      <div className="border-t border-slate-200/80 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95">
-        <Button
-          onClick={() => onSubmit(feedback)}
-          className={cn(
-            "h-11 w-full rounded-2xl text-white",
-            action === "approve"
-              ? "bg-green-600 hover:bg-green-700"
-              : "bg-red-600 hover:bg-red-700",
-          )}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {action === "approve" ? "Approving..." : "Rejecting..."}
-            </>
-          ) : (
-            <>
-              {action === "approve" ? (
-                <CheckCircle className="mr-2 h-4 w-4" />
-              ) : (
-                <XCircle className="mr-2 h-4 w-4" />
-              )}
-              {action === "approve"
-                ? `Approve ${selectedRequests.length}`
-                : `Reject ${selectedRequests.length}`}
-            </>
-          )}
-        </Button>
-      </div>
-    </BottomSheet>
-  );
-};
-
 const ApproveLeavePage = () => {
   const { authFetch } = useAuth();
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(
@@ -364,12 +228,11 @@ const ApproveLeavePage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sheetRequest, setSheetRequest] = useState<LeaveRequest | null>(null);
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
+  const [currentPendingIndex, setCurrentPendingIndex] = useState(0);
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
   const sheetHistoryActive = useRef(false);
-
-  // Bulk selection state
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
-  const [bulkAction, setBulkAction] = useState<"approve" | "reject">("approve");
+  const pendingCarouselRef = useRef<HTMLDivElement | null>(null);
+  const carouselResumeTimeoutRef = useRef<number | null>(null);
 
   const queryClient = useQueryClient();
   const token: string | null = localStorage.getItem("authToken");
@@ -422,7 +285,6 @@ const ApproveLeavePage = () => {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
     .slice(0, 6);
-  const pendingPagination = usePagination(pendingRequests, 5);
 
   const processLeaveMutation = useMutation({
     mutationFn: async ({
@@ -461,54 +323,6 @@ const ApproveLeavePage = () => {
     },
     onError: (error) => {
       toast.error("Error", {
-        description:
-          error instanceof Error ? error.message : "Something went wrong",
-      });
-    },
-  });
-
-  const bulkActionMutation = useMutation({
-    mutationFn: async ({
-      ids,
-      action,
-      feedback,
-    }: {
-      ids: number[];
-      action: "approve" | "reject";
-      feedback: string;
-    }) => {
-      if (!token) throw new Error("Unauthorized");
-      const response = await authFetch("/leave/bulk-action", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ leaveIds: ids, action, feedback }),
-      });
-      const result = await response.json();
-      if (!result.success)
-        throw new Error(result.message || "Bulk action failed");
-      return result;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["leaveApprovalRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["teamAvailability"] });
-      queryClient.invalidateQueries({ queryKey: ["leaveCalendar"] });
-      setIsBulkModalOpen(false);
-      setSelectedIds(new Set());
-
-      const { succeeded, failed } = data.data;
-      if (failed === 0) {
-        toast.success("Bulk action complete", { description: data.message });
-      } else {
-        toast.warning("Bulk action partial", {
-          description: `${succeeded} succeeded, ${failed} failed. Failed requests remain pending.`,
-        });
-      }
-    },
-    onError: (error) => {
-      toast.error("Bulk action failed", {
         description:
           error instanceof Error ? error.message : "Something went wrong",
       });
@@ -598,43 +412,6 @@ const ApproveLeavePage = () => {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  // Checkbox helpers
-  const allPendingSelected =
-    pendingRequests.length > 0 &&
-    pendingRequests.every((r) => selectedIds.has(r.id));
-  const somePendingSelected = pendingRequests.some((r) =>
-    selectedIds.has(r.id),
-  );
-
-  const toggleSelectAll = () => {
-    if (allPendingSelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(pendingRequests.map((r) => r.id)));
-    }
-  };
-
-  const toggleSelect = (id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
-  const openBulkModal = (action: "approve" | "reject") => {
-    setBulkAction(action);
-    setIsBulkModalOpen(true);
-  };
-
-  const handleBulkSubmit = (feedback: string) => {
-    bulkActionMutation.mutate({
-      ids: Array.from(selectedIds),
-      action: bulkAction,
-      feedback,
-    });
-  };
-
   const isFutureLeave = (r: LeaveRequest) =>
     new Date(r.start_date) > new Date(new Date().toDateString());
 
@@ -668,6 +445,60 @@ const ApproveLeavePage = () => {
       day: "numeric",
     });
 
+  const pauseCarousel = () => {
+    if (carouselResumeTimeoutRef.current) {
+      window.clearTimeout(carouselResumeTimeoutRef.current);
+      carouselResumeTimeoutRef.current = null;
+    }
+    setIsCarouselPaused(true);
+  };
+
+  const resumeCarousel = (delay = 3500) => {
+    if (pendingRequests.length <= 1) return;
+    if (carouselResumeTimeoutRef.current) {
+      window.clearTimeout(carouselResumeTimeoutRef.current);
+    }
+    carouselResumeTimeoutRef.current = window.setTimeout(() => {
+      setIsCarouselPaused(false);
+      carouselResumeTimeoutRef.current = null;
+    }, delay);
+  };
+
+  useEffect(() => {
+    setCurrentPendingIndex((prev) =>
+      pendingRequests.length === 0 ? 0 : Math.min(prev, pendingRequests.length - 1),
+    );
+  }, [pendingRequests.length]);
+
+  useEffect(() => {
+    const carousel = pendingCarouselRef.current;
+    if (!carousel) return;
+    const card = carousel.children[currentPendingIndex] as HTMLElement | undefined;
+    if (!card) return;
+
+    carousel.scrollTo({
+      left: card.offsetLeft,
+      behavior: "smooth",
+    });
+  }, [currentPendingIndex]);
+
+  useEffect(() => {
+    if (pendingRequests.length <= 1 || isCarouselPaused) return;
+    const intervalId = window.setInterval(() => {
+      setCurrentPendingIndex((prev) => (prev + 1) % pendingRequests.length);
+    }, AUTO_ROTATE_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [isCarouselPaused, pendingRequests.length]);
+
+  useEffect(() => {
+    return () => {
+      if (carouselResumeTimeoutRef.current) {
+        window.clearTimeout(carouselResumeTimeoutRef.current);
+      }
+    };
+  }, []);
+
   if (!token) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950 flex items-center justify-center">
@@ -684,7 +515,6 @@ const ApproveLeavePage = () => {
     );
   }
 
-  const selectedRequests = pendingRequests.filter((r) => selectedIds.has(r.id));
   const summaryStats = [
     {
       label: "Pending",
@@ -788,164 +618,176 @@ const ApproveLeavePage = () => {
                   {pendingRequests.length === 1 ? "" : "s"} waiting for review
                 </p>
               </div>
-              {pendingRequests.length > 0 && (
-                <button
-                  onClick={toggleSelectAll}
-                  className="inline-flex items-center gap-2 self-start rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                >
-                  {allPendingSelected ? (
-                    <CheckSquare className="h-4 w-4 text-blue-500" />
-                  ) : somePendingSelected ? (
-                    <CheckSquare className="h-4 w-4 text-blue-300" />
-                  ) : (
-                    <Square className="h-4 w-4" />
-                  )}
-                  {allPendingSelected ? "Deselect all" : "Select all"}
-                </button>
-              )}
             </div>
 
             {pendingRequests.length > 0 ? (
               <div className="space-y-3">
-                {pendingPagination.paginatedItems.map((request) => {
-                  const isSelected = selectedIds.has(request.id);
+                <div
+                  ref={pendingCarouselRef}
+                  className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  onPointerDown={pauseCarousel}
+                  onPointerUp={() => resumeCarousel()}
+                  onPointerCancel={() => resumeCarousel()}
+                  onTouchStart={pauseCarousel}
+                  onTouchEnd={() => resumeCarousel()}
+                  onTouchCancel={() => resumeCarousel()}
+                  onMouseEnter={pauseCarousel}
+                  onMouseLeave={() => resumeCarousel(1200)}
+                  onScroll={(event) => {
+                    const container = event.currentTarget;
+                    const children = Array.from(container.children) as HTMLElement[];
+                    if (!children.length) return;
+
+                    let closestIndex = 0;
+                    let smallestDistance = Number.POSITIVE_INFINITY;
+
+                    children.forEach((child, index) => {
+                      const distance = Math.abs(container.scrollLeft - child.offsetLeft);
+                      if (distance < smallestDistance) {
+                        smallestDistance = distance;
+                        closestIndex = index;
+                      }
+                    });
+
+                    if (closestIndex !== currentPendingIndex) {
+                      setCurrentPendingIndex(closestIndex);
+                    }
+                  }}
+                >
+                {pendingRequests.map((request) => {
                   return (
                     <article
                       key={request.id}
-                      className={cn(
-                        "rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl transition-all dark:border-slate-700 dark:bg-slate-800",
-                        isSelected
-                          ? "ring-2 ring-blue-200 dark:ring-blue-900/60"
-                          : "",
-                      )}
+                      className="flex-[0_0_88%] snap-center rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl transition-all dark:border-slate-700 dark:bg-slate-800 sm:flex-[0_0_72%]"
                     >
-                      <div className="flex items-start gap-3">
-                        <button
-                          onClick={() => toggleSelect(request.id)}
-                          className="mt-1 flex-shrink-0 text-slate-400 transition-colors hover:text-blue-500"
-                          aria-label={isSelected ? "Deselect" : "Select"}
-                        >
-                          {isSelected ? (
-                            <CheckSquare className="h-5 w-5 text-blue-500" />
-                          ) : (
-                            <Square className="h-5 w-5" />
-                          )}
-                        </button>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex min-w-0 items-start gap-3">
-                              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-sm font-bold text-white">
-                                {request.firstName[0]}
-                                {request.lastName[0]}
-                              </div>
-                                                            <div className="min-w-0 space-y-2">
-                                                                <h3 className="truncate text-[15px] font-semibold leading-5 text-slate-950 dark:text-slate-100">
-                                                                    {request.firstName} {request.lastName}
-                                                                </h3>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <Badge className="h-6 rounded-full bg-cyan-100 px-2.5 text-[11px] font-medium text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
-                                    {request.leave_type}
-                                  </Badge>
-                                </div>
-                              </div>
+                      <div className="min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 flex-1 items-start gap-3">
+                            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-sm font-bold text-white">
+                              {request.firstName[0]}
+                              {request.lastName[0]}
                             </div>
-                                                        <div className="flex max-w-[8.5rem] flex-col items-end text-right">
-                                                            <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                                                                {request.jobTitle || request.email}
-                                                            </p>
-                                                            <Badge className="mt-1.5 h-6 rounded-full bg-amber-100 px-2.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                                                Pending
-                                                            </Badge>
-                                                        </div>
-                          </div>
-
-                          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 p-2.5 dark:border-slate-700 dark:bg-slate-700/40">
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                                Dates
-                              </p>
-                              <p className="mt-1 text-sm font-medium leading-5 text-slate-900 dark:text-slate-100">
-                                {formatDate(request.start_date)} -{" "}
-                                {formatDate(request.end_date)}
-                              </p>
-                            </div>
-                            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 p-2.5 dark:border-slate-700 dark:bg-slate-700/40">
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                                Duration
-                              </p>
-                              <p className="mt-1 text-sm font-medium leading-5 text-slate-900 dark:text-slate-100">
-                                {request.duration} day
-                                {request.duration !== 1 ? "s" : ""} •{" "}
-                                {request.leave_length === "half_day"
-                                  ? "Half Day"
-                                  : "Full Day"}
-                              </p>
+                            <div className="min-w-0 flex-1 space-y-2">
+                              <h3 className="truncate text-[15px] font-semibold leading-5 text-slate-950 dark:text-slate-100">
+                                {request.firstName} {request.lastName}
+                              </h3>
+                              <Badge className="max-w-[130px] overflow-hidden whitespace-nowrap text-ellipsis rounded-full bg-cyan-100 px-2.5 py-1 text-[11px] font-medium text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
+                                {request.leave_type}
+                              </Badge>
                             </div>
                           </div>
+                          <div className="flex min-w-0 max-w-[8rem] flex-col items-end text-right">
+                            <p className="max-w-full overflow-hidden text-ellipsis text-xs leading-4 text-slate-500 dark:text-slate-400 sm:whitespace-nowrap">
+                              {request.jobTitle || request.email}
+                            </p>
+                            <Badge className="mt-1.5 h-6 rounded-full bg-amber-100 px-2.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                              Pending
+                            </Badge>
+                          </div>
+                        </div>
 
-                          {request.leave_comment ? (
-                            <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900/60">
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                                Employee Comment
-                              </p>
-                              <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-600 dark:text-slate-300">
-                                "{request.leave_comment}"
-                              </p>
-                            </div>
-                          ) : null}
+                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 p-2.5 dark:border-slate-700 dark:bg-slate-700/40">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                              Dates
+                            </p>
+                            <p className="mt-1 text-sm font-medium leading-5 text-slate-900 dark:text-slate-100">
+                              {formatDate(request.start_date)} -{" "}
+                              {formatDate(request.end_date)}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 p-2.5 dark:border-slate-700 dark:bg-slate-700/40">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                              Duration
+                            </p>
+                            <p className="mt-1 text-sm font-medium leading-5 text-slate-900 dark:text-slate-100">
+                              {request.duration} day
+                              {request.duration !== 1 ? "s" : ""} •{" "}
+                              {request.leave_length === "half_day"
+                                ? "Half Day"
+                                : "Full Day"}
+                            </p>
+                          </div>
+                        </div>
 
-                          <div className="mt-3 space-y-2">
-                            <div className="grid grid-cols-2 gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  openApprovalModal(request, "approve")
-                                }
-                                className="h-9 rounded-2xl border-green-200 bg-green-50 text-green-600 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40"
-                                disabled={processLeaveMutation.isPending}
-                              >
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  openApprovalModal(request, "reject")
-                                }
-                                className="h-9 rounded-2xl border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
-                                disabled={processLeaveMutation.isPending}
-                              >
-                                <XCircle className="mr-2 h-4 w-4" />
-                                Reject
-                              </Button>
-                            </div>
+                        {request.leave_comment ? (
+                          <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900/60">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                              Employee Comment
+                            </p>
+                            <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-600 dark:text-slate-300">
+                              "{request.leave_comment}"
+                            </p>
+                          </div>
+                        ) : null}
+
+                        <div className="mt-3 space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => openDetailsModal(request)}
-                              className="h-9 w-full rounded-2xl border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
+                              onClick={() =>
+                                openApprovalModal(request, "approve")
+                              }
+                              className="h-9 rounded-2xl border-green-200 bg-green-50 text-green-600 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40"
+                              disabled={processLeaveMutation.isPending}
                             >
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                openApprovalModal(request, "reject")
+                              }
+                              className="h-9 rounded-2xl border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+                              disabled={processLeaveMutation.isPending}
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Reject
                             </Button>
                           </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openDetailsModal(request)}
+                            className="h-9 w-full rounded-2xl border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </Button>
                         </div>
                       </div>
                     </article>
                   );
                 })}
-                <Pagination
-                  currentPage={pendingPagination.page}
-                  totalPages={pendingPagination.totalPages}
-                  pageSize={pendingPagination.pageSize}
-                  totalItems={pendingPagination.totalItems}
-                  onPageChange={pendingPagination.setPage}
-                  onPageSizeChange={pendingPagination.setPageSize}
-                  className="mt-2 rounded-2xl border border-gray-100 bg-white dark:border-slate-700 dark:bg-slate-800"
-                />
+                </div>
+                <div className="flex items-center justify-between px-1 pt-1">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    {currentPendingIndex + 1} of {pendingRequests.length}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {pendingRequests.map((request, index) => (
+                      <button
+                        key={request.id}
+                        type="button"
+                        aria-label={`Go to request ${index + 1}`}
+                        onClick={() => {
+                          pauseCarousel();
+                          setCurrentPendingIndex(index);
+                          resumeCarousel();
+                        }}
+                        className={cn(
+                          "h-1.5 rounded-full transition-all",
+                          index === currentPendingIndex
+                            ? "w-4 bg-cyan-500"
+                            : "w-1.5 bg-slate-300 dark:bg-slate-600",
+                        )}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-10 text-center dark:border-slate-700 dark:bg-slate-800">
@@ -1009,44 +851,6 @@ const ApproveLeavePage = () => {
         </>
       )}
 
-      {/* Floating bulk action bar */}
-      {selectedIds.size > 0 && (
-        <div className="fixed inset-x-4 bottom-24 z-40 mx-auto w-[calc(100%-2rem)] max-w-2xl rounded-[1.5rem] border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-              {selectedIds.size} selected
-            </span>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-              <Button
-                size="sm"
-                onClick={() => openBulkModal("approve")}
-                className="h-10 rounded-2xl bg-green-600 hover:bg-green-700 text-white gap-1.5"
-                disabled={bulkActionMutation.isPending}
-              >
-                <CheckCircle className="w-4 h-4" />
-                Approve
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => openBulkModal("reject")}
-                className="h-10 rounded-2xl bg-red-600 hover:bg-red-700 text-white gap-1.5"
-                disabled={bulkActionMutation.isPending}
-              >
-                <XCircle className="w-4 h-4" />
-                Reject
-              </Button>
-            </div>
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              className="self-end text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-200 sm:self-auto"
-              aria-label="Clear selection"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Single approval modal */}
       <CommentModal
         isOpen={isModalOpen}
@@ -1072,18 +876,6 @@ const ApproveLeavePage = () => {
         }
         leaveType={selectedRequest?.leave_type || ""}
         isSubmitting={processLeaveMutation.isPending}
-      />
-
-      {/* Bulk action modal */}
-      <BulkActionModal
-        isOpen={isBulkModalOpen}
-        onClose={() => {
-          if (!bulkActionMutation.isPending) setIsBulkModalOpen(false);
-        }}
-        onSubmit={handleBulkSubmit}
-        action={bulkAction}
-        selectedRequests={selectedRequests}
-        isSubmitting={bulkActionMutation.isPending}
       />
 
       {/* Cancel Confirmation Modal */}
