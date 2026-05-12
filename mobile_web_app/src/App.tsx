@@ -1,7 +1,7 @@
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import DashboardPage from "./pages/DashboardPage";
@@ -39,6 +39,7 @@ import BackendDownPage from "./pages/BackendDownPage";
 import LandingPage from "./pages/LandingPage";
 
 const queryClient = new QueryClient();
+const AppRouter = import.meta.env.PROD ? HashRouter : BrowserRouter;
 
 interface RouteProps {
   children: ReactNode;
@@ -118,7 +119,7 @@ const App: React.FC = () => (
     <ThemeProvider>
       <TooltipProvider>
         <Sonner />
-        <BrowserRouter>
+        <AppRouter>
           <AuthProvider>
             <Routes>
               {/* Protected Routes */}
@@ -262,7 +263,7 @@ const App: React.FC = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
-        </BrowserRouter>
+        </AppRouter>
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
