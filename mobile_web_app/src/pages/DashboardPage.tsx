@@ -722,52 +722,55 @@ const DashboardPage = () => {
   const onLeaveItems = useMemo(() => {
     const dedupedItems = new Map<string, TeamActivityItem>();
 
-    teamActivityBaseItems.forEach(({ employeeId, initials, name, role, member }) => {
-      if (
-        !member.startDate ||
-        !member.endDate ||
-        !member.leaveType ||
-        toSafeLowerCase(member.status) !== "on-leave"
-      ) {
-        return;
-      }
+    teamActivityBaseItems.forEach(
+      ({ employeeId, initials, name, role, member }) => {
+        if (
+          !member.startDate ||
+          !member.endDate ||
+          !member.leaveType ||
+          toSafeLowerCase(member.status) !== "on-leave"
+        ) {
+          return;
+        }
 
-      const startDate = toIsoDayOrNull(member.startDate);
-      const endDate = toIsoDayOrNull(member.endDate);
-      const leaveType = toSafeString(member.leaveType);
+        const startDate = toIsoDayOrNull(member.startDate);
+        const endDate = toIsoDayOrNull(member.endDate);
+        const leaveType = toSafeString(member.leaveType);
 
-      if (!startDate || !endDate || !leaveType) {
-        return;
-      }
+        if (!startDate || !endDate || !leaveType) {
+          return;
+        }
 
-      const isApprovedCurrentLeave = todayIso >= startDate && todayIso <= endDate;
-      if (!isApprovedCurrentLeave) {
-        return;
-      }
+        const isApprovedCurrentLeave =
+          todayIso >= startDate && todayIso <= endDate;
+        if (!isApprovedCurrentLeave) {
+          return;
+        }
 
-      const dedupKey = buildTeamActivityDedupKey(
-        employeeId,
-        startDate,
-        leaveType,
-      );
+        const dedupKey = buildTeamActivityDedupKey(
+          employeeId,
+          startDate,
+          leaveType,
+        );
 
-      if (dedupedItems.has(dedupKey)) {
-        return;
-      }
+        if (dedupedItems.has(dedupKey)) {
+          return;
+        }
 
-      dedupedItems.set(dedupKey, {
-        id: dedupKey,
-        employeeId,
-        initials,
-        name,
-        role,
-        leaveType,
-        dateRange: formatCompactDateRange(member.startDate, member.endDate),
-        duration: formatLeaveDuration(member.leave_length, member.duration),
-        status: "On Leave",
-        startDate,
-      });
-    });
+        dedupedItems.set(dedupKey, {
+          id: dedupKey,
+          employeeId,
+          initials,
+          name,
+          role,
+          leaveType,
+          dateRange: formatCompactDateRange(member.startDate, member.endDate),
+          duration: formatLeaveDuration(member.leave_length, member.duration),
+          status: "On Leave",
+          startDate,
+        });
+      },
+    );
 
     return Array.from(dedupedItems.values())
       .sort((a, b) => a.startDate.localeCompare(b.startDate))
@@ -786,63 +789,65 @@ const DashboardPage = () => {
     );
     const dedupedItems = new Map<string, TeamActivityItem>();
 
-    teamActivityBaseItems.forEach(({ employeeId, initials, name, role, member }) => {
-      if (!Array.isArray(member.upcomingLeaves)) {
-        return;
-      }
-
-      member.upcomingLeaves.forEach((leave) => {
-        if (toSafeLowerCase(leave.status) !== "approved") {
+    teamActivityBaseItems.forEach(
+      ({ employeeId, initials, name, role, member }) => {
+        if (!Array.isArray(member.upcomingLeaves)) {
           return;
         }
 
-        const startDate = toIsoDayOrNull(leave.startDate);
-        const endDate = toIsoDayOrNull(leave.endDate);
-        const leaveType = toSafeString(leave.leaveType);
+        member.upcomingLeaves.forEach((leave) => {
+          if (toSafeLowerCase(leave.status) !== "approved") {
+            return;
+          }
 
-        if (!startDate || !endDate || !leaveType) {
-          return;
-        }
+          const startDate = toIsoDayOrNull(leave.startDate);
+          const endDate = toIsoDayOrNull(leave.endDate);
+          const leaveType = toSafeString(leave.leaveType);
 
-        const isCurrentlyActive = todayIso >= startDate && todayIso <= endDate;
-        const isFutureLeave = startDate > todayIso;
-        if (isCurrentlyActive || !isFutureLeave) {
-          return;
-        }
+          if (!startDate || !endDate || !leaveType) {
+            return;
+          }
 
-        const dedupKey = buildTeamActivityDedupKey(
-          employeeId,
-          startDate,
-          leaveType,
-        );
+          const isCurrentlyActive =
+            todayIso >= startDate && todayIso <= endDate;
+          const isFutureLeave = startDate > todayIso;
+          if (isCurrentlyActive || !isFutureLeave) {
+            return;
+          }
 
-        if (onLeaveKeys.has(dedupKey) || dedupedItems.has(dedupKey)) {
-          return;
-        }
+          const dedupKey = buildTeamActivityDedupKey(
+            employeeId,
+            startDate,
+            leaveType,
+          );
 
-        dedupedItems.set(dedupKey, {
-          id: dedupKey,
-          employeeId,
-          initials,
-          name,
-          role,
-          leaveType,
-          dateRange: formatCompactDateRange(leave.startDate, leave.endDate),
-          duration: formatLeaveDuration(leave.leave_length, leave.duration),
-          status: "Upcoming",
-          startDate,
+          if (onLeaveKeys.has(dedupKey) || dedupedItems.has(dedupKey)) {
+            return;
+          }
+
+          dedupedItems.set(dedupKey, {
+            id: dedupKey,
+            employeeId,
+            initials,
+            name,
+            role,
+            leaveType,
+            dateRange: formatCompactDateRange(leave.startDate, leave.endDate),
+            duration: formatLeaveDuration(leave.leave_length, leave.duration),
+            status: "Upcoming",
+            startDate,
+          });
         });
-      });
-    });
+      },
+    );
 
     return Array.from(dedupedItems.values())
       .sort((a, b) => a.startDate.localeCompare(b.startDate))
       .slice(0, 3);
   }, [onLeaveItems, teamActivityBaseItems, todayIso]);
 
-  const activityItems = activeActivityTab === "On Leave"
-    ? onLeaveItems
-    : upcomingItems;
+  const activityItems =
+    activeActivityTab === "On Leave" ? onLeaveItems : upcomingItems;
 
   useEffect(() => {
     if (prefersReducedMotion) {
@@ -859,7 +864,9 @@ const DashboardPage = () => {
     return () => window.cancelAnimationFrame(frameId);
   }, [activeActivityTab, prefersReducedMotion]);
 
-  const handleActivityTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+  const handleActivityTouchStart = (
+    event: React.TouchEvent<HTMLDivElement>,
+  ) => {
     activityTouchStartXRef.current = event.changedTouches[0]?.clientX ?? null;
   };
 
@@ -1103,7 +1110,6 @@ const DashboardPage = () => {
           </div>
         )}
       </section>
-
     </div>
   );
 };
