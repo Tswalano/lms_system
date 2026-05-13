@@ -1003,7 +1003,8 @@ const DashboardPage = () => {
 
           <Link
             to="/team-availability"
-            className="shrink-0 rounded-full border border-cyan-400/35 bg-cyan-400/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-300 transition-all duration-300 hover:bg-cyan-400/20"
+            className="shrink-0 rounded-full border border-cyan-400 bg-cyan-50 px-3 py-1.5 text-[11px] dark:border-cyan-800 dark:bg-cyan-900/20 dark:text-cyan-400 dark:hover:bg-cyan-900/40 text-cyan-600 transition-colors duration-300 hover:bg-cyan-100"
+            // className="shrink-0 rounded-full border border-cyan-400/35 bg-cyan-400/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-300 transition-all duration-300 hover:bg-cyan-400/20"
           >
             View team
           </Link>

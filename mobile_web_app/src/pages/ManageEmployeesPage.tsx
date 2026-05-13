@@ -1,6 +1,4 @@
-import { useState } from "react";
-import { Pagination } from "@/components/ui/Pagination";
-import { usePagination } from "@/hooks/usePagination";
+import { useEffect, useRef, useState } from "react";
 import { Users, Building2, UserPlus, Plus, Edit, Search, Loader2, AlertCircle, Shield, User, Trash2, X, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import MobilePageHeader from "@/components/layout/MobilePageHeader";
 import { cn } from "@/lib/utils";
+
+const LIST_BATCH_SIZE = 8;
 
 // Employee Interfaces
 interface Employee {
@@ -101,6 +101,10 @@ const ManageEmployeesPage = () => {
     const [activeTab, setActiveTab] = useState("employees");
     const [searchTerm, setSearchTerm] = useState("");
     const [departmentSearchTerm, setDepartmentSearchTerm] = useState("");
+    const [visibleEmployeeCount, setVisibleEmployeeCount] = useState(LIST_BATCH_SIZE);
+    const [visibleDepartmentCount, setVisibleDepartmentCount] = useState(LIST_BATCH_SIZE);
+    const employeeLoadMoreRef = useRef<HTMLDivElement | null>(null);
+    const departmentLoadMoreRef = useRef<HTMLDivElement | null>(null);
 
     // Employee states
     const [isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen] = useState(false);
@@ -241,6 +245,9 @@ const ManageEmployeesPage = () => {
 
     const getDepartmentEmployeeCount = (departmentId: number) =>
         employees.filter(emp => emp.departmentId === departmentId).length;
+
+    const getInitials = (firstName: string, lastName: string) =>
+        `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
 
     // Employee mutations
     const addEmployeeMutation = useMutation({
@@ -566,8 +573,106 @@ const ManageEmployeesPage = () => {
             (department.description ?? '').toLowerCase().includes(searchLower);
     });
 
-    const employeesPagination = usePagination(filteredEmployees, 5);
-    const departmentsPagination = usePagination(filteredDepartments, 5);
+    const visibleEmployees = filteredEmployees.slice(0, visibleEmployeeCount);
+    const visibleDepartments = filteredDepartments.slice(0, visibleDepartmentCount);
+
+    useEffect(() => {
+        setVisibleEmployeeCount(LIST_BATCH_SIZE);
+    }, [searchTerm, filteredEmployees.length]);
+
+    useEffect(() => {
+        setVisibleDepartmentCount(LIST_BATCH_SIZE);
+    }, [departmentSearchTerm, filteredDepartments.length]);
+
+    useEffect(() => {
+        if (activeTab !== "employees") return;
+        if (visibleEmployeeCount >= filteredEmployees.length) return;
+
+        const node = employeeLoadMoreRef.current;
+        if (!node) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    setVisibleEmployeeCount((count) => Math.min(count + LIST_BATCH_SIZE, filteredEmployees.length));
+                }
+            },
+            { rootMargin: "180px 0px" }
+        );
+
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [activeTab, visibleEmployeeCount, filteredEmployees.length]);
+
+    useEffect(() => {
+        if (activeTab !== "departments") return;
+        if (visibleDepartmentCount >= filteredDepartments.length) return;
+
+        const node = departmentLoadMoreRef.current;
+        if (!node) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    setVisibleDepartmentCount((count) => Math.min(count + LIST_BATCH_SIZE, filteredDepartments.length));
+                }
+            },
+            { rootMargin: "180px 0px" }
+        );
+
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [activeTab, visibleDepartmentCount, filteredDepartments.length]);
+
+    useEffect(() => {
+        const isAnySheetOpen =
+            isAddEmployeeDialogOpen ||
+            isEditEmployeeDialogOpen ||
+            isDeleteEmployeeDialogOpen ||
+            isAddDepartmentDialogOpen ||
+            isEditDepartmentDialogOpen ||
+            isDeleteDepartmentDialogOpen;
+
+        if (!isAnySheetOpen) return;
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key !== "Escape") return;
+
+            if (isDeleteDepartmentDialogOpen) {
+                setIsDeleteDepartmentDialogOpen(false);
+                return;
+            }
+            if (isDeleteEmployeeDialogOpen) {
+                setIsDeleteEmployeeDialogOpen(false);
+                return;
+            }
+            if (isEditDepartmentDialogOpen) {
+                setIsEditDepartmentDialogOpen(false);
+                return;
+            }
+            if (isAddDepartmentDialogOpen) {
+                setIsAddDepartmentDialogOpen(false);
+                return;
+            }
+            if (isEditEmployeeDialogOpen) {
+                setIsEditEmployeeDialogOpen(false);
+                return;
+            }
+            if (isAddEmployeeDialogOpen) {
+                setIsAddEmployeeDialogOpen(false);
+            }
+        };
+
+        window.addEventListener("keydown", handleEscape);
+        return () => window.removeEventListener("keydown", handleEscape);
+    }, [
+        isAddDepartmentDialogOpen,
+        isAddEmployeeDialogOpen,
+        isDeleteDepartmentDialogOpen,
+        isDeleteEmployeeDialogOpen,
+        isEditDepartmentDialogOpen,
+        isEditEmployeeDialogOpen,
+    ]);
 
     if (!token) {
         return (
@@ -583,25 +688,25 @@ const ManageEmployeesPage = () => {
 
     return (
         <>
-            <div>
-            <MobilePageHeader className="mb-4" />
-            <div className="mb-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex h-[calc(100dvh-8.25rem)] min-h-0 flex-col md:h-[calc(100dvh-5rem)]">
+            <div className="sticky top-0 z-20 shrink-0 space-y-3 bg-background/95 pb-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+                <MobilePageHeader />
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                        <div className="flex items-start gap-3">
-                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-500">
+                        <div className="flex items-start gap-2.5">
+                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-500">
                                 <Users className="h-4 w-4 text-white" />
                             </div>
                             <div className="min-w-0">
                                 <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 sm:text-2xl">Manage Team</h1>
-                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Manage employees and departments in one place</p>
+                                <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-400">Manage employees and departments in one place</p>
                             </div>
                         </div>
                     </div>
                     {activeTab === "employees" ? (
                         <button
                             onClick={() => setIsAddEmployeeDialogOpen(true)}
-                            className="inline-flex h-10 items-center justify-center gap-2 self-start rounded-xl bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                            className="inline-flex h-9 items-center justify-center gap-2 self-start rounded-xl bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700"
                         >
                             <UserPlus className="h-4 w-4" />
                             Add Employee
@@ -609,7 +714,7 @@ const ManageEmployeesPage = () => {
                     ) : (
                         <button
                             onClick={() => setIsAddDepartmentDialogOpen(true)}
-                            className="inline-flex h-10 items-center justify-center gap-2 self-start rounded-xl bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                            className="inline-flex h-9 items-center justify-center gap-2 self-start rounded-xl bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700"
                         >
                             <Plus className="h-4 w-4" />
                             Add Department
@@ -619,46 +724,55 @@ const ManageEmployeesPage = () => {
             </div>
 
             {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 min-h-0 flex-col">
+                <div className="sticky top-0 z-20 shrink-0 space-y-3 bg-background/95 pb-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
                 <TabsList className="grid w-full max-w-md grid-cols-2 bg-gray-100 dark:bg-slate-800">
                     <TabsTrigger
                         value="employees"
-                        className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700"
+                        className="flex h-10 items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700"
                     >
                         <Users className="w-4 h-4" />
                         Employees
                     </TabsTrigger>
                     <TabsTrigger
                         value="departments"
-                        className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700"
+                        className="flex h-10 items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700"
                     >
                         <Building2 className="w-4 h-4" />
                         Departments
                     </TabsTrigger>
                 </TabsList>
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                        placeholder={activeTab === "employees"
+                            ? "Search employees by name, email, occupation, or department..."
+                            : "Search departments by name or description..."}
+                        value={activeTab === "employees" ? searchTerm : departmentSearchTerm}
+                        onChange={(e) => {
+                            if (activeTab === "employees") {
+                                setSearchTerm(e.target.value);
+                            } else {
+                                setDepartmentSearchTerm(e.target.value);
+                            }
+                        }}
+                        className="pl-10 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700"
+                    />
+                </div>
+                </div>
 
                 {/* Employees Tab */}
-                <TabsContent value="employees" className="space-y-5">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <Input
-                            placeholder="Search employees by name, email, occupation, or department..."
-                            value={searchTerm}
-                            onChange={(e) => { setSearchTerm(e.target.value); employeesPagination.resetPage(); }}
-                            className="pl-10 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700"
-                        />
-                    </div>
-
-                    <div className="rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 overflow-hidden">
+                <TabsContent value="employees" className="mt-0 flex-1 min-h-0 overflow-hidden data-[state=inactive]:hidden">
+                    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
                         {employeesLoading ? (
-                            <div className="flex items-center justify-center h-64">
+                            <div className="flex flex-1 items-center justify-center">
                                 <div className="text-center">
                                     <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
                                     <p className="text-gray-600 dark:text-gray-400">Loading employees...</p>
                                 </div>
                             </div>
                         ) : employeesError ? (
-                            <div className="flex items-center justify-center h-64">
+                            <div className="flex flex-1 items-center justify-center">
                                 <div className="text-center">
                                     <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                                     <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">Error loading employees</p>
@@ -671,7 +785,7 @@ const ManageEmployeesPage = () => {
                                 </div>
                             </div>
                         ) : filteredEmployees.length === 0 ? (
-                            <div className="flex items-center justify-center h-64">
+                            <div className="flex flex-1 items-center justify-center">
                                 <div className="text-center">
                                     <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                                     <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">No employees found</p>
@@ -682,65 +796,65 @@ const ManageEmployeesPage = () => {
                             </div>
                         ) : (
                             <>
-                            <div className="space-y-3 p-3 md:hidden">
-                                {employeesPagination.paginatedItems.map((employee) => (
+                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+                            <div className="space-y-2.5 p-3 pb-24 md:hidden">
+                                {visibleEmployees.map((employee) => (
                                     <article
                                         key={employee.id}
-                                        className="w-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+                                        className="w-full rounded-2xl border border-gray-100 bg-white px-3.5 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800"
                                     >
-                                        <div className="min-w-0">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0 flex-1">
-                                                    <h3 className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">
-                                                        {employee.firstName} {employee.lastName}
-                                                    </h3>
-                                                    <p className="mt-1 truncate text-sm text-gray-500 dark:text-gray-400">{employee.email}</p>
-                                                </div>
-                                                <Badge className={cn("shrink-0 flex items-center gap-1", roleBadgeClasses(employee.role))}>
-                                                    <User className="h-3 w-3" />
-                                                    {roleLabel(employee.role)}
-                                                </Badge>
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-sm font-semibold text-white">
+                                                {getInitials(employee.firstName, employee.lastName)}
                                             </div>
-
-                                            <div className="mt-3 grid grid-cols-1 gap-2">
-                                                <div className="rounded-xl border border-gray-200 bg-gray-50/90 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-700/40">
-                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Occupation</p>
-                                                    <p className="mt-1 text-sm text-gray-800 dark:text-gray-100">{employee.jobTitle}</p>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="min-w-0 flex-1">
+                                                        <h3 className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">
+                                                            {employee.firstName} {employee.lastName}
+                                                        </h3>
+                                                        <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">{employee.email}</p>
+                                                    </div>
+                                                    <Badge className={cn("shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium", roleBadgeClasses(employee.role))}>
+                                                        {roleLabel(employee.role)}
+                                                    </Badge>
                                                 </div>
-                                                <div className="rounded-xl border border-gray-200 bg-gray-50/90 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-700/40">
-                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Department</p>
-                                                    <p className="mt-1 text-sm text-gray-800 dark:text-gray-100">
+
+                                                <p className="mt-2 truncate text-sm text-gray-700 dark:text-gray-300">
+                                                    {employee.jobTitle}
+                                                    <span className="mx-1.5 text-gray-300 dark:text-slate-500">•</span>
+                                                    <span className="text-gray-500 dark:text-gray-400">
                                                         {getDepartmentName(employee.departmentId || employee.departmentId, employee.department)}
-                                                    </p>
-                                                </div>
-                                            </div>
+                                                    </span>
+                                                </p>
 
-                                            <div className="mt-4 grid grid-cols-2 gap-2">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-10 rounded-xl border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
-                                                    onClick={() => handleOpenEditEmployeeDialog(employee)}
-                                                >
-                                                    <Edit className="mr-1 h-4 w-4" />
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-10 rounded-xl border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
-                                                    onClick={() => handleOpenDeleteEmployeeDialog(employee)}
-                                                >
-                                                    <UserMinus className="mr-1 h-4 w-4" />
-                                                    Delete
-                                                </Button>
+                                                <div className="mt-3 flex gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 rounded-full border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-600 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
+                                                        onClick={() => handleOpenEditEmployeeDialog(employee)}
+                                                    >
+                                                        <Edit className="mr-1 h-3.5 w-3.5" />
+                                                        Edit
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 rounded-full border-red-200 bg-red-50 px-3 text-xs font-medium text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+                                                        onClick={() => handleOpenDeleteEmployeeDialog(employee)}
+                                                    >
+                                                        <UserMinus className="mr-1 h-3.5 w-3.5" />
+                                                        Delete
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     </article>
                                 ))}
                             </div>
 
-                            <div className="hidden md:block">
+                            <div className="hidden p-3 pb-6 md:block">
                             <Table>
                                 <TableHeader>
                                     <TableRow className="border-gray-100 dark:border-slate-700">
@@ -754,14 +868,19 @@ const ManageEmployeesPage = () => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {employeesPagination.paginatedItems.map((employee) => (
+                                    {visibleEmployees.map((employee) => (
                                         <TableRow key={employee.id} className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700">
                                             <TableCell>
-                                                <div>
-                                                    <div className="font-medium text-gray-800 dark:text-gray-200">
-                                                        {employee.firstName} {employee.lastName}
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-xs font-semibold text-white">
+                                                        {getInitials(employee.firstName, employee.lastName)}
                                                     </div>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400">{employee.email}</div>
+                                                    <div>
+                                                        <div className="font-medium text-gray-800 dark:text-gray-200">
+                                                            {employee.firstName} {employee.lastName}
+                                                        </div>
+                                                        <div className="text-sm text-gray-500 dark:text-gray-400">{employee.email}</div>
+                                                    </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-gray-600 dark:text-gray-400">{employee.jobTitle}</TableCell>
@@ -779,20 +898,20 @@ const ManageEmployeesPage = () => {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        className="border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
+                                                        className="h-8 rounded-full border-blue-200 bg-blue-50 px-3 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
                                                         onClick={() => handleOpenEditEmployeeDialog(employee)}
                                                     >
-                                                        <Edit className="w-4 h-4 mr-1" />
-                                                        <span className="text-sm font-medium">Edit</span>
+                                                        <Edit className="w-3.5 h-3.5 mr-1" />
+                                                        <span className="text-xs font-medium">Edit</span>
                                                     </Button>
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        className="border-red-200 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
+                                                        className="h-8 rounded-full border-red-200 bg-red-50 px-3 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
                                                         onClick={() => handleOpenDeleteEmployeeDialog(employee)}
                                                     >
-                                                        <UserMinus className="w-4 h-4 mr-1" />
-                                                        <span className="text-sm font-medium">Delete</span>
+                                                        <UserMinus className="w-3.5 h-3.5 mr-1" />
+                                                        <span className="text-xs font-medium">Delete</span>
                                                     </Button>
                                                 </div>
                                             </TableCell>
@@ -801,42 +920,32 @@ const ManageEmployeesPage = () => {
                                 </TableBody>
                             </Table>
                             </div>
-                            <Pagination
-                                currentPage={employeesPagination.page}
-                                totalPages={employeesPagination.totalPages}
-                                pageSize={employeesPagination.pageSize}
-                                totalItems={employeesPagination.totalItems}
-                                onPageChange={employeesPagination.setPage}
-                                onPageSizeChange={employeesPagination.setPageSize}
-                                className="rounded-b-2xl border-t border-gray-100 bg-white dark:border-slate-700 dark:bg-slate-800"
-                            />
+                            </div>
+                            {filteredEmployees.length > 0 && (
+                                <div className="shrink-0 border-t border-gray-100 px-4 py-2 text-center text-xs text-gray-500 dark:border-slate-700 dark:text-gray-400">
+                                    Showing {visibleEmployees.length} of {filteredEmployees.length} employees
+                                    {visibleEmployees.length < filteredEmployees.length && (
+                                        <div ref={employeeLoadMoreRef} className="h-3 w-full" />
+                                    )}
+                                </div>
+                            )}
                             </>
                         )}
                     </div>
                 </TabsContent>
 
                 {/* Departments Tab */}
-                <TabsContent value="departments" className="space-y-6">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <Input
-                            placeholder="Search departments by name or description..."
-                            value={departmentSearchTerm}
-                            onChange={(e) => { setDepartmentSearchTerm(e.target.value); departmentsPagination.resetPage(); }}
-                            className="pl-10 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700"
-                        />
-                    </div>
-
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+                <TabsContent value="departments" className="mt-0 flex-1 min-h-0 overflow-hidden data-[state=inactive]:hidden">
+                    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
                         {departmentsLoading ? (
-                            <div className="flex items-center justify-center h-64">
+                            <div className="flex flex-1 items-center justify-center">
                                 <div className="text-center">
                                     <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
                                     <p className="text-gray-600 dark:text-gray-400">Loading departments...</p>
                                 </div>
                             </div>
                         ) : departmentsError ? (
-                            <div className="flex items-center justify-center h-64">
+                            <div className="flex flex-1 items-center justify-center">
                                 <div className="text-center">
                                     <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                                     <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">Error loading departments</p>
@@ -849,7 +958,7 @@ const ManageEmployeesPage = () => {
                                 </div>
                             </div>
                         ) : filteredDepartments.length === 0 ? (
-                            <div className="flex items-center justify-center h-64">
+                            <div className="flex flex-1 items-center justify-center">
                                 <div className="text-center">
                                     <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                                     <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">No departments found</p>
@@ -860,14 +969,15 @@ const ManageEmployeesPage = () => {
                             </div>
                         ) : (
                             <>
-                            <div className="space-y-3 p-3 md:hidden">
-                                {departmentsPagination.paginatedItems.map((department) => {
+                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+                            <div className="space-y-2.5 p-3 pb-24 md:hidden">
+                                {visibleDepartments.map((department) => {
                                     const employeeCount = getDepartmentEmployeeCount(department.id);
 
                                     return (
                                         <article
                                             key={department.id}
-                                            className="w-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+                                            className="w-full rounded-2xl border border-gray-100 bg-white px-3.5 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800"
                                         >
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0 flex-1">
@@ -878,44 +988,42 @@ const ManageEmployeesPage = () => {
                                                         {department.description || 'No description'}
                                                     </p>
                                                 </div>
-                                                <Badge className="shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-700 dark:text-blue-200">
+                                                <Badge className="shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-600 dark:bg-blue-700 dark:text-blue-200">
                                                     {employeeCount} member{employeeCount === 1 ? '' : 's'}
                                                 </Badge>
                                             </div>
 
-                                            <div className="mt-3 grid grid-cols-1 gap-2">
-                                                <div className="rounded-xl border border-gray-200 bg-gray-50/90 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-700/40">
-                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Created</p>
-                                                    <p className="mt-1 text-sm text-gray-800 dark:text-gray-100">
-                                                        {department.createdAt ? formatDate(department.createdAt) : 'N/A'}
-                                                    </p>
-                                                </div>
-                                                <div className="rounded-xl border border-gray-200 bg-gray-50/90 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-700/40">
-                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Last Updated</p>
-                                                    <p className="mt-1 text-sm text-gray-800 dark:text-gray-100">
-                                                        {department.updatedAt ? formatDate(department.updatedAt) : 'N/A'}
-                                                    </p>
-                                                </div>
+                                            <div className="mt-2.5 space-y-1 text-xs text-gray-500 dark:text-gray-400">
+                                                <p>
+                                                    <span className="font-medium text-gray-600 dark:text-gray-300">Created</span>
+                                                    <span className="mx-1.5 text-gray-300 dark:text-slate-500">•</span>
+                                                    {department.createdAt ? formatDate(department.createdAt) : 'N/A'}
+                                                </p>
+                                                <p>
+                                                    <span className="font-medium text-gray-600 dark:text-gray-300">Updated</span>
+                                                    <span className="mx-1.5 text-gray-300 dark:text-slate-500">•</span>
+                                                    {department.updatedAt ? formatDate(department.updatedAt) : 'N/A'}
+                                                </p>
                                             </div>
 
-                                            <div className="mt-4 grid grid-cols-2 gap-2">
+                                            <div className="mt-3 flex gap-2">
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className="h-10 rounded-xl border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
+                                                    className="h-8 rounded-full border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-600 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
                                                     onClick={() => handleOpenEditDepartmentDialog(department)}
                                                 >
-                                                    <Edit className="mr-1 h-4 w-4" />
+                                                    <Edit className="mr-1 h-3.5 w-3.5" />
                                                     Edit
                                                 </Button>
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className="h-10 rounded-xl border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 disabled:opacity-60"
+                                                    className="h-8 rounded-full border-red-200 bg-red-50 px-3 text-xs font-medium text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 disabled:opacity-60"
                                                     onClick={() => handleOpenDeleteDepartmentDialog(department)}
                                                     disabled={employeeCount > 0}
                                                 >
-                                                    <Trash2 className="mr-1 h-4 w-4" />
+                                                    <Trash2 className="mr-1 h-3.5 w-3.5" />
                                                     Delete
                                                 </Button>
                                             </div>
@@ -924,7 +1032,7 @@ const ManageEmployeesPage = () => {
                                 })}
                             </div>
 
-                            <div className="hidden md:block">
+                            <div className="hidden p-3 pb-6 md:block">
                             <Table>
                                 <TableHeader>
                                     <TableRow className="border-gray-100 dark:border-slate-700">
@@ -938,7 +1046,7 @@ const ManageEmployeesPage = () => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {departmentsPagination.paginatedItems.map((department) => (
+                                    {visibleDepartments.map((department) => (
                                         <TableRow key={department.id} className="border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700">
                                             <TableCell>
                                                 <div>
@@ -990,15 +1098,15 @@ const ManageEmployeesPage = () => {
                                 </TableBody>
                             </Table>
                             </div>
-                            <Pagination
-                                currentPage={departmentsPagination.page}
-                                totalPages={departmentsPagination.totalPages}
-                                pageSize={departmentsPagination.pageSize}
-                                totalItems={departmentsPagination.totalItems}
-                                onPageChange={departmentsPagination.setPage}
-                                onPageSizeChange={departmentsPagination.setPageSize}
-                                className="rounded-b-2xl border-t border-gray-100 bg-white dark:border-slate-700 dark:bg-slate-800"
-                            />
+                            </div>
+                            {filteredDepartments.length > 0 && (
+                                <div className="shrink-0 border-t border-gray-100 px-4 py-2 text-center text-xs text-gray-500 dark:border-slate-700 dark:text-gray-400">
+                                    Showing {visibleDepartments.length} of {filteredDepartments.length} departments
+                                    {visibleDepartments.length < filteredDepartments.length && (
+                                        <div ref={departmentLoadMoreRef} className="h-3 w-full" />
+                                    )}
+                                </div>
+                            )}
                             </>
                         )}
                     </div>
@@ -1154,18 +1262,24 @@ const ManageEmployeesPage = () => {
 
             {/* Edit Employee Dialog */}
             {isEditEmployeeDialogOpen && (
-                <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 p-0 backdrop-blur-sm md:items-center md:justify-center md:p-4">
-                    <div className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-gray-200/50 bg-white shadow-2xl dark:border-slate-600/50 dark:bg-slate-800 md:max-w-md md:rounded-3xl">
+                <div
+                    className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 p-0 backdrop-blur-sm md:items-center md:justify-center md:p-4"
+                    onClick={() => setIsEditEmployeeDialogOpen(false)}
+                >
+                    <div
+                        className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-gray-200/50 bg-white shadow-2xl dark:border-slate-600/50 dark:bg-slate-800 md:max-w-md md:rounded-3xl"
+                        onClick={(event) => event.stopPropagation()}
+                    >
                         <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-600 md:hidden" />
-                        <div className="shrink-0 border-b border-gray-200/50 bg-gradient-to-br from-gray-50 to-gray-100 p-5 dark:border-slate-600/50 dark:from-slate-700 dark:to-slate-600">
+                        <div className="shrink-0 border-b border-slate-700/70 bg-gradient-to-br from-slate-800 to-slate-900 p-5">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
                                         <User className="w-6 h-6 text-white" />
                                     </div>
-                                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                                    <h3 className="text-xl font-bold text-white">
                                         Edit Employee
-                                        <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
+                                        <span className="block text-sm font-normal text-slate-300">
                                             ID: {shortenUUID(selectedEmployee?.id || '')}
                                         </span>
                                     </h3>
@@ -1173,9 +1287,9 @@ const ManageEmployeesPage = () => {
                                 <Button
                                     variant="ghost"
                                     onClick={() => setIsEditEmployeeDialogOpen(false)}
-                                    className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-all duration-200"
+                                    className="p-2 rounded-xl text-slate-200 hover:bg-white/10 hover:text-white transition-all duration-200"
                                 >
-                                    <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                                    <X className="w-5 h-5" />
                                 </Button>
                             </div>
                         </div>
@@ -1386,18 +1500,24 @@ const ManageEmployeesPage = () => {
 
             {/* Edit Department Dialog */}
             {isEditDepartmentDialogOpen && (
-                <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 p-0 backdrop-blur-sm md:items-center md:justify-center md:p-4">
-                    <div className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-gray-200/50 bg-white shadow-2xl dark:border-slate-600/50 dark:bg-slate-800 md:max-w-md md:rounded-3xl">
+                <div
+                    className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 p-0 backdrop-blur-sm md:items-center md:justify-center md:p-4"
+                    onClick={() => setIsEditDepartmentDialogOpen(false)}
+                >
+                    <div
+                        className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-gray-200/50 bg-white shadow-2xl dark:border-slate-600/50 dark:bg-slate-800 md:max-w-md md:rounded-3xl"
+                        onClick={(event) => event.stopPropagation()}
+                    >
                         <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-600 md:hidden" />
-                        <div className="shrink-0 border-b border-gray-200/50 bg-gradient-to-br from-gray-50 to-gray-100 p-5 dark:border-slate-600/50 dark:from-slate-700 dark:to-slate-600">
+                        <div className="shrink-0 border-b border-slate-700/70 bg-gradient-to-br from-slate-800 to-slate-900 p-5">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
                                         <Edit className="w-6 h-6 text-white" />
                                     </div>
-                                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                                    <h3 className="text-xl font-bold text-white">
                                         Edit Department
-                                        <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
+                                        <span className="block text-sm font-normal text-slate-300">
                                             ID: {selectedDepartment?.id}
                                         </span>
                                     </h3>
@@ -1405,9 +1525,9 @@ const ManageEmployeesPage = () => {
                                 <Button
                                     variant="ghost"
                                     onClick={() => setIsEditDepartmentDialogOpen(false)}
-                                    className="p-2 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 transition-all duration-200"
+                                    className="p-2 rounded-xl text-slate-200 hover:bg-white/10 hover:text-white transition-all duration-200"
                                 >
-                                    <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                                    <X className="w-5 h-5" />
                                 </Button>
                             </div>
                         </div>
@@ -1472,8 +1592,14 @@ const ManageEmployeesPage = () => {
 
             {/* Delete Employee Confirmation Dialog */}
             {isDeleteEmployeeDialogOpen && (
-                <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 p-0 backdrop-blur-sm md:items-center md:justify-center md:p-4">
-                    <div className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-gray-200/50 bg-white shadow-2xl dark:border-slate-600/50 dark:bg-slate-800 md:max-w-md md:rounded-3xl">
+                <div
+                    className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 p-0 backdrop-blur-sm md:items-center md:justify-center md:p-4"
+                    onClick={() => setIsDeleteEmployeeDialogOpen(false)}
+                >
+                    <div
+                        className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-gray-200/50 bg-white shadow-2xl dark:border-slate-600/50 dark:bg-slate-800 md:max-w-md md:rounded-3xl"
+                        onClick={(event) => event.stopPropagation()}
+                    >
                         <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-600 md:hidden" />
                         <div className="shrink-0 border-b border-gray-200/50 bg-gradient-to-br from-red-50 to-red-100 p-5 dark:border-slate-600/50 dark:from-slate-800 dark:to-slate-900">
                             <div className="flex items-center justify-between">
@@ -1534,8 +1660,14 @@ const ManageEmployeesPage = () => {
 
             {/* Delete Department Confirmation Dialog */}
             {isDeleteDepartmentDialogOpen && (
-                <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 p-0 backdrop-blur-sm md:items-center md:justify-center md:p-4">
-                    <div className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-gray-200/50 bg-white shadow-2xl dark:border-slate-600/50 dark:bg-slate-800 md:max-w-md md:rounded-3xl">
+                <div
+                    className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 p-0 backdrop-blur-sm md:items-center md:justify-center md:p-4"
+                    onClick={() => setIsDeleteDepartmentDialogOpen(false)}
+                >
+                    <div
+                        className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-gray-200/50 bg-white shadow-2xl dark:border-slate-600/50 dark:bg-slate-800 md:max-w-md md:rounded-3xl"
+                        onClick={(event) => event.stopPropagation()}
+                    >
                         <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-600 md:hidden" />
                         <div className="shrink-0 border-b border-gray-200/50 bg-gradient-to-br from-red-50 to-red-100 p-5 dark:border-slate-600/50 dark:from-slate-800 dark:to-slate-900">
                             <div className="flex items-center justify-between">
