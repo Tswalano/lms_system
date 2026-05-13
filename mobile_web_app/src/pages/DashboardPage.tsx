@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle2,
@@ -281,6 +281,7 @@ const DashboardPage = () => {
   const statsCarouselLoopWidthRef = useRef(0);
   const statsUserInteractingRef = useRef(false);
   const activityTouchStartXRef = useRef<number | null>(null);
+  const [activityContentVisible, setActivityContentVisible] = useState(true);
 
   const startOfMonth = useMemo(
     () =>
@@ -698,27 +699,25 @@ const DashboardPage = () => {
     retry: 2,
   });
 
-  const teamActivityBaseItems = useMemo(
-    () =>
-      teamMembers.map((member) => ({
-        employeeId: member.id,
-        initials:
-          member.avatar ||
-          member.name
-            ?.split(" ")
-            .map((part) => part.charAt(0))
-            .join("")
-            .slice(0, 2)
-            .toUpperCase() ||
-          "TM",
-        name: member.name,
-        role: [member.department, member.jobTitle]
-          .filter(isNonEmptyString)
-          .join(" • "),
-        member,
-      })),
-    [teamMembers],
-  );
+  const teamActivityBaseItems = useMemo(() => {
+    return teamMembers.map((member) => ({
+      employeeId: member.id,
+      initials:
+        member.avatar ||
+        member.name
+          ?.split(" ")
+          .map((part) => part.charAt(0))
+          .join("")
+          .slice(0, 2)
+          .toUpperCase() ||
+        "TM",
+      name: member.name,
+      role: [member.department, member.jobTitle]
+        .filter(isNonEmptyString)
+        .join(" • "),
+      member,
+    }));
+  }, [teamMembers]);
 
   const onLeaveItems = useMemo(() => {
     const dedupedItems = new Map<string, TeamActivityItem>();
@@ -809,7 +808,8 @@ const DashboardPage = () => {
             return;
           }
 
-          const isCurrentlyActive = todayIso >= startDate && todayIso <= endDate;
+          const isCurrentlyActive =
+            todayIso >= startDate && todayIso <= endDate;
           const isFutureLeave = startDate > todayIso;
           if (isCurrentlyActive || !isFutureLeave) {
             return;
@@ -846,11 +846,31 @@ const DashboardPage = () => {
       .slice(0, 3);
   }, [onLeaveItems, teamActivityBaseItems, todayIso]);
 
-  const handleActivityTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+  const activityItems =
+    activeActivityTab === "On Leave" ? onLeaveItems : upcomingItems;
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setActivityContentVisible(true);
+      return;
+    }
+
+    setActivityContentVisible(false);
+
+    const frameId = window.requestAnimationFrame(() => {
+      setActivityContentVisible(true);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeActivityTab, prefersReducedMotion]);
+
+  const handleActivityTouchStart = (
+    event: React.TouchEvent<HTMLDivElement>,
+  ) => {
     activityTouchStartXRef.current = event.changedTouches[0]?.clientX ?? null;
   };
 
-  const handleActivityTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+  const handleActivityTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
     const startX = activityTouchStartXRef.current;
     const endX = event.changedTouches[0]?.clientX;
 
@@ -983,16 +1003,16 @@ const DashboardPage = () => {
 
           <Link
             to="/team-availability"
-            className="shrink-0 rounded-full border border-cyan-400/35 bg-cyan-50/85 px-3 py-1.5 text-[11px] font-semibold text-cyan-700 shadow-sm dark:border-cyan-300/20 dark:bg-cyan-500/10 dark:text-cyan-200"
+            className="shrink-0 rounded-full border border-cyan-400/35 bg-cyan-400/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-300 transition-all duration-300 hover:bg-cyan-400/20"
           >
             View team
           </Link>
         </div>
 
-        <div className="relative mb-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200/70 bg-slate-100/90 p-1 shadow-inner dark:border-white/10 dark:bg-[#111c30]">
+        <div className="relative mb-4 grid grid-cols-2 gap-2 rounded-2xl bg-[#3f4757] p-1">
           <div
             aria-hidden="true"
-            className={`pointer-events-none absolute inset-y-1 left-1 z-0 w-[calc(50%-0.375rem)] rounded-[1rem] bg-gradient-to-r from-cyan-400 to-teal-500 shadow-[0_10px_30px_rgba(6,182,212,0.25)] transition-transform duration-300 ease-out will-change-transform dark:shadow-[0_12px_36px_rgba(8,145,178,0.32)] ${
+            className={`pointer-events-none absolute inset-y-1 left-1 z-0 w-[calc(50%-0.375rem)] rounded-[1rem] bg-gradient-to-r from-cyan-400 to-teal-500 shadow-[0_12px_32px_rgba(6,182,212,0.35)] transition-all duration-300 ease-out will-change-transform ${
               activeActivityTab === "On Leave"
                 ? "translate-x-0"
                 : "translate-x-full"
@@ -1008,8 +1028,8 @@ const DashboardPage = () => {
                 onClick={() => setActiveActivityTab(tab)}
                 className={`relative z-10 rounded-[1rem] px-3 py-2 text-xs font-semibold transition-colors duration-300 ${
                   isActive
-                    ? "text-white"
-                    : "bg-white/80 text-slate-600 dark:bg-transparent dark:text-slate-300"
+                    ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-[0_8px_24px_rgba(6,182,212,0.28)]"
+                    : "text-white"
                 }`}
               >
                 {tab}
@@ -1018,86 +1038,77 @@ const DashboardPage = () => {
           })}
         </div>
 
-        <div
-          className="overflow-hidden"
-          onTouchStart={handleActivityTouchStart}
-          onTouchEnd={handleActivityTouchEnd}
-        >
+        {activityItems.length > 0 ? (
           <div
-            className={`flex w-full touch-pan-y transition-transform duration-300 ease-out ${
-              prefersReducedMotion ? "" : "will-change-transform"
-            } ${activeActivityTab === "On Leave" ? "translate-x-0" : "-translate-x-full"}`}
+            className={`space-y-2.5 pb-1 touch-pan-y transition-all duration-300 ease-out ${
+              activityContentVisible || prefersReducedMotion
+                ? "translate-x-0 opacity-100"
+                : activeActivityTab === "On Leave"
+                  ? "-translate-x-2 opacity-0"
+                  : "translate-x-2 opacity-0"
+            }`}
+            onTouchStart={handleActivityTouchStart}
+            onTouchEnd={handleActivityTouchEnd}
           >
-            {([
-              { tab: "On Leave" as const, items: onLeaveItems },
-              { tab: "Upcoming" as const, items: upcomingItems },
-            ] as const).map(({ tab, items }) => (
-              <div key={tab} className="w-full shrink-0">
-                {items.length > 0 ? (
-                  <div className="space-y-2.5 pb-2">
-                    {items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 dark:border-white/10 dark:bg-[#101b2e]"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-teal-500 text-sm font-bold text-white">
-                            {item.initials}
-                          </div>
+            {activityItems.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 dark:border-white/10 dark:bg-[#101b2e]"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-teal-500 text-sm font-bold text-white">
+                    {item.initials}
+                  </div>
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">
-                                  {item.name}
-                                </p>
-                                {item.role ? (
-                                  <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                                    {item.role}
-                                  </p>
-                                ) : null}
-                              </div>
-
-                              <span
-                                className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                                  item.status === "On Leave"
-                                    ? "bg-rose-500/15 text-rose-500 dark:text-rose-300"
-                                    : "bg-amber-500/15 text-amber-600 dark:text-amber-300"
-                                }`}
-                              >
-                                {item.status}
-                              </span>
-                            </div>
-
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <span className="rounded-full bg-slate-200/70 px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:bg-white/10 dark:text-slate-200">
-                                {item.leaveType}
-                              </span>
-                            </div>
-
-                            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
-                              <span>{item.dateRange}</span>
-                              <span className="text-slate-400">•</span>
-                              <span>{item.duration}</span>
-                            </div>
-                          </div>
-                        </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">
+                          {item.name}
+                        </p>
+                        {item.role ? (
+                          <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                            {item.role}
+                          </p>
+                        ) : null}
                       </div>
-                    ))}
+
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                          item.status === "On Leave"
+                            ? "bg-rose-500/15 text-rose-500 dark:text-rose-300"
+                            : "bg-amber-500/15 text-amber-600 dark:text-amber-300"
+                        }`}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-slate-200/70 px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:bg-white/10 dark:text-slate-200">
+                        {item.leaveType}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
+                      <span>{item.dateRange}</span>
+                      <span className="text-slate-400">•</span>
+                      <span>{item.duration}</span>
+                    </div>
                   </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/5">
-                    <p className="text-sm font-semibold text-slate-950 dark:text-white">
-                      {tab === "On Leave"
-                        ? "No team members currently away."
-                        : "No upcoming leave scheduled."}
-                    </p>
-                  </div>
-                )}
+                </div>
               </div>
             ))}
           </div>
-        </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/5">
+            <p className="text-sm font-semibold text-slate-950 dark:text-white">
+              {activeActivityTab === "On Leave"
+                ? "No team members currently away."
+                : "No upcoming leave scheduled."}
+            </p>
+          </div>
+        )}
       </section>
     </div>
   );
