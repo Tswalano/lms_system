@@ -7,7 +7,6 @@ const FLOATING_APPLY_PATHS = new Set([
   "/calendar",
   "/team-availability",
   "/leave-history",
-  "/profile",
 ]);
 
 interface FloatingApplyLeaveButtonProps {
