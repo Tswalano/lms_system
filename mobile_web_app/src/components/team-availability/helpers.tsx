@@ -1,4 +1,4 @@
-import { Clock, UserCheck, UserX, Users } from "lucide-react";
+import { Clock, UserX, Users } from "lucide-react";
 import { format } from "date-fns";
 import type { LeaveRequest, TeamMember } from "./types";
 
@@ -63,98 +63,6 @@ export const getNextLeaveDate = (member: TeamMember): number => {
         return new Date(member.upcomingLeaves[0].startDate).getTime();
     }
     return Infinity;
-};
-
-export const extractTeamAvailabilityMembers = (raw: unknown): TeamMember[] => {
-    const candidateSources = [
-        raw,
-        raw && typeof raw === "object" ? (raw as Record<string, unknown>).payload : undefined,
-        raw && typeof raw === "object" ? (raw as Record<string, unknown>).data : undefined,
-        raw && typeof raw === "object" ? (raw as Record<string, unknown>).users : undefined,
-        raw && typeof raw === "object" ? (raw as Record<string, unknown>).leaves : undefined,
-        raw && typeof raw === "object" ? (raw as Record<string, unknown>).onLeave : undefined,
-        raw && typeof raw === "object" ? (raw as Record<string, unknown>).teamMembers : undefined,
-        raw && typeof raw === "object" ? (raw as Record<string, unknown>).members : undefined,
-        raw && typeof raw === "object"
-            ? ((raw as Record<string, unknown>).data as Record<string, unknown> | undefined)?.users
-            : undefined,
-        raw && typeof raw === "object"
-            ? ((raw as Record<string, unknown>).data as Record<string, unknown> | undefined)?.onLeave
-            : undefined,
-        raw && typeof raw === "object"
-            ? ((raw as Record<string, unknown>).data as Record<string, unknown> | undefined)?.teamMembers
-            : undefined,
-        raw && typeof raw === "object"
-            ? ((raw as Record<string, unknown>).payload as Record<string, unknown> | undefined)?.users
-            : undefined,
-        raw && typeof raw === "object"
-            ? ((raw as Record<string, unknown>).payload as Record<string, unknown> | undefined)?.onLeave
-            : undefined,
-        raw && typeof raw === "object"
-            ? ((raw as Record<string, unknown>).payload as Record<string, unknown> | undefined)?.teamMembers
-            : undefined,
-    ];
-
-    for (const candidate of candidateSources) {
-        if (Array.isArray(candidate)) {
-            return candidate as TeamMember[];
-        }
-    }
-
-    return [];
-};
-
-const toLocalDay = (value: string | undefined) => {
-    if (!value) return null;
-    const dayValue = value.slice(0, 10);
-    const parsed = new Date(`${dayValue}T00:00:00`);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-export const normalizeTeamAvailabilityMembers = (
-    teamMembers: TeamMember[],
-    referenceDate = new Date(),
-) => {
-    const today = new Date(
-        referenceDate.getFullYear(),
-        referenceDate.getMonth(),
-        referenceDate.getDate(),
-    );
-
-    return teamMembers.map((member) => {
-        const approvedUpcomingLeaves = (member.upcomingLeaves || []).filter((leave) => {
-            const normalizedStatus = String(leave.status || "").toLowerCase();
-            return normalizedStatus === "approved";
-        });
-
-        const hasUpcomingLeaves = approvedUpcomingLeaves.length > 0;
-        let memberStatus = member.status;
-
-        if (String(memberStatus).toLowerCase() === "available" && hasUpcomingLeaves) {
-            const soonLeaves = approvedUpcomingLeaves.filter((leave) => {
-                const leaveStart = toLocalDay(leave.startDate);
-                if (!leaveStart) return false;
-                const daysDiff = Math.ceil(
-                    (leaveStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-                );
-                return daysDiff >= 0 && daysDiff <= 7;
-            });
-
-            if (soonLeaves.length > 0) {
-                memberStatus = "upcoming-leave";
-            }
-        }
-
-        return {
-            ...member,
-            status: memberStatus,
-            upcomingLeaves: approvedUpcomingLeaves,
-            totalUpcomingLeaveDays: approvedUpcomingLeaves.reduce(
-                (total, leave) => total + leave.duration,
-                0,
-            ),
-        };
-    });
 };
 
 export const getStatusConfig = (status: string, member: TeamMember) => {
