@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  CalendarClock,
   CheckCircle2,
   Clock3,
   Plane,
@@ -10,9 +9,6 @@ import {
   Waves,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import MobileCalendarCard, {
-  type MobileCalendarEvent,
-} from "@/components/dashboard/MobileCalendarCard";
 import MobileDashboardHeader from "@/components/dashboard/MobileDashboardHeader";
 import MobileStatCard from "@/components/dashboard/MobileStatCard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,11 +16,12 @@ import { useNotifications } from "@/hooks/useNotifications";
 
 const quotes = [
   { text: "Keep momentum small and consistent.", author: "Daily focus" },
-  { text: "Clarity beats intensity over a full month.", author: "Team reminder" },
+  {
+    text: "Clarity beats intensity over a full month.",
+    author: "Team reminder",
+  },
   { text: "Ship the next useful step.", author: "LMS workflow" },
 ];
-
-const weekdayLabels = ["S", "M", "T", "W", "T", "F", "S"];
 
 interface LeaveRequest {
   id: number;
@@ -36,12 +33,6 @@ interface LeaveRequest {
   firstName: string;
   lastName: string;
   email: string;
-}
-
-interface Birthday {
-  id: string;
-  firstName: string;
-  birthdayDate: string;
 }
 
 interface LeaveBalanceEntry {
@@ -63,7 +54,6 @@ interface DashboardCalendarResponse {
   message: string;
   data: {
     leaveRequests: LeaveRequest[];
-    birthdays: Birthday[];
   };
 }
 
@@ -73,6 +63,54 @@ interface DashboardNotification {
   message: string;
   createdAt: string;
   isRead: boolean;
+}
+
+interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  status: "available" | "on-leave" | "upcoming-leave" | string;
+  avatar?: string;
+  leaveType: string | null;
+  leave_length: "half_day" | "full_day";
+  leaveDates: string | null;
+  startDate?: string;
+  endDate?: string;
+  duration?: number;
+  department?: string;
+  jobTitle?: string;
+  upcomingLeaves?: {
+    id: string;
+    leaveType: string;
+    startDate: string;
+    endDate: string;
+    duration: number;
+    leave_length: "half_day" | "full_day";
+    status: string;
+  }[];
+}
+
+interface TeamAvailabilityResponse {
+  code: string;
+  error: boolean;
+  message: string;
+  payload: {
+    summary: string;
+    teamMembers: TeamMember[];
+  };
+}
+
+interface TeamActivityItem {
+  id: string;
+  employeeId: string;
+  initials: string;
+  name: string;
+  role: string;
+  leaveType: string;
+  dateRange: string;
+  duration: string;
+  status: "On Leave" | "Upcoming";
+  startDate: string;
 }
 
 const isNonEmptyString = (value: unknown): value is string =>
@@ -88,8 +126,6 @@ const isValidDateInput = (value: unknown) => {
   if (!isNonEmptyString(value)) return false;
   return !Number.isNaN(new Date(value).getTime());
 };
-
-const isValidIsoDay = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 const formatIsoDate = (date: Date) => {
   const year = date.getFullYear();
@@ -108,7 +144,11 @@ const enumerateIsoDates = (startDate: string, endDate: string) => {
   const current = new Date(`${startDate.slice(0, 10)}T00:00:00`);
   const end = new Date(`${endDate.slice(0, 10)}T00:00:00`);
 
-  if (Number.isNaN(current.getTime()) || Number.isNaN(end.getTime()) || current > end) {
+  if (
+    Number.isNaN(current.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    current > end
+  ) {
     return [];
   }
 
@@ -124,18 +164,6 @@ const enumerateIsoDates = (startDate: string, endDate: string) => {
   }
 
   return dates;
-};
-
-const getEventType = (
-  request: LeaveRequest,
-): MobileCalendarEvent["type"] => {
-  const normalizedType = toSafeLowerCase(request?.leave_type, "general");
-  const normalizedStatus = toSafeLowerCase(request?.status, "unknown");
-
-  if (normalizedStatus === "pending") return "pending";
-  if (normalizedType.includes("sick")) return "sick";
-  if (normalizedType.includes("annual")) return "annual";
-  return "team";
 };
 
 const formatRelativeTime = (dateString: string) => {
@@ -159,6 +187,56 @@ const formatRelativeTime = (dateString: string) => {
 
 const normalizeLeaveType = (value: string) => value.trim().toLowerCase();
 
+const formatCompactDate = (value?: string) => {
+  if (!isValidDateInput(value)) {
+    return "Date pending";
+  }
+
+  return new Date(value).toLocaleDateString("en-ZA", {
+    month: "short",
+    day: "numeric",
+  });
+};
+
+const formatCompactDateRange = (startDate?: string, endDate?: string) => {
+  if (!isValidDateInput(startDate) || !isValidDateInput(endDate)) {
+    return "Dates pending";
+  }
+
+  const formattedStartDate = formatCompactDate(startDate);
+  const formattedEndDate = formatCompactDate(endDate);
+
+  return formattedStartDate === formattedEndDate
+    ? formattedStartDate
+    : `${formattedStartDate} - ${formattedEndDate}`;
+};
+
+const formatLeaveDuration = (
+  leaveLength: TeamMember["leave_length"],
+  duration?: number,
+) => {
+  if (leaveLength === "half_day") {
+    return "Half day";
+  }
+
+  const safeDuration = Number(duration ?? 0);
+  return `${safeDuration} day${safeDuration === 1 ? "" : "s"}`;
+};
+
+const toIsoDayOrNull = (value?: string) => {
+  if (!isValidDateInput(value)) {
+    return null;
+  }
+
+  return formatIsoDate(new Date(value));
+};
+
+const buildTeamActivityDedupKey = (
+  employeeId: string,
+  startDate: string,
+  leaveType: string,
+) => `${employeeId}::${startDate}::${normalizeLeaveType(leaveType)}`;
+
 const getLeaveCountByAliases = (
   leaveCountMap: Map<string, number>,
   aliases: string[],
@@ -173,7 +251,9 @@ const getLeaveCountByAliases = (
   return 0;
 };
 
-const getSafeLeaveBalanceEntries = (leaveData: unknown): LeaveBalanceEntry[] => {
+const getSafeLeaveBalanceEntries = (
+  leaveData: unknown,
+): LeaveBalanceEntry[] => {
   if (!Array.isArray(leaveData)) {
     return [];
   }
@@ -190,24 +270,32 @@ const DashboardPage = () => {
   const { user, authFetch } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(() => new Date());
-  const [selectedDate, setSelectedDate] = useState(() => formatIsoDate(new Date()));
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [activeActivityTab, setActiveActivityTab] = useState<
+    "On Leave" | "Upcoming"
+  >("On Leave");
   const statsCarouselRef = useRef<HTMLDivElement | null>(null);
   const statsResumeTimeoutRef = useRef<number | null>(null);
   const statsCarouselPausedRef = useRef(false);
   const statsCarouselPaddingRef = useRef(0);
   const statsCarouselLoopWidthRef = useRef(0);
   const statsUserInteractingRef = useRef(false);
+  const activityTouchStartXRef = useRef<number | null>(null);
+  const [activityContentVisible, setActivityContentVisible] = useState(true);
 
   const startOfMonth = useMemo(
-    () => formatIsoDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)),
-    [currentMonth],
+    () =>
+      formatIsoDate(
+        new Date(currentTime.getFullYear(), currentTime.getMonth(), 1),
+      ),
+    [currentTime],
   );
   const endOfMonth = useMemo(
     () =>
-      formatIsoDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)),
-    [currentMonth],
+      formatIsoDate(
+        new Date(currentTime.getFullYear(), currentTime.getMonth() + 1, 0),
+      ),
+    [currentTime],
   );
 
   const { data: calendarResponse } = useQuery({
@@ -252,18 +340,6 @@ const DashboardPage = () => {
         : [],
     [calendarResponse],
   );
-  const birthdays = useMemo(
-    () =>
-      Array.isArray(calendarResponse?.birthdays)
-        ? calendarResponse.birthdays.filter(
-            (birthday): birthday is Birthday =>
-              Boolean(birthday) &&
-              isNonEmptyString(birthday.id) &&
-              isValidDateInput(birthday.birthdayDate),
-          )
-        : [],
-    [calendarResponse],
-  );
   const todayIso = formatIsoDate(new Date());
   const userRole = user?.role === "admin" ? "admin" : "user";
   const ownRequests = useMemo(
@@ -276,10 +352,11 @@ const DashboardPage = () => {
   );
 
   const notificationItems = useMemo(() => {
-    const notifications =
-      Array.isArray(notificationsResponse?.data?.notifications)
-        ? (notificationsResponse.data.notifications as DashboardNotification[])
-        : [];
+    const notifications = Array.isArray(
+      notificationsResponse?.data?.notifications,
+    )
+      ? (notificationsResponse.data.notifications as DashboardNotification[])
+      : [];
 
     return notifications
       .filter(
@@ -294,7 +371,10 @@ const DashboardPage = () => {
         id: toSafeString(notification.id, "notification"),
         title: toSafeString(notification.title, "Notification"),
         time: formatRelativeTime(toSafeString(notification.createdAt)),
-        message: toSafeString(notification.message, "Open notifications to view details."),
+        message: toSafeString(
+          notification.message,
+          "Open notifications to view details.",
+        ),
       }));
   }, [notificationsResponse]);
 
@@ -332,15 +412,25 @@ const DashboardPage = () => {
           : 0;
     const pendingRequests =
       userRole === "admin"
-        ? leaveRequests.filter((request) => toSafeLowerCase(request?.status) === "pending")
-        : ownRequests.filter((request) => toSafeLowerCase(request?.status) === "pending");
+        ? leaveRequests.filter(
+            (request) => toSafeLowerCase(request?.status) === "pending",
+          )
+        : ownRequests.filter(
+            (request) => toSafeLowerCase(request?.status) === "pending",
+          );
     const approvedRequests =
       userRole === "admin"
-        ? leaveRequests.filter((request) => toSafeLowerCase(request?.status) === "approved")
-        : ownRequests.filter((request) => toSafeLowerCase(request?.status) === "approved");
+        ? leaveRequests.filter(
+            (request) => toSafeLowerCase(request?.status) === "approved",
+          )
+        : ownRequests.filter(
+            (request) => toSafeLowerCase(request?.status) === "approved",
+          );
     const teamAwayToday = leaveRequests.filter((request) => {
       if (toSafeLowerCase(request?.status) !== "approved") return false;
-      return enumerateIsoDates(request.start_date, request.end_date).includes(todayIso);
+      return enumerateIsoDates(request.start_date, request.end_date).includes(
+        todayIso,
+      );
     });
 
     return [
@@ -364,7 +454,9 @@ const DashboardPage = () => {
         title: "Pending Requests",
         value: String(pendingRequests.length),
         description:
-          userRole === "admin" ? "Requests awaiting review" : "Requests awaiting action",
+          userRole === "admin"
+            ? "Requests awaiting review"
+            : "Requests awaiting action",
         progress: Math.min(pendingRequests.length * 20, 100),
         icon: <Clock3 className="h-4 w-4" />,
         accentClassName: "from-sky-400 to-cyan-500",
@@ -373,7 +465,9 @@ const DashboardPage = () => {
         title: "Approved Requests",
         value: String(approvedRequests.length),
         description:
-          userRole === "admin" ? "Approved this cycle" : "Your approved requests",
+          userRole === "admin"
+            ? "Approved this cycle"
+            : "Your approved requests",
         progress: Math.min(approvedRequests.length * 15, 100),
         icon: <CheckCircle2 className="h-4 w-4" />,
         accentClassName: "from-lime-400 to-emerald-500",
@@ -387,7 +481,10 @@ const DashboardPage = () => {
             : "Annual balance unavailable",
         progress:
           annualLeaveEntitlement > 0
-            ? Math.min((remainingAnnualLeave / annualLeaveEntitlement) * 100, 100)
+            ? Math.min(
+                (remainingAnnualLeave / annualLeaveEntitlement) * 100,
+                100,
+              )
             : 0,
         icon: <Plane className="h-4 w-4" />,
         accentClassName: "from-cyan-400 to-teal-500",
@@ -403,17 +500,14 @@ const DashboardPage = () => {
     ];
   }, [leaveRequests, ownRequests, todayIso, user?.leaveData, userRole]);
 
-  const loopedStatCards = useMemo(() => [...statCards, ...statCards], [statCards]);
+  const loopedStatCards = useMemo(
+    () => [...statCards, ...statCards],
+    [statCards],
+  );
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(new Date()), 60000);
     return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const today = new Date();
-    setCurrentTime(today);
-    setSelectedDate(formatIsoDate(today));
   }, []);
 
   useEffect(() => {
@@ -519,139 +613,6 @@ const DashboardPage = () => {
     [currentTime],
   );
 
-  const eventsByDate = useMemo(() => {
-    const mappedEvents = new Map<string, MobileCalendarEvent[]>();
-
-    leaveRequests.forEach((request) => {
-      const eventType = getEventType(request);
-      const fullName = `${toSafeString(request.firstName, "Team")} ${toSafeString(request.lastName)}`.trim();
-      const eventTitle =
-        eventType === "pending"
-          ? `Pending: ${fullName}`
-          : `${toSafeString(request.leave_type, "Leave")}: ${fullName}`;
-      const eventTime =
-        toSafeLowerCase(request?.status) === "pending"
-          ? "Pending approval"
-          : `${request.duration ?? 0} day${request.duration === 1 ? "" : "s"}`;
-
-      enumerateIsoDates(request.start_date, request.end_date).forEach((isoDate) => {
-        if (!isValidIsoDay(isoDate)) return;
-
-        const dateEvents = mappedEvents.get(isoDate) ?? [];
-        dateEvents.push({
-          id: `${request.id}-${isoDate}`,
-          title: eventTitle,
-          type: eventType,
-          date: isoDate,
-          time: eventTime,
-        });
-        mappedEvents.set(isoDate, dateEvents);
-      });
-    });
-
-    birthdays.forEach((birthday) => {
-      const isoDate = birthday.birthdayDate.slice(0, 10);
-      if (!isValidIsoDay(isoDate)) return;
-
-      const dateEvents = mappedEvents.get(isoDate) ?? [];
-      dateEvents.push({
-        id: birthday.id,
-        title: `Birthday: ${toSafeString(birthday.firstName, "Team member")}`,
-        type: "team",
-        date: isoDate,
-        time: "Birthday reminder",
-      });
-      mappedEvents.set(isoDate, dateEvents);
-    });
-
-    return mappedEvents;
-  }, [birthdays, leaveRequests]);
-
-  const calendarDays = useMemo(() => {
-    const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    const end = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-    const leadingDays = start.getDay();
-    const trailingDays = 6 - end.getDay();
-    const firstGridDate = new Date(start);
-    firstGridDate.setDate(start.getDate() - leadingDays);
-    const totalDays = leadingDays + end.getDate() + trailingDays;
-
-    return Array.from({ length: totalDays }, (_, index) => {
-      const date = new Date(firstGridDate);
-      date.setDate(firstGridDate.getDate() + index);
-      const isoDate = formatIsoDate(date);
-      const today = formatIsoDate(new Date());
-
-      return {
-        isoDate,
-        dayNumber: date.getDate(),
-        isCurrentMonth: date.getMonth() === currentMonth.getMonth(),
-        isToday: isoDate === today,
-        isSelected: isoDate === selectedDate,
-        events: eventsByDate.get(isoDate) ?? [],
-      };
-    });
-  }, [currentMonth, eventsByDate, selectedDate]);
-
-  const selectedEvents = useMemo(
-    () => eventsByDate.get(selectedDate) ?? [],
-    [eventsByDate, selectedDate],
-  );
-
-  const selectedDateLabel = useMemo(
-    () => {
-      const parsedDate = new Date(`${selectedDate}T00:00:00`);
-      if (Number.isNaN(parsedDate.getTime())) {
-        return "Selected day";
-      }
-
-      return parsedDate.toLocaleDateString("en-ZA", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-      });
-    },
-    [selectedDate],
-  );
-
-  const monthLabel = useMemo(
-    () =>
-      currentMonth.toLocaleDateString("en-ZA", {
-        month: "long",
-        year: "numeric",
-      }),
-    [currentMonth],
-  );
-
-  const nextAction = useMemo(() => {
-    const pendingApprovals = leaveRequests.filter(
-      (request) => toSafeLowerCase(request?.status) === "pending",
-    );
-    const ownPendingRequests = ownRequests.filter(
-      (request) => toSafeLowerCase(request?.status) === "pending",
-    );
-
-    if (userRole === "admin" && pendingApprovals.length > 0) {
-      return {
-        title: "Keep approvals moving",
-        body: `${pendingApprovals.length} leave request${pendingApprovals.length === 1 ? "" : "s"} need review. Open approvals to process the next request.`,
-      };
-    }
-
-    if (ownPendingRequests.length > 0) {
-      const nextPendingRequest = ownPendingRequests[0];
-      return {
-        title: "Track your pending leave",
-        body: `Your ${toSafeString(nextPendingRequest.leave_type, "leave").toLowerCase()} request from ${toSafeString(nextPendingRequest.start_date).slice(0, 10) || "the selected dates"} is still awaiting approval.`,
-      };
-    }
-
-    return {
-      title: "Stay ahead of requests",
-      body: "Review your team calendar or submit your next leave request when plans are confirmed.",
-    };
-  }, [leaveRequests, ownRequests, userRole]);
-
   const pauseStatsCarousel = () => {
     if (statsResumeTimeoutRef.current) {
       window.clearTimeout(statsResumeTimeoutRef.current);
@@ -702,8 +663,231 @@ const DashboardPage = () => {
     }
   };
 
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ["dashboardTeamAvailability"],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+
+      const today = new Date();
+      const endDate = new Date();
+      endDate.setDate(today.getDate() + 30);
+
+      params.append("startDate", formatIsoDate(today));
+      params.append("endDate", formatIsoDate(endDate));
+      params.append("includeUpcoming", "true");
+
+      const response = await authFetch(`/users/on-leave?${params.toString()}`, {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result: TeamAvailabilityResponse = await response.json();
+
+      if (result.error) {
+        throw new Error(result.message || "Failed to fetch team availability");
+      }
+
+      return Array.isArray(result.payload?.teamMembers)
+        ? result.payload.teamMembers
+        : [];
+    },
+    enabled: Boolean(user?.id),
+    staleTime: 5 * 60 * 1000,
+    retry: 2,
+  });
+
+  const teamActivityBaseItems = useMemo(() => {
+    return teamMembers.map((member) => ({
+      employeeId: member.id,
+      initials:
+        member.avatar ||
+        member.name
+          ?.split(" ")
+          .map((part) => part.charAt(0))
+          .join("")
+          .slice(0, 2)
+          .toUpperCase() ||
+        "TM",
+      name: member.name,
+      role: [member.department, member.jobTitle]
+        .filter(isNonEmptyString)
+        .join(" • "),
+      member,
+    }));
+  }, [teamMembers]);
+
+  const onLeaveItems = useMemo(() => {
+    const dedupedItems = new Map<string, TeamActivityItem>();
+
+    teamActivityBaseItems.forEach(({ employeeId, initials, name, role, member }) => {
+      if (
+        !member.startDate ||
+        !member.endDate ||
+        !member.leaveType ||
+        toSafeLowerCase(member.status) !== "on-leave"
+      ) {
+        return;
+      }
+
+      const startDate = toIsoDayOrNull(member.startDate);
+      const endDate = toIsoDayOrNull(member.endDate);
+      const leaveType = toSafeString(member.leaveType);
+
+      if (!startDate || !endDate || !leaveType) {
+        return;
+      }
+
+      const isApprovedCurrentLeave = todayIso >= startDate && todayIso <= endDate;
+      if (!isApprovedCurrentLeave) {
+        return;
+      }
+
+      const dedupKey = buildTeamActivityDedupKey(
+        employeeId,
+        startDate,
+        leaveType,
+      );
+
+      if (dedupedItems.has(dedupKey)) {
+        return;
+      }
+
+      dedupedItems.set(dedupKey, {
+        id: dedupKey,
+        employeeId,
+        initials,
+        name,
+        role,
+        leaveType,
+        dateRange: formatCompactDateRange(member.startDate, member.endDate),
+        duration: formatLeaveDuration(member.leave_length, member.duration),
+        status: "On Leave",
+        startDate,
+      });
+    });
+
+    return Array.from(dedupedItems.values())
+      .sort((a, b) => a.startDate.localeCompare(b.startDate))
+      .slice(0, 3);
+  }, [teamActivityBaseItems, todayIso]);
+
+  const upcomingItems = useMemo(() => {
+    const onLeaveKeys = new Set(
+      onLeaveItems.map((item) =>
+        buildTeamActivityDedupKey(
+          item.employeeId,
+          item.startDate,
+          item.leaveType,
+        ),
+      ),
+    );
+    const dedupedItems = new Map<string, TeamActivityItem>();
+
+    teamActivityBaseItems.forEach(({ employeeId, initials, name, role, member }) => {
+      if (!Array.isArray(member.upcomingLeaves)) {
+        return;
+      }
+
+      member.upcomingLeaves.forEach((leave) => {
+        if (toSafeLowerCase(leave.status) !== "approved") {
+          return;
+        }
+
+        const startDate = toIsoDayOrNull(leave.startDate);
+        const endDate = toIsoDayOrNull(leave.endDate);
+        const leaveType = toSafeString(leave.leaveType);
+
+        if (!startDate || !endDate || !leaveType) {
+          return;
+        }
+
+        const isCurrentlyActive = todayIso >= startDate && todayIso <= endDate;
+        const isFutureLeave = startDate > todayIso;
+        if (isCurrentlyActive || !isFutureLeave) {
+          return;
+        }
+
+        const dedupKey = buildTeamActivityDedupKey(
+          employeeId,
+          startDate,
+          leaveType,
+        );
+
+        if (onLeaveKeys.has(dedupKey) || dedupedItems.has(dedupKey)) {
+          return;
+        }
+
+        dedupedItems.set(dedupKey, {
+          id: dedupKey,
+          employeeId,
+          initials,
+          name,
+          role,
+          leaveType,
+          dateRange: formatCompactDateRange(leave.startDate, leave.endDate),
+          duration: formatLeaveDuration(leave.leave_length, leave.duration),
+          status: "Upcoming",
+          startDate,
+        });
+      });
+    });
+
+    return Array.from(dedupedItems.values())
+      .sort((a, b) => a.startDate.localeCompare(b.startDate))
+      .slice(0, 3);
+  }, [onLeaveItems, teamActivityBaseItems, todayIso]);
+
+  const activityItems = activeActivityTab === "On Leave"
+    ? onLeaveItems
+    : upcomingItems;
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setActivityContentVisible(true);
+      return;
+    }
+
+    setActivityContentVisible(false);
+
+    const frameId = window.requestAnimationFrame(() => {
+      setActivityContentVisible(true);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeActivityTab, prefersReducedMotion]);
+
+  const handleActivityTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    activityTouchStartXRef.current = event.changedTouches[0]?.clientX ?? null;
+  };
+
+  const handleActivityTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    const startX = activityTouchStartXRef.current;
+    const endX = event.changedTouches[0]?.clientX;
+
+    activityTouchStartXRef.current = null;
+
+    if (startX === null || typeof endX !== "number") {
+      return;
+    }
+
+    const deltaX = endX - startX;
+    const swipeThreshold = 48;
+
+    if (Math.abs(deltaX) < swipeThreshold) {
+      return;
+    }
+
+    const nextTab = deltaX < 0 ? "Upcoming" : "On Leave";
+    if (nextTab !== activeActivityTab) {
+      setActiveActivityTab(nextTab);
+    }
+  };
+
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col pt-1">
+    <div className="mx-auto flex w-full max-w-md flex-col px-0 pb-28 pt-1">
       <MobileDashboardHeader
         formattedDateTime={formattedDateTime}
         onOpenNotifications={() => setShowNotifications((value) => !value)}
@@ -717,7 +901,10 @@ const DashboardPage = () => {
             <h2 className="text-sm font-semibold text-slate-950 dark:text-white">
               Notifications
             </h2>
-            <Link to="/notifications" className="text-xs font-medium text-cyan-300">
+            <Link
+              to="/notifications"
+              className="text-xs font-medium text-cyan-300"
+            >
               View all
             </Link>
           </div>
@@ -796,43 +983,127 @@ const DashboardPage = () => {
         </div>
       </section>
 
-      <section className="mt-5">
-        <MobileCalendarCard
-          monthLabel={monthLabel}
-          weekdays={weekdayLabels}
-          days={calendarDays}
-          selectedDateLabel={selectedDateLabel}
-          selectedEvents={selectedEvents}
-          onPreviousMonth={() =>
-            setCurrentMonth(
-              (value) => new Date(value.getFullYear(), value.getMonth() - 1, 1),
-            )
-          }
-          onNextMonth={() =>
-            setCurrentMonth(
-              (value) => new Date(value.getFullYear(), value.getMonth() + 1, 1),
-            )
-          }
-          onSelectDate={setSelectedDate}
-        />
-      </section>
-
       <section className="mt-5 rounded-[1.75rem] border border-slate-200/80 bg-white/80 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-white/10 dark:bg-white/10 dark:shadow-[0_18px_48px_rgba(15,23,42,0.24)]">
-        <div className="flex items-center justify-between gap-3">
+        <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-white/55">
-              Next action
+              Team Activity
             </p>
             <h2 className="text-base font-semibold text-slate-950 dark:text-white">
-              {nextAction.title}
+              Who&apos;s away
             </h2>
           </div>
-          <CalendarClock className="h-5 w-5 text-cyan-300" />
+
+          <Link
+            to="/team-availability"
+            className="shrink-0 rounded-full border border-cyan-400/40 bg-cyan-50/80 px-3 py-1.5 text-[11px] font-semibold text-cyan-600 dark:bg-cyan-400/10 dark:text-cyan-300"
+          >
+            View team
+          </Link>
         </div>
-        <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-          {nextAction.body}
-        </p>
+
+        <div className="relative mb-4 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100/80 p-1 dark:bg-white/5">
+          <div
+            aria-hidden="true"
+            className={`pointer-events-none absolute inset-y-1 left-1 z-0 w-[calc(50%-0.375rem)] rounded-[1rem] bg-gradient-to-r from-cyan-400 to-teal-500 shadow-[0_10px_30px_rgba(6,182,212,0.25)] transition-transform duration-300 ease-out will-change-transform ${
+              activeActivityTab === "On Leave"
+                ? "translate-x-0"
+                : "translate-x-full"
+            }`}
+          />
+          {(["On Leave", "Upcoming"] as const).map((tab) => {
+            const isActive = activeActivityTab === tab;
+
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveActivityTab(tab)}
+                className={`relative z-10 rounded-[1rem] px-3 py-2 text-xs font-semibold transition-colors duration-300 ${
+                  isActive
+                    ? "text-white"
+                    : "border border-slate-200/80 bg-white/80 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
+                }`}
+              >
+                {tab}
+              </button>
+            );
+          })}
+        </div>
+
+        {activityItems.length > 0 ? (
+          <div
+            className={`space-y-2.5 pb-1 touch-pan-y transition-all duration-300 ease-out ${
+              activityContentVisible || prefersReducedMotion
+                ? "translate-x-0 opacity-100"
+                : activeActivityTab === "On Leave"
+                  ? "-translate-x-2 opacity-0"
+                  : "translate-x-2 opacity-0"
+            }`}
+            onTouchStart={handleActivityTouchStart}
+            onTouchEnd={handleActivityTouchEnd}
+          >
+            {activityItems.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 dark:border-white/10 dark:bg-[#101b2e]"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-teal-500 text-sm font-bold text-white">
+                    {item.initials}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">
+                          {item.name}
+                        </p>
+                        {item.role ? (
+                          <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                            {item.role}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                          item.status === "On Leave"
+                            ? "bg-rose-500/15 text-rose-500 dark:text-rose-300"
+                            : "bg-amber-500/15 text-amber-600 dark:text-amber-300"
+                        }`}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-slate-200/70 px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:bg-white/10 dark:text-slate-200">
+                        {item.leaveType}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
+                      <span>{item.dateRange}</span>
+                      <span className="text-slate-400">•</span>
+                      <span>{item.duration}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/5">
+            <p className="text-sm font-semibold text-slate-950 dark:text-white">
+              {activeActivityTab === "On Leave"
+                ? "No team members currently away."
+                : "No upcoming leave scheduled."}
+            </p>
+          </div>
+        )}
       </section>
+
     </div>
   );
 };
