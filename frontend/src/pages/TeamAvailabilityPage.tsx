@@ -20,26 +20,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,40 +33,40 @@ import { usePagination } from "@/hooks/usePagination";
 import { Pagination } from "@/components/ui/Pagination";
 
 interface LeaveRequest {
-  id: string;
-  leaveType: string;
-  startDate: string;
-  endDate: string;
-  duration: number;
-  leave_length: "half_day" | "full_day";
-  status: "approved" | "pending" | "rejected";
-  reason?: string;
+    id: string;
+    leaveType: string;
+    startDate: string;
+    endDate: string;
+    duration: number;
+    leave_length: 'half_day' | 'full_day';
+    status: 'approved' | 'pending' | 'rejected';
+    reason?: string;
 }
 
 interface TeamMember {
-  id: string;
-  name: string;
-  email: string;
-  status: "available" | "on-leave" | "upcoming-leave" | string;
-  avatar: string;
-  leaveType: string | null;
-  leave_length: "half_day" | "full_day";
-  leaveDates: string | null;
-  startDate?: string;
-  endDate?: string;
-  duration?: number;
-  department?: string;
-  jobTitle?: string;
-  currentLeave?: LeaveRequest;
-  upcomingLeaves?: LeaveRequest[];
-  totalUpcomingLeaveDays?: number;
+    id: string;
+    name: string;
+    email: string;
+    status: 'available' | 'on-leave' | 'upcoming-leave' | string;
+    avatar: string;
+    leaveType: string | null;
+    leave_length: 'half_day' | 'full_day';
+    leaveDates: string | null;
+    startDate?: string;
+    endDate?: string;
+    duration?: number;
+    department?: string;
+    jobTitle?: string;
+    currentLeave?: LeaveRequest;
+    upcomingLeaves?: LeaveRequest[];
+    totalUpcomingLeaveDays?: number;
 }
 
 interface ApiResponse {
-  code: string;
-  error: boolean;
-  message: string;
-  payload: { summary: string; teamMembers: TeamMember[] };
+    code: string;
+    error: boolean;
+    message: string;
+    payload: { summary: string, teamMembers: TeamMember[] };
 }
 
 const TeamAvailabilityPage = () => {
@@ -120,6 +103,8 @@ const TeamAvailabilityPage = () => {
     const response = await authFetch(url, {
       method: "GET",
     });
+    const [showDateFilter, setShowDateFilter] = useState<boolean>(false);
+    const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
@@ -255,9 +240,10 @@ const TeamAvailabilityPage = () => {
 
   const pagination = usePagination(filteredMembers, 10);
 
-  const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["teamAvailability"] });
-  };
+        // Process team members to determine their status based on upcoming leaves
+        const processedMembers = teamMembers.map(member => {
+            const today = new Date();
+            const hasUpcomingLeaves = member.upcomingLeaves && member.upcomingLeaves.length > 0;
 
   const clearDateRange = () => {
     // Reset to default 30 days
@@ -353,9 +339,12 @@ const TeamAvailabilityPage = () => {
     }
   };
 
-  const StatusDisplay = ({ member }: { member: TeamMember }) => {
-    const config = getStatusConfig(member.status, member);
-    const upcomingSummary = getUpcomingLeavesSummary(member);
+    const clearDateRange = () => {
+        // Reset to default 30 days
+        const today = new Date();
+        const endDate = addDays(today, 30);
+        setDateRange({ from: today, to: endDate });
+    };
 
     return (
       <div className="space-y-2">
