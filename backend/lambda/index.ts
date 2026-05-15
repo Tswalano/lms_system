@@ -17,6 +17,7 @@ import { DatabaseService } from './helpers/databaseHeler';
 export const app = new Hono();
 
 const allowedOrigins = [
+    'http://localhost:5175',
     'http://localhost:5173', // Localhost URL for frontend development
     'http://localhost:3001', // Localhost URL for API docs
     'https://d2m4zkv512jna9.cloudfront.net', // CloudFront URL for Staging (alternate)

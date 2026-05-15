@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { X, RefreshCw, Cake, PartyPopper } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import JSConfetti from 'js-confetti';
+import { X, RefreshCw, Cake } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,6 +9,10 @@ const SEEN_VERSION_KEY = 'lastSeenVersion';
 const DISMISSED_BIRTHDAY_PROMPT_KEY = 'dismissedBirthdayBanner';
 const DISMISSED_BIRTHDAY_WISH_KEY = 'dismissedBirthdayWish';
 const DISMISSED_COLLEAGUE_WISH_KEY = 'dismissedColleagueBirthdays';
+const BIRTHDAY_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+const CONFETTI_EMOJIS = ['🎉', '🎂', '🎈', '🥳', '🎁'];
+const SHOW_CONFETTI_ON_EVERY_REFRESH_FOR_TESTING = import.meta.env.DEV;
+
 
 function localDateStr(d: Date) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -36,15 +41,10 @@ function isBirthdayObservedToday(birthdayDate: string): boolean {
     return false;
 }
 
-export function formatColleagueNames(names: string[]): string {
-    if (names.length === 1) return names[0];
-    if (names.length === 2) return `${names[0]} and ${names[1]}`;
-    return `${names[0]}, ${names[1]} and ${names.length - 2} other${names.length - 2 > 1 ? 's' : ''}`;
-}
-
 const AppBanners: React.FC = () => {
     const { user, authFetch } = useAuth();
-    const today = new Date();
+    const today = useMemo(() => new Date(), []);
+    const jsConfettiRef = useRef<JSConfetti | null>(null);
     const [newVersion, setNewVersion] = useState<string | null>(null);
     const [showVersionBanner, setShowVersionBanner] = useState(false);
     const [showBirthdayPrompt, setShowBirthdayPrompt] = useState(false);
@@ -79,6 +79,19 @@ const AppBanners: React.FC = () => {
             (b: { userId: string; birthdayDate: string }) =>
                 isBirthdayObservedToday(b.birthdayDate) && String(b.userId) !== String(user?.id)
         );
+    const isOwnBirthday = Boolean(user?.dob && isTodayBirthday(user.dob));
+    const hasBirthdayCelebration = isOwnBirthday || colleagueBirthdays.length > 0;
+    const shouldShowConfetti = hasBirthdayCelebration || SHOW_CONFETTI_ON_EVERY_REFRESH_FOR_TESTING;
+    const hasVisibleBanner = showVersionBanner || showBirthdayPrompt || showBirthdayWish || showColleagueBanner;
+
+    useEffect(() => {
+        jsConfettiRef.current = new JSConfetti();
+
+        return () => {
+            jsConfettiRef.current?.clearCanvas();
+            jsConfettiRef.current = null;
+        };
+    }, []);
 
     useEffect(() => {
         const checkVersion = async () => {
@@ -115,13 +128,32 @@ const AppBanners: React.FC = () => {
             const dismissedOn = localStorage.getItem(DISMISSED_BIRTHDAY_WISH_KEY);
             if (dismissedOn !== today.toDateString()) setShowBirthdayWish(true);
         }
-    }, [user]);
+    }, [today, user]);
 
     useEffect(() => {
         if (colleagueBirthdays.length === 0) return;
         const dismissedOn = localStorage.getItem(DISMISSED_COLLEAGUE_WISH_KEY);
         if (dismissedOn !== today.toDateString()) setShowColleagueBanner(true);
-    }, [birthdayData]);
+    }, [birthdayData, colleagueBirthdays.length, today]);
+
+    useEffect(() => {
+        if (!hasBirthdayCelebration) return;
+        const intervalId = window.setInterval(() => {
+            window.location.reload();
+        }, BIRTHDAY_REFRESH_INTERVAL_MS);
+
+        return () => window.clearInterval(intervalId);
+    }, [hasBirthdayCelebration]);
+
+    useEffect(() => {
+        if (!shouldShowConfetti || !jsConfettiRef.current) return;
+
+        void jsConfettiRef.current.addConfetti({
+            emojis: CONFETTI_EMOJIS,
+            emojiSize: 36,
+            confettiNumber: 50,
+        });
+    }, [shouldShowConfetti]);
 
     const handleRefresh = () => {
         if (newVersion) localStorage.setItem(SEEN_VERSION_KEY, newVersion);
@@ -138,20 +170,10 @@ const AppBanners: React.FC = () => {
         setShowBirthdayPrompt(false);
     };
 
-    const handleDismissBirthdayWish = () => {
-        localStorage.setItem(DISMISSED_BIRTHDAY_WISH_KEY, today.toDateString());
-        setShowBirthdayWish(false);
-    };
-
-    const handleDismissColleague = () => {
-        localStorage.setItem(DISMISSED_COLLEAGUE_WISH_KEY, today.toDateString());
-        setShowColleagueBanner(false);
-    };
-
-    if (!showVersionBanner && !showBirthdayPrompt && !showBirthdayWish && !showColleagueBanner) return null;
+    if (!hasVisibleBanner && !shouldShowConfetti) return null;
 
     return (
-        <div className="relative z-20">
+        <div className="relative w-18 z-20">
             {showVersionBanner && (
                 <div className="flex items-center justify-between gap-3 bg-emerald-600 dark:bg-emerald-700 text-white px-6 py-2.5 text-sm">
                     <span>
@@ -169,39 +191,6 @@ const AppBanners: React.FC = () => {
                             <X size={16} />
                         </button>
                     </div>
-                </div>
-            )}
-
-            {showBirthdayWish && (
-                <div className="flex items-center justify-between gap-3 bg-pink-50 dark:bg-pink-900/30 border-b border-pink-200 dark:border-pink-700 text-pink-900 dark:text-pink-100 px-6 py-2.5 text-sm">
-                    <div className="flex items-center gap-2">
-                        <PartyPopper size={15} className="shrink-0 text-pink-500 dark:text-pink-400" />
-                        <span>
-                            Happy Birthday, {user?.firstName}!{' '}
-                            <span className="font-medium">Wishing you a wonderful day from everyone at Disraptor.</span>
-                        </span>
-                    </div>
-                    <button onClick={handleDismissBirthdayWish} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity" aria-label="Dismiss">
-                        <X size={16} />
-                    </button>
-                </div>
-            )}
-
-            {showColleagueBanner && (
-                <div className="flex items-center justify-between gap-3 bg-purple-50 dark:bg-purple-900/30 border-b border-purple-200 dark:border-purple-700 text-purple-900 dark:text-purple-100 px-6 py-2.5 text-sm">
-                    <div className="flex items-center gap-2">
-                        <Cake size={15} className="shrink-0 text-purple-500 dark:text-purple-400" />
-                        <span>
-                            Today is{' '}
-                            <span className="font-semibold">
-                                {formatColleagueNames(colleagueBirthdays.map(b => b.firstName))}'s
-                            </span>{' '}
-                            birthday — don't forget to wish {colleagueBirthdays.length === 1 ? 'them' : 'them all'} a happy day!
-                        </span>
-                    </div>
-                    <button onClick={handleDismissColleague} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity" aria-label="Dismiss">
-                        <X size={16} />
-                    </button>
                 </div>
             )}
 

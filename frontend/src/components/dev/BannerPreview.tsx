@@ -1,10 +1,15 @@
 import { useState } from 'react';
-import { formatColleagueNames } from '../AppBanners';
 
 const BannerPreview: React.FC = () => {
     const [showVersion, setShowVersion] = useState(true);
     const [showBirthdayWish, setShowBirthdayWish] = useState(true);
     const [showColleague, setShowColleague] = useState(true);
+
+    function formatColleagueNames(names: string[]): string {
+        if (names.length === 1) return names[0];
+        if (names.length === 2) return `${names[0]} and ${names[1]}`;
+        return `${names[0]}, ${names[1]} and ${names.length - 2} other${names.length - 2 > 1 ? 's' : ''}`;
+    }
 
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
