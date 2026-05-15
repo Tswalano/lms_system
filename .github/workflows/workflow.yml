@@ -177,7 +177,7 @@ jobs:
         id: set-version
         run: |
           BRANCH=${GITHUB_REF##*/}
-          ENV="${{ github.event.inputs.environment || 'prod' }}"
+          ENV=""
           VERSION=""
 
           echo "Branch: $BRANCH"
@@ -186,16 +186,22 @@ jobs:
           echo "Semantic release version: ${{ needs.semantic-release.outputs.new-release-version }}"
           echo "Release type: ${{ needs.semantic-release.outputs.release-type }}"
 
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            ENV="prod"
+          elif [ "$BRANCH" = "dev" ]; then
+            ENV="dev"
+          elif [ "$BRANCH" = "main" ]; then
+            ENV="prod"
+          else
+            echo "Unable to determine deployment environment for ref ${GITHUB_REF}"
+            exit 1
+          fi
+
           # If semantic-release published a new version, use it
           if [ "${{ needs.semantic-release.outputs.new-release-published }}" = "true" ]; then
             VERSION="${{ needs.semantic-release.outputs.new-release-version }}"
-            
-            # Set environment based on release type
-            if [ "${{ needs.semantic-release.outputs.release-type }}" = "prerelease" ]; then
-              ENV="dev"
-            else
-              ENV="prod"
-            fi
           elif [ "$BRANCH" = "dev" ]; then
             # For dev branch without semantic release, create a dev version
             BASE_VERSION=$(node -p "require('../package.json').version")
@@ -215,7 +221,6 @@ jobs:
             else
               VERSION=$(node -p "require('../package.json').version")
             fi
-            ENV="prod"
           fi
 
 
@@ -248,6 +253,11 @@ jobs:
           else
             TARGET="s3://$BUCKET/dev-fe/"
             CF_ID="${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_DEV }}"
+          fi
+
+          if [ -z "$CF_ID" ]; then
+            echo "CloudFront distribution ID is not configured for environment: $ENV"
+            exit 1
           fi
 
           echo "Syncing version $VERSION to $TARGET"
