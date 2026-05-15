@@ -300,7 +300,7 @@ const ManageEmployeesPage = () => {
 
             const response = await authFetch('/users/delete-user', {
                 method: 'DELETE',
-                body: JSON.stringify({ id: employeeId, email: selectedEmployee?.email })
+                body: JSON.stringify({ id: employeeId })
             });
 
             if (!response.ok) {
@@ -313,13 +313,13 @@ const ManageEmployeesPage = () => {
             queryClient.invalidateQueries({ queryKey: ['departments'] });
             setIsDeleteEmployeeDialogOpen(false);
             setSelectedEmployee(null);
-            toast.success("Employee Removed", {
-                description: `Employee has been removed from the system.`
+            toast.success("Employee Deactivated", {
+                description: `Employee has been marked inactive and removed from the active employee list.`
             });
         },
         onError: (error) => {
-            toast.error("Error Removing Employee", {
-                description: error instanceof Error ? error.message : "Failed to remove employee. Please try again.",
+            toast.error("Error Deactivating Employee", {
+                description: error instanceof Error ? error.message : "Failed to deactivate employee. Please try again.",
             });
         }
     });
@@ -1341,21 +1341,21 @@ const ManageEmployeesPage = () => {
             <Dialog open={isDeleteEmployeeDialogOpen} onOpenChange={setIsDeleteEmployeeDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Confirm Employee Deletion</DialogTitle>
+                        <DialogTitle>Confirm Employee Deactivation</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
                             <AlertCircle className="w-8 h-8 text-red-500 flex-shrink-0" />
                             <div>
                                 <p className="font-medium text-gray-900 dark:text-gray-100">
-                                    Delete Employee
+                                    Deactivate Employee
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                    Are you sure you want to remove{" "}
+                                    Are you sure you want to deactivate{" "}
                                     <span className="font-medium">
                                         {selectedEmployee?.firstName} {selectedEmployee?.lastName}
                                     </span>
-                                    ? This action cannot be undone.
+                                    ? They will be marked inactive and hidden from the active employee list.
                                 </p>
                             </div>
                         </div>
@@ -1369,10 +1369,10 @@ const ManageEmployeesPage = () => {
                                 {removeEmployeeMutation.isPending ? (
                                     <>
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Removing...
+                                        Deactivating...
                                     </>
                                 ) : (
-                                    'Delete Employee'
+                                    'Deactivate Employee'
                                 )}
                             </Button>
                             <Button variant="outline" onClick={() => setIsDeleteEmployeeDialogOpen(false)}>

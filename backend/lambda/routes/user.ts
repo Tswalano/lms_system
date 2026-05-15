@@ -159,7 +159,8 @@ class UserService {
                         d.name AS department
                     FROM users u
                     LEFT JOIN user_departments ud ON ud.user_id = u.id
-                    LEFT JOIN departments d ON d.id = ud.department_id;`;
+                    LEFT JOIN departments d ON d.id = ud.department_id
+                    WHERE u.isActive = 1;`;
             const [rows] = await connection.execute(sql);
             return rows;
         } finally {
@@ -540,16 +541,16 @@ app.get('/on-leave', async (c) => {
     }
 });
 
-// POST: /users/delete-user
-// This endpoint is for admin to delete a user by ID and email. It will also delete the user from Cognito
+// DELETE: /users/delete-user
+// This endpoint is for admin to deactivate a user by ID.
 app.delete('/delete-user', async (c) => {
     try {
-        const { id, email } = await c.req.json();
+        const { id } = await c.req.json();
 
-        if (!id || !email) {
+        if (!id) {
             const response = ResponseService.error(
                 "INVALID_INPUT",
-                "ID and email are required"
+                "ID is required"
             );
             return c.json(response, 400);
         }
@@ -570,29 +571,14 @@ app.delete('/delete-user', async (c) => {
                 return c.json(response, 404);
             }
 
-            // Delete related leave requests first (foreign key constraint)
-            await connection.execute('DELETE FROM leave_requests WHERE uid = ?', [id]);
-
-            // Delete user from database
-            await connection.execute('DELETE FROM users WHERE id = ?', [id]);
-
-            // Try to delete from Cognito
-            try {
-                const { AdminDeleteUserCommand } = await import('@aws-sdk/client-cognito-identity-provider');
-                const deleteCommand = new AdminDeleteUserCommand({
-                    UserPoolId: USER_POOL_ID,
-                    Username: email
-                });
-                await client.send(deleteCommand);
-            } catch (cognitoError) {
-                console.error('Failed to delete user from Cognito:', cognitoError);
-                // Don't fail the entire operation if Cognito deletion fails
-                // The user is already deleted from the database
-            }
+            await connection.execute(
+                'UPDATE users SET isActive = 0, updatedAt = NOW() WHERE id = ?',
+                [id]
+            );
 
             const response = ResponseService.success(
-                "User deleted successfully",
-                { deletedUserId: id, deletedEmail: email }
+                "User deactivated successfully",
+                { deactivatedUserId: id }
             );
             return c.json(response, 200);
 
