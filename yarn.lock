@@ -7207,6 +7207,11 @@ jiti@^2.4.2:
   resolved "https://registry.npmjs.org/jiti/-/jiti-2.6.1.tgz"
   integrity sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==
 
+js-confetti@^0.13.1:
+  version "0.13.1"
+  resolved "https://registry.npmjs.org/js-confetti/-/js-confetti-0.13.1.tgz"
+  integrity sha512-Kau3apum0zYIvELfZv0lL5VY7dvzpbKi4Oq0XdfjDKdNZc/O+IeGRyLEej7GJ/1APbASvb+ZTWDxmTxxSFkTOg==
+
 "js-tokens@^3.0.0 || ^4.0.0", js-tokens@^4.0.0:
   version "4.0.0"
   resolved "https://registry.npmjs.org/js-tokens/-/js-tokens-4.0.0.tgz"
@@ -10479,6 +10484,7 @@ victory-vendor@^36.6.8:
     date-fns "^3.6.0"
     embla-carousel-react "^8.3.0"
     input-otp "^1.2.4"
+    js-confetti "^0.13.1"
     lucide-react "^0.462.0"
     moment "^2.30.1"
     next-themes "^0.3.0"
