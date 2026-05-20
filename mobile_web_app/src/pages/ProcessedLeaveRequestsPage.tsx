@@ -1,0 +1,559 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Ban, Loader2, Search, User, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { Pagination } from "@/components/ui/Pagination";
+import { usePagination } from "@/hooks/usePagination";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import MobilePageHeader from "@/components/layout/MobilePageHeader";
+import { cn } from "@/lib/utils";
+import ProcessedRequestCompactCard from "@/components/approvals/ProcessedRequestCompactCard";
+
+interface LeaveRequest {
+  id: number;
+  firstName: string;
+  lastName: string;
+  jobTitle: string;
+  email: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  duration: number;
+  leave_comment: string;
+  leave_length: "half_day" | "full_day";
+  createdAt: string;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  feedback?: string;
+}
+
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    requests: LeaveRequest[];
+  };
+}
+
+type StatusFilter = "all" | "approved" | "cancelled";
+type SortOrder = "newest" | "oldest";
+type ActiveSheet = "details" | "cancelConfirm" | null;
+
+const BottomSheet = ({
+  isOpen,
+  onClose,
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <button
+        type="button"
+        aria-label="Close sheet"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
+      <section className="fixed inset-x-0 bottom-0 mx-auto flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+        <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-600" />
+        {children}
+      </section>
+    </div>
+  );
+};
+
+const DetailField = ({
+  label,
+  value,
+  note,
+}: {
+  label: string;
+  value: React.ReactNode;
+  note?: React.ReactNode;
+}) => (
+  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 p-3 dark:border-slate-700 dark:bg-slate-900/60">
+    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{label}</p>
+    <div className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{value}</div>
+    {note ? <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{note}</div> : null}
+  </div>
+);
+
+const ProcessedLeaveRequestsPage = () => {
+  const { authFetch } = useAuth();
+  const queryClient = useQueryClient();
+  const token = localStorage.getItem("authToken");
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [leaveTypeFilter, setLeaveTypeFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
+  const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
+  const sheetHistoryActive = useRef(false);
+
+  const fetchLeaveRequests = async (): Promise<LeaveRequest[]> => {
+    if (!token) throw new Error("Unauthorized");
+
+    const response = await authFetch("/leave/all-leave-requests", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+    const result: ApiResponse = await response.json();
+    if (!result.success) throw new Error(result.message || "Failed to fetch leave requests");
+
+    return result.data.requests;
+  };
+
+  const {
+    data: requests = [],
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["leaveApprovalRequests"],
+    queryFn: fetchLeaveRequests,
+    staleTime: 2 * 60 * 1000,
+    retry: 2,
+  });
+
+  const cancelLeaveMutation = useMutation({
+    mutationFn: async (requestId: number) => {
+      if (!token) throw new Error("Unauthorized");
+      const response = await authFetch(`/leave/${requestId}/cancel`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message || "Failed to cancel leave request");
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leaveApprovalRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["teamAvailability"] });
+      queryClient.invalidateQueries({ queryKey: ["leaveCalendar"] });
+      toast.success("Leave Cancelled", {
+        description: "The approved leave has been cancelled successfully.",
+      });
+      sheetHistoryActive.current = false;
+      setActiveSheet(null);
+      setSelectedRequest(null);
+    },
+    onError: (mutationError) => {
+      toast.error("Cancellation Failed", {
+        description: mutationError instanceof Error ? mutationError.message : "Failed to cancel leave",
+      });
+    },
+  });
+
+  const processedRequests = useMemo(
+    () => requests.filter((request) => request.status.toLowerCase() !== "pending"),
+    [requests],
+  );
+
+  const leaveTypes = useMemo(
+    () =>
+      Array.from(new Set(processedRequests.map((request) => request.leave_type)))
+        .sort((a, b) => a.localeCompare(b)),
+    [processedRequests],
+  );
+
+  const filteredProcessedRequests = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    return processedRequests
+      .filter((request) => {
+        if (statusFilter === "approved") {
+          return request.status.toLowerCase() === "approved";
+        }
+
+        if (statusFilter === "cancelled") {
+          return ["cancelled", "rejected"].includes(request.status.toLowerCase());
+        }
+
+        return true;
+      })
+      .filter((request) => {
+        if (leaveTypeFilter === "all") return true;
+        return request.leave_type === leaveTypeFilter;
+      })
+      .filter((request) => {
+        if (!normalizedSearch) return true;
+        const fullName = `${request.firstName} ${request.lastName}`.toLowerCase();
+        return fullName.includes(normalizedSearch);
+      })
+      .sort((a, b) => {
+        const left = new Date(a.createdAt).getTime();
+        const right = new Date(b.createdAt).getTime();
+        return sortOrder === "newest" ? right - left : left - right;
+      });
+  }, [processedRequests, searchTerm, statusFilter, leaveTypeFilter, sortOrder]);
+
+  const pagination = usePagination(filteredProcessedRequests, 10);
+
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+
+  const isFutureLeave = (request: LeaveRequest) =>
+    new Date(request.start_date) > new Date(new Date().toDateString());
+
+  const canCancelLeave = (request: LeaveRequest | null) => {
+    if (!request) return false;
+
+    const status = String(request.status ?? "").toLowerCase();
+
+    return status === "approved" && Boolean(request.id) && isFutureLeave(request);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "approved":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800";
+      case "rejected":
+      case "cancelled":
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
+    }
+  };
+
+  const closeActiveSheet = () => {
+    if (sheetHistoryActive.current) {
+      window.history.back();
+      return;
+    }
+
+    setActiveSheet(null);
+    setSelectedRequest(null);
+  };
+
+  const openDetailsModal = (request: LeaveRequest) => {
+    setSelectedRequest(request);
+    setActiveSheet("details");
+  };
+
+  const handleCancelLeave = (request: LeaveRequest) => {
+    setSelectedRequest(request);
+    setActiveSheet("cancelConfirm");
+  };
+
+  useEffect(() => {
+    if (activeSheet && !sheetHistoryActive.current) {
+      window.history.pushState({ approvalsSheet: true }, "");
+      sheetHistoryActive.current = true;
+    }
+  }, [activeSheet]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (!sheetHistoryActive.current) return;
+
+      sheetHistoryActive.current = false;
+      setActiveSheet(null);
+      setSelectedRequest(null);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  return (
+    <div className="mx-auto w-full max-w-2xl px-4">
+      <MobilePageHeader className="mb-4" />
+      <section className="rounded-[1.5rem] border border-slate-200/80 bg-white/85 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_18px_48px_rgba(2,6,23,0.28)] md:p-4">
+        <div className="flex items-start gap-3">
+          <div className="min-w-0">
+            <Link
+              to="/approve-leave"
+              className="inline-flex items-center gap-2 text-sm font-medium text-cyan-700 transition-colors hover:text-cyan-800 dark:text-cyan-300 dark:hover:text-cyan-200"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to approvals
+            </Link>
+            <h1 className="mt-2 text-xl font-semibold text-slate-950 dark:text-slate-100 md:text-2xl">
+              Processed Requests
+            </h1>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              Browse processed leave activity with compact mobile filters.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-2.5">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={searchTerm}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                pagination.resetPage();
+              }}
+              placeholder="Search employee name"
+              className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 outline-none transition-colors focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { value: "all", label: "All" },
+              { value: "approved", label: "Approved" },
+              { value: "cancelled", label: "Cancelled" },
+            ] as const).map((filterOption) => {
+              const isActive = statusFilter === filterOption.value;
+
+              return (
+                <button
+                  key={filterOption.value}
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter(filterOption.value);
+                    pagination.resetPage();
+                  }}
+                  className={cn(
+                    "h-9 rounded-full border px-2 text-xs font-medium transition-colors sm:text-sm",
+                    isActive
+                      ? "border-cyan-300/30 bg-cyan-500/16 text-slate-950 dark:border-cyan-800 dark:bg-cyan-950/30 dark:text-cyan-200"
+                      : "border-slate-200 bg-white/85 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700",
+                  )}
+                >
+                  {filterOption.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <select
+              value={leaveTypeFilter}
+              onChange={(event) => {
+                setLeaveTypeFilter(event.target.value);
+                pagination.resetPage();
+              }}
+              className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            >
+              <option value="all">All leave types</option>
+              {leaveTypes.map((leaveType) => (
+                <option key={leaveType} value={leaveType}>
+                  {leaveType}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={sortOrder}
+              onChange={(event) => {
+                setSortOrder(event.target.value as SortOrder);
+                pagination.resetPage();
+              }}
+              className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-6">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950 dark:text-slate-100">
+              Processed Leave Requests
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Showing {pagination.paginatedItems.length} of {filteredProcessedRequests.length}
+            </p>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-10 text-center dark:border-slate-700 dark:bg-slate-800">
+            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-cyan-500" />
+            <p className="text-sm text-slate-600 dark:text-slate-400">Loading processed requests...</p>
+          </div>
+        ) : error ? (
+          <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50/80 p-10 text-center dark:border-rose-900/40 dark:bg-rose-950/20">
+            <p className="mb-2 font-medium text-slate-900 dark:text-slate-100">Error loading processed requests</p>
+            <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+              {error instanceof Error ? error.message : "Something went wrong"}
+            </p>
+            <Button onClick={() => refetch()} className="rounded-2xl bg-blue-600 text-white hover:bg-blue-700">
+              Try Again
+            </Button>
+          </div>
+        ) : pagination.totalItems > 0 ? (
+          <div className="space-y-3">
+            {pagination.paginatedItems.map((request) => (
+              <ProcessedRequestCompactCard
+                key={request.id}
+                request={request}
+                formatDate={formatDate}
+                onOpenDetails={(item) => openDetailsModal(item as LeaveRequest)}
+              />
+            ))}
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              pageSize={pagination.pageSize}
+              totalItems={pagination.totalItems}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 20]}
+              className="mt-2 rounded-2xl border border-gray-100 bg-white text-sm dark:border-slate-700 dark:bg-slate-800"
+            />
+          </div>
+        ) : (
+          <div className="rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-8 text-center dark:border-slate-700 dark:bg-slate-800">
+            <p className="font-medium text-slate-900 dark:text-slate-100">No processed requests found</p>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              Try adjusting your search, status filter, or leave type.
+            </p>
+          </div>
+        )}
+      </section>
+
+      {activeSheet === "cancelConfirm" && selectedRequest && canCancelLeave(selectedRequest) && (
+        <BottomSheet
+          isOpen={activeSheet === "cancelConfirm"}
+          onClose={() => {
+            if (!cancelLeaveMutation.isPending) {
+              closeActiveSheet();
+            }
+          }}
+        >
+          <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 px-4 pb-4 pt-3 dark:border-slate-700">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                <Ban className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Cancel Approved Leave</h3>
+                <p className="truncate text-sm text-slate-600 dark:text-slate-400">{selectedRequest.firstName} {selectedRequest.lastName}</p>
+              </div>
+            </div>
+            <Button
+              onClick={() => {
+                if (!cancelLeaveMutation.isPending) {
+                  closeActiveSheet();
+                }
+              }}
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-xl"
+              disabled={cancelLeaveMutation.isPending}
+            >
+              <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              This action cannot be undone. Confirm if you want to cancel this approved leave request.
+            </p>
+            <div className="mt-4 grid gap-3">
+              <DetailField label="Leave Type" value={selectedRequest.leave_type} />
+              <DetailField label="Date Range" value={`${formatDate(selectedRequest.start_date)} - ${formatDate(selectedRequest.end_date)}`} />
+            </div>
+          </div>
+          <div className="border-t border-slate-200/80 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95">
+            <Button
+              onClick={() => cancelLeaveMutation.mutate(selectedRequest.id)}
+              className="h-11 w-full rounded-2xl bg-red-600 text-white hover:bg-red-700"
+              disabled={cancelLeaveMutation.isPending}
+            >
+              {cancelLeaveMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                <>
+                  <Ban className="mr-2 h-4 w-4" />
+                  Cancel Leave
+                </>
+              )}
+            </Button>
+          </div>
+        </BottomSheet>
+      )}
+
+      {activeSheet === "details" && selectedRequest && (
+        <BottomSheet isOpen={activeSheet === "details"} onClose={closeActiveSheet}>
+          <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 px-4 pb-4 pt-3 dark:border-slate-700">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                <User className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="truncate text-base font-semibold text-slate-900 dark:text-slate-100">{selectedRequest.leave_type}</h3>
+                <p className="truncate text-sm text-slate-600 dark:text-slate-400">
+                  {selectedRequest.firstName} {selectedRequest.lastName}
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={closeActiveSheet}
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-xl"
+            >
+              <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <DetailField label="Employee" value={`${selectedRequest.firstName} ${selectedRequest.lastName}`} note={selectedRequest.jobTitle || selectedRequest.email} />
+              <DetailField label="Status" value={<Badge className={getStatusColor(selectedRequest.status)}>{selectedRequest.status.charAt(0).toUpperCase() + selectedRequest.status.slice(1)}</Badge>} />
+              <DetailField label="Start Date" value={formatDate(selectedRequest.start_date)} />
+              <DetailField label="End Date" value={formatDate(selectedRequest.end_date)} />
+              <DetailField label="Leave Type" value={selectedRequest.leave_type} />
+              <DetailField label="Duration" value={`${selectedRequest.duration} day${selectedRequest.duration > 1 ? "s" : ""}${selectedRequest.leave_length === "half_day" ? " (Half Day)" : ""}`} />
+              <DetailField label="Applied Date" value={formatDate(selectedRequest.createdAt)} />
+            </div>
+
+            {selectedRequest.leave_comment ? (
+              <div className="mt-4">
+                <DetailField label="Employee Comment" value={selectedRequest.leave_comment} />
+              </div>
+            ) : null}
+
+            {selectedRequest.feedback ? (
+              <div className="mt-4">
+                <DetailField label="Manager Feedback" value={selectedRequest.feedback} />
+              </div>
+            ) : null}
+          </div>
+
+          {canCancelLeave(selectedRequest) ? (
+            <div className="border-t border-slate-200/80 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-800/95">
+              <Button
+                onClick={() => handleCancelLeave(selectedRequest)}
+                className="h-11 w-full rounded-2xl bg-red-600 text-white hover:bg-red-700"
+              >
+                <Ban className="mr-2 h-4 w-4" />
+                Cancel Leave
+              </Button>
+            </div>
+          ) : null}
+        </BottomSheet>
+      )}
+    </div>
+  );
+};
+
+export default ProcessedLeaveRequestsPage;
