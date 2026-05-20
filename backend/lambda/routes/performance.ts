@@ -115,6 +115,9 @@ const createCycleSchema = z.object({
     name: z.string().min(1).max(100),
     startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+}).refine((d) => new Date(d.endDate) > new Date(d.startDate), {
+    message: 'endDate must be after startDate',
+    path: ['endDate'],
 });
 
 const saveResponseSchema = z.object({
@@ -504,10 +507,29 @@ app.post('/cycles/:id/close', async (c: Context): Promise<Response> => {
         }
         const cycleId = c.req.param('id');
 
+        const cycle = await prisma.review_cycles.findUnique({ where: { id: cycleId } });
+        if (!cycle) return c.json({ success: false, message: 'Cycle not found' }, 404);
+        if (cycle.status === 'closed') return c.json({ success: false, message: 'Cycle is already closed' }, 400);
+
         await prisma.review_cycles.update({
             where: { id: cycleId },
             data: { status: 'closed' },
         });
+
+        // Notify every active employee that the cycle has closed
+        const employees = await prisma.users.findMany({
+            where: { isActive: true },
+            select: { id: true },
+        });
+        void notify(employees.map((emp) => ({
+            recipientId: emp.id,
+            title: `Review cycle "${cycle.name}" has closed`,
+            message: `The ${cycle.name} performance review cycle has now closed. Your results will be shared with you shortly.`,
+            actionUrl: '/performance-review',
+            actionText: 'View results',
+            relatedId: cycleId,
+            priority: 'normal' as const,
+        })));
 
         return c.json({ success: true, message: 'Cycle closed.' });
     } catch (e) {
@@ -742,11 +764,21 @@ app.post('/responses', async (c: Context): Promise<Response> => {
             },
         });
 
-        // Bump review to in_progress
-        if (review.status === 'not_started' || review.status === 'peer_reviews_in_progress') {
+        // Advance status to in-progress for the appropriate review type
+        const inProgressStatus = review.reviewType === 'peer_review'
+            ? 'peer_reviews_in_progress'
+            : review.reviewType === 'manager_appraisal'
+                ? 'manager_reviewing'
+                : 'employee_in_progress';
+
+        const shouldBump = review.status === 'not_started'
+            || (review.reviewType === 'peer_review' && review.status === 'not_started')
+            || (review.reviewType === 'manager_appraisal' && review.status === 'employee_completed');
+
+        if (shouldBump || review.status === 'not_started') {
             await prisma.performance_reviews.update({
                 where: { id: data.reviewId },
-                data: { status: 'employee_in_progress' },
+                data: { status: inProgressStatus },
             });
         }
 
@@ -773,16 +805,30 @@ app.post('/reviews/:id/submit', async (c: Context): Promise<Response> => {
             (review.reviewType === 'manager_appraisal' && admin);
         if (!canSubmit) return c.json({ success: false, message: 'Access denied' }, 403);
 
-        const completedStatus = review.reviewType === 'manager_appraisal'
-            ? 'final_review_complete'
-            : 'employee_completed';
+        const completedStatus =
+            review.reviewType === 'manager_appraisal' ? 'final_review_complete' :
+            review.reviewType === 'peer_review' ? 'peer_reviews_complete' :
+            'employee_completed';
+
+        // For manager appraisal, calculate and store the overallRating from responses
+        let overallRating: number | undefined;
+        if (review.reviewType === 'manager_appraisal') {
+            const responses = await prisma.review_responses.findMany({
+                where: { performanceReviewId: reviewId },
+                select: { ratingResponse: true },
+            });
+            const ratings = responses.map((r) => r.ratingResponse).filter((v): v is number => v != null);
+            if (ratings.length) {
+                overallRating = parseFloat((ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2));
+            }
+        }
 
         await prisma.performance_reviews.update({
             where: { id: reviewId },
             data: {
                 status: completedStatus,
                 ...(review.reviewType === 'manager_appraisal'
-                    ? { managerReviewCompletedAt: new Date() }
+                    ? { managerReviewCompletedAt: new Date(), ...(overallRating !== undefined ? { overallRating } : {}) }
                     : { employeeCompletedAt: new Date() }),
             },
         });
@@ -825,7 +871,7 @@ app.post('/reviews/:id/submit', async (c: Context): Promise<Response> => {
             }
         }
 
-        // If this is a manager appraisal, notify the employee
+        // If this is a manager appraisal, notify the employee their results are ready
         if (review.reviewType === 'manager_appraisal') {
             const cycle = review.cycleId
                 ? await prisma.review_cycles.findUnique({ where: { id: review.cycleId }, select: { name: true } })
@@ -834,10 +880,32 @@ app.post('/reviews/:id/submit', async (c: Context): Promise<Response> => {
                 recipientId: review.employeeId,
                 title: 'Your manager appraisal has been completed',
                 message: cycle
-                    ? `Your manager has completed your appraisal for the "${cycle.name}" cycle.`
-                    : 'Your manager has completed your appraisal.',
+                    ? `Your manager has completed your appraisal for the "${cycle.name}" cycle. Please log in to view and acknowledge your results.`
+                    : 'Your manager has completed your appraisal. Please log in to view and acknowledge your results.',
                 actionUrl: '/performance-review',
-                actionText: 'View review',
+                actionText: 'View & acknowledge',
+                relatedId: reviewId,
+                priority: 'high' as const,
+            }]);
+        }
+
+        // If this is a self-review, notify the manager so they know it is ready to review
+        if (review.reviewType === 'self_review' && review.managerId) {
+            const [employee, cycle] = await Promise.all([
+                prisma.users.findUnique({ where: { id: review.employeeId }, select: { firstName: true, lastName: true } }),
+                review.cycleId
+                    ? prisma.review_cycles.findUnique({ where: { id: review.cycleId }, select: { name: true } })
+                    : Promise.resolve(null),
+            ]);
+            const empName = `${employee?.firstName ?? ''} ${employee?.lastName ?? ''}`.trim();
+            void notify([{
+                recipientId: review.managerId,
+                title: `${empName} has submitted their self-review`,
+                message: cycle
+                    ? `${empName} has submitted their self-review for the "${cycle.name}" cycle. You can now begin the manager appraisal.`
+                    : `${empName} has submitted their self-review.`,
+                actionUrl: '/performance-review-admin',
+                actionText: 'Start appraisal',
                 relatedId: reviewId,
                 priority: 'normal' as const,
             }]);
@@ -942,6 +1010,7 @@ app.get('/submissions/:employeeId', async (c: Context): Promise<Response> => {
 // POST /performance/submissions/:employeeId/override
 app.post('/submissions/:employeeId/override', async (c: Context): Promise<Response> => {
     try {
+        if (!(await isAdminOrManager(c))) return c.json({ success: false, message: 'Forbidden' }, 403);
         const employeeId = c.req.param('employeeId');
         const body = await c.req.json();
         const data = overrideSchema.parse(body);
@@ -1007,26 +1076,52 @@ app.get('/admin/summary', async (c: Context): Promise<Response> => {
 
         const cycleId = c.req.query('cycleId');
 
-        const employees = await prisma.users.findMany({
-            where: { isActive: true },
-            select: { id: true, firstName: true, lastName: true, jobTitle: true, role: true },
-        });
+        const cycleFilter = cycleId ? { cycleId } : {};
 
-        const results = await Promise.all(employees.map(async (emp) => {
-            const [managerReview, selfReview, assignments] = await Promise.all([
-                prisma.performance_reviews.findFirst({
-                    where: { employeeId: emp.id, reviewType: 'manager_appraisal', ...(cycleId ? { cycleId } : {}) },
-                    include: { responses: { select: { ratingResponse: true, overrideRating: true } } },
-                }),
-                prisma.performance_reviews.findFirst({
-                    where: { employeeId: emp.id, reviewType: 'self_review', ...(cycleId ? { cycleId } : {}) },
-                    include: { responses: { select: { ratingResponse: true, overrideRating: true } } },
-                }),
-                prisma.peer_review_assignments.findMany({
-                    where: { revieweeId: emp.id, status: 'completed', ...(cycleId ? { cycleId } : {}) },
-                    include: { performanceReview: { include: { responses: { select: { ratingResponse: true, overrideRating: true } } } } },
-                }),
-            ]);
+        // Batch all data in 3 queries instead of N*3 per employee
+        const [employees, allReviews, allAssignments] = await Promise.all([
+            prisma.users.findMany({
+                where: { isActive: true },
+                select: { id: true, firstName: true, lastName: true, jobTitle: true, role: true },
+            }),
+            prisma.performance_reviews.findMany({
+                where: {
+                    reviewType: { in: ['manager_appraisal', 'self_review'] },
+                    employee: { isActive: true },
+                    ...cycleFilter,
+                },
+                select: {
+                    id: true, employeeId: true, managerId: true, reviewType: true, status: true,
+                    responses: { select: { ratingResponse: true, overrideRating: true } },
+                },
+            }),
+            prisma.peer_review_assignments.findMany({
+                where: {
+                    status: 'completed',
+                    reviewee: { isActive: true },
+                    ...cycleFilter,
+                },
+                select: {
+                    revieweeId: true,
+                    performanceReview: { select: { responses: { select: { ratingResponse: true, overrideRating: true } } } },
+                },
+            }),
+        ]);
+
+        // Index by employeeId for O(1) lookup
+        const managerReviewByEmp = new Map(allReviews.filter((r) => r.reviewType === 'manager_appraisal').map((r) => [r.employeeId, r]));
+        const selfReviewByEmp = new Map(allReviews.filter((r) => r.reviewType === 'self_review').map((r) => [r.employeeId, r]));
+        const assignmentsByEmp = allAssignments.reduce<Map<string, typeof allAssignments>>((map, a) => {
+            const list = map.get(a.revieweeId) ?? [];
+            list.push(a);
+            map.set(a.revieweeId, list);
+            return map;
+        }, new Map());
+
+        const results = employees.map((emp) => {
+            const managerReview = managerReviewByEmp.get(emp.id) ?? null;
+            const selfReview = selfReviewByEmp.get(emp.id) ?? null;
+            const assignments = assignmentsByEmp.get(emp.id) ?? [];
 
             const mAvg = avg(managerReview?.responses.map((r) => r.ratingResponse).filter((v): v is number => v != null) ?? []);
             const sAvg = avg(selfReview?.responses.map((r) => r.ratingResponse).filter((v): v is number => v != null) ?? []);
@@ -1047,7 +1142,7 @@ app.get('/admin/summary', async (c: Context): Promise<Response> => {
                 nominatedPeers: assignments.length,
                 reviewStatus: managerReview?.status ?? 'not_started',
             };
-        }));
+        });
 
         return c.json({ success: true, data: results });
     } catch (e) {
@@ -1160,6 +1255,123 @@ app.get('/manager-review/:reviewId', async (c: Context): Promise<Response> => {
     } catch (e) {
         console.error(e);
         return c.json({ success: false, message: 'Failed to fetch manager appraisal' }, 500);
+    }
+});
+
+// ─────────────────────────────────────────────
+// EMPLOYEE — VIEW OWN FINAL APPRAISAL + ACKNOWLEDGE
+// ─────────────────────────────────────────────
+
+// GET /performance/my-appraisal?cycleId=
+// Returns the completed manager appraisal visible to the employee after it is final_review_complete.
+app.get('/my-appraisal', async (c: Context): Promise<Response> => {
+    try {
+        const userId = getUserId(c);
+        const cycleId = c.req.query('cycleId');
+
+        const review = await prisma.performance_reviews.findFirst({
+            where: {
+                employeeId: userId,
+                reviewType: 'manager_appraisal',
+                status: { in: ['final_review_complete', 'acknowledged'] },
+                ...(cycleId ? { cycleId } : {}),
+            },
+            include: {
+                manager: { select: { firstName: true, lastName: true, jobTitle: true } },
+                cycle: { select: { id: true, name: true } },
+                responses: {
+                    include: {
+                        question: { select: { category: true, subcategory: true, questionText: true, questionType: true } },
+                    },
+                    orderBy: { createdAt: 'asc' },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        if (!review) return c.json({ success: false, message: 'No completed appraisal found' }, 404);
+
+        return c.json({
+            success: true,
+            data: {
+                reviewId: review.id,
+                status: review.status,
+                employeeAcknowledged: review.employeeAcknowledged,
+                overallRating: review.overallRating ? Number(review.overallRating) : null,
+                promotionRecommended: review.promotionRecommended,
+                newJobLevel: review.newJobLevel,
+                finalSummary: review.finalSummary,
+                managerReviewCompletedAt: review.managerReviewCompletedAt,
+                cycle: review.cycle ? { id: review.cycle.id, name: review.cycle.name } : null,
+                manager: {
+                    name: `${review.manager.firstName ?? ''} ${review.manager.lastName ?? ''}`.trim(),
+                    jobTitle: review.manager.jobTitle ?? '',
+                },
+                responses: review.responses.map((r) => ({
+                    questionId: r.questionId,
+                    category: r.question.category,
+                    subcategory: r.question.subcategory ?? null,
+                    questionText: r.question.questionText,
+                    questionType: r.question.questionType,
+                    ratingResponse: r.overrideRating ?? r.ratingResponse,
+                    textResponse: r.textResponse,
+                })),
+            },
+        });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to fetch appraisal' }, 500);
+    }
+});
+
+// POST /performance/reviews/:id/acknowledge
+// Employee acknowledges they have read their final appraisal.
+app.post('/reviews/:id/acknowledge', async (c: Context): Promise<Response> => {
+    try {
+        const userId = getUserId(c);
+        const reviewId = c.req.param('id');
+
+        const review = await prisma.performance_reviews.findUnique({ where: { id: reviewId } });
+        if (!review) return c.json({ success: false, message: 'Review not found' }, 404);
+        if (review.employeeId !== userId) return c.json({ success: false, message: 'Access denied' }, 403);
+        if (review.reviewType !== 'manager_appraisal') {
+            return c.json({ success: false, message: 'Only manager appraisals can be acknowledged' }, 400);
+        }
+        if (review.status !== 'final_review_complete') {
+            return c.json({ success: false, message: 'Appraisal must be completed before it can be acknowledged' }, 400);
+        }
+
+        await prisma.performance_reviews.update({
+            where: { id: reviewId },
+            data: { employeeAcknowledged: true, status: 'acknowledged' },
+        });
+
+        // Notify the manager that the employee has acknowledged
+        if (review.managerId) {
+            const [employee, cycle] = await Promise.all([
+                prisma.users.findUnique({ where: { id: userId }, select: { firstName: true, lastName: true } }),
+                review.cycleId
+                    ? prisma.review_cycles.findUnique({ where: { id: review.cycleId }, select: { name: true } })
+                    : Promise.resolve(null),
+            ]);
+            const empName = `${employee?.firstName ?? ''} ${employee?.lastName ?? ''}`.trim();
+            void notify([{
+                recipientId: review.managerId,
+                title: `${empName} acknowledged their appraisal`,
+                message: cycle
+                    ? `${empName} has acknowledged their manager appraisal for the "${cycle.name}" cycle.`
+                    : `${empName} has acknowledged their manager appraisal.`,
+                actionUrl: '/performance-review-admin',
+                actionText: 'View',
+                relatedId: reviewId,
+                priority: 'low' as const,
+            }]);
+        }
+
+        return c.json({ success: true, message: 'Appraisal acknowledged.' });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to acknowledge appraisal' }, 500);
     }
 });
 
@@ -1324,6 +1536,26 @@ app.put('/nominations/:employeeId', async (c: Context): Promise<Response> => {
         const cycle = await prisma.review_cycles.findUnique({ where: { id: cycleId } });
         if (!cycle) return c.json({ success: false, message: 'Cycle not found' }, 404);
         if (cycle.status === 'closed') return c.json({ success: false, message: 'Cannot modify a closed cycle' }, 400);
+
+        // Validate peers: no self-nomination, max 5, all must be active
+        const MAX_PEERS = 5;
+        if (peerIds.includes(employeeId)) {
+            return c.json({ success: false, message: 'An employee cannot be their own peer reviewer' }, 400);
+        }
+        if (peerIds.length > MAX_PEERS) {
+            return c.json({ success: false, message: `Cannot assign more than ${MAX_PEERS} peer reviewers` }, 400);
+        }
+        if (peerIds.length > 0) {
+            const activePeers = await prisma.users.findMany({
+                where: { id: { in: peerIds }, isActive: true },
+                select: { id: true },
+            });
+            const activePeerIds = new Set(activePeers.map((u) => u.id));
+            const inactivePeers = peerIds.filter((id) => !activePeerIds.has(id));
+            if (inactivePeers.length > 0) {
+                return c.json({ success: false, message: 'One or more selected peers are inactive or do not exist', data: { inactivePeers } }, 400);
+            }
+        }
 
         const adminId = getUserId(c);
 

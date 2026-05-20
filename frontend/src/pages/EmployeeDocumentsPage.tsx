@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, type FC } from 'react';
+import React, { useState, useRef, type FC } from 'react';
 import {
     FileText,
     Download,
@@ -137,6 +137,9 @@ const EmployeeDocumentsPage: FC = () => {
     const [showDocumentViewer, setShowDocumentViewer] = useState<boolean>(false);
     const [selectedDocument, setSelectedDocument] = useState<DocumentType | null>(null);
 
+    // Track when the document viewer was opened so we can report real view duration
+    const viewerOpenedAt = useRef<number | null>(null);
+
     // State for categories and documents (will be populated from API)
     const [documentCategories, setDocumentCategories] = useState<DocumentCategoryType[]>([]);
     const [allDocuments, setAllDocuments] = useState<DocumentType[]>([]);
@@ -252,7 +255,7 @@ const EmployeeDocumentsPage: FC = () => {
             // Invalidate and refetch the documents to ensure consistency
             queryClient.invalidateQueries({ queryKey: ['userDocuments', user?.id] });
 
-            console.log(`Document "${selectedDocument?.name}" has been signed successfully!`);
+;
 
             toast.success('Document signed', {
                 description: `Successfully signed document "${selectedDocument?.name}".`,
@@ -269,6 +272,11 @@ const EmployeeDocumentsPage: FC = () => {
     // Document view mutation
     const documentViewMutation = useMutation({
         mutationFn: async ({ userId, documentId }: { userId: string; documentId: number }) => {
+            // Calculate how long the viewer has been open (seconds). Falls back to 0 on first open.
+            const elapsedSeconds = viewerOpenedAt.current
+                ? Math.round((Date.now() - viewerOpenedAt.current) / 1000)
+                : 0;
+
             const response = await authFetch('/user-docs/document-progress', {
                 method: 'POST',
                 headers: {
@@ -277,10 +285,9 @@ const EmployeeDocumentsPage: FC = () => {
                 body: JSON.stringify({
                     user_id: userId,
                     document_id: documentId,
-                    // TODO: look into capturing this data as its part of the requirements
-                    progress_data: { "page": Math.floor(Math.random() * 100), "scrollPosition": Math.floor(Math.random() * 100) },
-                    time_spent: Math.floor(Math.random() * 100),
-                    duration: Math.floor(Math.random() * 100)
+                    progress_data: { page: 1, scrollPosition: 0 },
+                    time_spent: elapsedSeconds,
+                    duration: elapsedSeconds,
                 }),
             });
 
@@ -308,7 +315,6 @@ const EmployeeDocumentsPage: FC = () => {
             // Invalidate and refetch the documents to ensure consistency
             queryClient.invalidateQueries({ queryKey: ['userDocuments', user?.id] });
 
-            console.log(`Document marked as viewed successfully!`);
         },
         onError: (error) => {
             console.error('Error marking document as viewed:', error);
@@ -418,6 +424,7 @@ const EmployeeDocumentsPage: FC = () => {
 
     // Handle viewing a document (opens document viewer and marks as viewed)
     const handleViewDocument = (doc: DocumentType): void => {
+        viewerOpenedAt.current = Date.now();
         setSelectedDocument(doc);
         setShowDocumentViewer(true);
 
@@ -440,7 +447,6 @@ const EmployeeDocumentsPage: FC = () => {
         link.click();
         document.body.removeChild(link);
 
-        console.log(`Opening ${doc.name} in a new tab...`);
     };
 
 

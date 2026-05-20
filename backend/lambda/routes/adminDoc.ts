@@ -669,12 +669,11 @@ adminDocs.post('/departments', async (c) => {
         }
 
         const sql = `INSERT INTO departments (name, description) VALUES (?,?)`;
-        await connection.execute(sql, [name, description]);
-        const response = ResponseService.success(
-            "Department added successfully",
-            []
-        );
-        return c.json(response, 200);
+        const [result] = await connection.execute<ResultSetHeader>(sql, [name, description]);
+        const [rows] = await connection.execute(`SELECT * FROM departments WHERE id = ?`, [result.insertId]);
+        const created = (rows as any[])[0];
+        const response = ResponseService.success("Department added successfully", created);
+        return c.json(response, 201);
     } catch (error) {
         console.error("Error adding department:", error);
         return c.json(ResponseService.error("DepartmentAdditionError", "Failed to add department."), 500);
@@ -701,6 +700,8 @@ adminDocs.get('/departments', async (c) => {
     } catch (error) {
         console.error("Error retrieving departments:", error);
         return c.json(ResponseService.error("DepartmentsRetrievalError", "Failed to retrieve departments."), 500);
+    } finally {
+        if (connection) await connection.end();
     }
 })
 
@@ -725,10 +726,9 @@ adminDocs.put('/departments/:department_id', async (c) => {
         const { name, description } = await c.req.json();
         const sql = `UPDATE departments SET name = ?, description = ? WHERE id = ?`;
         await connection.execute(sql, [name, description, departmentId]);
-        const response = ResponseService.success(
-            "Department updated successfully",
-            []
-        );
+        const [rows] = await connection.execute(`SELECT * FROM departments WHERE id = ?`, [departmentId]);
+        const updated = (rows as any[])[0];
+        const response = ResponseService.success("Department updated successfully", updated);
         return c.json(response, 200);
     } catch (error) {
         console.error("Error updating department:", error);
@@ -967,7 +967,11 @@ adminDocs.post('/send-bulk-reminders', async (c) => {
 
     try {
         let adminId: string;
-        try { adminId = getUserId(c); } catch { adminId = 'system'; }
+        try {
+            adminId = getUserId(c);
+        } catch {
+            return c.json(ResponseService.error("UNAUTHORIZED", "Authentication required"), 401);
+        }
 
         connection = await DatabaseService.createConnection();
 
