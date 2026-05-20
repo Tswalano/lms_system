@@ -16,6 +16,7 @@ const features = {
   employeeDocuments: flag('VITE_FEATURE_EMPLOYEE_DOCUMENTS'),
   performanceAdmin: flag('VITE_FEATURE_PERFORMANCE_ADMIN'),
   performance: flag('VITE_FEATURE_PERFORMANCE'),
+  reports: flag('VITE_FEATURE_REPORTS'),
 } as const;
 
 export type FeatureFlag = keyof typeof features;

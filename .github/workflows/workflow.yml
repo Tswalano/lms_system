@@ -10,7 +10,7 @@ on:
       environment:
         description: "Deployment environment"
         required: true
-        default: "prod"
+        default: "dev"
         type: choice
         options:
           - dev
@@ -192,7 +192,13 @@ jobs:
           echo "Release type: ${{ needs.semantic-release.outputs.release-type }}"
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            ENV="${{ github.event.inputs.environment }}"
+            REQUESTED_ENV="${{ github.event.inputs.environment }}"
+            # Block accidental prod deploy from dev branch via manual trigger
+            if [ "$BRANCH" = "dev" ] && [ "$REQUESTED_ENV" = "prod" ]; then
+              echo "::error::Cannot deploy to prod from the dev branch. Switch to main or choose env=dev."
+              exit 1
+            fi
+            ENV="$REQUESTED_ENV"
           elif [ "${{ github.event_name }}" = "release" ]; then
             ENV="prod"
           elif [ "$BRANCH" = "dev" ]; then
