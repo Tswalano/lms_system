@@ -166,6 +166,19 @@ const LEAVE_COLORS = [
     'from-rose-500 to-rose-600',
 ];
 
+// Parse a DOB string as a local date.
+// When the API returns a UTC timestamp (e.g. "1990-05-19T22:00:00.000Z"), splitting on T
+// gives the UTC date which can be one day behind the user's local date. Instead we parse
+// the full value and extract local year/month/day so timezone shifts don't affect it.
+function parseDobLocal(dob: string): Date {
+    if (dob.includes('T') || dob.includes('Z')) {
+        const d = new Date(dob);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+    const [y, m, d] = dob.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 
 const UserProfilePage: React.FC = () => {
@@ -504,7 +517,7 @@ const UserProfilePage: React.FC = () => {
                                             >
                                                 <CalendarIcon className="mr-2 h-3.5 w-3.5 text-gray-400" />
                                                 {profileData.dob
-                                                    ? format(new Date(profileData.dob), "PPP")
+                                                    ? format(parseDobLocal(profileData.dob), "PPP")
                                                     : <span>Pick a date</span>
                                                 }
                                             </Button>
@@ -512,7 +525,8 @@ const UserProfilePage: React.FC = () => {
                                         <PopoverContent className="w-auto p-0" align="start">
                                             <Calendar
                                                 mode="single"
-                                                selected={profileData.dob ? new Date(profileData.dob) : undefined}
+                                                selected={profileData.dob ? parseDobLocal(profileData.dob) : undefined}
+                                                defaultMonth={profileData.dob ? parseDobLocal(profileData.dob) : new Date(new Date().getFullYear() - 25, 0)}
                                                 onSelect={(date) => {
                                                     if (date) {
                                                         const y = date.getFullYear();
@@ -525,7 +539,7 @@ const UserProfilePage: React.FC = () => {
                                                 disabled={d => d > new Date()}
                                                 captionLayout="dropdown"
                                                 startMonth={new Date(1900, 0)}
-                                                endMonth={new Date(new Date().getFullYear(), 0)}
+                                                endMonth={new Date()}
                                                 className="rounded-xl border border-gray-100 dark:border-slate-700"
                                             />
                                         </PopoverContent>

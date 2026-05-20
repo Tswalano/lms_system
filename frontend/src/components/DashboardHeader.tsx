@@ -166,12 +166,11 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
                 b.isActive !== '0'
         );
 
-    console.log('birthdayData', colleagueBirthdays);
-
-    const allTodaysBirthdays: Array<{ userId: string; name: string; firstName: string; birthdayDate: string }> =
-        (birthdayData?.data?.birthdays ?? []).filter((b: any) => isBirthdayObservedToday(b.birthdayDate));
-
-    const isOwnBirthday = Boolean(user?.dob && isTodayBirthday(user.dob));
+    const isOwnBirthdayFromProfile = Boolean(user?.dob && isTodayBirthday(user.dob));
+    const isOwnBirthdayFromApi = (birthdayData?.data?.birthdays ?? []).some(
+        (b: any) => String(b.userId) === String(user?.id) && isBirthdayObservedToday(b.birthdayDate)
+    );
+    const isOwnBirthday = isOwnBirthdayFromProfile || isOwnBirthdayFromApi;
     const hasBirthdayCelebration = isOwnBirthday || colleagueBirthdays.length > 0;
     const shouldShowConfetti = hasBirthdayCelebration;
 
@@ -504,126 +503,205 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
             <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-4 lg:space-y-6">
 
                 {isOwnBirthday ? (
-                    /* ── Own birthday card ─────────────────────────────────── */
-                    <div className="w-full max-w-2xl mx-auto">
-                        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-500 via-rose-500 to-orange-400 dark:from-pink-600 dark:via-rose-600 dark:to-orange-500 p-1 shadow-2xl shadow-pink-500/30">
-                            <div className="rounded-[22px] bg-white/10 dark:bg-black/10 backdrop-blur-sm px-8 py-8">
-                                {/* Floating emoji row */}
-                                <div className="flex items-center justify-center gap-3 mb-4 text-3xl select-none">
-                                    {['🎉', '🎂', '🎈', '🥳', '🎁', '🎈', '🎉'].map((e, i) => (
-                                        <span
-                                            key={i}
-                                            style={{
-                                                animation: `float ${1.8 + i * 0.15}s ease-in-out ${i * 0.12}s infinite alternate`,
-                                                display: 'inline-block',
-                                            }}
-                                        >
-                                            {e}
-                                        </span>
-                                    ))}
-                                </div>
+                    /* ── Own birthday ─────────────────────────────────── */
+                    <div className="relative w-full max-w-3xl mx-auto py-4 overflow-hidden text-center">
 
-                                <h1 className="text-4xl lg:text-5xl font-extrabold text-white drop-shadow mb-2 tracking-tight">
-                                    Happy Birthday, {user?.firstName}! 🎂
-                                </h1>
-                                <p className="text-white/90 text-lg font-medium">
-                                    Wishing you a day as amazing as you are. Enjoy every moment! 🎉
-                                </p>
-
-                                {/* Time badge */}
-                                <div className="mt-5 inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-1.5 text-white/90 text-sm font-mono">
-                                    {formatTime(currentTime)}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Colleague birthdays below own card */}
-                        {colleagueBirthdays.length > 0 && (
-                            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                                {colleagueBirthdays.map((b) => (
-                                    <span key={b.userId} className="inline-flex items-center gap-1.5 rounded-full bg-pink-100 dark:bg-pink-900/30 border border-pink-200 dark:border-pink-700 px-3 py-1 text-sm text-pink-700 dark:text-pink-300 font-medium">
-                                        🎂 {b.firstName} is also celebrating today!
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-
-                        <style>{`
-                            @keyframes float {
-                                from { transform: translateY(0px) rotate(-5deg); }
-                                to   { transform: translateY(-10px) rotate(5deg); }
-                            }
-                        `}</style>
-                    </div>
-                ) : allTodaysBirthdays.length > 0 ? (
-                    /* ── Birthday celebration (minimal + animated text) ───────────────── */
-                    <div className="relative w-full max-w-2xl mx-auto flex flex-col items-center justify-center text-center space-y-5 overflow-hidden">
-
-                        {/* Floating background sparkles */}
+                        {/* Scattered floating emojis in background */}
                         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                            <div className="absolute top-6 left-[15%] text-pink-400 animate-bounce text-xl">✨</div>
-                            <div className="absolute top-12 right-[18%] text-yellow-400 animate-pulse text-lg">🎉</div>
-                            <div className="absolute bottom-10 left-[25%] text-cyan-400 animate-ping text-sm">✦</div>
-                            <div className="absolute bottom-4 right-[30%] text-pink-300 animate-bounce text-lg" style={{ animationDuration: '3s' }}>
-                                🎈
-                            </div>
-                            <div className="absolute top-1/2 left-6 text-orange-300 animate-pulse">🎂</div>
-                            <div className="absolute top-1/3 right-8 text-purple-300 animate-bounce" style={{ animationDuration: '2.8s' }}>
-                                🥳
-                            </div>
+                            {[
+                                { emoji: '🎉', cls: 'top-4 left-[8%]', dur: '4s', delay: '0s' },
+                                { emoji: '🎂', cls: 'top-6 left-[22%]', dur: '5s', delay: '0.5s' },
+                                { emoji: '🎈', cls: 'top-3 right-[20%]', dur: '3.8s', delay: '0.2s' },
+                                { emoji: '🥳', cls: 'bottom-3 right-[10%]', dur: '6s', delay: '1s' },
+                                { emoji: '🎁', cls: 'bottom-4 left-[14%]', dur: '4.5s', delay: '0.8s' },
+                                { emoji: '🎈', cls: 'top-1/2 left-[5%]', dur: '5.5s', delay: '1.5s' },
+                                { emoji: '🎉', cls: 'bottom-2 right-[28%]', dur: '4.2s', delay: '0.3s' },
+                                { emoji: '✨', cls: 'top-8 right-[8%]', dur: '3.5s', delay: '0.7s' },
+                            ].map((item, i) => (
+                                <span
+                                    key={i}
+                                    className={`absolute text-2xl opacity-60 ${item.cls}`}
+                                    style={{ animation: `ownBdayFloat ${item.dur} ease-in-out ${item.delay} infinite alternate` }}
+                                >
+                                    {item.emoji}
+                                </span>
+                            ))}
                         </div>
 
-                        {/* Greeting */}
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 z-10">
-                            <div
-                                className="text-5xl lg:text-6xl animate-bounce drop-shadow-sm"
-                                style={{
-                                    animationDuration: '2.5s',
-                                    animationTimingFunction: 'ease-in-out',
-                                }}
-                            >
+                        {/* Clock — same layout as standard greeting */}
+                        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 mb-5">
+                            <div className="text-5xl lg:text-6xl animate-bounce drop-shadow-sm" style={{ animationDuration: '2.5s', animationTimingFunction: 'ease-in-out' }}>
                                 {getTimeIcon()}
                             </div>
-
                             <div className="hidden sm:block h-8 w-px bg-gradient-to-b from-transparent via-blue-300 dark:via-blue-500 to-transparent" />
-
-                            <div className="text-sm lg:text-lg font-medium text-gray-700 dark:text-gray-200 bg-white/50 dark:bg-white/5 backdrop-blur-sm px-3 lg:px-4 py-1.5 lg:py-2 rounded-full border border-white/30">
+                            <div className="text-sm lg:text-lg font-medium text-gray-700 dark:text-gray-200 bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/60 dark:to-green-900/60 px-3 lg:px-4 py-1.5 lg:py-2 rounded-full backdrop-blur-sm border border-blue-200/30 dark:border-blue-700/30 transition-all duration-300">
                                 <span className="font-mono">{formatTime(currentTime)}</span>
                             </div>
                         </div>
 
-                        <div className="text-xl sm:text-2xl lg:text-4xl font-bold z-10">
-                            <span className="bg-gradient-to-r from-blue-600 via-cyan-500 to-green-500 dark:from-blue-400 dark:via-cyan-400 dark:to-green-400 bg-clip-text text-transparent">
-                                {getGreeting()}, {user?.firstName} {user?.lastName}
-                            </span>
-                        </div>
-
-                        {/* Birthday text only */}
-                        <div className="relative z-10 space-y-2">
-                            <p className="text-lg sm:text-xl lg:text-2xl font-semibold tracking-tight text-gray-800 dark:text-gray-100 animate-pulse">
-                                {allTodaysBirthdays.length === 1 ? (
+                        {/* Heading — only names are coloured */}
+                        <div className="relative z-10 text-2xl sm:text-3xl lg:text-5xl font-extrabold tracking-tight text-gray-800 dark:text-gray-100">
+                            {"🎂 Happy Birthday, "}
+                            <span className="bg-gradient-to-r from-pink-500 via-rose-400 to-orange-400 bg-clip-text text-transparent">
+                                {user?.firstName}
+                                {colleagueBirthdays.length === 1 && (
+                                    <span> & {colleagueBirthdays[0].firstName}</span>
+                                )}
+                                {colleagueBirthdays.length > 1 && (
                                     <>
-                                        🎂 Today is{" "}
-                                        <span className="bg-gradient-to-r from-pink-500 to-orange-400 bg-clip-text text-transparent font-bold">
-                                            {allTodaysBirthdays[0].firstName}'s
-                                        </span>{" "}
-                                        birthday!
-                                    </>
-                                ) : (
-                                    <>
-                                        🎉 Celebrating{" "}
-                                        <span className="bg-gradient-to-r from-pink-500 via-rose-400 to-orange-400 bg-clip-text text-transparent font-bold">
-                                            {allTodaysBirthdays.map((b) => b.firstName).join(", ")}
-                                        </span>{" "}
-                                        today!{" "} 🎉
+                                        {colleagueBirthdays.slice(0, -1).map((b) => (
+                                            <span key={b.userId}>, {b.firstName}</span>
+                                        ))}
+                                        <span> & {colleagueBirthdays[colleagueBirthdays.length - 1].firstName}</span>
                                     </>
                                 )}
-                            </p>
-
-                            <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 italic">
-                                Go make their day a little more awesome ✨
-                            </p>
+                            </span>
+                            {"! 🎉"}
                         </div>
+
+                        <style>{`
+                            @keyframes ownBdayFloat {
+                                from { transform: translateY(0px) rotate(-6deg); }
+                                to   { transform: translateY(-12px) rotate(6deg); }
+                            }
+                        `}</style>
+                    </div>
+                ) : colleagueBirthdays.length > 0 ? (
+                    /* ── Ambient birthday celebration ───────────────────────────── */
+                    <div className="relative w-full max-w-3xl mx-auto py-4 overflow-hidden">
+
+                        {/* Ambient glow backgrounds */}
+                        <div className="pointer-events-none absolute inset-0">
+                            <div className="absolute top-0 left-1/4 h-40 w-40 rounded-full bg-pink-500/10 blur-3xl animate-pulse" />
+                            <div
+                                className="absolute bottom-0 right-1/4 h-40 w-40 rounded-full bg-orange-400/10 blur-3xl animate-pulse"
+                                style={{ animationDuration: '4s' }}
+                            />
+                        </div>
+
+                        {/* Floating emojis */}
+                        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                            {[
+                                { emoji: '✨', cls: 'top-6 left-[12%]', dur: '4s' },
+                                { emoji: '🎈', cls: 'top-10 right-[18%]', dur: '5s' },
+                                { emoji: '🎉', cls: 'bottom-8 left-[20%]', dur: '4.5s' },
+                                { emoji: '🥳', cls: 'bottom-6 right-[22%]', dur: '6s' },
+                                { emoji: '🎂', cls: 'top-1/2 left-[8%]', dur: '5.5s' },
+                            ].map((item, i) => (
+                                <span
+                                    key={i}
+                                    className={`absolute text-xl opacity-70 ${item.cls}`}
+                                    style={{
+                                        animation: `birthdayFloat ${item.dur} ease-in-out infinite alternate`,
+                                    }}
+                                >
+                                    {item.emoji}
+                                </span>
+                            ))}
+                        </div>
+
+                        <div className="relative z-10 flex flex-col items-center text-center">
+
+                            {/* Greeting */}
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                                <div
+                                    className="drop-shadow-sm"
+                                    style={{
+                                        animation: 'softBounce 3s ease-in-out infinite',
+                                    }}
+                                >
+                                    {getTimeIcon()}
+                                </div>
+
+                                <div className="hidden sm:block h-8 w-px bg-gradient-to-b from-transparent via-blue-300 dark:via-blue-500 to-transparent" />
+
+                                <div className="rounded-full border border-white/20 bg-white/40 dark:bg-white/5 backdrop-blur-md px-4 py-2 text-sm lg:text-base text-gray-700 dark:text-gray-200 shadow-sm">
+                                    <span className="font-mono tracking-wide">
+                                        {formatTime(currentTime)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Main greeting */}
+                            <h1 className="mt-5 text-2xl sm:text-3xl lg:text-5xl font-black tracking-tight">
+                                <span className="bg-gradient-to-r from-blue-500 via-cyan-400 to-green-400 bg-clip-text text-transparent">
+                                    {getGreeting()}, {user?.firstName}
+                                </span>
+                            </h1>
+
+                            {/* Birthday message */}
+                            <div className="mt-6 space-y-3">
+
+                                <div
+                                    className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-800 dark:text-gray-100"
+                                    style={{
+                                        animation: 'fadeGlow 4s ease-in-out infinite',
+                                    }}
+                                >
+                                    {colleagueBirthdays.length === 1 ? (
+                                        <>
+                                            {"🎂 It's "}
+                                            <span className="bg-gradient-to-r from-pink-500 via-rose-400 to-orange-400 bg-clip-text text-transparent">
+                                                {colleagueBirthdays[0].firstName}
+                                            </span>
+                                            {"'s birthday today! Go wish them a happy birthday 🎉"}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {"🎂 "}
+                                            <span className="bg-gradient-to-r from-pink-500 via-rose-400 to-orange-400 bg-clip-text text-transparent">
+                                                {colleagueBirthdays.slice(0, -1).map((b, i) => (
+                                                    <span key={b.userId}>{i > 0 ? ", " : ""}{b.firstName}</span>
+                                                ))}
+                                                {" & "}
+                                                {colleagueBirthdays[colleagueBirthdays.length - 1].firstName}
+                                            </span>
+                                            {" are celebrating their birthdays today — go make them feel special! 🎉"}
+                                        </>
+                                    )}
+                                </div>
+
+                                <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 tracking-wide">
+                                    Go make their day extra special ✨
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Animations */}
+                        <style>{`
+            @keyframes birthdayFloat {
+                from {
+                    transform: translateY(0px) rotate(-6deg);
+                }
+                to {
+                    transform: translateY(-12px) rotate(6deg);
+                }
+            }
+
+            @keyframes softBounce {
+                0%, 100% {
+                    transform: translateY(0px);
+                }
+                50% {
+                    transform: translateY(-6px);
+                }
+            }
+
+            @keyframes fadeGlow {
+                0%, 100% {
+                    opacity: 0.9;
+                    transform: scale(1);
+                    text-shadow: 0 0 0px rgba(255,255,255,0);
+                }
+                50% {
+                    opacity: 1;
+                    transform: scale(1.02);
+                    text-shadow:
+                        0 0 12px rgba(255,255,255,0.15),
+                        0 0 24px rgba(236,72,153,0.15);
+                }
+            }
+        `}</style>
                     </div>
                 ) : (
                     /* ── Standard greeting ─────────────────────────────────── */

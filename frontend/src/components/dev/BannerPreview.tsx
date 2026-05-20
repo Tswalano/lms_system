@@ -101,7 +101,7 @@ const BannerPreview: React.FC = () => {
                         <div className="flex items-center justify-between gap-3 bg-pink-50 border-t border-pink-200 text-pink-900 px-6 py-2.5 text-sm">
                             <div className="flex items-center gap-2">
                                 <span>🎉</span>
-                                <span>Happy Birthday, Glen! <span className="font-medium">Wishing you a wonderful day from everyone at Disraptor.</span></span>
+                                <span>It's your birthday, Glen! <span className="font-medium">Wishing you a wonderful day from everyone at Disraptor.</span></span>
                             </div>
                             <span className="shrink-0 opacity-60">✕</span>
                         </div>
