@@ -90,9 +90,6 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                                 Department
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Folder
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 Upload By
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -121,10 +118,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className="text-sm text-gray-900 dark:text-white">{doc.department}</span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className="text-sm text-gray-900 dark:text-white">{doc.category}</span>
+                                    <div>
+                                        <div className="text-sm font-medium text-gray-900 dark:text-white">{doc.department}</div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">{doc.folder}</div>
+                                    </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center gap-3">

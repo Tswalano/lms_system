@@ -1,15 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle, XCircle, X, AlertCircle, Clock, Clock10 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { FileText, CheckCircle, XCircle, X, AlertCircle, Clock, Clock10, UserPlus, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toCamelCase } from '../../lib/helper';
 
-// Define the shape of a folder object
-// interface Folder {
-//     id: string | number;
-//     name: string;
-// }
-
-// Define the shape of the selectedDocument object
 interface Document {
     id: number;
     name: string;
@@ -27,20 +20,26 @@ interface Document {
     fileBase64?: string | null;
 }
 
-// Define the signature status data shape
+interface AssignedUser {
+    assignmentId: number;
+    id: string;
+    name: string;
+    signedAt?: string;
+    status?: string;
+}
+
 interface SignatureStatus {
-    signed: Array<{ id: string; name: string; signedAt: string }>;
-    notSigned: Array<{ id: string; name: string; status: string }>;
+    signed: AssignedUser[];
+    notSigned: AssignedUser[];
 }
 
-interface DepartmentSignatureResponse {
-    code: string;
-    message: string;
-    error: boolean;
-    payload: SignatureStatus;
+interface ActiveUser {
+    id: number;
+    firstName: string;
+    lastName: string;
+    jobTitle?: string;
 }
 
-// Define the props for the DocumentViewModal component
 interface DocumentViewModalProps {
     showViewModal: boolean;
     setShowViewModal: (show: boolean) => void;
@@ -48,7 +47,6 @@ interface DocumentViewModalProps {
     onSendReminder?: (docId: number) => void;
     isReminderLoading?: boolean;
 }
-
 
 const getStatusColor = (status: string): string => {
     switch (status.toLowerCase()) {
@@ -78,197 +76,156 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
 }) => {
     const { authFetch } = useAuth();
     const [signatureStatus, setSignatureStatus] = useState<SignatureStatus | null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Fetch signature status when the modal is opened
+    // Assignment management state
+    const [showAssignPanel, setShowAssignPanel] = useState(false);
+    const [allUsers, setAllUsers] = useState<ActiveUser[]>([]);
+    const [usersLoading, setUsersLoading] = useState(false);
+    const [userSearch, setUserSearch] = useState('');
+    const [assigningUserId, setAssigningUserId] = useState<number | null>(null);
+    const [removingAssignmentId, setRemovingAssignmentId] = useState<number | null>(null);
+    const [forceRemoveId, setForceRemoveId] = useState<number | null>(null); // assignmentId pending force confirmation
+
+    const fetchSignatures = useCallback(async () => {
+        if (!selectedDocument) return;
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await authFetch(`/admin-docs/${selectedDocument.id}/signatures`, { method: 'GET' });
+            if (!response.ok) throw new Error('Failed to fetch signature data.');
+            const data = await response.json();
+            if (data.payload) {
+                setSignatureStatus(data.payload);
+            } else {
+                setError(data.message);
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedDocument, authFetch]);
+
     useEffect(() => {
         if (showViewModal && selectedDocument) {
-            const fetchSignatures = async () => {
-                setLoading(true);
-                setError(null);
-                try {
-                    const response = await authFetch(`/admin-docs/${selectedDocument.id}/signatures`, {
-                        method: 'GET',
-                    });
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch signature data.');
-                    }
-                    const data: DepartmentSignatureResponse = await response.json();
-
-                    if (data.payload) {
-                        setSignatureStatus(data.payload);
-                    } else {
-                        setError(data.message);
-                    }
-                } catch (err) {
-                    console.error("Fetch error:", err);
-                    if (err instanceof Error) {
-                        setError(err.message);
-                    } else {
-                        setError('An unknown error occurred.');
-                    }
-                } finally {
-                    setLoading(false);
-                }
-            };
             fetchSignatures();
         } else {
-            // Reset state when modal is closed
             setSignatureStatus(null);
+            setShowAssignPanel(false);
+            setUserSearch('');
+            setForceRemoveId(null);
         }
-    }, [showViewModal, selectedDocument, authFetch]);
+    }, [showViewModal, selectedDocument, fetchSignatures]);
 
-    const SignatureSection: React.FC = () => {
-        if (loading) {
-            return (
-                <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                    <span className="ml-3 text-gray-500 dark:text-gray-400">Loading signature data...</span>
-                </div>
-            );
+    const fetchAllUsers = async () => {
+        if (allUsers.length > 0) return;
+        setUsersLoading(true);
+        try {
+            const response = await authFetch('/users', { method: 'GET' });
+            if (!response.ok) throw new Error('Failed to fetch users.');
+            const data = await response.json();
+            // GET /users returns { payload: { users: [...], departments: [...] } }
+            const rawUsers = data.payload?.users ?? data.payload ?? data;
+            const users: ActiveUser[] = Array.isArray(rawUsers)
+                ? rawUsers.filter((u: any) => u.isActive !== false && u.isActive !== 0)
+                : [];
+            setAllUsers(users);
+        } catch {
+            // silently fail — the search box will stay empty
+        } finally {
+            setUsersLoading(false);
         }
-
-        if (error) {
-            return (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                    <div className="flex items-center">
-                        <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
-                        <span className="text-red-700 dark:text-red-300 text-sm font-medium">Error loading signatures</span>
-                    </div>
-                    <p className="text-red-600 dark:text-red-400 text-sm mt-1">{error}</p>
-                </div>
-            );
-        }
-
-        if (!signatureStatus) {
-            return (
-                <div className="text-center py-8">
-                    <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">No signature data available</p>
-                </div>
-            );
-        }
-
-        const totalUsers = signatureStatus.signed.length + signatureStatus.notSigned.length;
-        const signedPercentage = totalUsers > 0 ? (signatureStatus.signed.length / totalUsers) * 100 : 0;
-
-        return (
-            <div className="space-y-6">
-                {/* Progress Overview */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800">
-                    <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Signature Progress</h4>
-                        <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                            {signatureStatus.signed.length} of {totalUsers} signed
-                        </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
-                        <div
-                            className="bg-gradient-to-r from-blue-500 to-indigo-500 h-3 rounded-full transition-all duration-500 ease-out"
-                            style={{ width: `${signedPercentage}%` }}
-                        ></div>
-                    </div>
-                </div>
-
-                {/* Signed Users Section */}
-                {signatureStatus.signed.length > 0 && (
-                    <div className="space-y-3">
-                        <h4 className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
-                            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                                <CheckCircle className="w-5 h-5" />
-                                Signed ({signatureStatus.signed.length})
-                            </div>
-                        </h4>
-                        <div className="space-y-2">
-                            {signatureStatus.signed.map(user => (
-                                <div key={user.id} className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-800 rounded-full flex items-center justify-center">
-                                            <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                                        </div>
-                                        <span className="font-medium text-gray-900 dark:text-white">{user.name}</span>
-                                    </div>
-                                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                                        {new Date(user.signedAt).toLocaleDateString('en-US', {
-                                            month: 'short',
-                                            day: 'numeric',
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                        })}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Not Signed Users Section */}
-                {signatureStatus.notSigned.length > 0 && (
-                    <div className="space-y-3">
-                        <h4 className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
-                            <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
-                                <XCircle className="w-5 h-5" />
-                                Pending Signatures ({signatureStatus.notSigned.length})
-                            </div>
-                        </h4>
-                        <div className="space-y-2">
-                            {signatureStatus.notSigned.map(user => (
-                                <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                                            {getStatusIcon(user.status)}
-                                        </div>
-                                        <span className="font-medium text-gray-900 dark:text-white">{user.name}</span>
-                                    </div>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(user.status)} flex items-center gap-1`}>
-                                        {getStatusIcon(user.status)}
-                                        {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* All signed message */}
-                {signatureStatus.signed.length > 0 && signatureStatus.notSigned.length === 0 && (
-                    <div className="text-center py-4">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                            <CheckCircle className="w-5 h-5" />
-                            <span className="font-medium">All users have signed this document!</span>
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
     };
 
-    if (!showViewModal) {
-        return null;
-    }
+    const handleToggleAssignPanel = () => {
+        if (!showAssignPanel) fetchAllUsers();
+        setShowAssignPanel(prev => !prev);
+        setUserSearch('');
+    };
+
+    const assignedIds = new Set([
+        ...(signatureStatus?.signed.map(u => String(u.id)) ?? []),
+        ...(signatureStatus?.notSigned.map(u => String(u.id)) ?? []),
+    ]);
+
+    const filteredUsers = allUsers.filter(u => {
+        if (assignedIds.has(String(u.id))) return false;
+        if (!userSearch) return true;
+        const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
+        return fullName.includes(userSearch.toLowerCase());
+    });
+
+    const handleAssignUser = async (user: ActiveUser) => {
+        if (!selectedDocument) return;
+        setAssigningUserId(user.id);
+        try {
+            const response = await authFetch('/admin-docs/assignments', {
+                method: 'POST',
+                body: JSON.stringify({ userId: user.id, documentId: selectedDocument.id }),
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => null);
+                throw new Error(data?.message || 'Failed to assign user.');
+            }
+            await fetchSignatures();
+            setUserSearch('');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to assign user.');
+        } finally {
+            setAssigningUserId(null);
+        }
+    };
+
+    const handleRemoveAssignment = async (assignmentId: number, force = false) => {
+        setRemovingAssignmentId(assignmentId);
+        try {
+            const url = `/admin-docs/assignments/${assignmentId}${force ? '?force=true' : ''}`;
+            const response = await authFetch(url, { method: 'DELETE' });
+            if (response.status === 409) {
+                // User has signed — ask for confirmation
+                setForceRemoveId(assignmentId);
+                return;
+            }
+            if (!response.ok) {
+                const data = await response.json().catch(() => null);
+                throw new Error(data?.message || 'Failed to remove assignment.');
+            }
+            setForceRemoveId(null);
+            await fetchSignatures();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to remove assignment.');
+        } finally {
+            setRemovingAssignmentId(null);
+        }
+    };
+
+    if (!showViewModal) return null;
+
+    const totalUsers = (signatureStatus?.signed.length ?? 0) + (signatureStatus?.notSigned.length ?? 0);
+    const signedPercentage = totalUsers > 0 ? ((signatureStatus?.signed.length ?? 0) / totalUsers) * 100 : 0;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="relative p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50">
+                <div className="relative p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200/50 dark:border-slate-600/50 flex-shrink-0">
                     <button
                         onClick={() => setShowViewModal(false)}
-                        className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"
+                        className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors p-2 rounded-full hover:bg-gray-200 dark:hover:bg-white/10"
                         aria-label="Close modal"
                     >
                         <X className="w-5 h-5" />
                     </button>
-
                     {selectedDocument && (
-                        <div className="flex items-center gap-4 text-white pr-12">
-                            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                        <div className="flex items-center gap-4 pr-12">
+                            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
                                 <FileText className="w-8 h-8 text-white" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-bold mb-1">{selectedDocument.name}</h3>
-                                <p className="text-white/80 text-sm">
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{selectedDocument.name}</h3>
+                                <p className="text-gray-500 dark:text-gray-400 text-sm">
                                     Uploaded by {selectedDocument.uploadedByDisplay} • {selectedDocument.date}
                                 </p>
                             </div>
@@ -277,7 +234,7 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="p-6 max-h-[60vh] overflow-y-auto">
+                <div className="p-6 overflow-y-auto flex-1">
                     {selectedDocument && (
                         <div className="space-y-6">
                             {/* Document Stats */}
@@ -300,14 +257,215 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
                                 </div>
                             </div>
 
-                            {/* Signature Details */}
-                            <SignatureSection />
+                            {/* Error Banner */}
+                            {error && (
+                                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                                    <span className="text-red-700 dark:text-red-300 text-sm">{error}</span>
+                                    <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600">
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Assign User Panel */}
+                            <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                                <button
+                                    onClick={handleToggleAssignPanel}
+                                    className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm font-medium text-gray-700 dark:text-gray-300"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <UserPlus className="w-4 h-4 text-blue-500" />
+                                        Assign to employee
+                                    </span>
+                                    <span className="text-gray-400">{showAssignPanel ? '▲' : '▼'}</span>
+                                </button>
+                                {showAssignPanel && (
+                                    <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                                        <input
+                                            type="text"
+                                            value={userSearch}
+                                            onChange={e => setUserSearch(e.target.value)}
+                                            placeholder="Search employees..."
+                                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                                        />
+                                        {usersLoading ? (
+                                            <div className="flex items-center justify-center py-4">
+                                                <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                                            </div>
+                                        ) : filteredUsers.length === 0 ? (
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+                                                {userSearch ? 'No matching employees found.' : 'All active employees are already assigned.'}
+                                            </p>
+                                        ) : (
+                                            <div className="space-y-1 max-h-40 overflow-y-auto">
+                                                {filteredUsers.map(user => (
+                                                    <button
+                                                        key={user.id}
+                                                        onClick={() => handleAssignUser(user)}
+                                                        disabled={assigningUserId === user.id}
+                                                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-left disabled:opacity-60"
+                                                    >
+                                                        <span className="text-sm text-gray-800 dark:text-gray-200">
+                                                            {user.firstName} {user.lastName}
+                                                            {user.jobTitle && <span className="text-gray-400 ml-1">— {user.jobTitle}</span>}
+                                                        </span>
+                                                        {assigningUserId === user.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                                                        ) : (
+                                                            <UserPlus className="w-4 h-4 text-blue-400" />
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Signature Progress */}
+                            {loading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                                    <span className="ml-3 text-gray-500 dark:text-gray-400">Loading signature data...</span>
+                                </div>
+                            ) : signatureStatus ? (
+                                <div className="space-y-6">
+                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Signature Progress</h4>
+                                            <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                                                {signatureStatus.signed.length} of {totalUsers} signed
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                                            <div
+                                                className="bg-gradient-to-r from-blue-500 to-indigo-500 h-3 rounded-full transition-all duration-500 ease-out"
+                                                style={{ width: `${signedPercentage}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Signed Users */}
+                                    {signatureStatus.signed.length > 0 && (
+                                        <div className="space-y-3">
+                                            <h4 className="flex items-center gap-1.5 text-base font-semibold text-emerald-600 dark:text-emerald-400">
+                                                <CheckCircle className="w-5 h-5" />
+                                                Signed ({signatureStatus.signed.length})
+                                            </h4>
+                                            <div className="space-y-2">
+                                                {signatureStatus.signed.map(user => (
+                                                    <div key={user.assignmentId} className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-800 rounded-full flex items-center justify-center">
+                                                                <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                                            </div>
+                                                            <div>
+                                                                <span className="font-medium text-gray-900 dark:text-white text-sm">{user.name}</span>
+                                                                {user.signedAt && (
+                                                                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                                                                        {new Date(user.signedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {forceRemoveId === user.assignmentId ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs text-red-600 dark:text-red-400">Remove signed user?</span>
+                                                                <button
+                                                                    onClick={() => handleRemoveAssignment(user.assignmentId, true)}
+                                                                    disabled={removingAssignmentId === user.assignmentId}
+                                                                    className="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-60"
+                                                                >
+                                                                    {removingAssignmentId === user.assignmentId ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes, remove'}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setForceRemoveId(null)}
+                                                                    className="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => handleRemoveAssignment(user.assignmentId)}
+                                                                disabled={removingAssignmentId === user.assignmentId}
+                                                                title="Remove assignment"
+                                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-40"
+                                                            >
+                                                                {removingAssignmentId === user.assignmentId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Not Signed Users */}
+                                    {signatureStatus.notSigned.length > 0 && (
+                                        <div className="space-y-3">
+                                            <h4 className="flex items-center gap-1.5 text-base font-semibold text-red-600 dark:text-red-400">
+                                                <XCircle className="w-5 h-5" />
+                                                Pending Signatures ({signatureStatus.notSigned.length})
+                                            </h4>
+                                            <div className="space-y-2">
+                                                {signatureStatus.notSigned.map(user => (
+                                                    <div key={user.assignmentId} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                                                                {getStatusIcon(user.status || 'pending')}
+                                                            </div>
+                                                            <span className="font-medium text-gray-900 dark:text-white text-sm">{user.name}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(user.status || 'pending')} flex items-center gap-1`}>
+                                                                {getStatusIcon(user.status || 'pending')}
+                                                                {(user.status || 'pending').charAt(0).toUpperCase() + (user.status || 'pending').slice(1)}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => handleRemoveAssignment(user.assignmentId)}
+                                                                disabled={removingAssignmentId === user.assignmentId}
+                                                                title="Remove assignment"
+                                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-40"
+                                                            >
+                                                                {removingAssignmentId === user.assignmentId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {signatureStatus.signed.length > 0 && signatureStatus.notSigned.length === 0 && (
+                                        <div className="text-center py-4">
+                                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                                                <CheckCircle className="w-5 h-5" />
+                                                <span className="font-medium">All users have signed this document!</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {totalUsers === 0 && (
+                                        <div className="text-center py-8">
+                                            <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                                            <p className="text-gray-500 dark:text-gray-400 text-sm">No employees assigned yet. Use the panel above to assign employees.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8">
+                                    <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                                    <p className="text-gray-500 dark:text-gray-400 text-sm">No signature data available</p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
                 {/* Footer Actions */}
-                <div className="border-t border-gray-200 dark:border-gray-700 p-6 bg-gray-50 dark:bg-gray-800/50">
+                <div className="border-t border-gray-200 dark:border-gray-700 p-6 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
                     <div className="flex gap-3">
                         <button
                             onClick={() => selectedDocument && onSendReminder?.(selectedDocument.id)}
@@ -315,20 +473,18 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
                             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl hover:from-emerald-600 hover:to-green-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             {isReminderLoading ? (
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
                                 <Clock10 className="w-4 h-4" />
                             )}
                             {isReminderLoading ? 'Sending...' : 'Send Reminder'}
                         </button>
                         <button
-                            onClick={() => {
-                                setShowViewModal(false);
-                            }}
+                            onClick={() => setShowViewModal(false)}
                             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
                         >
                             <X className="w-4 h-4" />
-                            Close Modal
+                            Close
                         </button>
                     </div>
                 </div>

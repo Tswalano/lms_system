@@ -468,7 +468,7 @@ const AdminDocumentsPage: FC = () => {
 
     const deleteDocumentMutation = useMutation({
         mutationFn: async (docId: number) => {
-            const response = await authFetch(`/admin-docs/${docId}`, {
+            const response = await authFetch(`/admin-docs/document/${docId}`, {
                 method: 'DELETE'
             });
 

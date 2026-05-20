@@ -771,11 +771,11 @@ app.post('/responses', async (c: Context): Promise<Response> => {
                 ? 'manager_reviewing'
                 : 'employee_in_progress';
 
-        const shouldBump = review.status === 'not_started'
-            || (review.reviewType === 'peer_review' && review.status === 'not_started')
-            || (review.reviewType === 'manager_appraisal' && review.status === 'employee_completed');
+        const shouldBump =
+            (review.reviewType === 'peer_review' && review.status === 'peer_review_pending') ||
+            (review.reviewType === 'manager_appraisal' && review.status === 'employee_completed');
 
-        if (shouldBump || review.status === 'not_started') {
+        if (shouldBump) {
             await prisma.performance_reviews.update({
                 where: { id: data.reviewId },
                 data: { status: inProgressStatus },

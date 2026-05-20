@@ -85,7 +85,7 @@ jobs:
   semantic-release:
     needs: [ detect-changes ]
     if: |
-      github.event_name == 'push' && 
+      github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') &&
       needs.detect-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
@@ -101,7 +101,13 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: "20.9.0"
-      - run: npm ci
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+        env:
+          npm_config_fetch_retries: 5
+          npm_config_fetch_retry_mintimeout: 5000
+          npm_config_fetch_retry_maxtimeout: 60000
       - name: Run semantic-release
         id: semantic
         env:
@@ -164,7 +170,14 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: "18.x"
-      - run: npm ci
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        env:
+          npm_config_fetch_retries: 5
+          npm_config_fetch_retry_mintimeout: 5000
+          npm_config_fetch_retry_maxtimeout: 60000
       - name: Set version environment variable
         id: set-version
         run: |
@@ -297,7 +310,14 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: "18.x"
-      - run: npm ci
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        env:
+          npm_config_fetch_retries: 5
+          npm_config_fetch_retry_mintimeout: 5000
+          npm_config_fetch_retry_maxtimeout: 60000
       - name: Generate Prisma Client
         run: npx prisma generate
       - run: npm run build

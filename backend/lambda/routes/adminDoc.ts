@@ -442,6 +442,57 @@ adminDocs.post('/', async (c) => {
     }
 });
 
+adminDocs.delete('/document/:document_id', async (c) => {
+    console.log("DELETE /admin-docs/document/:document_id");
+
+    const { document_id } = c.req.param();
+    let connection: mysql.Connection | null = null;
+
+    try {
+        connection = await DatabaseService.createConnection();
+
+        const [rows] = await connection.execute<any[]>(
+            `SELECT id, name, file_url, category_id FROM documents WHERE id = ?`,
+            [document_id]
+        );
+
+        if (rows.length === 0) {
+            return c.json(ResponseService.error("NotFound", "Document not found."), 404);
+        }
+
+        const doc = rows[0];
+        const distributionUrl = process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL;
+
+        // Delete from S3 if the file was stored there (URL starts with our distribution URL)
+        if (distributionUrl && doc.file_url?.startsWith(distributionUrl) && process.env.POLICY_DOCUMENTS_BUCKET_NAME) {
+            try {
+                const s3Key = doc.file_url.replace(`${distributionUrl}/`, '');
+                const s3 = new S3Client({});
+                await s3.send(new DeleteObjectCommand({
+                    Bucket: process.env.POLICY_DOCUMENTS_BUCKET_NAME,
+                    Key: s3Key,
+                }));
+            } catch (s3Err: any) {
+                // Log but don't block DB deletion
+                console.error("DELETE DOCUMENT: S3 deletion failed:", s3Err.message);
+            }
+        }
+
+        // CASCADE deletes user_document_assignments, document_signatures, etc.
+        await connection.execute(`DELETE FROM documents WHERE id = ?`, [document_id]);
+
+        return c.json(
+            ResponseService.success("Document deleted successfully.", { id: Number(document_id) }),
+            200
+        );
+    } catch (err: any) {
+        console.error("DELETE /admin-docs/:document_id error:", err);
+        return c.json(ResponseService.error("DeleteDocumentError", err.message || "Failed to delete document."), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
 adminDocs.post('/assignments', async (c) => {
     console.log("POST /assignments");
 
@@ -449,12 +500,15 @@ adminDocs.post('/assignments', async (c) => {
     const {
         userId,
         documentId,
-        dueDate
+        dueDate: rawDueDate
     } = requestBody;
+
+    // Default due date to 30 days from now if not provided
+    const dueDate = rawDueDate || dayjs().add(30, 'day').toISOString();
 
     let connection: mysql.Connection | null = null;
 
-    if (!dueDate || !userId || !documentId) {
+    if (!userId || !documentId) {
         console.error("ASSIGN DOCUMENT ERROR: INCOMPLETE PAYLOAD");
 
         const assignDocumentIncompleteErrorResponse = ResponseService.error(
@@ -476,7 +530,6 @@ adminDocs.post('/assignments', async (c) => {
         return c.json(assignDocumentInvalidDueDateErrorResponse, 400);
     }
 
-    // TODO: Ensure that due date is in the future 
     const now = dayjs();
     const then = dayjs(dueDate);
 
@@ -595,6 +648,69 @@ adminDocs.post('/assignments', async (c) => {
     }
 });
 
+adminDocs.delete('/assignments/:assignmentId', async (c) => {
+    console.log("DELETE /admin-docs/assignments/:assignmentId");
+
+    const { assignmentId } = c.req.param();
+    const force = c.req.query('force') === 'true';
+
+    let connection: mysql.Connection | null = null;
+    try {
+        connection = await DatabaseService.createConnection();
+
+        // Fetch the assignment with signature status
+        const [assignmentRows] = await connection.execute<any[]>(
+            `SELECT uda.id, uda.user_id, uda.document_id,
+                    ds.signed_at IS NOT NULL AS has_signed
+             FROM user_document_assignments uda
+             LEFT JOIN document_signatures ds
+               ON ds.user_id = uda.user_id AND ds.document_id = uda.document_id
+             WHERE uda.id = ?`,
+            [assignmentId]
+        );
+
+        if (assignmentRows.length === 0) {
+            return c.json(ResponseService.error("NotFound", "Assignment not found."), 404);
+        }
+
+        const assignment = assignmentRows[0];
+
+        if (assignment.has_signed && !force) {
+            return c.json(
+                ResponseService.error(
+                    "AssignmentAlreadySigned",
+                    "This document has already been signed by the user. Pass ?force=true to remove anyway."
+                ),
+                409
+            );
+        }
+
+        // Delete signatures first (in case there is no cascade), then the assignment
+        await connection.execute(
+            `DELETE FROM document_signatures WHERE user_id = ? AND document_id = ?`,
+            [assignment.user_id, assignment.document_id]
+        );
+        await connection.execute(
+            `DELETE FROM user_document_assignments WHERE id = ?`,
+            [assignmentId]
+        );
+
+        return c.json(
+            ResponseService.success("Assignment removed successfully.", {
+                assignmentId: Number(assignmentId),
+                userId: assignment.user_id,
+                documentId: assignment.document_id
+            }),
+            200
+        );
+    } catch (err: any) {
+        console.error("DELETE /assignments error:", err);
+        return c.json(ResponseService.error("DeleteAssignmentError", err.message || "Failed to remove assignment."), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
 adminDocs.get('/:document_id/signatures', async (c) => {
     console.log("GET /admin-docs/:document_id/signatures");
 
@@ -611,6 +727,7 @@ adminDocs.get('/:document_id/signatures', async (c) => {
         // and check if they have a corresponding signature record.
         const selectSql = `
             SELECT
+                uda.id AS assignment_id,
                 u.id AS user_id,
                 CONCAT(u.firstName, ' ', u.lastName) AS user_name,
                 uda.status AS assignment_status,
@@ -632,11 +749,13 @@ adminDocs.get('/:document_id/signatures', async (c) => {
             "Document signature status retrieved successfully.",
             {
                 signed: signedUsers.map(u => ({
+                    assignmentId: u.assignment_id,
                     id: u.user_id,
                     name: u.user_name,
                     signedAt: u.signed_at
                 })),
                 notSigned: notSignedUsers.map(u => ({
+                    assignmentId: u.assignment_id,
                     id: u.user_id,
                     name: u.user_name,
                     status: u.assignment_status

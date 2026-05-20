@@ -564,16 +564,14 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
                         <div className="mt-3 lg:mt-4 space-y-1">
                             {todaysBirthdays.map((b) => {
                                 const isOwnBirthday = String(b.userId) === String(user?.id);
-                                const formattedDate = new Date(b.birthdayDate).toLocaleDateString('en-ZA', {
-                                    weekday: 'long', month: 'long', day: 'numeric'
-                                });
+
                                 return isOwnBirthday ? (
                                     <p key={b.userId} className="text-sm lg:text-lg text-pink-600 dark:text-pink-400 font-semibold">
                                         🎂 Happy Birthday {b.firstName}! Wishing you a fantastic day! 🎉🎉🎉
                                     </p>
                                 ) : (
                                     <p key={b.userId} className="text-sm lg:text-base text-gray-600 dark:text-gray-300 font-medium">
-                                        🎂 It's <span className="text-pink-600 dark:text-pink-400 font-semibold">{b.firstName}'s</span> Birthday on {formattedDate} - wish them a happy birthday! 🎉🎉🎉
+                                        🎂 It's <span className="text-pink-600 dark:text-pink-400 font-semibold">{b.firstName}'s</span> Birthday today - wish them a happy birthday! 🎉🎉🎉
                                     </p>
                                 );
                             })}
