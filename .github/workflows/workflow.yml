@@ -208,7 +208,12 @@ jobs:
             fi
             ENV="$REQUESTED_ENV"
           elif [ "${{ github.event_name }}" = "release" ]; then
-            ENV="prod"
+            # Prereleases (published by semantic-release on dev) go to dev-fe, not prod
+            if [ "${{ github.event.release.prerelease }}" = "true" ]; then
+              ENV="dev"
+            else
+              ENV="prod"
+            fi
           elif [ "$BRANCH" = "dev" ]; then
             ENV="dev"
           elif [ "$BRANCH" = "main" ]; then
@@ -229,7 +234,7 @@ jobs:
             ENV="dev"
           elif [ "${{ github.event_name }}" = "release" ]; then
             VERSION="${{ github.event.release.tag_name }}"
-            ENV="prod"
+            # ENV already set above based on prerelease flag — don't override it here
           else
             # Fallback for main branch
             LATEST_RELEASE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
