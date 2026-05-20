@@ -11,7 +11,7 @@ import {
 } from '../middleware/auth';
 const { randomUUID } = require('crypto');
 import { DatabaseService } from '../helpers/databaseHeler';
-import { AdminCreateUserCommand, AdminDisableUserCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import { AdminCreateUserCommand, AdminDisableUserCommand, AdminUpdateUserAttributesCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 
 const app = new Hono();
 
@@ -836,8 +836,9 @@ app.post('/update-user', async (c) => {
     try {
         const body = await c.req.json();
         const { id, firstName, lastName, jobTitle } = body;
-        // departmentId is intentionally optional — a user may have no department
+        // departmentId and isAdmin are intentionally optional
         const departmentId = 'departmentId' in body ? body.departmentId : undefined;
+        const isAdmin = 'isAdmin' in body ? body.isAdmin : undefined;
 
         if (!id || !firstName || !lastName || !jobTitle) {
             const response = ResponseService.error(
@@ -850,7 +851,7 @@ app.post('/update-user', async (c) => {
         const connection = await DatabaseService.createConnection();
 
         try {
-            // Build SET clause dynamically so departmentId is only touched when provided
+            // Build SET clause dynamically so optional fields are only touched when provided
             const setClauses = ['firstName = ?', 'lastName = ?', 'jobTitle = ?', 'updatedAt = NOW()'];
             const values: any[] = [firstName, lastName, jobTitle];
 
@@ -859,9 +860,34 @@ app.post('/update-user', async (c) => {
                 values.splice(3, 0, departmentId);
             }
 
+            if (isAdmin !== undefined) {
+                const role = isAdmin ? 'admin' : 'user';
+                setClauses.splice(setClauses.length - 1, 0, 'role = ?');
+                values.splice(values.length, 0, role);
+            }
+
             values.push(id);
             const updateSql = `UPDATE users SET ${setClauses.join(', ')} WHERE id = ?`;
             await connection.execute(updateSql, values);
+
+            // Sync role to Cognito when isAdmin changed
+            if (isAdmin !== undefined) {
+                const role = isAdmin ? 'admin' : 'user';
+                const [userRows] = await connection.execute(`SELECT email FROM users WHERE id = ?`, [id]);
+                const email = (userRows as any[])[0]?.email;
+                if (email) {
+                    try {
+                        await client.send(new AdminUpdateUserAttributesCommand({
+                            UserPoolId: USER_POOL_ID,
+                            Username: email,
+                            UserAttributes: [{ Name: 'custom:role', Value: role }]
+                        }));
+                    } catch (cognitoErr) {
+                        console.error('Cognito role update failed:', cognitoErr);
+                        // DB update already succeeded — log and continue
+                    }
+                }
+            }
 
             // Return the updated user so the frontend stays in sync
             const [rows] = await connection.execute(`SELECT * FROM users WHERE id = ?`, [id]);

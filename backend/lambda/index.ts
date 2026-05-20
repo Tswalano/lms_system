@@ -11,6 +11,7 @@ import { authMiddleware } from './middleware/auth';
 import testRoutes from './routes/dummy';
 import userDoc from './routes/userDoc';
 import { performanceRoutes } from './routes/performance';
+import reports from './routes/reports';
 import notificationRoutes from './routes/notifications';
 import { DatabaseService } from './helpers/databaseHeler';
 
@@ -65,6 +66,10 @@ app.route('/notifications', notificationRoutes)
 
 // performance review routes
 app.route('/performance', performanceRoutes);
+
+// reporting & analytics
+app.use('/reports/*', authMiddleware());
+app.route('/reports', reports);
 
 // test
 app.route('/test', testRoutes);

@@ -27,9 +27,9 @@ import PerformanceReviewEmployeePage from "./pages/PerformanceReviewEmployeePage
 import PerformanceReviewPeerPage from "./pages/PerformanceReviewPeerPage";
 import PerformanceReviewSubmissionsPage from "./pages/PerformanceReviewSubmissionsPage";
 import PerformanceReviewManagerAppraisalPage from "./pages/PerformanceReviewManagerAppraisalPage";
-import PerformanceReviewHistoryPage from "./pages/PerformanceReviewHistoryPage";
 // end of Performance Review imports
 import NotificationCenterPage from "./pages/NotificationCenterPage";
+import ReportsPage from "./pages/ReportsPage";
 import SupportPage from "./pages/SupportPage";
 import features from "./config/features";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
@@ -155,11 +155,7 @@ const App: React.FC = () => (
                   <PerformanceReviewManagerAppraisalPage />
                 </ProtectedRoute>
               } />
-              <Route path="/performance-review-history" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <PerformanceReviewHistoryPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/performance-review-history" element={<Navigate to="/performance-review-admin" replace />} />
               {/* End of Performance Review Routes */}
 
               {/* Notification Center */}
@@ -191,6 +187,11 @@ const App: React.FC = () => (
               <Route path="/manage-employees" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <ManageEmployees />
+                </ProtectedRoute>
+              } />
+              <Route path="/reports" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <ReportsPage />
                 </ProtectedRoute>
               } />
               <Route path="/team-leave-history" element={

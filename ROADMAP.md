@@ -242,28 +242,29 @@ The admin submissions page currently shows each peer reviewer's name and individ
 
 ---
 
-## 4. Reporting & Analytics 🔲
+## 4. Reporting & Analytics ✅
 
 **Goal:** Give HR and admins visibility into leave trends, department coverage, and org-wide patterns without exporting to Excel.
 
 ### Backend
-- 🔲 New route file `backend/lambda/routes/reports.ts` mounted at `/api/reports`
-- 🔲 `GET /api/reports/leave-summary` — total leave days per employee per leave type for a given period
-- 🔲 `GET /api/reports/department-coverage` — employees on leave per date per department (coverage gaps)
-- 🔲 `GET /api/reports/peak-periods` — leave volume grouped by month/week
-- 🔲 `GET /api/reports/leave-type-breakdown` — org-wide split by leave type as percentages
-- 🔲 Register `/api/reports` in the main Lambda handler
+- ✅ New route file `backend/lambda/routes/reports.ts` mounted at `/reports`
+- ✅ `GET /reports/leave-summary` — total leave days per employee per leave type for a given period
+- ✅ `GET /reports/department-coverage` — employees on leave per date per department (coverage gaps)
+- ✅ `GET /reports/peak-periods` — leave volume grouped by month/week
+- ✅ `GET /reports/leave-type-breakdown` — org-wide split by leave type as percentages
+- ✅ Register `/reports` in the main Lambda handler (auth-protected)
 
 ### Frontend
-- 🔲 New page `frontend/src/pages/ReportsPage.tsx`
-- 🔲 Add "Reports" nav item under **Administration** in `Sidebar.tsx`
-- 🔲 Add route `/reports` in `App.tsx` (admin-only)
-- 🔲 Summary stat cards: total leave days this year, avg days per employee, most common leave type
-- 🔲 Bar chart — leave days per department (`recharts`)
-- 🔲 Line chart — leave requests over time (monthly trend)
-- 🔲 Sortable table — individual employee leave summary
-- 🔲 Date range filter: current quarter / current year / custom
-- 🔲 CSV export for the summary table
+- ✅ New page `frontend/src/pages/ReportsPage.tsx`
+- ✅ Add "Reports & Analytics" nav item under **Administration** in `Sidebar.tsx`
+- ✅ Add route `/reports` in `App.tsx` (admin-only)
+- ✅ Summary stat cards: total leave days, total requests, avg days per employee, top leave type
+- ✅ Bar chart — leave days per department (`recharts`)
+- ✅ Line chart — leave requests over time (monthly trend)
+- ✅ Pie chart + table — leave type distribution with percentages
+- ✅ Sortable table — individual employee leave summary with per-type breakdown
+- ✅ Date range filter: This Year / This Quarter / Last 6 Months / Last Year / custom date picker
+- ✅ CSV export for the summary table
 
 ---
 

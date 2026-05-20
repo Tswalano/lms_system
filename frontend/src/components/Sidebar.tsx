@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, History, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, Calendar, Settings, Sparkles, ClipboardCheck } from "lucide-react";
+import { Home, FileText, Clock, LogOut, ArchiveRestore, CheckCircle, Users, Menu, X, ChevronsRight, ChevronsLeft, FileCheck2, Calendar, Settings, Sparkles, ClipboardCheck, BarChart3 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -70,9 +70,9 @@ const Sidebar: React.FC<SidebarProps> = ({
             items: [
                 { id: "approve", label: "Leave Approvals", icon: CheckCircle, path: "/approve-leave" },
                 { id: "manage", label: "Team Management", icon: Users, path: "/manage-employees" },
+                { id: "reports", label: "Reports & Analytics", icon: BarChart3, path: "/reports" },
                 ...(features.adminDocuments ? [
                     { id: "performance-admin", label: "Performance Reviews", icon: ClipboardCheck, path: "/performance-review-admin" },
-                    { id: "performance-history", label: "Review History", icon: History, path: "/performance-review-history" },
                     { id: "admin-docs", label: "Document Library", icon: ArchiveRestore, path: "/admin-document" }
                 ] : []),
             ]
