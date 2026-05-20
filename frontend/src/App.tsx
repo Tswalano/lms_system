@@ -189,11 +189,13 @@ const App: React.FC = () => (
                   <ManageEmployees />
                 </ProtectedRoute>
               } />
-              <Route path="/reports" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <ReportsPage />
-                </ProtectedRoute>
-              } />
+              {features.reports && (
+                <Route path="/reports" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <ReportsPage />
+                  </ProtectedRoute>
+                } />
+              )}
               <Route path="/team-leave-history" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <TeamListLeaveHistory />

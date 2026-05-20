@@ -70,7 +70,9 @@ const Sidebar: React.FC<SidebarProps> = ({
             items: [
                 { id: "approve", label: "Leave Approvals", icon: CheckCircle, path: "/approve-leave" },
                 { id: "manage", label: "Team Management", icon: Users, path: "/manage-employees" },
-                { id: "reports", label: "Reports & Analytics", icon: BarChart3, path: "/reports" },
+                ...(features.reports ? [
+                    { id: "reports", label: "Reports & Analytics", icon: BarChart3, path: "/reports" },
+                ] : []),
                 ...(features.adminDocuments ? [
                     { id: "performance-admin", label: "Performance Reviews", icon: ClipboardCheck, path: "/performance-review-admin" },
                     { id: "admin-docs", label: "Document Library", icon: ArchiveRestore, path: "/admin-document" }
