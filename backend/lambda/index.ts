@@ -23,6 +23,8 @@ const allowedOrigins = [
     'http://localhost:3001', // Localhost URL for API docs
     'https://d2m4zkv512jna9.cloudfront.net', // CloudFront URL for Staging (alternate)
     'https://d1eqa63aq0eyfn.cloudfront.net', // CloudFront URL for Production (alternate)
+    'https://d3p9jbaexhip3o.cloudfront.net', // CloudFront URL for Mobile Staging site (alternate)
+    'https://m-staging.disraptor-internal.net', // Mobile staging URL
     'https://staging.disraptor-internal.net', // Staging URL
     'https://lms.disraptor-internal.net' // Production URL
 ];

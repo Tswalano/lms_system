@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Disraptor - Leave Management System</title>
+  <style>
+    html,
+    body,
+    #root {
+      min-height: 100%;
+    }
+
+    html,
+    body {
+      margin: 0;
+      background: #0f172a;
+      color-scheme: dark;
+    }
+
+    #root {
+      background: transparent;
+    }
+  </style>
+  <script>
+    (function () {
+      var theme = localStorage.getItem('theme') || 'dark';
+      document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.classList.add(theme);
+      document.documentElement.style.backgroundColor = theme === 'light' ? '#ffffff' : '#0f172a';
+      document.body.style.backgroundColor = theme === 'light' ? '#ffffff' : '#0f172a';
+      document.documentElement.style.colorScheme = theme;
+    })();
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>
