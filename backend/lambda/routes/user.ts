@@ -129,21 +129,27 @@ class UserService {
                 return null;
             }
 
-            // Then get aggregated leave data
+            // Then get aggregated leave data — sum duration (stored as decimal days) not row count
             const leaveSql = `
-                SELECT 
+                SELECT
                     lr.leave_type,
-                    COUNT(*) AS leave_count
-                FROM leave_requests lr 
+                    SUM(CAST(lr.duration AS DECIMAL(5,1))) AS leave_count
+                FROM leave_requests lr
                 WHERE lr.uid = ? AND lr.status = 'approved'
                 GROUP BY lr.leave_type
             `;
 
             const [leaveRows] = await connection.execute(leaveSql, [userId]);
 
+            // mysql2 returns DECIMAL aggregates as strings — coerce to number
+            const leaveData = (leaveRows as any[]).map((r) => ({
+                leave_type: r.leave_type,
+                leave_count: parseFloat(r.leave_count) || 0,
+            }));
+
             return {
                 ...user,
-                leaveData: leaveRows
+                leaveData,
             };
         } finally {
             await connection.end();
