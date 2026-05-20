@@ -31,6 +31,7 @@ model users {
   roleType              user_role_type?
   jobLevel              String?                     @db.VarChar(50)
   isActive              Boolean                     @default(true)
+  deactivatedAt         DateTime?                   @db.DateTime(0)
   createdAt             DateTime                    @default(now()) @db.DateTime(0)
   updatedAt             DateTime                    @default(now()) @db.DateTime(0)
   document_signatures   document_signatures[]
@@ -105,14 +106,15 @@ model leave_action_log {
 }
 
 model document_categories {
-  id           BigInt      @id @default(autoincrement())
-  name         String      @db.VarChar(255)
-  description  String?     @db.Text
-  color        String?     @db.VarChar(50)
-  createdAt    DateTime    @default(now()) @db.Timestamp(0)
-  updatedAt    DateTime    @default(now()) @db.Timestamp(0)
-  departmentId Int
-  department   departments @relation(fields: [departmentId], references: [id])
+  id           BigInt       @id @default(autoincrement())
+  name         String       @db.VarChar(255)
+  description  String?      @db.Text
+  color        String?      @db.VarChar(50)
+  createdAt    DateTime     @default(now()) @db.Timestamp(0)
+  updatedAt    DateTime     @default(now()) @db.Timestamp(0)
+  // Null means the category is global (all departments); a value scopes it to one department
+  departmentId Int?
+  department   departments? @relation(fields: [departmentId], references: [id])
   documents    documents[]
 
   @@index([departmentId])

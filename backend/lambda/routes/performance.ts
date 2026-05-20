@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Context } from 'hono';
 import { getUserId, getDecodedToken } from '../middleware/auth';
 import { PrismaClient } from '../../lib/generated/prisma';
+import { filterActiveEmployeeReviews } from '../helpers/reviewHelpers';
 
 const app = new Hono();
 const prisma = new PrismaClient();
@@ -634,7 +635,7 @@ app.get('/peer-review/:assignmentId', async (c: Context): Promise<Response> => {
         const assignment = await prisma.peer_review_assignments.findUnique({
             where: { id: assignmentId },
             include: {
-                reviewee: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
+                reviewee: { select: { id: true, firstName: true, lastName: true, jobTitle: true, isActive: true } },
                 reviewer: { select: { managerId: true } },
                 cycle: { select: { id: true, name: true } },
                 performanceReview: { include: { responses: true } },
@@ -643,6 +644,9 @@ app.get('/peer-review/:assignmentId', async (c: Context): Promise<Response> => {
 
         if (!assignment) return c.json({ success: false, message: 'Assignment not found' }, 404);
         if (assignment.reviewerId !== userId) return c.json({ success: false, message: 'Access denied' }, 403);
+        if (assignment.reviewee?.isActive === false) {
+            return c.json({ success: false, message: 'This employee is no longer active' }, 410);
+        }
 
         // Auto-create the peer review record if it hasn't been linked yet
         let reviewId: string | null = assignment.performanceReview?.id ?? null;
@@ -1068,14 +1072,16 @@ app.get('/manager-reviews', async (c: Context): Promise<Response> => {
             ? { reviewType: 'manager_appraisal' as const, ...(cycleId ? { cycleId } : {}) }
             : { managerId: userId, reviewType: 'manager_appraisal' as const, ...(cycleId ? { cycleId } : {}) };
 
-        const reviews = await prisma.performance_reviews.findMany({
+        const rawReviews = await prisma.performance_reviews.findMany({
             where,
             include: {
-                employee: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
+                employee: { select: { id: true, firstName: true, lastName: true, jobTitle: true, isActive: true } },
                 cycle: { select: { id: true, name: true } },
             },
             orderBy: { createdAt: 'desc' },
         });
+
+        const reviews = filterActiveEmployeeReviews(rawReviews);
 
         return c.json({
             success: true,

@@ -247,7 +247,10 @@ END$$
 DELIMITER;
 
 -- --------------------------------------------------
--- T4: New document uploaded → auto-assign to all users in the same department
+-- T4: New document uploaded → auto-assign to users.
+--     If the category has a departmentId, only users in that department are assigned.
+--     If departmentId IS NULL the category is global — all active users are assigned.
+--     Only active users (isActive = 1) receive the assignment.
 --     Individual assignment notifications are fired automatically by T3 above.
 -- --------------------------------------------------
 DROP TRIGGER IF EXISTS after_document_insert;
@@ -259,10 +262,20 @@ AFTER INSERT ON documents
 FOR EACH ROW
 BEGIN
     INSERT IGNORE INTO user_document_assignments (user_id, document_id, status, assigned_at)
-    SELECT ud.user_id, NEW.id, 'pending', NOW()
-    FROM user_departments ud
+    SELECT u.id, NEW.id, 'pending', NOW()
+    FROM users u
     JOIN document_categories dc ON dc.id = NEW.category_id
-    WHERE ud.department_id = dc.departmentId;
+    WHERE u.isActive = 1
+      AND (
+        -- department-scoped: user belongs to the category's department
+        (dc.departmentId IS NOT NULL AND EXISTS (
+            SELECT 1 FROM user_departments ud
+            WHERE ud.user_id = u.id AND ud.department_id = dc.departmentId
+        ))
+        OR
+        -- global category: assign to every active user
+        dc.departmentId IS NULL
+      );
 END$$
 
 DELIMITER;
