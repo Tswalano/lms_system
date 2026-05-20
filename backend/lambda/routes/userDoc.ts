@@ -177,14 +177,16 @@ userDoc.get('/document-content/:documentId/:userId', async (c) => {
         const connection = await DatabaseService.createConnection();
 
         try {
-            // Check if user is assigned this document or if it's publicly accessible
+            // Access is granted only if the user has an explicit assignment for this document.
+            // Previously, is_mandatory = false was used as a public-access gate which allowed
+            // any authenticated user to read any non-mandatory document — that was a data leak.
             const [accessCheck] = await connection.execute<DocumentRow[]>(`
                 SELECT d.*, uda.status, uda.due_date,
                        dtm.version, dtm.is_mandatory
                 FROM documents d
-                LEFT JOIN user_document_assignments uda ON d.id = uda.document_id AND uda.user_id = ?
+                INNER JOIN user_document_assignments uda ON d.id = uda.document_id AND uda.user_id = ?
                 LEFT JOIN document_training_metadata dtm ON d.id = dtm.document_id
-                WHERE d.id = ? AND (uda.user_id IS NOT NULL OR dtm.is_mandatory = false)
+                WHERE d.id = ?
             `, [userId, documentId]);
 
             if (accessCheck.length === 0) {
@@ -821,53 +823,63 @@ userDoc.get('/search-documents/:userId', async (c) => {
     }
 });
 
-// GET All documents in each category (with relevant fields)
+// GET documents in each category for the authenticated user (only their assigned documents)
 userDoc.get('/categories-with-documents', async (c) => {
 
-    const userId = c.req.param('userId');
+    // userId comes from the auth token, not from a URL param — the old param was extracted
+    // but never used in the query, leaking all documents to any authenticated caller.
+    const userId = getCustomUserId(c);
+
+    if (!userId) {
+        return c.json(ResponseService.error("UNAUTHORIZED", "Authentication required"), 401);
+    }
 
     try {
         const connection = await DatabaseService.createConnection();
 
         try {
             const selectSql = `
-                SELECT 
-                dc.id AS category_id,
+                SELECT
+                dc.id   AS category_id,
                 dc.name AS category_name,
                 dc.color AS category_color,
-                d.id AS document_id,
-                d.name AS document_name,
+                d.id    AS document_id,
+                d.name  AS document_name,
                 d.file_url,
                 d.file_size,
                 d.priority,
-                d.createdAt AS document_created_at
-                FROM document_categories dc
-                INNER JOIN documents d ON dc.id = d.category_id
+                d.createdAt          AS document_created_at,
+                uda.status           AS assignment_status,
+                uda.due_date
+                FROM user_document_assignments uda
+                INNER JOIN documents d          ON d.id  = uda.document_id
+                INNER JOIN document_categories dc ON dc.id = d.category_id
+                WHERE uda.user_id = ?
                 ORDER BY dc.name ASC, d.name ASC
             `;
 
-            const [rows] = await connection.execute<any[]>(selectSql);
+            const [rows] = await connection.execute<any[]>(selectSql, [userId]);
 
             // Group documents under their categories
             const grouped = rows.reduce((acc, row) => {
                 const {
                     category_id,
                     category_name,
-                    category_description,
                     category_color,
                     document_id,
                     document_name,
                     file_url,
                     file_size,
                     priority,
-                    document_created_at
+                    document_created_at,
+                    assignment_status,
+                    due_date
                 } = row;
 
                 if (!acc[category_id]) {
                     acc[category_id] = {
                         id: category_id,
                         name: category_name,
-                        description: category_description,
                         color: category_color,
                         documents: []
                     };
@@ -879,6 +891,8 @@ userDoc.get('/categories-with-documents', async (c) => {
                     file_url,
                     file_size,
                     priority,
+                    status: assignment_status,
+                    due_date,
                     createdAt: document_created_at
                 });
 

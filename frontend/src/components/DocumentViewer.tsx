@@ -156,8 +156,6 @@ const DocumentViewer: FC<DocumentViewerProps> = ({
         // Prevent default scrolling behavior
         event.preventDefault();
 
-        console.log('Scroll event prevented in iframe', event);
-        // console.log('Scroll event prevented in iframe', event);
     };
 
     // Reset states when document changes
@@ -258,14 +256,6 @@ const DocumentViewer: FC<DocumentViewerProps> = ({
                                 <ExternalLink className="w-4 h-4" />
                                 Try in new tab
                             </button>
-                        </div>
-                        {/* Debug info - remove in production */}
-                        <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded text-xs text-left">
-                            <p><strong>Debug Info:</strong></p>
-                            <p>Name: {document.name}</p>
-                            <p>URL: {document.fileUrl}</p>
-                            <p>Detected Extension: {fileExtension || 'none'}</p>
-                            <p>File Type: {fileType}</p>
                         </div>
                     </div>
                 </div>

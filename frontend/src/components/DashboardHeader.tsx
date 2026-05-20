@@ -57,7 +57,7 @@ import { useNotifications, useNotificationCounts, useNotificationMutations } fro
 import { useNavigate } from "react-router-dom";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface DashboardHeaderProps {}
+interface DashboardHeaderProps { }
 
 interface NotificationAPI {
     id: string;
@@ -329,204 +329,204 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
 
                 {/* Notification Center */}
                 <div ref={notificationRef}>
-                <div className="relative">
-                    {/* Bell Icon Button */}
-                    <button
-                        onClick={() => setShowNotifications(!showNotifications)}
-                        className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors relative"
-                    >
-                        <Bell className="w-5 h-5" />
+                    <div className="relative">
+                        {/* Bell Icon Button */}
+                        <button
+                            onClick={() => setShowNotifications(!showNotifications)}
+                            className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors relative"
+                        >
+                            <Bell className="w-5 h-5" />
 
-                        {/* Unread Badge */}
-                        {unreadCount > 0 && (
-                            <div className={`absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center ${urgentCount > 0 ? 'bg-red-500 animate-pulse' : 'bg-blue-500'
-                                }`}>
-                                <span className="text-xs text-white font-bold">
-                                    {unreadCount > 9 ? '9+' : unreadCount}
-                                </span>
-                            </div>
-                        )}
-                    </button>
+                            {/* Unread Badge */}
+                            {unreadCount > 0 && (
+                                <div className={`absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center ${urgentCount > 0 ? 'bg-red-500 animate-pulse' : 'bg-blue-500'
+                                    }`}>
+                                    <span className="text-xs text-white font-bold">
+                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                    </span>
+                                </div>
+                            )}
+                        </button>
 
-                    {/* Notification Dropdown */}
-                    {showNotifications && (
-                        <div className="absolute top-full right-0 mt-3 w-96 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all">
+                        {/* Notification Dropdown */}
+                        {showNotifications && (
+                            <div className="absolute top-full right-0 mt-3 w-96 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all">
 
-                            {/* Header */}
-                            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-                                <div>
-                                    <h3 className="font-semibold text-gray-900 dark:text-white text-base">
-                                        Notifications
-                                    </h3>
-                                    {countsData?.data && (
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                            {unreadCount} unread
-                                            {urgentCount > 0 && `, ${urgentCount} urgent`}
-                                        </p>
+                                {/* Header */}
+                                <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                                    <div>
+                                        <h3 className="font-semibold text-gray-900 dark:text-white text-base">
+                                            Notifications
+                                        </h3>
+                                        {countsData?.data && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                {unreadCount} unread
+                                                {urgentCount > 0 && `, ${urgentCount} urgent`}
+                                            </p>
+                                        )}
+                                    </div>
+                                    {unreadCount > 0 && (
+                                        <button
+                                            onClick={handleMarkAllRead}
+                                            disabled={markAllAsRead.isPending}
+                                            className="text-xs px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition disabled:opacity-50"
+                                        >
+                                            {markAllAsRead.isPending ? 'Marking...' : 'Mark all read'}
+                                        </button>
                                     )}
                                 </div>
-                                {unreadCount > 0 && (
-                                    <button
-                                        onClick={handleMarkAllRead}
-                                        disabled={markAllAsRead.isPending}
-                                        className="text-xs px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition disabled:opacity-50"
-                                    >
-                                        {markAllAsRead.isPending ? 'Marking...' : 'Mark all read'}
-                                    </button>
-                                )}
-                            </div>
 
-                            {/* Notifications List */}
-                            <div className="max-h-96 overflow-y-auto">
-                                {notificationsLoading ? (
-                                    <div className="p-8 text-center">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto" />
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Loading...</p>
-                                    </div>
-                                ) : notifications.length === 0 ? (
-                                    <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                                        <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                        <p className="font-medium">You're all caught up!</p>
-                                        <p className="text-xs mt-1">No unread notifications</p>
-                                    </div>
-                                ) : (
-                                    <div className="divide-y divide-gray-200 dark:divide-gray-800">
-                                        {notifications.map((notification: NotificationAPI) => {
-                                            const notificationStyles = getNotificationStyles(notification.type, notification.isRead);
+                                {/* Notifications List */}
+                                <div className="max-h-96 overflow-y-auto">
+                                    {notificationsLoading ? (
+                                        <div className="p-8 text-center">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto" />
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Loading...</p>
+                                        </div>
+                                    ) : notifications.length === 0 ? (
+                                        <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                                            <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                            <p className="font-medium">You're all caught up!</p>
+                                            <p className="text-xs mt-1">No unread notifications</p>
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-gray-200 dark:divide-gray-800">
+                                            {notifications.map((notification: NotificationAPI) => {
+                                                const notificationStyles = getNotificationStyles(notification.type, notification.isRead);
 
-                                            return (
-                                                <div
-                                                    key={notification.id}
-                                                    className={`group relative transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer ${notificationStyles}`}
-                                                    onClick={() => handleNotificationClick(notification)}
-                                                >
-                                                    <div className="p-4 flex gap-3 w-full">
-                                                        {/* Icon */}
-                                                        <div className="flex-shrink-0 pt-1">
-                                                            <div className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
-                                                                {getNotificationIcon(notification.type)}
+                                                return (
+                                                    <div
+                                                        key={notification.id}
+                                                        className={`group relative transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer ${notificationStyles}`}
+                                                        onClick={() => handleNotificationClick(notification)}
+                                                    >
+                                                        <div className="p-4 flex gap-3 w-full">
+                                                            {/* Icon */}
+                                                            <div className="flex-shrink-0 pt-1">
+                                                                <div className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                                                                    {getNotificationIcon(notification.type)}
+                                                                </div>
                                                             </div>
-                                                        </div>
 
-                                                        {/* Content */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-start justify-between gap-2">
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="flex items-center gap-2 mb-1">
-                                                                        <p className={`text-sm font-medium truncate ${!notification.isRead
-                                                                            ? "text-gray-900 dark:text-white"
-                                                                            : "text-gray-700 dark:text-gray-300"
-                                                                            }`}>
-                                                                            {notification.title}
+                                                            {/* Content */}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-start justify-between gap-2">
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                            <p className={`text-sm font-medium truncate ${!notification.isRead
+                                                                                ? "text-gray-900 dark:text-white"
+                                                                                : "text-gray-700 dark:text-gray-300"
+                                                                                }`}>
+                                                                                {notification.title}
+                                                                            </p>
+
+                                                                            {/* Priority Badge */}
+                                                                            {notification.priority && notification.priority !== 'normal' && (
+                                                                                <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full ${notification.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                                                                                    notification.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
+                                                                                        'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                                                                    }`}>
+                                                                                    {notification.priority}
+                                                                                </span>
+                                                                            )}
+
+                                                                            {/* Unread Indicator */}
+                                                                            {!notification.isRead && (
+                                                                                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 animate-pulse"></div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-1">
+                                                                            {notification.message}
                                                                         </p>
 
-                                                                        {/* Priority Badge */}
-                                                                        {notification.priority && notification.priority !== 'normal' && (
-                                                                            <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full ${notification.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                                                                                notification.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
-                                                                                    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                                                                                }`}>
-                                                                                {notification.priority}
+                                                                        <div className="flex items-center justify-between text-xs text-gray-400">
+                                                                            <span>{formatNotificationTime(notification.createdAt)}</span>
+                                                                            {notification.createdBy && (
+                                                                                <span>From: {notification.createdBy}</span>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {notification.actionText && (
+                                                                            <span className="inline-block mt-2 px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                                                                {notification.actionText}
                                                                             </span>
                                                                         )}
-
-                                                                        {/* Unread Indicator */}
-                                                                        {!notification.isRead && (
-                                                                            <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 animate-pulse"></div>
-                                                                        )}
                                                                     </div>
 
-                                                                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-1">
-                                                                        {notification.message}
-                                                                    </p>
+                                                                    {/* Actions Menu Button */}
+                                                                    <div className="relative">
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setShowActions(showActions === notification.id ? null : notification.id);
+                                                                            }}
+                                                                            className="p-1 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded transition-all"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                                                            </svg>
+                                                                        </button>
 
-                                                                    <div className="flex items-center justify-between text-xs text-gray-400">
-                                                                        <span>{formatNotificationTime(notification.createdAt)}</span>
-                                                                        {notification.createdBy && (
-                                                                            <span>From: {notification.createdBy}</span>
+                                                                        {/* Actions Dropdown */}
+                                                                        {showActions === notification.id && (
+                                                                            <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[140px]">
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        (notification.isRead ? markAsUnread : markAsRead).mutate(notification.id);
+                                                                                        setShowActions(null);
+                                                                                    }}
+                                                                                    className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                                                                >
+                                                                                    {notification.isRead ? (
+                                                                                        <Bell className="h-3 w-3" />
+                                                                                    ) : (
+                                                                                        <Check className="h-3 w-3" />
+                                                                                    )}
+                                                                                    Mark as {notification.isRead ? "unread" : "read"}
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={(e) => handleArchive(notification.id, e)}
+                                                                                    className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                                                                >
+                                                                                    <Archive className="h-3 w-3" />
+                                                                                    Archive
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={(e) => handleDelete(notification.id, e)}
+                                                                                    className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400 flex items-center gap-2"
+                                                                                >
+                                                                                    <Trash2 className="h-3 w-3" />
+                                                                                    Delete
+                                                                                </button>
+                                                                            </div>
                                                                         )}
                                                                     </div>
-
-                                                                    {notification.actionText && (
-                                                                        <span className="inline-block mt-2 px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                                                            {notification.actionText}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-
-                                                                {/* Actions Menu Button */}
-                                                                <div className="relative">
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setShowActions(showActions === notification.id ? null : notification.id);
-                                                                        }}
-                                                                        className="p-1 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded transition-all"
-                                                                    >
-                                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                                                                        </svg>
-                                                                    </button>
-
-                                                                    {/* Actions Dropdown */}
-                                                                    {showActions === notification.id && (
-                                                                        <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[140px]">
-                                                                            <button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    (notification.isRead ? markAsUnread : markAsRead).mutate(notification.id);
-                                                                                    setShowActions(null);
-                                                                                }}
-                                                                                className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                                                                            >
-                                                                                {notification.isRead ? (
-                                                                                    <Bell className="h-3 w-3" />
-                                                                                ) : (
-                                                                                    <Check className="h-3 w-3" />
-                                                                                )}
-                                                                                Mark as {notification.isRead ? "unread" : "read"}
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={(e) => handleArchive(notification.id, e)}
-                                                                                className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                                                                            >
-                                                                                <Archive className="h-3 w-3" />
-                                                                                Archive
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={(e) => handleDelete(notification.id, e)}
-                                                                                className="w-full px-4 py-2 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400 flex items-center gap-2"
-                                                                            >
-                                                                                <Trash2 className="h-3 w-3" />
-                                                                                Delete
-                                                                            </button>
-                                                                        </div>
-                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer */}
+                                {notifications.length > 0 && (
+                                    <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/30">
+                                        <button
+                                            onClick={() => handleNavigation()}
+                                            className="w-full text-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+                                        >
+                                            View all notifications
+                                        </button>
                                     </div>
                                 )}
                             </div>
-
-                            {/* Footer */}
-                            {notifications.length > 0 && (
-                                <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/30">
-                                    <button
-                                        onClick={() => handleNavigation()}
-                                        className="w-full text-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-                                    >
-                                        View all notifications
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -573,7 +573,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
                                     </p>
                                 ) : (
                                     <p key={b.userId} className="text-sm lg:text-base text-gray-600 dark:text-gray-300 font-medium">
-                                        🎂 It's <span className="text-pink-600 dark:text-pink-400 font-semibold">{b.firstName}'s</span> Birthday on {formattedDate} — wish them a happy birthday! 🎉🎉🎉
+                                        🎂 It's <span className="text-pink-600 dark:text-pink-400 font-semibold">{b.firstName}'s</span> Birthday on {formattedDate} - wish them a happy birthday! 🎉🎉🎉
                                     </p>
                                 );
                             })}

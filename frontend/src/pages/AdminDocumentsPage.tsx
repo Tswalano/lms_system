@@ -282,6 +282,14 @@ const AdminDocumentsPage: FC = () => {
             const selectedFolderObj = folders.find(f => f.id.toString() === documentPayload.folder.toString());
             const folderName = selectedFolderObj ? selectedFolderObj.name : 'Unknown Folder';
 
+            // Prefer the canonical file_url returned by the API (authoritative after S3 upload).
+            // Fall back to what was sent in the request payload for URL-type documents.
+            const resolvedFileUrl =
+                responsePayload.payload?.file_url ||
+                responsePayload.payload?.fileUrl ||
+                documentPayload.fileUrl ||
+                "";
+
             const document: DocumentType = {
                 id: responsePayload.payload.id,
                 name: documentPayload.name,
@@ -302,7 +310,7 @@ const AdminDocumentsPage: FC = () => {
                 signatureRate: documentPayload.signatures ? documentPayload.signatures.percentage : 0,
                 folder: folderName,
                 size: documentPayload.size,
-                fileUrl: documentPayload.fileUrl || documentPayload.finalUrl || "",
+                fileUrl: resolvedFileUrl,
             };
 
             setAllDocuments(prev => [document, ...prev]);
@@ -362,7 +370,7 @@ const AdminDocumentsPage: FC = () => {
                         folder: folderName,
                         category: folderName,
                         size: documentPayload.size || doc.size,
-                        fileUrl: documentPayload.fileUrl || documentPayload.finalUrl || doc.fileUrl,
+                        fileUrl: responsePayload.payload?.file_url || responsePayload.payload?.fileUrl || documentPayload.fileUrl || doc.fileUrl,
                     };
                 }
                 return doc;

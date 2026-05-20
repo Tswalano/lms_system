@@ -70,9 +70,6 @@ const FolderManager: React.FC<FolderManagerProps> = ({
 
     // Helper function to get department name
     const getDepartmentName = (departmentId?: number): string => {
-        console.log("departmentId", departmentId);
-        console.log("departments", departments);
-        console.log("folders", folders);
         if (!departmentId) return 'No Department';
         const department = departments.find(dept => dept.id === departmentId);
         return department ? department.name : 'Unknown Department';

@@ -11,7 +11,7 @@ import {
 } from '../middleware/auth';
 const { randomUUID } = require('crypto');
 import { DatabaseService } from '../helpers/databaseHeler';
-import { AdminCreateUserCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import { AdminCreateUserCommand, AdminDisableUserCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 
 const app = new Hono();
 
@@ -572,9 +572,23 @@ app.delete('/delete-user', async (c) => {
             }
 
             await connection.execute(
-                'UPDATE users SET isActive = 0, updatedAt = NOW() WHERE id = ?',
+                'UPDATE users SET isActive = 0, deactivatedAt = NOW(), updatedAt = NOW() WHERE id = ?',
                 [id]
             );
+
+            // Disable the user in Cognito so their tokens are immediately invalidated.
+            // The DB is the source of truth — a Cognito failure is logged but does not
+            // roll back the deactivation; a reconciliation run can re-sync if needed.
+            if (user.email) {
+                try {
+                    await client.send(new AdminDisableUserCommand({
+                        UserPoolId: USER_POOL_ID,
+                        Username: user.email,
+                    }));
+                } catch (cognitoError) {
+                    console.error('Cognito disable failed for user', id, cognitoError);
+                }
+            }
 
             const response = ResponseService.success(
                 "User deactivated successfully",
@@ -820,19 +834,15 @@ app.post('/me/update', async (c) => {
 // This endpoint is for admin to update any user attributes
 app.post('/update-user', async (c) => {
     try {
-        const { id, firstName, lastName, jobTitle, departmentId } = await c.req.json();
+        const body = await c.req.json();
+        const { id, firstName, lastName, jobTitle } = body;
+        // departmentId is intentionally optional — a user may have no department
+        const departmentId = 'departmentId' in body ? body.departmentId : undefined;
 
-        // Validate required fields
         if (!id || !firstName || !lastName || !jobTitle) {
             const response = ResponseService.error(
                 "INVALID_INPUT",
                 "id, jobTitle, firstName, lastName are required"
-            );
-            return c.json(response, 400);
-        } else if (!departmentId) {
-            const response = ResponseService.error(
-                "INVALID_INPUT",
-                "User must be assigned to a department, but department is not provided"
             );
             return c.json(response, 400);
         }
@@ -840,25 +850,24 @@ app.post('/update-user', async (c) => {
         const connection = await DatabaseService.createConnection();
 
         try {
-            const updateSql = `
-                UPDATE users
-                SET firstName = ?, lastName = ?, jobTitle = ?, departmentId = ?, updatedAt = NOW()
-                WHERE id = ?
-            `;
+            // Build SET clause dynamically so departmentId is only touched when provided
+            const setClauses = ['firstName = ?', 'lastName = ?', 'jobTitle = ?', 'updatedAt = NOW()'];
+            const values: any[] = [firstName, lastName, jobTitle];
 
-            await connection.execute(updateSql, [
-                firstName,
-                lastName,
-                jobTitle,
-                departmentId,
-                id
-            ]);
+            if (departmentId !== undefined) {
+                setClauses.splice(3, 0, 'departmentId = ?');
+                values.splice(3, 0, departmentId);
+            }
 
-            const response = ResponseService.success(
-                "User updated successfully",
-                { firstName, lastName, jobTitle }
-            );
+            values.push(id);
+            const updateSql = `UPDATE users SET ${setClauses.join(', ')} WHERE id = ?`;
+            await connection.execute(updateSql, values);
 
+            // Return the updated user so the frontend stays in sync
+            const [rows] = await connection.execute(`SELECT * FROM users WHERE id = ?`, [id]);
+            const updatedUser = (rows as any[])[0];
+
+            const response = ResponseService.success("User updated successfully", updatedUser);
             return c.json(response, 200);
 
         } finally {
