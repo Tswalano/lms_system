@@ -407,8 +407,29 @@ jobs:
           npm_config_fetch_retries: 5
           npm_config_fetch_retry_mintimeout: 5000
           npm_config_fetch_retry_maxtimeout: 60000
+      - name: Determine environment for deploy
+        id: envvar
+        run: |
+          ENV=""
+          BRANCH=${GITHUB_REF##*/}
+          if [ "${{ github.event_name }}" = "release" ] || [ "$BRANCH" = "main" ]; then
+            ENV="prod"
+          else
+            ENV="dev"
+          fi
+          echo "env=$ENV" >> $GITHUB_OUTPUT
+
       - name: Generate Prisma Client
         run: npx prisma generate
+      - name: Set database URL
+        run: |
+          if [ "${{ steps.envvar.outputs.env }}" = "prod" ]; then
+            echo "DATABASE_URL=${{ secrets.DATABASE_URL_PROD }}" >> $GITHUB_ENV
+          else
+            echo "DATABASE_URL=${{ secrets.DATABASE_URL_DEV }}" >> $GITHUB_ENV
+          fi
+      - name: Run Prisma Migrations
+        run: npx prisma migrate deploy
       - run: npm run build
       - uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -424,18 +445,6 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
           CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-
-      - name: Determine environment for deploy
-        id: envvar
-        run: |
-          ENV=""
-          BRANCH=${GITHUB_REF##*/}
-          if [ "${{ github.event_name }}" = "release" ] || [ "$BRANCH" = "main" ]; then
-            ENV="prod"
-          else
-            ENV="dev"
-          fi
-          echo "env=$ENV" >> $GITHUB_OUTPUT
 
       - name: CDK Deploy
         run: |
