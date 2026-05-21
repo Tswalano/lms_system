@@ -358,9 +358,9 @@ app.get('/on-leave', async (c) => {
             ), 400);
         }
 
-        // Get ALL users with their leave requests (not just approved ones in the query range)
+        // Get all active users with their leave requests (not just approved ones in the query range)
         const query = `
-            SELECT 
+            SELECT
                 u.id,
                 u.firstName,
                 u.lastName,
@@ -373,8 +373,9 @@ app.get('/on-leave', async (c) => {
                 DATE(lr.start_date) as start_date_only,
                 DATE(lr.end_date) as end_date_only
             FROM users u
-            LEFT JOIN leave_requests lr ON u.id = lr.uid 
+            LEFT JOIN leave_requests lr ON u.id = lr.uid
                 AND lr.status = 'approved'
+            WHERE u.isActive = 1
             ORDER BY u.firstName, u.lastName, lr.start_date
         `;
 

@@ -4,26 +4,6 @@
 
 ---
 
-## Completed Features (summary)
-
-| Feature | Status |
-|---|---|
-| Outlook Calendar Integration (OOF events on approval/cancellation) | ✅ Complete |
-| Bulk Leave Approvals | ✅ Complete |
-| Performance Reviews (all frontend pages + API wiring) | ✅ Complete |
-| Employee & Admin Document Management | ✅ Complete |
-| In-App Notification System | ✅ Complete |
-| Leave History & Filtering | ✅ Complete |
-| Team Availability Calendar | ✅ Complete |
-| Manage Employees & Departments | ✅ Complete |
-| User Profile & Password Management | ✅ Complete |
-
-> Two manual infra items from the Outlook integration remain outstanding:
-> - 🔲 M365 Admin: create shared mailbox `leave-calendar@disraptor.co.za` and grant org-wide Read access to its calendar
-> - 🔲 AWS Secrets Manager: add `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` into the `lmsDevelopment` secret for the production Lambda
-
----
-
 ## 1. Document Signature Feature — Gaps & Improvements
 
 **Current state:** Employees can view documents and click a confirm button that records `acknowledgement_checked: true`. This is a simple boolean flag — there is no real signature, no audit trail, and no compliance-grade record.
@@ -242,33 +222,7 @@ The admin submissions page currently shows each peer reviewer's name and individ
 
 ---
 
-## 4. Reporting & Analytics ✅
-
-**Goal:** Give HR and admins visibility into leave trends, department coverage, and org-wide patterns without exporting to Excel.
-
-### Backend
-- ✅ New route file `backend/lambda/routes/reports.ts` mounted at `/reports`
-- ✅ `GET /reports/leave-summary` — total leave days per employee per leave type for a given period
-- ✅ `GET /reports/department-coverage` — employees on leave per date per department (coverage gaps)
-- ✅ `GET /reports/peak-periods` — leave volume grouped by month/week
-- ✅ `GET /reports/leave-type-breakdown` — org-wide split by leave type as percentages
-- ✅ Register `/reports` in the main Lambda handler (auth-protected)
-
-### Frontend
-- ✅ New page `frontend/src/pages/ReportsPage.tsx`
-- ✅ Add "Reports & Analytics" nav item under **Administration** in `Sidebar.tsx`
-- ✅ Add route `/reports` in `App.tsx` (admin-only)
-- ✅ Summary stat cards: total leave days, total requests, avg days per employee, top leave type
-- ✅ Bar chart — leave days per department (`recharts`)
-- ✅ Line chart — leave requests over time (monthly trend)
-- ✅ Pie chart + table — leave type distribution with percentages
-- ✅ Sortable table — individual employee leave summary with per-type breakdown
-- ✅ Date range filter: This Year / This Quarter / Last 6 Months / Last Year / custom date picker
-- ✅ CSV export for the summary table
-
----
-
-## 5. Leave Balance Management 🔲
+## 4. Leave Balance Management 🔲
 
 **Goal:** Give admins the ability to view and manually adjust individual employee leave balances (top-ups, carry-overs, corrections).
 
@@ -284,7 +238,7 @@ The admin submissions page currently shows each peer reviewer's name and individ
 
 ---
 
-## 6. Notification System Refactor 🔲
+## 5. Notification System Refactor 🔲
 
 **Goal:** Replace MySQL triggers with a testable, observable Node.js event-driven notification service.
 
@@ -308,7 +262,7 @@ The admin submissions page currently shows each peer reviewer's name and individ
 
 ---
 
-## 7. Onboarding Workflow 🔲
+## 6. Onboarding Workflow 🔲
 
 **Goal:** When a new employee is added, automatically kick off a structured onboarding checklist — document signing, handbook reading, and welcome notifications — without manual admin intervention.
 
@@ -324,7 +278,7 @@ The admin submissions page currently shows each peer reviewer's name and individ
 
 ---
 
-## 8. Role Expansion — Manager Role 🔲
+## 7. Role Expansion — Manager Role 🔲
 
 **Goal:** The current system only has `admin` and `user` roles. A `manager` role is needed so that team leads can approve leave and do performance appraisals for their direct reports without having full admin access.
 
@@ -340,7 +294,7 @@ The admin submissions page currently shows each peer reviewer's name and individ
 
 ---
 
-## 9. Mobile / PWA Improvements 🚧 In Progress
+## 8. Mobile / PWA Improvements 🚧 In Progress
 
 **Goal:** Employees frequently check leave status and sign documents on mobile. The current app is responsive but not optimised for mobile-first usage.
 
@@ -351,23 +305,86 @@ The admin submissions page currently shows each peer reviewer's name and individ
 
 ---
 
-## 10. Integrations 🔲
+## 9. Integrations 🔲
 
-### 10.1 SimplePay Payslip Integration
+### 9.1 SimplePay Payslip Integration
 - 🔲 `ALTER TABLE users ADD simplepay_employee_id VARCHAR(100) NULL`
 - 🔲 `GET /payslips` — proxy to SimplePay API, return payslip list for the logged-in employee
 - 🔲 Frontend: "Payslips" page under Workspace — list of payslips with download links
 - 🔲 Create `payslip_otp_sessions` table for secure one-time download tokens
 
-### 10.2 Google / Apple Calendar Sync
+### 9.2 Google / Apple Calendar Sync
 - 🔲 `GET /leave/ical/:userId` — generate an iCal feed of the employee's approved leave dates
 - 🔲 "Add to Calendar" button on approved leave confirmation toast and leave history cards
 - 🔲 One-click subscribe link for Google Calendar and Apple Calendar
 
-### 10.3 Slack / Microsoft Teams Notifications
+### 9.3 Slack / Microsoft Teams Notifications
 - 🔲 Admin setting: configure an incoming webhook URL per channel
 - 🔲 Leave approval/rejection events: post a summary card to the configured Slack/Teams channel
 - 🔲 Weekly digest: Monday morning message with the week's leave schedule across all teams
+
+---
+
+## 10. Email Template Refactoring 🔲
+
+**Current state:** All email HTML is embedded as TypeScript template literal strings inside `backend/lambda/email/templateHtml.ts`. Three `.html` files exist (`lambda/template.html`, `lambda/email/template.html`, `lambda/email/documentReminderTemplate.html`) but are unused — they are legacy stubs with EJS syntax that were never wired up. Editing email appearance currently means modifying a 1000+ line TypeScript file with no HTML tooling support.
+
+**Goal:** Make `.html` files the single source of truth for email markup. A designer or developer should be able to open an `.html` file, edit it, and see the result — without touching TypeScript.
+
+---
+
+### 10.1 Consolidate & Clean Up Template Files 🔲
+
+- 🔲 Delete the three unused EJS stubs: `lambda/template.html`, `lambda/email/template.html`, `lambda/email/documentReminderTemplate.html`
+- 🔲 Create `lambda/email/templates/` directory with three clean `.html` files:
+  - `leaveStatus.html` — employee leave approval/rejection/pending notification
+  - `managementNotification.html` — admin/management new leave request alert
+  - `documentReminder.html` — document signing reminder with document list
+
+---
+
+### 10.2 Placeholder Syntax 🔲
+
+Use `{{variableName}}` as the interpolation token throughout all `.html` files. This is human-readable, safe to put inside HTML attributes or text nodes, and requires no dependency.
+
+For the documents list (an array) in `documentReminder.html`, pre-render the repeated block in TypeScript and inject the resulting HTML fragment as a single `{{documentsHtml}}` variable. This avoids needing a loop syntax in the templates and keeps the renderer trivial.
+
+Example placeholder usage in a template:
+```
+Hello {{name}},
+<div class="status-card status-{{statusClass}}">
+  <div class="status-title">Leave Request {{statusLabel}}</div>
+  <div class="status-message">{{body}}</div>
+</div>
+```
+
+---
+
+### 10.3 Template Renderer Utility 🔲
+
+Create `lambda/email/templateRenderer.ts`:
+
+- 🔲 `loadTemplate(name: string): string` — reads the corresponding `.html` file from `./templates/` relative to the module. Uses `fs.readFileSync` with a cached result per template name so the disk read only happens on Lambda cold start.
+- 🔲 `renderTemplate(name: string, variables: Record<string, string>): string` — loads the template then replaces every `{{key}}` occurrence with `variables[key]`. Throws if a placeholder in the template has no matching key (fail-fast prevents silent blank fields in sent emails).
+- 🔲 No external dependencies required — a single `str.replace(/\{\{(\w+)\}\}/g, ...)` covers all cases.
+
+---
+
+### 10.4 Refactor `templateHtml.ts` 🔲
+
+- 🔲 Replace `emailTemplate()` inline HTML with a call to `renderTemplate('leaveStatus', { name, statusClass, statusLabel, body, year, messageBody })`
+- 🔲 Replace `managementEmailTemplate()` inline HTML with `renderTemplate('managementNotification', { employeeName, employeeEmail, statusClass, statusLabel, body, leaveType, startDate, endDate, duration, year })`
+- 🔲 Replace `documentReminderTemplate()` inline HTML with: pre-render `documentsHtml` from the documents array, then call `renderTemplate('documentReminder', { employeeName, documentsHtml, portalUrl })`
+- 🔲 Remove all inline HTML string literals from `templateHtml.ts` — the file should contain only TypeScript logic (type definitions, variable preparation, the render calls, and exports)
+
+---
+
+### 10.5 CDK Asset Bundling 🔲
+
+The Lambda bundle must include the `templates/` directory. Without this the renderer's `fs.readFileSync` call will fail at runtime.
+
+- 🔲 In the CDK stack, add `lambda/email/templates` as a bundled asset alongside the compiled JS — either via esbuild `loader` config or by copying the directory as a CDK `Asset` mounted at the same relative path
+- 🔲 Smoke-test locally by running the Lambda handler directly (e.g. `ts-node`) and confirming all three templates render without errors before deploying
 
 ---
 
@@ -380,8 +397,8 @@ The admin submissions page currently shows each peer reviewer's name and individ
 | `ALTER TABLE documents ADD version, signature_data, signed_at, ip_address, user_agent` | Document Signatures §1.1 / §1.3 |
 | `ALTER TABLE documents ADD expires_at, renewal_period_days` | Document Expiry §1.5 |
 | `CREATE TABLE document_audit_log` | Audit Trail §1.6 |
-| `CREATE TABLE onboarding_templates` | Onboarding §7 |
-| `ALTER TABLE users MODIFY role` (add `manager`) | Role Expansion §8 |
-| `ALTER TABLE users ADD simplepay_employee_id` | SimplePay §10.1 |
-| `CREATE TABLE payslip_otp_sessions` | SimplePay §10.1 |
+| `CREATE TABLE onboarding_templates` | Onboarding §6 |
+| `ALTER TABLE users MODIFY role` (add `manager`) | Role Expansion §7 |
+| `ALTER TABLE users ADD simplepay_employee_id` | SimplePay §9.1 |
+| `CREATE TABLE payslip_otp_sessions` | SimplePay §9.1 |
 | `ALTER TABLE manager_reviews ADD delegated_to` | Performance Review §2.4 |
