@@ -216,7 +216,33 @@ const LeaveHistoryPage = () => {
     };
 
     const getCount = (key: string) => key === 'all' ? leaveHistory.length : leaveHistory.filter(r => r.status.toLowerCase() === key).length;
-    const filtered = leaveHistory.filter(r => filter === 'all' || r.status.toLowerCase() === filter);
+
+    const todayDate = new Date(new Date().toDateString());
+
+    const sorted = [...leaveHistory].sort((a, b) => {
+        const aStatus = a.status.toLowerCase();
+        const bStatus = b.status.toLowerCase();
+        const aStart = new Date(a.start_date);
+        const bStart = new Date(b.start_date);
+        const aFuture = aStart >= todayDate;
+        const bFuture = bStart >= todayDate;
+
+        // Cancelled always last
+        if (aStatus === 'cancelled' && bStatus !== 'cancelled') return 1;
+        if (bStatus === 'cancelled' && aStatus !== 'cancelled') return -1;
+
+        // Active upcoming (pending or approved with future start) → nearest first
+        const aActive = (aStatus === 'pending' || aStatus === 'approved') && aFuture;
+        const bActive = (bStatus === 'pending' || bStatus === 'approved') && bFuture;
+        if (aActive && !bActive) return -1;
+        if (!aActive && bActive) return 1;
+        if (aActive && bActive) return aStart.getTime() - bStart.getTime();
+
+        // Everything else → most recently updated first
+        return new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime();
+    });
+
+    const filtered = sorted.filter(r => filter === 'all' || r.status.toLowerCase() === filter);
     const pagination = usePagination(filtered, 10);
 
     if (!token) {
@@ -408,32 +434,38 @@ const LeaveHistoryPage = () => {
 
                                     {/* Expanded details */}
                                     {isExpanded && (
-                                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 space-y-3">
-                                            {record.leave_comment && (
-                                                <div className="rounded-xl bg-gray-50 dark:bg-slate-700/50 p-4">
-                                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center gap-1 mb-2">
-                                                        <MessageSquare className="w-3 h-3" /> Your Reason
-                                                    </p>
-                                                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{record.leave_comment}</p>
-                                                </div>
-                                            )}
-                                            {record.feedback && (
-                                                <div className={cn("rounded-xl p-4 border", ['cancelled', 'rejected'].includes(record.status.toLowerCase())
-                                                    ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800'
-                                                    : 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'
-                                                )}>
-                                                    <p className={cn("text-xs font-medium uppercase tracking-wide mb-2", ['cancelled', 'rejected'].includes(record.status.toLowerCase())
-                                                        ? 'text-rose-600 dark:text-rose-400'
-                                                        : 'text-blue-600 dark:text-blue-400'
-                                                    )}>
-                                                        {record.status.toLowerCase() === 'cancelled' ? 'Cancellation Reason' : record.status.toLowerCase() === 'rejected' ? 'Rejection Reason' : 'Manager Feedback'}
-                                                    </p>
-                                                    <p className={cn("text-sm leading-relaxed", ['cancelled', 'rejected'].includes(record.status.toLowerCase())
-                                                        ? 'text-rose-800 dark:text-rose-200'
-                                                        : 'text-blue-800 dark:text-blue-200'
-                                                    )}>{record.feedback}</p>
-                                                </div>
-                                            )}
+                                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {record.leave_comment && (
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                                                            <MessageSquare className="w-3 h-3" /> Your Reason
+                                                        </p>
+                                                        <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                                                            {record.leave_comment}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                                {record.status.toLowerCase() !== 'pending' && (
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <p className={cn(
+                                                            "text-[11px] font-semibold uppercase tracking-widest",
+                                                            record.status.toLowerCase() === 'approved'
+                                                                ? 'text-emerald-500 dark:text-emerald-400'
+                                                                : 'text-rose-500 dark:text-rose-400'
+                                                        )}>
+                                                            {record.status.toLowerCase() === 'cancelled'
+                                                                ? 'Cancellation Reason'
+                                                                : record.status.toLowerCase() === 'rejected'
+                                                                    ? 'Rejection Reason'
+                                                                    : 'Manager Feedback'}
+                                                        </p>
+                                                        <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                                                            {record.feedback?.trim() || 'No comment provided.'}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </div>

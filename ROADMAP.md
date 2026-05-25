@@ -325,25 +325,23 @@ The admin submissions page currently shows each peer reviewer's name and individ
 
 ---
 
-## 10. Email Template Refactoring 🔲
+## 10. Email Template Refactoring ✅
 
-**Current state:** All email HTML is embedded as TypeScript template literal strings inside `backend/lambda/email/templateHtml.ts`. Three `.html` files exist (`lambda/template.html`, `lambda/email/template.html`, `lambda/email/documentReminderTemplate.html`) but are unused — they are legacy stubs with EJS syntax that were never wired up. Editing email appearance currently means modifying a 1000+ line TypeScript file with no HTML tooling support.
-
-**Goal:** Make `.html` files the single source of truth for email markup. A designer or developer should be able to open an `.html` file, edit it, and see the result — without touching TypeScript.
+**Current state:** All email HTML is now in standalone `.html` files under `lambda/email/templates/`. A lightweight renderer (`templateRenderer.ts`) reads and caches them at cold start, interpolating `{{variable}}` placeholders. `templateHtml.ts` contains only TypeScript logic — no inline HTML.
 
 ---
 
-### 10.1 Consolidate & Clean Up Template Files 🔲
+### 10.1 Consolidate & Clean Up Template Files ✅
 
-- 🔲 Delete the three unused EJS stubs: `lambda/template.html`, `lambda/email/template.html`, `lambda/email/documentReminderTemplate.html`
-- 🔲 Create `lambda/email/templates/` directory with three clean `.html` files:
+- ✅ Deleted the three unused EJS stubs: `lambda/template.html`, `lambda/email/template.html`, `lambda/email/documentReminderTemplate.html`
+- ✅ Created `lambda/email/templates/` directory with three clean `.html` files:
   - `leaveStatus.html` — employee leave approval/rejection/pending notification
   - `managementNotification.html` — admin/management new leave request alert
   - `documentReminder.html` — document signing reminder with document list
 
 ---
 
-### 10.2 Placeholder Syntax 🔲
+### 10.2 Placeholder Syntax ✅
 
 Use `{{variableName}}` as the interpolation token throughout all `.html` files. This is human-readable, safe to put inside HTML attributes or text nodes, and requires no dependency.
 
@@ -360,22 +358,22 @@ Hello {{name}},
 
 ---
 
-### 10.3 Template Renderer Utility 🔲
+### 10.3 Template Renderer Utility ✅
 
-Create `lambda/email/templateRenderer.ts`:
+Created `lambda/email/templateRenderer.ts`:
 
-- 🔲 `loadTemplate(name: string): string` — reads the corresponding `.html` file from `./templates/` relative to the module. Uses `fs.readFileSync` with a cached result per template name so the disk read only happens on Lambda cold start.
-- 🔲 `renderTemplate(name: string, variables: Record<string, string>): string` — loads the template then replaces every `{{key}}` occurrence with `variables[key]`. Throws if a placeholder in the template has no matching key (fail-fast prevents silent blank fields in sent emails).
-- 🔲 No external dependencies required — a single `str.replace(/\{\{(\w+)\}\}/g, ...)` covers all cases.
+- ✅ `loadTemplate(name: string): string` — reads the corresponding `.html` file from `./templates/` relative to the module. Uses `fs.readFileSync` with a cached result per template name so the disk read only happens on Lambda cold start.
+- ✅ `renderTemplate(name: string, variables: Record<string, string>): string` — loads the template then replaces every `{{key}}` occurrence with `variables[key]`. Throws if a placeholder in the template has no matching key (fail-fast prevents silent blank fields in sent emails).
+- ✅ No external dependencies required — a single `str.replace(/\{\{(\w+)\}\}/g, ...)` covers all cases.
 
 ---
 
-### 10.4 Refactor `templateHtml.ts` 🔲
+### 10.4 Refactor `templateHtml.ts` ✅
 
-- 🔲 Replace `emailTemplate()` inline HTML with a call to `renderTemplate('leaveStatus', { name, statusClass, statusLabel, body, year, messageBody })`
-- 🔲 Replace `managementEmailTemplate()` inline HTML with `renderTemplate('managementNotification', { employeeName, employeeEmail, statusClass, statusLabel, body, leaveType, startDate, endDate, duration, year })`
-- 🔲 Replace `documentReminderTemplate()` inline HTML with: pre-render `documentsHtml` from the documents array, then call `renderTemplate('documentReminder', { employeeName, documentsHtml, portalUrl })`
-- 🔲 Remove all inline HTML string literals from `templateHtml.ts` — the file should contain only TypeScript logic (type definitions, variable preparation, the render calls, and exports)
+- ✅ Replaced `emailTemplate()` inline HTML with a call to `renderTemplate('leaveStatus', { name, statusClass, statusLabel, body, year, messageBody })`
+- ✅ Replaced `managementEmailTemplate()` inline HTML with `renderTemplate('managementNotification', { employeeName, employeeEmail, statusClass, statusLabel, body, leaveDetailsHtml, managementMessageBody, year })`
+- ✅ Replaced `documentReminderTemplate()` inline HTML with: pre-render `documentsHtml` from the documents array, then call `renderTemplate('documentReminder', { employeeName, documentsHtml, portalUrl })`
+- ✅ Removed all inline HTML string literals from `templateHtml.ts` — the file contains only TypeScript logic (type definitions, variable preparation, the render calls, and exports)
 
 ---
 

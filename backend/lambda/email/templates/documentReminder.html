@@ -157,40 +157,27 @@
             color: #6b7280;
         }
 
-        .footer a {
-            color: #4f46e5;
-            text-decoration: none;
-        }
-
         @media only screen and (max-width: 600px) {
-            .email-container {
-                border-radius: 0;
-            }
-
-            .content {
-                padding: 24px 20px;
-            }
-
-            .header {
-                padding: 30px 20px;
-            }
+            .email-container { border-radius: 0; }
+            .content { padding: 24px 20px; }
+            .header { padding: 30px 20px; }
         }
     </style>
 </head>
 
 <body>
     <div class="email-container">
-        <div class="header">
-            <div class="logo">📋</div>
+        <div class="header" style="background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); background-color: #f59e0b; color: #ffffff;">
+            <div class="logo">&#128203;</div>
             <h1>Document Signing Reminder</h1>
             <p>Action Required</p>
         </div>
 
         <div class="content">
-            <p class="greeting">Hi <%= employeeName %>,</p>
+            <p class="greeting">Hi {{employeeName}},</p>
 
             <div class="reminder-card">
-                <div class="reminder-icon">⏰</div>
+                <div class="reminder-icon">&#9200;</div>
                 <div class="reminder-title">You have pending documents to sign</div>
                 <p class="reminder-text">
                     This is a friendly reminder that you have document(s) that require your attention.
@@ -199,23 +186,7 @@
             </div>
 
             <div class="document-list">
-                <% documents.forEach(function(doc) { %>
-                    <div class="document-item">
-                        <div class="document-name">
-                            <%= doc.name %>
-                                <% if (doc.isMandatory) { %>
-                                    <span class="mandatory-badge">Mandatory</span>
-                                    <% } %>
-                        </div>
-                        <div class="document-meta">
-                            <% if (doc.dueDate) { %>
-                                <span class="due-date">Due: <%= doc.dueDate %></span>
-                                <% } else { %>
-                                    <span>Assigned: <%= doc.assignedDate %></span>
-                                    <% } %>
-                        </div>
-                    </div>
-                    <% }); %>
+                {{documentsHtml}}
             </div>
 
             <p style="color: #4b5563; margin-top: 24px;">
@@ -223,7 +194,7 @@
             </p>
 
             <div style="text-align: center; margin-top: 24px;">
-                <a href="<%= portalUrl %>" class="cta-button">Sign Documents Now</a>
+                <a href="{{portalUrl}}" class="cta-button">Sign Documents Now</a>
             </div>
 
             <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">

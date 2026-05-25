@@ -448,6 +448,7 @@ export class LmsBackendStack extends cdk.Stack {
         DATABASE_SECRET_ARN: databaseCredentials.secretArn,
         GOOGLE_CALENDAR_API_KEY_SECRET_NAME: 'calendar_api',
         SECRET_VALUE_KEY: 'calendarAPI',
+        AZURE_CALENDAR_SECRET_NAME: config.calendarApiSecretArn,
         NODE_ENV: environment === 'prod' ? 'production' : 'development',
         ENVIRONMENT: environment,
         SECRET_NAME: config.secretName,

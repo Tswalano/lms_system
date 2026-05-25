@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{subject}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #374151;
+            background-color: #f3f4f6;
+        }
+
+        .email-container {
+            max-width: 580px;
+            margin: 32px auto;
+            background-color: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.06);
+        }
+
+        /* ── Header ── */
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            padding: 36px 32px 28px;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        .logo {
+            width: 44px;
+            height: 44px;
+            margin: 0 auto 16px;
+            display: block;
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .header-eyebrow {
+            display: inline-block;
+            background-color: rgba(255, 255, 255, 0.18);
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            padding: 3px 12px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        /* ── Content ── */
+        .content {
+            padding: 32px;
+        }
+
+        .greeting {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 10px;
+        }
+
+        .intro-text {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 24px;
+            line-height: 1.7;
+        }
+
+        /* ── Status pill ── */
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-pill-pending {
+            background-color: #fef9c3;
+            color: #854d0e;
+        }
+
+        .status-dot-pending {
+            background-color: #ca8a04;
+        }
+
+        .status-pill-approved {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .status-dot-approved {
+            background-color: #16a34a;
+        }
+
+        .status-pill-rejected {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-dot-rejected {
+            background-color: #dc2626;
+        }
+
+        .status-pill-cancelled {
+            background-color: #f3f4f6;
+            color: #4b5563;
+        }
+
+        .status-dot-cancelled {
+            background-color: #9ca3af;
+        }
+
+        /* ── Summary card ── */
+        .summary-card {
+            background-color: #f8fafc;
+            border-left: 3px solid #dc2626;
+            border-radius: 0 10px 10px 0;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+        }
+
+        .summary-card p {
+            font-size: 15px;
+            color: #1f2937;
+            line-height: 1.7;
+        }
+
+        /* ── Guidance block ── */
+        .guidance-block {
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            line-height: 1.75;
+        }
+
+        .guidance-pending {
+            background-color: #fffbeb;
+            border: 1px solid #fef3c7;
+            color: #78350f;
+        }
+
+        .guidance-approved {
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+        }
+
+        .guidance-rejected {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        .guidance-cancelled {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            color: #4b5563;
+        }
+
+        /* ── Divider ── */
+        .divider {
+            height: 1px;
+            background-color: #f3f4f6;
+            margin: 24px 0;
+        }
+
+        /* ── Reason ── */
+        .reason-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: #9ca3af;
+            margin-bottom: 8px;
+        }
+
+        .reason-text {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.75;
+            font-style: italic;
+        }
+
+        /* ── Sign-off ── */
+        .sign-off {
+            margin-top: 28px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .sign-off strong {
+            color: #374151;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            background-color: #f9fafb;
+            padding: 20px 32px;
+            text-align: center;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        .footer p {
+            font-size: 12px;
+            color: #9ca3af;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                border-radius: 0;
+            }
+
+            .header,
+            .content {
+                padding: 24px 20px;
+            }
+
+            .footer {
+                padding: 16px 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="email-container">
+
+        <div class="header"
+            style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); background-color: #dc2626; color: #ffffff;">
+            <div class="logo">
+                <img src="https://media.licdn.com/dms/image/v2/C4D0BAQHlFAds119B6A/company-logo_200_200/company-logo_200_200/0/1630575475283/disraptor_pty_ltd_logo?e=2147483647&v=beta&t=cQL2fJXEZpeu3rK3s5iQ9BJdIGKvAhYldV6Z6spiUTI"
+                    alt="Disraptor Logo" />
+            </div>
+            <div class="header-eyebrow">Management Notification</div>
+            <h1>Leave Request</h1>
+            <p>Disraptor Leave Management System</p>
+        </div>
+
+        <div class="content">
+            <p class="greeting">Dear Management,</p>
+            <p class="intro-text">
+                This is to notify you that <strong>{{employeeName}}</strong> has submitted a
+                <strong>{{leaveType}}</strong> leave request requiring your
+                review and approval.
+            </p>
+
+            <div class="summary-card">
+                <p>
+                    <strong>{{employeeName}}</strong> is requesting <strong>{{duration}}</strong>
+                    of <strong>{{leaveType}}</strong> leave {{dateRangeText}}.
+                </p>
+            </div>
+
+            <p class="intro-text">
+                {{statusMessage}}
+            </p>
+
+            <div class="divider"></div>
+
+            <p class="reason-label">Employee's Note</p>
+            <p class="reason-text">&#8220;{{body}}&#8221;</p>
+
+            <p class="sign-off">
+                Regards,<br>
+                <strong>Disraptor LMS</strong>
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>
+                This is an automated notification &mdash; please do not reply to this email.<br>
+                &copy; {{year}} Disraptor. All rights reserved.
+            </p>
+        </div>
+
+    </div>
+</body>
+
+</html>

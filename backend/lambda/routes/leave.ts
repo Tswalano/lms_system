@@ -225,9 +225,9 @@ app.post('/apply-leave', async (c: Context): Promise<Response> => {
         }
 
         try {
-            const managementEmailBody = `${leave_comment}.
-                <br><br>
-                <i>System Notes: ${system_notes}</i>`;
+            const managementEmailBody = leave_comment
+                ? `${leave_comment}`
+                : 'No reason provided.';
 
             await senderManagement(
                 fullName,
@@ -1060,19 +1060,7 @@ app.put('/:id/cancel', async (c: Context): Promise<Response> => {
             }
 
             // Send notification to management
-            const managementEmailBody = `An approved leave request has been cancelled.
-            <br><br>
-            <strong>Employee:</strong> ${leaveRequest.firstName} ${leaveRequest.lastName} (${leaveRequest.email})
-            <br>
-            <strong>Leave Type:</strong> ${leaveRequest.leave_type}
-            <br>
-            <strong>Duration:</strong> ${formatDate(leaveRequest.start_date)} to ${formatDate(leaveRequest.end_date)}
-            <br>
-            <strong>Days:</strong> ${leaveRequest.duration} day${parseFloat(leaveRequest.duration) !== 1 ? 's' : ''} (${leaveRequest.leave_length === 'half_day' ? 'Half Day' : 'Full Day'})
-            <br>
-            <strong>Cancelled By:</strong> ${managerFullName}
-            <br>
-            <strong>Cancelled On:</strong> ${formatDate(cancelledAt)}`;
+            const managementEmailBody = `Cancelled by ${managerFullName} on ${formatDate(cancelledAt)}.`;
 
             try {
                 await senderManagement(
