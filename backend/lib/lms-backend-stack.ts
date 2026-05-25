@@ -435,6 +435,8 @@ export class LmsBackendStack extends cdk.Stack {
             `cp ${inputDir}/lib/generated/prisma/libquery_engine-rhel-openssl-3.0.x.so.node ${outputDir}/lib/generated/prisma/libquery_engine-rhel-openssl-3.0.x.so.node`,
             `mkdir -p ${outputDir}/prisma`,
             `cp ${inputDir}/prisma/schema.prisma ${outputDir}/prisma/schema.prisma`,
+            `mkdir -p ${outputDir}/templates`,
+            `cp ${inputDir}/lambda/email/templates/*.html ${outputDir}/templates/`,
           ],
         },
       },
