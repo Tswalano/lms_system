@@ -99,7 +99,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
                 {/* Main Content - Flex grow to push footer down */}
                 <main className={`flex-grow p-4 lg:p-8 ${contentClassName}`}>
-                    <div className="mx-auto">
+                    <div className="mx-auto max-w-[95%]">
                         {children}
                     </div>
                 </main>
