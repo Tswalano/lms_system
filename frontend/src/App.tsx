@@ -27,6 +27,7 @@ import PerformanceReviewEmployeePage from "./pages/PerformanceReviewEmployeePage
 import PerformanceReviewPeerPage from "./pages/PerformanceReviewPeerPage";
 import PerformanceReviewSubmissionsPage from "./pages/PerformanceReviewSubmissionsPage";
 import PerformanceReviewManagerAppraisalPage from "./pages/PerformanceReviewManagerAppraisalPage";
+import PerformanceReviewQuestionsPage from "./pages/PerformanceReviewQuestionsPage";
 // end of Performance Review imports
 import NotificationCenterPage from "./pages/NotificationCenterPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -150,8 +151,15 @@ const App: React.FC = () => (
                   <PerformanceReviewSubmissionsPage />
                 </ProtectedRoute>
               } />
-              <Route path="/performance-review/appraisal/:reviewId" element={
+              <Route path="/performance-review-admin/questions" element={
                 <ProtectedRoute allowedRoles={['admin']}>
+                  <PerformanceReviewQuestionsPage />
+                </ProtectedRoute>
+              } />
+              {/* Users can open appraisals too: in test cycles the participant is their own
+                  manager; the backend rejects anyone who isn't the review's manager or an admin */}
+              <Route path="/performance-review/appraisal/:reviewId" element={
+                <ProtectedRoute allowedRoles={['user', 'admin']}>
                   <PerformanceReviewManagerAppraisalPage />
                 </ProtectedRoute>
               } />

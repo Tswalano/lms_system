@@ -451,10 +451,10 @@ const CalendarSection = () => {
                 avatar: getAvatar(b.firstName.toUpperCase(), b.lastName.toUpperCase()),
             }));
 
-            // Build a combined title for multiple birthdays
+            // Build a combined title for multiple birthdays (no age — employees' ages stay private)
             let title: string;
             if (birthdays.length === 1) {
-                title = `🎂 ${primary.name} (${primary.age})`;
+                title = `🎂 Happy Birthday ${primary.name}`;
             } else if (birthdays.length === 2) {
                 title = `🎂 Happy Birthday ${primary.firstName} & ${birthdays[1].firstName}`;
             } else {
@@ -893,9 +893,21 @@ const CalendarSection = () => {
     };
 
 
-    // Custom event component to show avatar and name
+    // Custom event component to show avatar and name.
+    // Opens the detail modal directly on a single click — mousedown/click are stopped so the
+    // drag-to-select layer underneath never swallows the first click.
     const EventComponent = ({ event }: { event: CalendarEvent }) => {
         const resource = event.resource;
+
+        const openEvent = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+            handleSelectEvent(event);
+        };
+        const clickProps = {
+            onMouseDown: (e: React.MouseEvent) => e.stopPropagation(),
+            onClick: openEvent,
+        };
 
         if ('type' in resource && resource.type === 'birthday') {
             const bdRes = resource as BirthdayEvent['resource'];
@@ -909,7 +921,7 @@ const CalendarSection = () => {
                 displayName = bdRes.name;
             }
             return (
-                <div className="flex items-center gap-1 w-full min-w-0">
+                <div className="flex items-center gap-1 w-full min-w-0" {...clickProps}>
                     <span style={{ fontSize: 12 }}>🎂</span>
                     <span className="truncate text-[11px] font-semibold leading-tight">
                         Happy Birthday {displayName}
@@ -923,7 +935,7 @@ const CalendarSection = () => {
         // const firstName = resource.name.split(' ')[0];
 
         return (
-            <div className="flex items-center gap-1.5 w-full min-w-0">
+            <div className="flex items-center gap-1.5 w-full min-w-0" {...clickProps}>
                 <span className="truncate text-[11px] font-semibold leading-tight flex-1 min-w-0">
                     {resource.name}
                     {' '}
@@ -1142,11 +1154,6 @@ const CalendarSection = () => {
                                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">
                                                         🎉 Birthday
                                                     </span>
-                                                    {!selectedEvent.resource.groupedPeople && (
-                                                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                            Turning {selectedEvent.resource.age}
-                                                        </span>
-                                                    )}
                                                     {selectedEvent.resource.isToday && (
                                                         <span className="text-xs font-bold text-pink-600 dark:text-pink-400 animate-pulse">
                                                             Today! 🎈
@@ -1204,8 +1211,8 @@ const CalendarSection = () => {
                                                             {selectedEvent.resource.isToday
                                                                 ? `🎉 Happy Birthday ${person.firstName}! Wishing a fantastic day!`
                                                                 : selectedEvent.resource.isObserved
-                                                                    ? `🎂 ${person.firstName} turns ${person.age} on ${moment(selectedEvent.start).format('MMMM Do')} (Observed on ${selectedEvent.resource.observedDate} - weekend)`
-                                                                    : `🎂 ${person.firstName} turns ${person.age} on ${moment(selectedEvent.start).format('MMMM Do')}`
+                                                                    ? `🎂 It's ${person.firstName}'s birthday on ${moment(selectedEvent.start).format('MMMM Do')} (Observed on ${selectedEvent.resource.observedDate} - weekend)`
+                                                                    : `🎂 It's ${person.firstName}'s birthday on ${moment(selectedEvent.start).format('MMMM Do')}`
                                                             }
                                                         </p>
                                                     )}

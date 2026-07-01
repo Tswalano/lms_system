@@ -12,6 +12,7 @@ import {
     useCreateCycle,
     useActivateCycle,
     useCloseCycle,
+    useDeleteCycle,
     useEmployeeNominations,
     useSetNominations,
     useCycleExport,
@@ -21,7 +22,7 @@ import {
     type CycleExportApi,
 } from "@/hooks/usePerformanceReview";
 import { WEIGHTS } from "@/lib/performanceReview";
-import { CheckCircle2, ClipboardEdit, Download, Eye, History, Loader2, Sparkles, UserCheck, UserPlus, Users, Zap, Lock } from "lucide-react";
+import { CheckCircle2, ClipboardEdit, Download, Eye, FlaskConical, History, ListChecks, Loader2, Sparkles, Trash2, UserCheck, UserPlus, Users, Zap, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -225,6 +226,9 @@ const PerformanceReviewAdminPage = () => {
     const [newCycleName, setNewCycleName] = useState("");
     const [newStartDate, setNewStartDate] = useState("");
     const [newEndDate, setNewEndDate] = useState("");
+    const [newCycleIsTest, setNewCycleIsTest] = useState(false);
+    const [activateTarget, setActivateTarget] = useState<ReviewCycleApi | null>(null);
+    const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
     const [nominationTarget, setNominationTarget] = useState<{ employeeId: string; employeeName: string; employeeSystemRole: string } | null>(null);
 
     const { data: allCycles = [], isLoading: cyclesLoading } = usePerformanceCycles();
@@ -249,22 +253,30 @@ const PerformanceReviewAdminPage = () => {
     const createCycle = useCreateCycle();
     const activateCycle = useActivateCycle();
     const closeCycle = useCloseCycle();
+    const deleteCycle = useDeleteCycle();
 
     const handleCreateCycle = async () => {
         if (!newCycleName.trim() || !newStartDate || !newEndDate) return;
         try {
-            await createCycle.mutateAsync({ name: newCycleName.trim(), startDate: newStartDate, endDate: newEndDate });
-            toast.success("Review cycle created");
+            await createCycle.mutateAsync({ name: newCycleName.trim(), startDate: newStartDate, endDate: newEndDate, isTest: newCycleIsTest });
+            toast.success(newCycleIsTest ? "Test cycle created" : "Review cycle created");
             setCreateCycleOpen(false);
             setNewCycleName("");
             setNewStartDate("");
             setNewEndDate("");
+            setNewCycleIsTest(false);
         } catch {
             toast.error("Failed to create cycle");
         }
     };
 
     const handleActivate = async (cycle: ReviewCycleApi) => {
+        // Test cycles activate for an explicit participant list — collect it first
+        if (cycle.isTest) {
+            setSelectedParticipantIds([]);
+            setActivateTarget(cycle);
+            return;
+        }
         const tid = toast.loading(`Activating "${cycle.name}" and initialising reviews…`);
         try {
             await activateCycle.mutateAsync(cycle.id);
@@ -273,6 +285,31 @@ const PerformanceReviewAdminPage = () => {
         } catch {
             toast.dismiss(tid);
             toast.error("Failed to activate cycle");
+        }
+    };
+
+    const handleActivateTestCycle = async () => {
+        if (!activateTarget || selectedParticipantIds.length === 0) return;
+        const tid = toast.loading(`Activating test cycle "${activateTarget.name}"…`);
+        try {
+            await activateCycle.mutateAsync({ cycleId: activateTarget.id, participantIds: selectedParticipantIds });
+            toast.dismiss(tid);
+            toast.success(`Test cycle "${activateTarget.name}" is active — participants review themselves`);
+            setActivateTarget(null);
+        } catch (e) {
+            toast.dismiss(tid);
+            toast.error(e instanceof Error ? e.message : "Failed to activate test cycle");
+        }
+    };
+
+    const handleDelete = async (cycle: ReviewCycleApi) => {
+        if (!window.confirm(`Delete test cycle "${cycle.name}" and all its reviews, responses and assignments? This cannot be undone.`)) return;
+        try {
+            await deleteCycle.mutateAsync(cycle.id);
+            toast.success(`Test cycle "${cycle.name}" deleted`);
+            setSelectedCycleId("");
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Failed to delete cycle");
         }
     };
 
@@ -298,7 +335,14 @@ const PerformanceReviewAdminPage = () => {
                             <UserCheck className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Performance Review</h1>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Performance Review</h1>
+                                {activeView === 'cycles' && selectedCycle?.isTest && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-300 dark:border-amber-700">
+                                        <FlaskConical className="w-3 h-3" /> TEST
+                                    </span>
+                                )}
+                            </div>
                             <p className="text-gray-600 dark:text-gray-400">
                                 {activeView === 'history' ? 'Past closed cycles · scores & feedback export' : selectedCycle ? `${selectedCycle.name} · ${selectedCycle.employeeCount} employees` : "Manage review cycles"}
                             </p>
@@ -314,7 +358,7 @@ const PerformanceReviewAdminPage = () => {
                                     <SelectContent>
                                         {cycles.map((c) => (
                                             <SelectItem key={c.id} value={c.id}>
-                                                {c.name} <span className="text-gray-400">({c.status})</span>
+                                                {c.isTest ? "🧪 " : ""}{c.name} <span className="text-gray-400">({c.status})</span>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -338,6 +382,25 @@ const PerformanceReviewAdminPage = () => {
                                 className={cn(appOutlineButtonClass, "gap-1.5")}
                             >
                                 <Lock className="w-4 h-4" /> Close cycle
+                            </Button>
+                        )}
+                        {activeView === 'cycles' && selectedCycle?.isTest && (
+                            <Button
+                                variant="outline"
+                                onClick={() => handleDelete(selectedCycle)}
+                                disabled={deleteCycle.isPending}
+                                className="rounded-lg border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30 gap-1.5"
+                            >
+                                <Trash2 className="w-4 h-4" /> {deleteCycle.isPending ? "Deleting…" : "Delete test cycle"}
+                            </Button>
+                        )}
+                        {activeView === 'cycles' && (
+                            <Button
+                                variant="outline"
+                                onClick={() => navigate('/performance-review-admin/questions')}
+                                className={cn(appOutlineButtonClass, "gap-1.5")}
+                            >
+                                <ListChecks className="w-4 h-4" /> Manage questions
                             </Button>
                         )}
                         {activeView === 'cycles' && (
@@ -507,11 +570,76 @@ const PerformanceReviewAdminPage = () => {
                                 <Input type="date" value={newEndDate} onChange={(e) => setNewEndDate(e.target.value)} className="rounded-xl border-gray-200 dark:border-slate-600" />
                             </div>
                         </div>
+                        <label className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 cursor-pointer dark:border-amber-800 dark:bg-amber-950/20">
+                            <input
+                                type="checkbox"
+                                checked={newCycleIsTest}
+                                onChange={(e) => setNewCycleIsTest(e.target.checked)}
+                                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                            />
+                            <span>
+                                <span className="flex items-center gap-1.5 text-sm font-medium text-amber-800 dark:text-amber-300">
+                                    <FlaskConical className="w-3.5 h-3.5" /> Test cycle
+                                </span>
+                                <span className="block text-xs text-amber-700/80 dark:text-amber-400/80 mt-0.5">
+                                    Runs the full review flow for selected participants only — each participant is their own peer and manager,
+                                    so a single account can validate the whole cycle. Excluded from reports and deletable afterwards.
+                                </span>
+                            </span>
+                        </label>
                     </div>
                     <div className="flex items-center justify-end gap-3 border-t border-gray-200/70 px-6 py-4 dark:border-slate-700/70">
                         <Button variant="outline" onClick={() => setCreateCycleOpen(false)} className={appOutlineButtonClass}>Cancel</Button>
                         <Button onClick={handleCreateCycle} disabled={!newCycleName.trim() || !newStartDate || !newEndDate || createCycle.isPending} className={appPrimaryButtonClass}>
                             {createCycle.isPending ? "Creating…" : "Create Cycle"}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Test Cycle Participant Selection Dialog */}
+            <Dialog open={!!activateTarget} onOpenChange={(open) => { if (!open) setActivateTarget(null); }}>
+                <DialogContent className="overflow-hidden rounded-[28px] border border-gray-200/70 bg-white/95 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)] dark:border-slate-700/70 dark:bg-slate-900/95">
+                    <DialogHeader className="border-b border-gray-200/70 px-6 py-5 dark:border-slate-700/70">
+                        <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+                            <FlaskConical className="w-4 h-4 text-amber-600" /> Activate test cycle
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Select the participant(s) for "{activateTarget?.name}". Each participant will complete their own
+                            self-review, peer review and manager appraisal so one account can walk the full circle.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="px-6 py-4 max-h-72 overflow-y-auto space-y-1">
+                        {allEmployeesForNomination.length === 0 ? (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">No active employees found.</p>
+                        ) : allEmployeesForNomination.map((emp) => (
+                            <label
+                                key={emp.id}
+                                className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedParticipantIds.includes(emp.id)}
+                                    onChange={(e) =>
+                                        setSelectedParticipantIds((prev) =>
+                                            e.target.checked ? [...prev, emp.id] : prev.filter((id) => id !== emp.id)
+                                        )
+                                    }
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="text-sm text-gray-800 dark:text-gray-200">{emp.name}</span>
+                                <span className="text-xs text-gray-400">{emp.role}</span>
+                            </label>
+                        ))}
+                    </div>
+                    <div className="flex items-center justify-end gap-3 border-t border-gray-200/70 px-6 py-4 dark:border-slate-700/70">
+                        <Button variant="outline" onClick={() => setActivateTarget(null)} className={appOutlineButtonClass}>Cancel</Button>
+                        <Button
+                            onClick={handleActivateTestCycle}
+                            disabled={selectedParticipantIds.length === 0 || activateCycle.isPending}
+                            className={appPrimaryButtonClass}
+                        >
+                            {activateCycle.isPending ? "Activating…" : `Activate with ${selectedParticipantIds.length || 'no'} participant${selectedParticipantIds.length === 1 ? '' : 's'}`}
                         </Button>
                     </div>
                 </DialogContent>

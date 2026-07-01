@@ -19,7 +19,7 @@ import {
     type SubmissionsApi,
 } from "@/hooks/usePerformanceReview";
 import { useAuth } from "@/contexts/AuthContext";
-import { AlertCircle, CheckCircle2, ClipboardList, Loader2, UserCheck } from "lucide-react";
+import { AlertCircle, CheckCircle2, ClipboardList, ClipboardEdit, FlaskConical, Loader2, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -167,6 +167,27 @@ const PerformanceReviewEmployeePage = () => {
                         )}
                     </div>
                 </div>
+
+                {(selectedCycle?.isTest || selfReview?.isTest) && (
+                    <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 justify-between rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
+                        <p className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
+                            <FlaskConical className="w-4 h-4 flex-shrink-0" />
+                            <span><strong>Test cycle</strong> — you complete every role yourself (self, peer and manager). Data is excluded from reports.</span>
+                        </p>
+                        {myReviews?.testManagerAppraisal && (
+                            <Button
+                                size="sm"
+                                onClick={() => navigate(`/performance-review/appraisal/${myReviews.testManagerAppraisal!.reviewId}`)}
+                                className="rounded-xl bg-amber-600 text-white hover:bg-amber-700 gap-1.5 flex-shrink-0"
+                            >
+                                <ClipboardEdit className="w-3.5 h-3.5" />
+                                {['final_review_complete', 'acknowledged'].includes(myReviews.testManagerAppraisal.status)
+                                    ? "View manager appraisal"
+                                    : "Complete manager appraisal"}
+                            </Button>
+                        )}
+                    </div>
+                )}
 
                 {isClosed ? (
                     <ClosedCycleSummary submissions={submissions ?? null} cycleName={selectedCycle?.name ?? ""} />

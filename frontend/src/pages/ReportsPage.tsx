@@ -424,25 +424,31 @@ export default function ReportsPage() {
                 {summaryError ? <ErrorState message="Failed to load employee summary." /> :
                     summaryLoading ? <div className="h-32 flex items-center justify-center text-gray-400 text-sm">Loading…</div> :
                         sortedEmployees.length === 0 ? <p className="text-sm text-gray-400 text-center py-10">No approved leave in this period.</p> :
-                            <div className="overflow-auto">
+                            <div className="overflow-auto pt-2">
                                 <table className="w-full text-sm">
                                     <thead>
+                                        {/* Numeric column headings are angled 45° so long leave-type
+                                            names fit in narrow columns without wrapping */}
                                         <tr className="border-b border-gray-100 dark:border-slate-700">
                                             <th
-                                                className="text-left py-2 px-3 text-gray-500 dark:text-gray-400 font-medium cursor-pointer hover:text-gray-800 dark:hover:text-gray-200 select-none"
+                                                className="text-left px-3 pb-2 align-bottom text-gray-500 dark:text-gray-400 font-medium cursor-pointer hover:text-gray-800 dark:hover:text-gray-200 select-none"
                                                 onClick={() => toggleSort('name')}
                                             >
                                                 Employee <SortIcon k="name" />
                                             </th>
                                             <th
-                                                className="text-right py-2 px-3 text-gray-500 dark:text-gray-400 font-medium cursor-pointer hover:text-gray-800 dark:hover:text-gray-200 select-none"
+                                                className="relative p-0 w-16 h-36 align-bottom cursor-pointer select-none"
                                                 onClick={() => toggleSort('totalDays')}
                                             >
-                                                Total Days <SortIcon k="totalDays" />
+                                                <div className="absolute bottom-2 left-1/2 origin-bottom-left -rotate-45 whitespace-nowrap text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+                                                    Total Days <SortIcon k="totalDays" />
+                                                </div>
                                             </th>
                                             {allLeaveTypes.map(t => (
-                                                <th key={t} className="text-right py-2 px-3 text-gray-500 dark:text-gray-400 font-medium capitalize whitespace-nowrap">
-                                                    {t}
+                                                <th key={t} className="relative p-0 w-16 h-36 align-bottom">
+                                                    <div className="absolute bottom-2 left-1/2 origin-bottom-left -rotate-45 whitespace-nowrap text-xs font-medium capitalize text-gray-500 dark:text-gray-400">
+                                                        {t}
+                                                    </div>
                                                 </th>
                                             ))}
                                         </tr>
@@ -450,10 +456,10 @@ export default function ReportsPage() {
                                     <tbody>
                                         {sortedEmployees.map(emp => (
                                             <tr key={emp.userId} className="border-b border-gray-50 dark:border-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-700/30">
-                                                <td className="py-2.5 px-3 font-medium text-gray-900 dark:text-white">{emp.name}</td>
-                                                <td className="py-2.5 px-3 text-right font-bold text-blue-600 dark:text-blue-400">{emp.totalDays}</td>
+                                                <td className="py-2.5 px-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">{emp.name}</td>
+                                                <td className="py-2.5 px-2 text-center font-bold text-blue-600 dark:text-blue-400">{emp.totalDays}</td>
                                                 {allLeaveTypes.map(t => (
-                                                    <td key={t} className="py-2.5 px-3 text-right text-gray-600 dark:text-gray-300">
+                                                    <td key={t} className="py-2.5 px-2 text-center text-gray-600 dark:text-gray-300">
                                                         {emp.breakdown[t] ?? '—'}
                                                     </td>
                                                 ))}

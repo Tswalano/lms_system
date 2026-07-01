@@ -5,10 +5,10 @@ const prisma = new PrismaClient();
 async function main() {
     console.log('🌱 Starting seed...');
 
-    // Date calculations for 2 months ago to 2 months in the future
+    // Leave requests are seeded across the next 3 months
     const now = new Date();
-    const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-    const twoMonthsFromNow = new Date(now.getFullYear(), now.getMonth() + 2, 28);
+    const leavePeriodStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const leavePeriodEnd = new Date(now.getFullYear(), now.getMonth() + 3, 28);
 
     // Existing admin user IDs
     const existingAdmins = [
@@ -444,16 +444,11 @@ async function main() {
     }
     console.log(`✅ Created ${userDepartments.length} user department assignments`);
 
-    // 5. Create dummy leave requests from 2 months ago to 2 months in the future
+    // 5. Create dummy leave requests — 3 per month, scattered across the next 3 months
     console.log('📅 Creating dummy leave requests...');
 
     const leaveTypes = ['Annual Leave', 'Sick Leave', 'Personal Leave', 'Family Responsibility Leave', 'Maternity Leave', 'Study Leave'];
     const leaveRequests = [];
-
-    // Helper function to generate random date between two dates
-    function randomDate(start: Date, end: Date): Date {
-        return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-    }
 
     // Helper function to add days to a date
     function addDays(date: Date, days: number): Date {
@@ -462,74 +457,66 @@ async function main() {
         return result;
     }
 
-    // Create 30-50 leave requests across all users and time period
-    const numberOfRequests = 35;
+    // Scatter 3 requests within each month: early, mid, and late (with a little jitter)
+    const scatterDays = [4, 14, 24];
 
-    for (let i = 0; i < numberOfRequests; i++) {
-        const userId = allUserIds[Math.floor(Math.random() * allUserIds.length)];
-        const leaveType = leaveTypes[Math.floor(Math.random() * leaveTypes.length)];
-        const startDate = randomDate(twoMonthsAgo, twoMonthsFromNow);
-        const duration = Math.floor(Math.random() * 10) + 1; // 1-10 days
-        const endDate = addDays(startDate, duration - 1);
-        const leaveLength: leave_requests_leave_length =
-            Math.random() > 0.8
-                ? leave_requests_leave_length.half_day
-                : leave_requests_leave_length.full_day;
+    for (let monthOffset = 1; monthOffset <= 3; monthOffset++) {
+        for (let slot = 0; slot < 3; slot++) {
+            const userId = allUserIds[Math.floor(Math.random() * allUserIds.length)];
+            const leaveType = leaveTypes[Math.floor(Math.random() * leaveTypes.length)];
+            const day = scatterDays[slot] + Math.floor(Math.random() * 4); // jitter of 0-3 days
+            const startDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, day);
+            const duration = Math.floor(Math.random() * 5) + 1; // 1-5 days
+            const endDate = addDays(startDate, duration - 1);
+            const leaveLength: leave_requests_leave_length =
+                Math.random() > 0.8
+                    ? leave_requests_leave_length.half_day
+                    : leave_requests_leave_length.full_day;
 
-        // Determine status based on date (past requests more likely to be approved/rejected)
-        let status: leave_status = 'pending';
-        const isPastRequest = startDate < now;
+            // Future requests: mostly pending, roughly a third already approved
+            const status: leave_status = Math.random() < 0.33 ? 'approved' : 'pending';
 
-        if (isPastRequest) {
-            const statusOptions: leave_status[] = ['approved', 'rejected', 'cancelled'];
-            status = statusOptions[Math.floor(Math.random() * statusOptions.length)];
-            // 70% chance of approval for past requests
-            if (Math.random() < 0.7) status = 'approved';
-        } else {
-            // Future requests mostly pending, some approved
-            if (Math.random() < 0.3) status = 'approved';
-        }
+            const approvedBy = status === 'approved' ? glen.id : null;
+            const approvedAt = status === 'approved' ? new Date() : null;
 
-        const approvedBy = status === 'approved' ? glen.id : null;
-        const approvedAt = status === 'approved' ? new Date(startDate.getTime() - 24 * 60 * 60 * 1000) : null; // Approved 1 day before start
+            const requestData = {
+                uid: userId,
+                leave_type: leaveType,
+                status: status,
+                duration: duration,
+                start_date: startDate,
+                end_date: endDate,
+                leave_length: leaveLength,
+                leave_comment: `${leaveType} request for ${duration} day${duration > 1 ? 's' : ''}`,
+                feedback: null,
+                approved_by: approvedBy,
+                approved_at: approvedAt,
+                createdAt: new Date(), // Requested now, for a future date
+                updatedAt: approvedAt || new Date(),
+            };
 
-        const requestData = {
-            uid: userId,
-            leave_type: leaveType,
-            status: status,
-            duration: duration,
-            start_date: startDate,
-            end_date: endDate,
-            leave_length: leaveLength,
-            leave_comment: `${leaveType} request for ${duration} day${duration > 1 ? 's' : ''}`,
-            feedback: status === 'rejected' ? 'Insufficient leave balance' : null,
-            approved_by: approvedBy,
-            approved_at: approvedAt,
-            createdAt: new Date(startDate.getTime() - 7 * 24 * 60 * 60 * 1000), // Created 1 week before start
-            updatedAt: approvedAt || new Date(startDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-        };
-
-        try {
-            const leaveRequest = await prisma.leave_requests.create({
-                data: requestData
-            });
-            leaveRequests.push(leaveRequest);
-
-            // Create action log entry for approved/rejected requests
-            if (status !== 'pending') {
-                await prisma.leave_action_log.create({
-                    data: {
-                        leave_id: leaveRequest.id,
-                        manager_id: glen.id, // Glen approves most requests
-                        action: status === 'approved' ? 'approved' : 'rejected',
-                        previous_status: 'pending',
-                        new_status: status,
-                        timestamp: approvedAt || new Date(),
-                    }
+            try {
+                const leaveRequest = await prisma.leave_requests.create({
+                    data: requestData
                 });
+                leaveRequests.push(leaveRequest);
+
+                // Create action log entry for approved requests
+                if (status === 'approved') {
+                    await prisma.leave_action_log.create({
+                        data: {
+                            leave_id: leaveRequest.id,
+                            manager_id: glen.id, // Glen approves most requests
+                            action: 'approved',
+                            previous_status: 'pending',
+                            new_status: status,
+                            timestamp: approvedAt || new Date(),
+                        }
+                    });
+                }
+            } catch (error) {
+                console.warn(`⚠️ Could not create leave request: ${error}`);
             }
-        } catch (error) {
-            console.warn(`⚠️ Could not create leave request: ${error}`);
         }
     }
 
@@ -594,7 +581,154 @@ async function main() {
 
     console.log(`✅ Created ${docCategories.length} document categories and ${documents.length} documents`);
 
-    // 7. Create some notifications
+    // 7. Configure onboarding auto-assignment on sample documents
+    // (auto_assign_new_users flag + document_auto_assign_rules — used by POST /add-user
+    // and POST /admin-docs/assignments/sync-onboarding)
+    console.log('⚡ Configuring document auto-assignment...');
+
+    let autoAssignConfigured = 0;
+
+    // Employee Handbook: mandatory, auto-assigned to every new employee (no scoping rules)
+    const handbook = await prisma.documents.findFirst({ where: { name: 'Employee Handbook 2025' } });
+    if (handbook) {
+        await prisma.document_training_metadata.upsert({
+            where: { document_id: handbook.id },
+            update: { auto_assign_new_users: true, is_mandatory: true },
+            create: { document_id: handbook.id, auto_assign_new_users: true, is_mandatory: true },
+        });
+        autoAssignConfigured++;
+    }
+
+    // Code Review Guidelines: auto-assigned to new Engineering employees only, due in 14 days
+    const codeReviewDoc = await prisma.documents.findFirst({ where: { name: 'Code Review Guidelines' } });
+    if (codeReviewDoc) {
+        await prisma.document_training_metadata.upsert({
+            where: { document_id: codeReviewDoc.id },
+            update: { auto_assign_new_users: true },
+            create: { document_id: codeReviewDoc.id, auto_assign_new_users: true },
+        });
+        const existingRule = await prisma.document_auto_assign_rules.findFirst({
+            where: { document_id: codeReviewDoc.id, department_id: engineeringDept.id, role: null },
+        });
+        if (!existingRule) {
+            await prisma.document_auto_assign_rules.create({
+                data: { document_id: codeReviewDoc.id, department_id: engineeringDept.id, due_days: 14 },
+            });
+        }
+        autoAssignConfigured++;
+    }
+
+    console.log(`✅ Configured auto-assignment on ${autoAssignConfigured} documents`);
+
+    // 8. Seed an active TEST performance review cycle for the existing admins
+    // Each admin is their own peer reviewer and manager appraiser (test-mode full circle),
+    // so any of these accounts can walk self-review → peer review → manager appraisal →
+    // admin submissions immediately after seeding. Excluded from reports; deletable via
+    // DELETE /performance/cycles/:id.
+    console.log('🧪 Creating test performance review cycle...');
+
+    const TEST_CYCLE_ID = '00000000-0000-4000-8000-00000000c1c1';
+    const testCycle = await prisma.review_cycles.upsert({
+        where: { id: TEST_CYCLE_ID },
+        update: { status: 'active', isTest: true },
+        create: {
+            id: TEST_CYCLE_ID,
+            name: 'Seed Test Cycle',
+            startDate: now,
+            endDate: addDays(now, 30),
+            status: 'active',
+            isTest: true,
+            createdById: glen.id,
+        },
+    });
+
+    // Self-peer assignments (reviewer == reviewee is allowed in test cycles)
+    await prisma.peer_review_assignments.createMany({
+        data: existingAdmins.map((adminId) => ({
+            cycleId: TEST_CYCLE_ID,
+            revieweeId: adminId,
+            reviewerId: adminId,
+        })),
+        skipDuplicates: true,
+    });
+
+    // Question stubs mirror what POST /cycles/:id/activate creates
+    const [selfQs, nextStepsQs, managerQs] = await Promise.all([
+        prisma.review_questions.findMany({ where: { reviewType: 'self_review', isActive: true }, orderBy: { displayOrder: 'asc' }, select: { id: true } }),
+        prisma.review_questions.findMany({ where: { reviewType: 'next_steps', isActive: true }, orderBy: { displayOrder: 'asc' }, select: { id: true } }),
+        prisma.review_questions.findMany({ where: { reviewType: 'manager_appraisal', isActive: true }, orderBy: { displayOrder: 'asc' }, select: { id: true } }),
+    ]);
+    if (selfQs.length === 0) {
+        console.warn('⚠️ No review questions found — run `npx ts-node -r dotenv/config prisma/seed-review-questions.ts` first for pre-created response stubs.');
+    }
+
+    let testReviewsCreated = 0;
+    for (const adminId of existingAdmins) {
+        // Self-review (+ response stubs so the employee page can save immediately)
+        let selfReview = await prisma.performance_reviews.findFirst({
+            where: { employeeId: adminId, reviewType: 'self_review', cycleId: TEST_CYCLE_ID },
+            select: { id: true },
+        });
+        if (!selfReview) {
+            selfReview = await prisma.performance_reviews.create({
+                data: { employeeId: adminId, managerId: adminId, cycleId: TEST_CYCLE_ID, reviewPeriod: testCycle.name, reviewType: 'self_review' },
+                select: { id: true },
+            });
+            testReviewsCreated++;
+        }
+        await prisma.review_responses.createMany({
+            data: [...selfQs, ...nextStepsQs].map((q) => ({
+                performanceReviewId: selfReview!.id,
+                questionId: q.id,
+                employeeId: adminId,
+                reviewerType: 'self' as const,
+            })),
+            skipDuplicates: true,
+        });
+
+        // Manager appraisal — managerId is the admin themself so one login completes it
+        let managerAppraisal = await prisma.performance_reviews.findFirst({
+            where: { employeeId: adminId, reviewType: 'manager_appraisal', cycleId: TEST_CYCLE_ID },
+            select: { id: true },
+        });
+        if (!managerAppraisal) {
+            managerAppraisal = await prisma.performance_reviews.create({
+                data: { employeeId: adminId, managerId: adminId, cycleId: TEST_CYCLE_ID, reviewPeriod: testCycle.name, reviewType: 'manager_appraisal' },
+                select: { id: true },
+            });
+            testReviewsCreated++;
+        }
+        await prisma.review_responses.createMany({
+            data: managerQs.map((q) => ({
+                performanceReviewId: managerAppraisal!.id,
+                questionId: q.id,
+                employeeId: adminId,
+                reviewerType: 'manager' as const,
+            })),
+            skipDuplicates: true,
+        });
+
+        // Peer review record (self-review of a peer) linked to the assignment
+        let peerReview = await prisma.performance_reviews.findFirst({
+            where: { employeeId: adminId, revieweeId: adminId, reviewType: 'peer_review', cycleId: TEST_CYCLE_ID },
+            select: { id: true },
+        });
+        if (!peerReview) {
+            peerReview = await prisma.performance_reviews.create({
+                data: { employeeId: adminId, revieweeId: adminId, managerId: adminId, cycleId: TEST_CYCLE_ID, reviewPeriod: testCycle.name, reviewType: 'peer_review' },
+                select: { id: true },
+            });
+            testReviewsCreated++;
+        }
+        await prisma.peer_review_assignments.updateMany({
+            where: { cycleId: TEST_CYCLE_ID, revieweeId: adminId, reviewerId: adminId, performanceReviewId: null },
+            data: { performanceReviewId: peerReview!.id },
+        });
+    }
+
+    console.log(`✅ Test cycle "${testCycle.name}" active with ${existingAdmins.length} participants (${testReviewsCreated} new review records)`);
+
+    // 9. Create some notifications
     console.log('🔔 Creating sample notifications...');
 
     const notifications = [];
@@ -649,14 +783,15 @@ async function main() {
 - Leave Requests: ${leaveRequests.length}
 - Document Categories: ${docCategories.length}
 - Documents: ${documents.length}
+- Auto-assign Documents: ${autoAssignConfigured}
+- Test Review Cycle: "${testCycle.name}" (participants: ${existingAdmins.length} existing admins)
 - Notifications: ${notifications.length}
 
 📅 Leave Requests Timeline:
-- Period: ${twoMonthsAgo.toDateString()} to ${twoMonthsFromNow.toDateString()}
+- Period: ${leavePeriodStart.toDateString()} to ${leavePeriodEnd.toDateString()} (3 per month, scattered)
 - Total Requests: ${leaveRequests.length}
 - Approved: ${leaveRequests.filter(req => req.status === 'approved').length}
 - Pending: ${leaveRequests.filter(req => req.status === 'pending').length}
-- Rejected: ${leaveRequests.filter(req => req.status === 'rejected').length}
 
 👥 Organization Structure:
 - Glen Mogane (CEO) - No manager
@@ -673,13 +808,18 @@ async function main() {
 - Alex Thompson (Junior Developer) - Reports to Philemon
 
 🔄 System Features Ready:
-✅ Leave Management System with Historical Data
-✅ Document Management with Training
-✅ Performance Review System
+✅ Leave Management System (3 scattered requests per month, next 3 months)
+✅ Document Management with Training & Onboarding Auto-assignment
+✅ Performance Review System with active TEST cycle (existing admins review themselves — full circle from one login)
 ✅ Notification Center
 ✅ User Hierarchy & Departments
 ✅ Comprehensive audit trails
-✅ Dummy data spanning 4 months (2 months past to 2 months future)
+
+🧪 Test cycle walkthrough (any existing admin account):
+1. /performance-review — complete self-review & own peer review
+2. Amber banner button — complete your own manager appraisal
+3. /performance-review-admin — view submissions, apply overrides, close cycle
+4. Delete the test cycle from the admin page when done
     `);
 }
 
@@ -690,5 +830,4 @@ main()
     .catch(async (e) => {
         console.error('❌ Seed failed:', e);
         await prisma.$disconnect();
-        process.exit(1);
     });

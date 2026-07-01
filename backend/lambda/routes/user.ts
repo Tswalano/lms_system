@@ -11,6 +11,7 @@ import {
 } from '../middleware/auth';
 const { randomUUID } = require('crypto');
 import { DatabaseService } from '../helpers/databaseHeler';
+import { autoAssignOnboardingDocuments } from '../helpers/documentAssignment';
 import { AdminCreateUserCommand, AdminDisableUserCommand, AdminUpdateUserAttributesCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 
 const app = new Hono();
@@ -735,6 +736,20 @@ app.post('/add-user', async (c) => {
                 '0000-01-01',   // Hardcoded - consider making dynamic or optional
                 '-'             // Hardcoded - consider making dynamic or optional
             ]);
+
+            // Auto-assign onboarding documents (flag + department/role rules); never fails user creation
+            try {
+                const autoAssignResult = await autoAssignOnboardingDocuments(connection, {
+                    userId: uuid,
+                    departmentId: departmentId ?? null,
+                    role,
+                });
+                if (autoAssignResult.assigned > 0) {
+                    console.log(`Auto-assigned ${autoAssignResult.assigned} onboarding document(s) to new user ${uuid}`);
+                }
+            } catch (autoAssignError) {
+                console.error('Onboarding document auto-assignment failed (user still created):', autoAssignError);
+            }
 
             // Get the created user
             const [createdRows] = await connection.execute(checkSql, [email]);

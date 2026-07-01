@@ -293,6 +293,14 @@ const nextStepsQuestions: QuestionSeed[] = [
     },
 ];
 
+function stableQuestionId(q: QuestionSeed): string {
+    return crypto
+        .createHash('md5')
+        .update(`${q.category}|${q.subcategory ?? ''}|${q.questionText}|${q.reviewType}`)
+        .digest('hex')
+        .slice(0, 36);
+}
+
 async function main() {
     console.log('Seeding review questions...');
 
@@ -305,11 +313,7 @@ async function main() {
     ];
 
     for (const q of allQuestions) {
-        const stableId = crypto
-            .createHash('md5')
-            .update(`${q.category}|${q.subcategory ?? ''}|${q.questionText}|${q.reviewType}`)
-            .digest('hex')
-            .slice(0, 36);
+        const stableId = stableQuestionId(q);
 
         await prisma.review_questions.upsert({
             where: { id: stableId },
@@ -339,7 +343,46 @@ async function main() {
         console.log(`  ✔ ${q.reviewType} | ${q.category}${q.subcategory ? ` / ${q.subcategory}` : ''}`);
     }
 
-    console.log(`\nDone — seeded ${allQuestions.length} review questions.`);
+    // ── Default question set ────────────────────────────────────────────────
+    // Employees without an explicit question-set assignment resolve to this set
+    // (see getEffectiveQuestions in lambda/helpers/reviewHelpers.ts).
+    const defaultSetId = crypto
+        .createHash('md5')
+        .update('question-set|Default Review Set')
+        .digest('hex')
+        .slice(0, 36);
+
+    await prisma.question_sets.upsert({
+        where: { id: defaultSetId },
+        update: { isDefault: true, isActive: true },
+        create: {
+            id: defaultSetId,
+            name: 'Default Review Set',
+            description: 'All standard review questions. Used for every employee without a specific question-set assignment.',
+            isDefault: true,
+            isActive: true,
+        },
+    });
+
+    // Only one default set may exist
+    await prisma.question_sets.updateMany({
+        where: { id: { not: defaultSetId }, isDefault: true },
+        data: { isDefault: false },
+    });
+
+    // Replace membership with all seeded questions, preserving seed order
+    await prisma.question_set_questions.deleteMany({ where: { questionSetId: defaultSetId } });
+    await prisma.question_set_questions.createMany({
+        data: allQuestions.map((q, index) => ({
+            questionSetId: defaultSetId,
+            questionId: stableQuestionId(q),
+            displayOrder: index,
+        })),
+        skipDuplicates: true,
+    });
+    console.log(`  ✔ question set | Default Review Set (${allQuestions.length} questions, isDefault)`);
+
+    console.log(`\nDone — seeded ${allQuestions.length} review questions and the default question set.`);
 }
 
 main()

@@ -3,10 +3,14 @@ import { z } from 'zod';
 import { Context } from 'hono';
 import { getUserId, getDecodedToken } from '../middleware/auth';
 import { PrismaClient } from '../../lib/generated/prisma';
-import { filterActiveEmployeeReviews } from '../helpers/reviewHelpers';
+import { filterActiveEmployeeReviews, getEffectiveQuestions } from '../helpers/reviewHelpers';
+import { performanceQuestionRoutes } from './performanceQuestions';
 
 const app = new Hono();
 const prisma = new PrismaClient();
+
+// Question & question-set management (admin) — /performance/questions, /performance/question-sets, ...
+app.route('/', performanceQuestionRoutes);
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -115,6 +119,7 @@ const createCycleSchema = z.object({
     name: z.string().min(1).max(100),
     startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    isTest: z.boolean().optional(),
 }).refine((d) => new Date(d.endDate) > new Date(d.startDate), {
     message: 'endDate must be after startDate',
     path: ['endDate'],
@@ -163,6 +168,7 @@ app.post('/cycles', async (c: Context): Promise<Response> => {
                 name: data.name,
                 startDate: new Date(data.startDate),
                 endDate: new Date(data.endDate),
+                isTest: data.isTest ?? false,
                 createdById: userId,
             },
         });
@@ -206,6 +212,7 @@ app.get('/cycles', async (c: Context): Promise<Response> => {
                 startDate: cycle.startDate,
                 endDate: cycle.endDate,
                 status: cycle.status,
+                isTest: cycle.isTest,
                 createdAt: cycle.createdAt,
                 employeeCount: uniqueEmployees.size,
                 nominatedCount,
@@ -233,20 +240,40 @@ app.post('/cycles/:id/activate', async (c: Context): Promise<Response> => {
         if (!cycle) return c.json({ success: false, message: 'Cycle not found' }, 404);
         if (cycle.status !== 'draft') return c.json({ success: false, message: 'Only draft cycles can be activated' }, 400);
 
+        // Test cycles are activated for an explicit participant list only
+        let participantIds: string[] = [];
+        if (cycle.isTest) {
+            const body = await c.req.json().catch(() => ({}));
+            participantIds = Array.isArray(body?.participantIds) ? body.participantIds : [];
+            if (!participantIds.length) {
+                return c.json({ success: false, message: 'participantIds is required to activate a test cycle' }, 400);
+            }
+        }
+
         const employees = await prisma.users.findMany({
-            where: { isActive: true },
+            where: { isActive: true, ...(cycle.isTest ? { id: { in: participantIds } } : {}) },
             select: { id: true, managerId: true },
         });
+        if (cycle.isTest && employees.length !== participantIds.length) {
+            return c.json({ success: false, message: 'One or more participants are inactive or do not exist' }, 400);
+        }
 
         const assignments: { cycleId: string; revieweeId: string; reviewerId: string }[] = [];
 
-        for (const emp of employees) {
-            const candidates = employees.filter(
-                (e) => e.id !== emp.id && e.id !== emp.managerId
-            );
-            const peers = shuffleArray(candidates).slice(0, Math.min(3, candidates.length));
-            for (const peer of peers) {
-                assignments.push({ cycleId, revieweeId: emp.id as string, reviewerId: peer.id as string });
+        if (cycle.isTest) {
+            // Each participant reviews themself so a single account can walk the full circle
+            for (const emp of employees) {
+                assignments.push({ cycleId, revieweeId: emp.id as string, reviewerId: emp.id as string });
+            }
+        } else {
+            for (const emp of employees) {
+                const candidates = employees.filter(
+                    (e) => e.id !== emp.id && e.id !== emp.managerId
+                );
+                const peers = shuffleArray(candidates).slice(0, Math.min(3, candidates.length));
+                for (const peer of peers) {
+                    assignments.push({ cycleId, revieweeId: emp.id as string, reviewerId: peer.id as string });
+                }
             }
         }
 
@@ -258,22 +285,19 @@ app.post('/cycles/:id/activate', async (c: Context): Promise<Response> => {
         // ── Create performance_review records ──────────────────────────────────
         const adminId = getUserId(c);
 
-        const [selfQs, nextStepsQs] = await Promise.all([
-            prisma.review_questions.findMany({
-                where: { reviewType: 'self_review', isActive: true },
-                orderBy: { displayOrder: 'asc' },
-                select: { id: true },
-            }),
-            prisma.review_questions.findMany({
-                where: { reviewType: 'next_steps', isActive: true },
-                orderBy: { displayOrder: 'asc' },
-                select: { id: true },
-            }),
-        ]);
+        // Resolve each employee's effective question list (assigned set → default → all active)
+        const employeeIds = employees.map((e) => e.id as string);
+        const questionsByEmployee = await getEffectiveQuestions(prisma, {
+            employeeIds,
+            cycleId,
+            reviewTypes: ['self_review', 'next_steps'],
+        });
 
         for (const emp of employees) {
             const empId = emp.id as string;
-            const managerId = emp.managerId ?? adminId;
+            // In a test cycle the participant is their own manager so one login can complete the appraisal
+            const managerId = cycle.isTest ? empId : (emp.managerId ?? adminId);
+            const empQuestions = questionsByEmployee.get(empId) ?? [];
 
             // Self-review + pre-created response stubs so the employee page can save immediately
             let selfReview: { id: string } | null = null;
@@ -286,7 +310,7 @@ app.post('/cycles/:id/activate', async (c: Context): Promise<Response> => {
 
             if (selfReview) {
                 await prisma.review_responses.createMany({
-                    data: [...selfQs, ...nextStepsQs].map((q) => ({
+                    data: empQuestions.map((q) => ({
                         performanceReviewId: selfReview!.id,
                         questionId: q.id,
                         employeeId: empId,
@@ -388,18 +412,36 @@ app.post('/cycles/:id/sync', async (c: Context): Promise<Response> => {
         if (!cycle) return c.json({ success: false, message: 'Cycle not found' }, 404);
         if (cycle.status === 'closed') return c.json({ success: false, message: 'Cannot sync a closed cycle' }, 400);
 
-        const [employees, selfQs, nextStepsQs, managerQs] = await Promise.all([
-            prisma.users.findMany({ where: { isActive: true }, select: { id: true, managerId: true } }),
-            prisma.review_questions.findMany({ where: { reviewType: 'self_review', isActive: true }, orderBy: { displayOrder: 'asc' }, select: { id: true } }),
-            prisma.review_questions.findMany({ where: { reviewType: 'next_steps', isActive: true }, orderBy: { displayOrder: 'asc' }, select: { id: true } }),
-            prisma.review_questions.findMany({ where: { reviewType: 'manager_appraisal', isActive: true }, orderBy: { displayOrder: 'asc' }, select: { id: true } }),
+        // Test cycles only ever include the participants they were activated with
+        let testParticipantIds: string[] = [];
+        if (cycle.isTest) {
+            const [cycleReviews, cycleAssignments] = await Promise.all([
+                prisma.performance_reviews.findMany({ where: { cycleId }, select: { employeeId: true } }),
+                prisma.peer_review_assignments.findMany({ where: { cycleId }, select: { revieweeId: true } }),
+            ]);
+            testParticipantIds = [...new Set([
+                ...cycleReviews.map((r) => r.employeeId),
+                ...cycleAssignments.map((a) => a.revieweeId),
+            ])];
+        }
+
+        const employees = await prisma.users.findMany({
+            where: { isActive: true, ...(cycle.isTest ? { id: { in: testParticipantIds } } : {}) },
+            select: { id: true, managerId: true },
+        });
+
+        // Resolve each employee's effective question lists (assigned set → default → all active)
+        const employeeIds = employees.map((e) => e.id as string);
+        const [selfQuestionsByEmployee, managerQuestionsByEmployee] = await Promise.all([
+            getEffectiveQuestions(prisma, { employeeIds, cycleId, reviewTypes: ['self_review', 'next_steps'] }),
+            getEffectiveQuestions(prisma, { employeeIds, cycleId, reviewTypes: ['manager_appraisal'] }),
         ]);
 
         let created = { selfReviews: 0, managerAppraisals: 0, peerReviews: 0 };
 
         for (const emp of employees) {
             const empId = emp.id as string;
-            const managerId = emp.managerId ?? adminId;
+            const managerId = cycle.isTest ? empId : (emp.managerId ?? adminId);
 
             // Self-review + response stubs
             let selfReview: { id: string } | null = null;
@@ -418,7 +460,7 @@ app.post('/cycles/:id/sync', async (c: Context): Promise<Response> => {
 
             if (selfReview) {
                 await prisma.review_responses.createMany({
-                    data: [...selfQs, ...nextStepsQs].map((q) => ({
+                    data: (selfQuestionsByEmployee.get(empId) ?? []).map((q) => ({
                         performanceReviewId: selfReview!.id,
                         questionId: q.id,
                         employeeId: empId,
@@ -429,22 +471,31 @@ app.post('/cycles/:id/sync', async (c: Context): Promise<Response> => {
             }
 
             // Manager appraisal — always create, using adminId as fallback manager
+            let managerAppraisal: { id: string } | null = null;
             try {
-                const managerAppraisal = await prisma.performance_reviews.create({
+                managerAppraisal = await prisma.performance_reviews.create({
                     data: { employeeId: empId, managerId, cycleId, reviewPeriod: cycle.name, reviewType: 'manager_appraisal' },
                     select: { id: true },
                 });
+                created.managerAppraisals++;
+            } catch { /* already exists — fetch it to ensure stubs are created */
+                managerAppraisal = await prisma.performance_reviews.findFirst({
+                    where: { employeeId: empId, reviewType: 'manager_appraisal', cycleId },
+                    select: { id: true },
+                });
+            }
+
+            if (managerAppraisal) {
                 await prisma.review_responses.createMany({
-                    data: managerQs.map((q) => ({
-                        performanceReviewId: managerAppraisal.id,
+                    data: (managerQuestionsByEmployee.get(empId) ?? []).map((q) => ({
+                        performanceReviewId: managerAppraisal!.id,
                         questionId: q.id,
                         employeeId: empId,
                         reviewerType: 'manager' as const,
                     })),
                     skipDuplicates: true,
                 });
-                created.managerAppraisals++;
-            } catch { /* already exists */ }
+            }
         }
 
         // Peer reviews — create missing records and link assignments
@@ -516,9 +567,19 @@ app.post('/cycles/:id/close', async (c: Context): Promise<Response> => {
             data: { status: 'closed' },
         });
 
-        // Notify every active employee that the cycle has closed
+        // Notify every active employee that the cycle has closed (test cycles: participants only)
+        const testParticipantFilter = cycle.isTest
+            ? {
+                  id: {
+                      in: (await prisma.performance_reviews.findMany({
+                          where: { cycleId },
+                          select: { employeeId: true },
+                      })).map((r) => r.employeeId),
+                  },
+              }
+            : {};
         const employees = await prisma.users.findMany({
-            where: { isActive: true },
+            where: { isActive: true, ...testParticipantFilter },
             select: { id: true },
         });
         void notify(employees.map((emp) => ({
@@ -538,6 +599,39 @@ app.post('/cycles/:id/close', async (c: Context): Promise<Response> => {
     }
 });
 
+// DELETE /performance/cycles/:id — test cycles only; removes all data the cycle generated
+app.delete('/cycles/:id', async (c: Context): Promise<Response> => {
+    try {
+        if (!(await isAdmin(c))) {
+            return c.json({ success: false, message: 'Forbidden' }, 403);
+        }
+        const cycleId = c.req.param('id');
+
+        const cycle = await prisma.review_cycles.findUnique({ where: { id: cycleId }, select: { id: true, isTest: true } });
+        if (!cycle) return c.json({ success: false, message: 'Cycle not found' }, 404);
+        if (!cycle.isTest) {
+            return c.json({ success: false, message: 'Only test cycles can be deleted' }, 400);
+        }
+
+        // performance_reviews cascade-deletes responses and manager feedback;
+        // deleting the cycle cascades peer assignments and question-set assignments.
+        await prisma.$transaction([
+            prisma.performance_reviews.deleteMany({ where: { cycleId } }),
+            prisma.review_cycles.delete({ where: { id: cycleId } }),
+        ]);
+
+        // Clean up in-app notifications the test cycle generated
+        await prisma.notifications.deleteMany({
+            where: { relatedId: cycleId, relatedType: 'performance_review' },
+        }).catch((err) => console.error('[cycle delete] Failed to remove notifications:', err));
+
+        return c.json({ success: true, message: 'Test cycle deleted.' });
+    } catch (e) {
+        console.error(e);
+        return c.json({ success: false, message: 'Failed to delete cycle' }, 500);
+    }
+});
+
 // ─────────────────────────────────────────────
 // EMPLOYEE ENDPOINTS
 // ─────────────────────────────────────────────
@@ -548,28 +642,45 @@ app.get('/my-reviews', async (c: Context): Promise<Response> => {
         const userId = getUserId(c);
         const cycleId = c.req.query('cycleId');
 
-        const [selfReview, selfQuestions, nextStepsQuestions, peerAssignments] = await Promise.all([
+        const [selfReview, peerAssignments] = await Promise.all([
             prisma.performance_reviews.findFirst({
                 where: { employeeId: userId, reviewType: 'self_review', ...(cycleId ? { cycleId } : {}) },
-                include: { responses: true },
+                include: { responses: true, cycle: { select: { id: true, name: true, isTest: true } } },
                 orderBy: { createdAt: 'desc' },
-            }),
-            prisma.review_questions.findMany({
-                where: { reviewType: 'self_review', isActive: true },
-                orderBy: { displayOrder: 'asc' },
-            }),
-            prisma.review_questions.findMany({
-                where: { reviewType: 'next_steps', isActive: true },
-                orderBy: { displayOrder: 'asc' },
             }),
             prisma.peer_review_assignments.findMany({
                 where: { reviewerId: userId, ...(cycleId ? { cycleId } : {}) },
                 include: {
                     reviewee: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
-                    cycle: { select: { id: true, name: true } },
+                    cycle: { select: { id: true, name: true, isTest: true } },
                 },
             }),
         ]);
+
+        // Resolve the user's effective question list for the cycle their self-review belongs to
+        const effectiveCycleId = cycleId ?? selfReview?.cycleId ?? null;
+        const [questionsByEmployee, testAppraisal] = await Promise.all([
+            getEffectiveQuestions(prisma, {
+                employeeIds: [userId],
+                cycleId: effectiveCycleId,
+                reviewTypes: ['self_review', 'next_steps'],
+            }),
+            // In test cycles the participant writes their own manager appraisal — surface it
+            prisma.performance_reviews.findFirst({
+                where: {
+                    employeeId: userId,
+                    managerId: userId,
+                    reviewType: 'manager_appraisal',
+                    ...(effectiveCycleId ? { cycleId: effectiveCycleId } : {}),
+                    cycle: { isTest: true },
+                },
+                select: { id: true, status: true },
+                orderBy: { createdAt: 'desc' },
+            }),
+        ]);
+        const myQuestions = questionsByEmployee.get(userId) ?? [];
+        const selfQuestions = myQuestions.filter((q) => q.reviewType === 'self_review');
+        const nextStepsQuestions = myQuestions.filter((q) => q.reviewType === 'next_steps');
 
         type ReviewResponse = NonNullable<typeof selfReview>['responses'][number];
         const buildQuestion = (q: typeof selfQuestions[number], responses: ReviewResponse[]) => {
@@ -590,6 +701,7 @@ app.get('/my-reviews', async (c: Context): Promise<Response> => {
                     ? {
                           id: selfReview.id,
                           status: selfReview.status,
+                          isTest: selfReview.cycle?.isTest ?? false,
                           selfQuestions: selfQuestions.map((q) => buildQuestion(q, selfReview.responses)),
                           nextStepsQuestions: nextStepsQuestions.map((q) => buildQuestion(q, selfReview.responses)),
                       }
@@ -598,6 +710,7 @@ app.get('/my-reviews', async (c: Context): Promise<Response> => {
                     assignmentId: a.id,
                     cycleId: a.cycleId,
                     cycleName: a.cycle.name,
+                    isTest: a.cycle.isTest,
                     status: a.status,
                     reviewee: {
                         id: a.reviewee.id,
@@ -605,6 +718,9 @@ app.get('/my-reviews', async (c: Context): Promise<Response> => {
                         role: a.reviewee.jobTitle ?? '',
                     },
                 })),
+                testManagerAppraisal: testAppraisal
+                    ? { reviewId: testAppraisal.id, status: testAppraisal.status }
+                    : null,
             },
         });
     } catch (e) {
@@ -659,7 +775,7 @@ app.get('/peer-review/:assignmentId', async (c: Context): Promise<Response> => {
             include: {
                 reviewee: { select: { id: true, firstName: true, lastName: true, jobTitle: true, isActive: true } },
                 reviewer: { select: { managerId: true } },
-                cycle: { select: { id: true, name: true } },
+                cycle: { select: { id: true, name: true, isTest: true } },
                 performanceReview: { include: { responses: true } },
             },
         });
@@ -694,10 +810,13 @@ app.get('/peer-review/:assignmentId', async (c: Context): Promise<Response> => {
             responses = [];
         }
 
-        const questions = await prisma.review_questions.findMany({
-            where: { reviewType: 'peer_review', isActive: true },
-            orderBy: { displayOrder: 'asc' },
+        // Peer reviewers answer the reviewee's effective question set
+        const questionsByEmployee = await getEffectiveQuestions(prisma, {
+            employeeIds: [assignment.revieweeId],
+            cycleId: assignment.cycleId,
+            reviewTypes: ['peer_review'],
         });
+        const questions = questionsByEmployee.get(assignment.revieweeId) ?? [];
 
         return c.json({
             success: true,
@@ -710,7 +829,7 @@ app.get('/peer-review/:assignmentId', async (c: Context): Promise<Response> => {
                     name: `${assignment.reviewee.firstName ?? ''} ${assignment.reviewee.lastName ?? ''}`.trim(),
                     role: assignment.reviewee.jobTitle ?? '',
                 },
-                cycle: { id: assignment.cycle.id, name: assignment.cycle.name },
+                cycle: { id: assignment.cycle.id, name: assignment.cycle.name, isTest: assignment.cycle.isTest },
                 questions: questions.map((q) => ({
                     id: q.id,
                     category: q.category,
@@ -1075,8 +1194,14 @@ app.get('/admin/summary', async (c: Context): Promise<Response> => {
         }
 
         const cycleId = c.req.query('cycleId');
+        const includeTest = c.req.query('includeTest') === 'true';
 
         const cycleFilter = cycleId ? { cycleId } : {};
+        // Test cycles are excluded from the org-wide summary unless explicitly requested
+        // (an explicit cycleId means the admin deliberately selected that cycle)
+        const excludeTest = !cycleId && !includeTest;
+        const reviewTestFilter = excludeTest ? { OR: [{ cycleId: null }, { cycle: { isTest: false } }] } : {};
+        const assignmentTestFilter = excludeTest ? { cycle: { isTest: false } } : {};
 
         // Batch all data in 3 queries instead of N*3 per employee
         const [employees, allReviews, allAssignments] = await Promise.all([
@@ -1089,6 +1214,7 @@ app.get('/admin/summary', async (c: Context): Promise<Response> => {
                     reviewType: { in: ['manager_appraisal', 'self_review'] },
                     employee: { isActive: true },
                     ...cycleFilter,
+                    ...reviewTestFilter,
                 },
                 select: {
                     id: true, employeeId: true, managerId: true, reviewType: true, status: true,
@@ -1100,6 +1226,7 @@ app.get('/admin/summary', async (c: Context): Promise<Response> => {
                     status: 'completed',
                     reviewee: { isActive: true },
                     ...cycleFilter,
+                    ...assignmentTestFilter,
                 },
                 select: {
                     revieweeId: true,
@@ -1208,32 +1335,34 @@ app.get('/manager-review/:reviewId', async (c: Context): Promise<Response> => {
             where: { id: reviewId },
             include: {
                 employee: { select: { id: true, firstName: true, lastName: true, jobTitle: true, role: true } },
-                cycle: { select: { id: true, name: true } },
+                cycle: { select: { id: true, name: true, isTest: true } },
                 responses: true,
             },
         });
 
         if (!review) return c.json({ success: false, message: 'Review not found' }, 404);
         if (review.managerId !== userId && !(await isAdminOrManager(c))) return c.json({ success: false, message: 'Access denied' }, 403);
-        if (review.employeeId === userId) return c.json({ success: false, message: 'You cannot write your own appraisal' }, 403);
+        // In test cycles the participant is their own manager, so the self-appraisal guard is skipped
+        if (review.employeeId === userId && !review.cycle?.isTest) {
+            return c.json({ success: false, message: 'You cannot write your own appraisal' }, 403);
+        }
 
         // Serve the appropriate question set based on the reviewee's system role
         const revieweeIsManager = ['admin', 'manager'].includes(review.employee.role ?? '');
-        const questions = await prisma.review_questions.findMany({
-            where: {
-                reviewType: 'manager_appraisal',
-                isActive: true,
-                targetRole: revieweeIsManager ? 'manager' : 'employee',
-            },
-            orderBy: { displayOrder: 'asc' },
+        const questionsByEmployee = await getEffectiveQuestions(prisma, {
+            employeeIds: [review.employeeId],
+            cycleId: review.cycleId,
+            reviewTypes: ['manager_appraisal'],
+            targetRole: revieweeIsManager ? 'manager' : 'employee',
         });
+        const questions = questionsByEmployee.get(review.employeeId) ?? [];
 
         return c.json({
             success: true,
             data: {
                 reviewId: review.id,
                 status: review.status,
-                cycle: { id: review.cycle?.id ?? '', name: review.cycle?.name ?? '' },
+                cycle: { id: review.cycle?.id ?? '', name: review.cycle?.name ?? '', isTest: review.cycle?.isTest ?? false },
                 employee: {
                     id: review.employee.id,
                     name: `${review.employee.firstName ?? ''} ${review.employee.lastName ?? ''}`.trim(),
@@ -1537,9 +1666,9 @@ app.put('/nominations/:employeeId', async (c: Context): Promise<Response> => {
         if (!cycle) return c.json({ success: false, message: 'Cycle not found' }, 404);
         if (cycle.status === 'closed') return c.json({ success: false, message: 'Cannot modify a closed cycle' }, 400);
 
-        // Validate peers: no self-nomination, max 5, all must be active
+        // Validate peers: no self-nomination (allowed in test cycles), max 5, all must be active
         const MAX_PEERS = 5;
-        if (peerIds.includes(employeeId)) {
+        if (peerIds.includes(employeeId) && !cycle.isTest) {
             return c.json({ success: false, message: 'An employee cannot be their own peer reviewer' }, 400);
         }
         if (peerIds.length > MAX_PEERS) {

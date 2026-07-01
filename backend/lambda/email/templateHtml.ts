@@ -143,6 +143,32 @@ const documentReminderTemplate = (data: DocumentReminderData): string => {
     });
 };
 
+const documentAssignedTemplate = (data: DocumentReminderData): string => {
+    return renderTemplate('documentAssigned', {
+        employeeName: data.employeeName,
+        documentsHtml: buildDocumentsHtml(data.documents),
+        portalUrl: data.portalUrl,
+    });
+};
+
+interface ReviewCycleReminderData {
+    employeeName: string;
+    cycleName: string;
+    endDate: string;
+    pendingItems: string[];
+    portalUrl: string;
+}
+
+const reviewCycleReminderTemplate = (data: ReviewCycleReminderData): string => {
+    return renderTemplate('reviewCycleReminder', {
+        employeeName: data.employeeName,
+        cycleName: data.cycleName,
+        endDate: data.endDate,
+        pendingItemsHtml: data.pendingItems.map((item) => `<div class="item">${item}</div>`).join(''),
+        portalUrl: data.portalUrl,
+    });
+};
+
 async function renderEmailTemplate(variables: TemplateVariables): Promise<string> {
     if (!variables.subject || !variables.name || !variables.status || !variables.body) {
         throw new Error('Missing required template variables. Required: subject, name, status, body');
@@ -230,6 +256,9 @@ export {
     emailTemplate,
     managementEmailTemplate,
     documentReminderTemplate,
+    documentAssignedTemplate,
+    reviewCycleReminderTemplate,
+    ReviewCycleReminderData,
     generateEmail,
     generateManagementEmail,
     generateDocumentReminderEmail,

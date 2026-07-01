@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FileText, CheckCircle, XCircle, X, AlertCircle, Clock, Clock10, UserPlus, Trash2, Loader2 } from 'lucide-react';
+import { FileText, CheckCircle, XCircle, X, AlertCircle, Clock, Clock10, UserPlus, Trash2, Loader2, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toCamelCase } from '../../lib/helper';
 
@@ -67,6 +67,169 @@ const getStatusIcon = (status: string) => {
     }
 };
 
+interface Department {
+    id: number;
+    name: string;
+}
+
+/** Auto-assign configuration panel: flag a document for automatic assignment to new employees */
+const AutoAssignPanel: React.FC<{ documentId: number }> = ({ documentId }) => {
+    const { authFetch } = useAuth();
+    const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [enabled, setEnabled] = useState(false);
+    const [departmentId, setDepartmentId] = useState<string>('any');
+    const [role, setRole] = useState<string>('any');
+    const [dueDays, setDueDays] = useState<string>('30');
+    const [departments, setDepartments] = useState<Department[]>([]);
+    const [message, setMessage] = useState<string | null>(null);
+
+    const loadConfig = async () => {
+        setLoading(true);
+        setMessage(null);
+        try {
+            const [configRes, deptRes] = await Promise.all([
+                authFetch(`/admin-docs/documents/${documentId}/auto-assign`, { method: 'GET' }),
+                authFetch('/users/departments', { method: 'GET' }),
+            ]);
+            const config = await configRes.json();
+            if (config.payload) {
+                setEnabled(Boolean(config.payload.enabled));
+                const rule = config.payload.rules?.[0];
+                setDepartmentId(rule?.departmentId != null ? String(rule.departmentId) : 'any');
+                setRole(rule?.role ?? 'any');
+                setDueDays(rule?.dueDays != null ? String(rule.dueDays) : '30');
+            }
+            const deptData = await deptRes.json().catch(() => null);
+            const rawDepts = deptData?.payload?.departments ?? deptData?.payload ?? [];
+            if (Array.isArray(rawDepts)) setDepartments(rawDepts);
+        } catch {
+            setMessage('Failed to load auto-assign configuration.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleToggleOpen = () => {
+        if (!open) loadConfig();
+        setOpen(prev => !prev);
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        setMessage(null);
+        try {
+            const hasScope = departmentId !== 'any' || role !== 'any' || dueDays !== '30';
+            const response = await authFetch(`/admin-docs/documents/${documentId}/auto-assign`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    enabled,
+                    rules: enabled && hasScope
+                        ? [{
+                            departmentId: departmentId === 'any' ? null : Number(departmentId),
+                            role: role === 'any' ? null : role,
+                            dueDays: Number(dueDays) || 30,
+                        }]
+                        : [],
+                }),
+            });
+            if (!response.ok) throw new Error('Failed to save.');
+            setMessage(enabled ? 'New employees matching this scope will receive this document automatically.' : 'Auto-assignment disabled.');
+        } catch {
+            setMessage('Failed to save auto-assign configuration.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+            <button
+                onClick={handleToggleOpen}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+                <span className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-amber-500" />
+                    Auto-assign to new employees
+                </span>
+                <span className="text-gray-400">{open ? '▲' : '▼'}</span>
+            </button>
+            {open && (
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                    {loading ? (
+                        <div className="flex items-center justify-center py-4">
+                            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                        </div>
+                    ) : (
+                        <>
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={enabled}
+                                    onChange={e => setEnabled(e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="text-sm text-gray-800 dark:text-gray-200">
+                                    Automatically assign this document when a new employee is created
+                                </span>
+                            </label>
+                            {enabled && (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Department</label>
+                                        <select
+                                            value={departmentId}
+                                            onChange={e => setDepartmentId(e.target.value)}
+                                            className="w-full px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                        >
+                                            <option value="any">Any department</option>
+                                            {departments.map(d => (
+                                                <option key={d.id} value={String(d.id)}>{d.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Role</label>
+                                        <select
+                                            value={role}
+                                            onChange={e => setRole(e.target.value)}
+                                            className="w-full px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                        >
+                                            <option value="any">Any role</option>
+                                            <option value="user">Employees</option>
+                                            <option value="admin">Admins</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Due within (days)</label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            value={dueDays}
+                                            onChange={e => setDueDays(e.target.value)}
+                                            className="w-full px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                            {message && <p className="text-xs text-gray-500 dark:text-gray-400">{message}</p>}
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all text-sm font-medium disabled:opacity-50"
+                            >
+                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                                {saving ? 'Saving…' : 'Save auto-assign settings'}
+                            </button>
+                        </>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
     showViewModal,
     setShowViewModal,
@@ -84,7 +247,8 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
     const [allUsers, setAllUsers] = useState<ActiveUser[]>([]);
     const [usersLoading, setUsersLoading] = useState(false);
     const [userSearch, setUserSearch] = useState('');
-    const [assigningUserId, setAssigningUserId] = useState<number | null>(null);
+    const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+    const [bulkAssigning, setBulkAssigning] = useState(false);
     const [removingAssignmentId, setRemovingAssignmentId] = useState<number | null>(null);
     const [forceRemoveId, setForceRemoveId] = useState<number | null>(null); // assignmentId pending force confirmation
 
@@ -115,6 +279,7 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
             setSignatureStatus(null);
             setShowAssignPanel(false);
             setUserSearch('');
+            setSelectedUserIds([]);
             setForceRemoveId(null);
         }
     }, [showViewModal, selectedDocument, fetchSignatures]);
@@ -157,24 +322,31 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
         return fullName.includes(userSearch.toLowerCase());
     });
 
-    const handleAssignUser = async (user: ActiveUser) => {
-        if (!selectedDocument) return;
-        setAssigningUserId(user.id);
+    const toggleUserSelection = (userId: string) => {
+        setSelectedUserIds(prev =>
+            prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+        );
+    };
+
+    const handleBulkAssign = async () => {
+        if (!selectedDocument || selectedUserIds.length === 0) return;
+        setBulkAssigning(true);
         try {
-            const response = await authFetch('/admin-docs/assignments', {
+            const response = await authFetch('/admin-docs/assignments/bulk', {
                 method: 'POST',
-                body: JSON.stringify({ userId: user.id, documentId: selectedDocument.id }),
+                body: JSON.stringify({ userIds: selectedUserIds, documentId: selectedDocument.id }),
             });
             if (!response.ok) {
                 const data = await response.json().catch(() => null);
-                throw new Error(data?.message || 'Failed to assign user.');
+                throw new Error(data?.message || 'Failed to assign users.');
             }
             await fetchSignatures();
+            setSelectedUserIds([]);
             setUserSearch('');
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to assign user.');
+            setError(err instanceof Error ? err.message : 'Failed to assign users.');
         } finally {
-            setAssigningUserId(null);
+            setBulkAssigning(false);
         }
     };
 
@@ -298,30 +470,67 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
                                                 {userSearch ? 'No matching employees found.' : 'All active employees are already assigned.'}
                                             </p>
                                         ) : (
-                                            <div className="space-y-1 max-h-40 overflow-y-auto">
-                                                {filteredUsers.map(user => (
+                                            <>
+                                                <div className="flex items-center justify-between mb-2">
                                                     <button
-                                                        key={user.id}
-                                                        onClick={() => handleAssignUser(user)}
-                                                        disabled={assigningUserId === user.id}
-                                                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-left disabled:opacity-60"
+                                                        onClick={() => {
+                                                            const shownIds = filteredUsers.map(u => String(u.id));
+                                                            const allShownSelected = shownIds.every(id => selectedUserIds.includes(id));
+                                                            setSelectedUserIds(prev => allShownSelected
+                                                                ? prev.filter(id => !shownIds.includes(id))
+                                                                : [...new Set([...prev, ...shownIds])]);
+                                                        }}
+                                                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                                                     >
-                                                        <span className="text-sm text-gray-800 dark:text-gray-200">
-                                                            {user.firstName} {user.lastName}
-                                                            {user.jobTitle && <span className="text-gray-400 ml-1">— {user.jobTitle}</span>}
-                                                        </span>
-                                                        {assigningUserId === user.id ? (
-                                                            <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                                                        ) : (
-                                                            <UserPlus className="w-4 h-4 text-blue-400" />
-                                                        )}
+                                                        {filteredUsers.every(u => selectedUserIds.includes(String(u.id))) ? 'Deselect all shown' : 'Select all shown'}
                                                     </button>
-                                                ))}
-                                            </div>
+                                                    <span className="text-xs text-gray-400">{selectedUserIds.length} selected</span>
+                                                </div>
+                                                <div className="space-y-1 max-h-40 overflow-y-auto">
+                                                    {filteredUsers.map(user => {
+                                                        const uid = String(user.id);
+                                                        const checked = selectedUserIds.includes(uid);
+                                                        return (
+                                                            <label
+                                                                key={uid}
+                                                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={checked}
+                                                                    onChange={() => toggleUserSelection(uid)}
+                                                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                                />
+                                                                <span className="text-sm text-gray-800 dark:text-gray-200">
+                                                                    {user.firstName} {user.lastName}
+                                                                    {user.jobTitle && <span className="text-gray-400 ml-1">— {user.jobTitle}</span>}
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <button
+                                                    onClick={handleBulkAssign}
+                                                    disabled={selectedUserIds.length === 0 || bulkAssigning}
+                                                    className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {bulkAssigning ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <UserPlus className="w-4 h-4" />
+                                                    )}
+                                                    {bulkAssigning
+                                                        ? 'Assigning…'
+                                                        : `Assign ${selectedUserIds.length || ''} employee${selectedUserIds.length === 1 ? '' : 's'}`}
+                                                </button>
+                                            </>
                                         )}
                                     </div>
                                 )}
                             </div>
+
+                            {/* Auto-assign for new employees */}
+                            <AutoAssignPanel documentId={selectedDocument.id} />
 
                             {/* Signature Progress */}
                             {loading ? (

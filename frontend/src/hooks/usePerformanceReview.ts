@@ -11,6 +11,7 @@ export interface ReviewCycleApi {
     startDate: string;
     endDate: string;
     status: 'draft' | 'active' | 'closed';
+    isTest: boolean;
     createdAt: string;
     employeeCount: number;
     nominatedCount: number;
@@ -22,6 +23,7 @@ export interface PeerAssignmentApi {
     assignmentId: string;
     cycleId: string;
     cycleName: string;
+    isTest?: boolean;
     status: 'pending' | 'in_progress' | 'completed';
     reviewee: { id: string; name: string; role: string };
 }
@@ -31,7 +33,7 @@ export interface PeerReviewDetailApi {
     reviewId?: string;
     status: 'pending' | 'in_progress' | 'completed';
     reviewee: { id: string; name: string; role: string };
-    cycle: { id: string; name: string };
+    cycle: { id: string; name: string; isTest?: boolean };
     questions: { id: string; category: string; questionText: string; guidanceText: string | null }[];
     responses: { questionId: string; ratingResponse: number | null; textResponse: string | null }[];
 }
@@ -48,10 +50,13 @@ export interface MyReviewsApi {
     selfReview: {
         id: string;
         status: string;
+        isTest?: boolean;
         selfQuestions: ReviewQuestion[];
         nextStepsQuestions: ReviewQuestion[];
     } | null;
     peerAssignments: PeerAssignmentApi[];
+    /** Present in test cycles where the participant writes their own manager appraisal */
+    testManagerAppraisal?: { reviewId: string; status: string } | null;
 }
 
 export interface AdminSummaryItemApi {
@@ -115,7 +120,7 @@ export interface ManagerAppraisalQuestion {
 export interface ManagerAppraisalDetailApi {
     reviewId: string;
     status: string;
-    cycle: { id: string; name: string };
+    cycle: { id: string; name: string; isTest?: boolean };
     employee: { id: string; name: string; role: string };
     questions: ManagerAppraisalQuestion[];
 }
@@ -133,7 +138,7 @@ function authHeaders(): HeadersInit {
     };
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     const res = await fetch(`${API_BASE_URL}${path}`, {
         ...options,
         headers: { ...authHeaders(), ...(options?.headers ?? {}) },
@@ -234,7 +239,7 @@ export function useManagerAppraisalDetail(reviewId?: string) {
 export function useCreateCycle() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (data: { name: string; startDate: string; endDate: string }) =>
+        mutationFn: (data: { name: string; startDate: string; endDate: string; isTest?: boolean }) =>
             apiFetch('/performance/cycles', { method: 'POST', body: JSON.stringify(data) }),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['performance-cycles'] }),
     });
@@ -243,8 +248,29 @@ export function useCreateCycle() {
 export function useActivateCycle() {
     const qc = useQueryClient();
     return useMutation({
+        mutationFn: (data: string | { cycleId: string; participantIds?: string[] }) => {
+            const cycleId = typeof data === 'string' ? data : data.cycleId;
+            const participantIds = typeof data === 'string' ? undefined : data.participantIds;
+            return apiFetch(`/performance/cycles/${cycleId}/activate`, {
+                method: 'POST',
+                ...(participantIds ? { body: JSON.stringify({ participantIds }) } : {}),
+            });
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['performance-cycles'] });
+            qc.invalidateQueries({ queryKey: ['performance-admin-summary'] });
+            qc.invalidateQueries({ queryKey: ['my-performance-review'] });
+            qc.invalidateQueries({ queryKey: ['my-peer-assignments'] });
+            qc.invalidateQueries({ queryKey: ['manager-reviews'] });
+        },
+    });
+}
+
+export function useDeleteCycle() {
+    const qc = useQueryClient();
+    return useMutation({
         mutationFn: (cycleId: string) =>
-            apiFetch(`/performance/cycles/${cycleId}/activate`, { method: 'POST' }),
+            apiFetch(`/performance/cycles/${cycleId}`, { method: 'DELETE' }),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['performance-cycles'] });
             qc.invalidateQueries({ queryKey: ['performance-admin-summary'] });

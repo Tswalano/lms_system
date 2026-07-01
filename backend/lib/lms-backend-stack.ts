@@ -12,6 +12,8 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
@@ -306,7 +308,9 @@ export class LmsBackendStack extends cdk.Stack {
 
     // Create a new S3 bucket that will serve as the document repository
     const policyRepositoryBucket = new s3.Bucket(this, `LmsPolicyDocumentBucket${resourceSuffix}`, {
-      bucketName: `lms-policy-documents${resourceSuffix}`
+      bucketName: `lms-policy-documents${resourceSuffix}`,
+      // Versioning protects against accidental overwrites/deletes of policy documents
+      versioned: true
     });
 
     // CloudFront Distribution
@@ -469,18 +473,36 @@ export class LmsBackendStack extends cdk.Stack {
     // Document Reminder Scheduler — EventBridge + Lambda
     // Runs Mon–Fri at 8 AM UTC; sends reminder emails for overdue unsigned docs.
     // ============================================================================
+    // Scheduler lambdas render the same HTML email templates as the main lambda,
+    // so their bundles need the templates copied in too
+    const schedulerBundling = {
+      externalModules: ['aws-sdk'],
+      minify: true,
+      sourceMap: true,
+      target: 'es2020',
+      nodeModules: ['mysql2', 'dayjs'],
+      commandHooks: {
+        beforeInstall: () => [],
+        beforeBundling: () => [],
+        afterBundling: (inputDir: string, outputDir: string) => [
+          `mkdir -p ${outputDir}/templates`,
+          `cp ${inputDir}/lambda/email/templates/*.html ${outputDir}/templates/`,
+        ],
+      },
+    };
+
+    // Failed scheduler invocations (after retries) land here instead of being dropped
+    const schedulerDlq = new sqs.Queue(this, `SchedulerDlq${resourceSuffix}`, {
+      queueName: `lms-scheduler-dlq${resourceSuffix}`,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
     const schedulerLambda = new NodejsFunction(this, `lms-document-reminder-scheduler${resourceSuffix}`, {
       entry: 'lambda/scheduled/documentReminderScheduler.ts',
       handler: 'handler',
       functionName: `lms-document-reminder-scheduler${resourceSuffix}`,
       description: `Daily document signing reminder scheduler - ${environment}`,
-      bundling: {
-        externalModules: ['aws-sdk'],
-        minify: true,
-        sourceMap: true,
-        target: 'es2020',
-        nodeModules: ['mysql2', 'dayjs'],
-      },
+      bundling: schedulerBundling,
       runtime: lambda.Runtime.NODEJS_22_X,
       role: lambdaRole,
       layers: [dependenciesLayer],
@@ -507,11 +529,86 @@ export class LmsBackendStack extends cdk.Stack {
 
     dailyReminderRule.addTarget(new targets.LambdaFunction(schedulerLambda, {
       retryAttempts: 2,
+      deadLetterQueue: schedulerDlq,
     }));
 
     new cdk.CfnOutput(this, 'SchedulerLambdaName', {
       value: schedulerLambda.functionName,
       description: `Document reminder scheduler Lambda - ${environment}`,
+    });
+
+    // ============================================================================
+    // Review Cycle Reminder Scheduler — EventBridge + Lambda
+    // Runs Mon–Fri at 8 AM UTC; reminds employees with incomplete reviews when an
+    // active cycle ends within 3 days.
+    // ============================================================================
+    const reviewReminderLambda = new NodejsFunction(this, `lms-review-reminder-scheduler${resourceSuffix}`, {
+      entry: 'lambda/scheduled/reviewCycleReminderScheduler.ts',
+      handler: 'handler',
+      functionName: `lms-review-reminder-scheduler${resourceSuffix}`,
+      description: `Review cycle deadline reminder scheduler - ${environment}`,
+      bundling: schedulerBundling,
+      runtime: lambda.Runtime.NODEJS_22_X,
+      role: lambdaRole,
+      layers: [dependenciesLayer],
+      environment: {
+        DATABASE_SECRET_ARN: databaseCredentials.secretArn,
+        NODE_ENV: environment === 'prod' ? 'production' : 'development',
+        ENVIRONMENT: environment,
+        SECRET_NAME: config.secretName,
+        PERFORMANCE_PORTAL_URL: environment === 'prod'
+          ? 'https://lms.disraptor.co.za/performance-review'
+          : 'http://localhost:5173/performance-review',
+      },
+      timeout: cdk.Duration.minutes(5),
+      memorySize: 512,
+      logRetention: environment === 'prod' ? logs.RetentionDays.ONE_WEEK : logs.RetentionDays.THREE_DAYS,
+    });
+
+    const reviewReminderRule = new events.Rule(this, `DailyReviewReminderRule${resourceSuffix}`, {
+      ruleName: `lms-daily-review-reminder${resourceSuffix}`,
+      description: 'Triggers review-cycle deadline reminders for incomplete self/peer reviews',
+      schedule: events.Schedule.cron({ minute: '0', hour: '8', weekDay: 'MON-FRI' }),
+    });
+
+    reviewReminderRule.addTarget(new targets.LambdaFunction(reviewReminderLambda, {
+      retryAttempts: 2,
+      deadLetterQueue: schedulerDlq,
+    }));
+
+    new cdk.CfnOutput(this, 'ReviewReminderLambdaName', {
+      value: reviewReminderLambda.functionName,
+      description: `Review cycle reminder scheduler Lambda - ${environment}`,
+    });
+
+    // ============================================================================
+    // CloudWatch Alarms — surface lambda errors instead of failing silently
+    // ============================================================================
+    new cloudwatch.Alarm(this, `BackendLambdaErrorAlarm${resourceSuffix}`, {
+      alarmName: `lms-backend-errors${resourceSuffix}`,
+      alarmDescription: 'API lambda is erroring repeatedly',
+      metric: backendLambda.metricErrors({ period: cdk.Duration.minutes(5) }),
+      threshold: 5,
+      evaluationPeriods: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    new cloudwatch.Alarm(this, `DocumentSchedulerErrorAlarm${resourceSuffix}`, {
+      alarmName: `lms-document-scheduler-errors${resourceSuffix}`,
+      alarmDescription: 'Document reminder scheduler failed',
+      metric: schedulerLambda.metricErrors({ period: cdk.Duration.hours(1) }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    new cloudwatch.Alarm(this, `ReviewSchedulerErrorAlarm${resourceSuffix}`, {
+      alarmName: `lms-review-scheduler-errors${resourceSuffix}`,
+      alarmDescription: 'Review cycle reminder scheduler failed',
+      metric: reviewReminderLambda.metricErrors({ period: cdk.Duration.hours(1) }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
 
     // ============================================================================

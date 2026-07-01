@@ -10,7 +10,8 @@ import { extension } from "mime-types";
 import { DatabaseService } from '../helpers/databaseHeler';
 import { ResponseService } from '../models/apiResponse';
 import { DocumentCategoryRow } from "../models/documentCategory";
-import { senderDocumentReminder } from "../email/emailMiddleware";
+import { senderDocumentReminder, senderDocumentAssigned } from "../email/emailMiddleware";
+import { autoAssignOnboardingDocuments } from '../helpers/documentAssignment';
 import { getUserId } from '../middleware/auth';
 
 const adminDocs = new Hono();
@@ -630,7 +631,52 @@ adminDocs.post('/assignments', async (c) => {
             newDocumentAssignmentRecords[0][0]
         );
 
-        // TODO: Send notification 
+        // Notify the employee (in-app + email, fire-and-forget)
+        try {
+            const [userRows] = await connection.execute<RowDataPacket[]>(
+                `SELECT email, CONCAT(COALESCE(firstName, ''), ' ', COALESCE(lastName, '')) AS user_name FROM users WHERE id = ?`,
+                [userId]
+            );
+            const [docRows] = await connection.execute<RowDataPacket[]>(
+                `SELECT d.name, COALESCE(m.is_mandatory, 0) AS is_mandatory
+                 FROM documents d
+                 LEFT JOIN document_training_metadata m ON m.document_id = d.id
+                 WHERE d.id = ?`,
+                [documentId]
+            );
+            const user = userRows[0];
+            const doc = docRows[0];
+
+            await connection.execute(
+                `INSERT INTO notifications
+                    (recipientId, createdById, type, category, title, message,
+                     actionUrl, actionText, priority, relatedType,
+                     isRead, isArchived, createdAt, updatedAt)
+                 VALUES (?, ?, 'action_required', 'document_management', ?, ?, '/documents', 'View Document', 'normal', 'document', false, false, NOW(), NOW())`,
+                [
+                    userId,
+                    getUserId(c) ?? null,
+                    'New document assigned',
+                    `The document "${doc?.name ?? documentId}" has been assigned to you. Please review and sign it by ${dayjs(dueDate).format('DD MMM YYYY')}.`,
+                ]
+            );
+
+            if (user?.email) {
+                const portalUrl = process.env.FRONTEND_URL || 'https://lms.disraptor.co.za/documents';
+                void senderDocumentAssigned(user.email as string, {
+                    employeeName: (user.user_name as string)?.trim() || 'there',
+                    portalUrl,
+                    documents: [{
+                        name: (doc?.name as string) ?? `Document ${documentId}`,
+                        isMandatory: Boolean(doc?.is_mandatory),
+                        dueDate: dayjs(dueDate).format('DD MMM YYYY'),
+                        assignedDate: dayjs().format('DD MMM YYYY'),
+                    }],
+                }).catch((err) => console.error('ASSIGN DOCUMENT: email failed:', err));
+            }
+        } catch (notifyError) {
+            console.error('ASSIGN DOCUMENT: notification failed (assignment still created):', notifyError);
+        }
 
         return c.json(response, 200);
     } catch (assignDocumentDatabaseError: any) {
@@ -643,6 +689,324 @@ adminDocs.post('/assignments', async (c) => {
 
         return c.json(assignDocumentErrorResponse, 200);
 
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// POST /admin-docs/assignments/bulk
+// Assigns one document to many employees in a single call. The selector is either
+// an explicit userIds list, a departmentId, or all=true — resolved server-side to
+// individual user_document_assignments rows (idempotent; existing rows are skipped).
+adminDocs.post('/assignments/bulk', async (c) => {
+    console.log("POST /admin-docs/assignments/bulk");
+
+    const body = await c.req.json().catch(() => ({}));
+    const { documentId, userIds, departmentId, all, dueDate: rawDueDate } = body as {
+        documentId?: number;
+        userIds?: string[];
+        departmentId?: number;
+        all?: boolean;
+        dueDate?: string;
+    };
+
+    const selectors = [Array.isArray(userIds) && userIds.length > 0, departmentId != null, all === true].filter(Boolean);
+    if (!documentId || selectors.length !== 1) {
+        return c.json(ResponseService.error(
+            "BulkAssignInvalidPayloadError",
+            "documentId and exactly one of userIds / departmentId / all are required."
+        ), 400);
+    }
+
+    const dueDate = rawDueDate || dayjs().add(30, 'day').toISOString();
+    if (!dayjs(dueDate).isValid() || dayjs(dueDate).isBefore(dayjs())) {
+        return c.json(ResponseService.error(
+            "BulkAssignInvalidDueDateError",
+            `Provided due date is invalid or in the past: ${dueDate}.`
+        ), 400);
+    }
+
+    let connection: mysql.Connection | null = null;
+    try {
+        connection = await DatabaseService.createConnection();
+
+        const [docRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT d.id, d.name, COALESCE(m.is_mandatory, 0) AS is_mandatory
+             FROM documents d
+             LEFT JOIN document_training_metadata m ON m.document_id = d.id
+             WHERE d.id = ?`,
+            [documentId]
+        );
+        if (docRows.length === 0) {
+            return c.json(ResponseService.error(
+                "BulkAssignDocumentNotFoundError",
+                `Document not found: ${documentId}`
+            ), 404);
+        }
+        const doc = docRows[0];
+
+        // Resolve the selector to concrete users
+        let targetRows: RowDataPacket[];
+        if (all === true) {
+            [targetRows] = await connection.execute<RowDataPacket[]>(
+                `SELECT id, email, CONCAT(COALESCE(firstName,''),' ',COALESCE(lastName,'')) AS user_name
+                 FROM users WHERE isActive = 1`
+            );
+        } else if (departmentId != null) {
+            [targetRows] = await connection.execute<RowDataPacket[]>(
+                `SELECT id, email, CONCAT(COALESCE(firstName,''),' ',COALESCE(lastName,'')) AS user_name
+                 FROM users WHERE isActive = 1 AND departmentId = ?`,
+                [departmentId]
+            );
+        } else {
+            const placeholders = (userIds as string[]).map(() => '?').join(',');
+            [targetRows] = await connection.execute<RowDataPacket[]>(
+                `SELECT id, email, CONCAT(COALESCE(firstName,''),' ',COALESCE(lastName,'')) AS user_name
+                 FROM users WHERE isActive = 1 AND id IN (${placeholders})`,
+                userIds as string[]
+            );
+        }
+
+        if (targetRows.length === 0) {
+            return c.json(ResponseService.success(
+                "No matching active users for the given selector.",
+                { requested: 0, created: 0, skipped: 0 }
+            ), 200);
+        }
+
+        // Skip users who already have this document
+        const targetIds = targetRows.map((u) => u.id as string);
+        const existingPlaceholders = targetIds.map(() => '?').join(',');
+        const [existingRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT user_id FROM user_document_assignments
+             WHERE document_id = ? AND user_id IN (${existingPlaceholders})`,
+            [documentId, ...targetIds]
+        );
+        const alreadyAssigned = new Set(existingRows.map((r) => r.user_id as string));
+        const toCreate = targetRows.filter((u) => !alreadyAssigned.has(u.id as string));
+
+        if (toCreate.length > 0) {
+            const valuesSql = toCreate.map(() => `(?, ?, 'pending', ?, NOW())`).join(', ');
+            const params = toCreate.flatMap((u) => [u.id, documentId, dayjs(dueDate).format('YYYY-MM-DD HH:mm:ss')]);
+            await connection.execute(
+                `INSERT IGNORE INTO user_document_assignments (user_id, document_id, status, due_date, assigned_at)
+                 VALUES ${valuesSql}`,
+                params
+            );
+
+            // One in-app notification per newly assigned user
+            const adminId = getUserId(c) ?? null;
+            for (const u of toCreate) {
+                await connection.execute(
+                    `INSERT INTO notifications
+                        (recipientId, createdById, type, category, title, message,
+                         actionUrl, actionText, priority, relatedType,
+                         isRead, isArchived, createdAt, updatedAt)
+                     VALUES (?, ?, 'action_required', 'document_management', ?, ?, '/documents', 'View Document', 'normal', 'document', false, false, NOW(), NOW())`,
+                    [
+                        u.id,
+                        adminId,
+                        'New document assigned',
+                        `The document "${doc.name}" has been assigned to you. Please review and sign it by ${dayjs(dueDate).format('DD MMM YYYY')}.`,
+                    ]
+                );
+            }
+
+            // Assignment emails — fire-and-forget so a mail failure never fails the assignment
+            const portalUrl = process.env.FRONTEND_URL || 'https://lms.disraptor.co.za/documents';
+            void Promise.allSettled(
+                toCreate
+                    .filter((u) => !!u.email)
+                    .map((u) => senderDocumentAssigned(u.email as string, {
+                        employeeName: (u.user_name as string)?.trim() || 'there',
+                        portalUrl,
+                        documents: [{
+                            name: doc.name as string,
+                            isMandatory: Boolean(doc.is_mandatory),
+                            dueDate: dayjs(dueDate).format('DD MMM YYYY'),
+                            assignedDate: dayjs().format('DD MMM YYYY'),
+                        }],
+                    }))
+            ).then((results) => {
+                const failed = results.filter((r) => r.status === 'rejected').length;
+                if (failed) console.error(`BULK ASSIGN: ${failed} assignment email(s) failed`);
+            });
+        }
+
+        return c.json(ResponseService.success(
+            `Document assigned to ${toCreate.length} user(s); ${alreadyAssigned.size} already had it.`,
+            {
+                requested: targetRows.length,
+                created: toCreate.length,
+                skipped: alreadyAssigned.size,
+            }
+        ), 200);
+    } catch (bulkAssignError: any) {
+        console.error("BULK ASSIGN DOCUMENT ERROR:", bulkAssignError);
+        return c.json(ResponseService.error(
+            "BulkAssignDatabaseError",
+            bulkAssignError.message || "Failed to bulk assign document. Please check logs for details."
+        ), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// POST /admin-docs/assignments/sync-onboarding
+// Backfills auto-assign documents for one user (userId) or every active user.
+adminDocs.post('/assignments/sync-onboarding', async (c) => {
+    console.log("POST /admin-docs/assignments/sync-onboarding");
+
+    const body = await c.req.json().catch(() => ({}));
+    const { userId } = body as { userId?: string };
+
+    let connection: mysql.Connection | null = null;
+    try {
+        connection = await DatabaseService.createConnection();
+
+        const [users] = await connection.execute<RowDataPacket[]>(
+            userId
+                ? `SELECT id, departmentId, role FROM users WHERE isActive = 1 AND id = ?`
+                : `SELECT id, departmentId, role FROM users WHERE isActive = 1`,
+            userId ? [userId] : []
+        );
+
+        if (users.length === 0) {
+            return c.json(ResponseService.error(
+                "SyncOnboardingUserNotFoundError",
+                userId ? `Active user not found: ${userId}` : "No active users found."
+            ), 404);
+        }
+
+        let totalAssigned = 0;
+        for (const user of users) {
+            const result = await autoAssignOnboardingDocuments(connection, {
+                userId: user.id as string,
+                departmentId: user.departmentId as number | null,
+                role: user.role as string | null,
+            });
+            totalAssigned += result.assigned;
+        }
+
+        return c.json(ResponseService.success(
+            `Onboarding sync complete. ${totalAssigned} assignment(s) created across ${users.length} user(s).`,
+            { usersProcessed: users.length, assignmentsCreated: totalAssigned }
+        ), 200);
+    } catch (syncError: any) {
+        console.error("SYNC ONBOARDING DOCUMENTS ERROR:", syncError);
+        return c.json(ResponseService.error(
+            "SyncOnboardingError",
+            syncError.message || "Failed to sync onboarding documents."
+        ), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// GET /admin-docs/documents/:document_id/auto-assign — current auto-assign config
+adminDocs.get('/documents/:document_id/auto-assign', async (c) => {
+    const { document_id } = c.req.param();
+
+    let connection: mysql.Connection | null = null;
+    try {
+        connection = await DatabaseService.createConnection();
+
+        const [metaRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT COALESCE(m.auto_assign_new_users, 0) AS enabled
+             FROM documents d
+             LEFT JOIN document_training_metadata m ON m.document_id = d.id
+             WHERE d.id = ?`,
+            [document_id]
+        );
+        if (metaRows.length === 0) {
+            return c.json(ResponseService.error("NotFound", `Document not found: ${document_id}`), 404);
+        }
+
+        const [ruleRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT r.id, r.department_id AS departmentId, dep.name AS departmentName, r.role, r.due_days AS dueDays
+             FROM document_auto_assign_rules r
+             LEFT JOIN departments dep ON dep.id = r.department_id
+             WHERE r.document_id = ?`,
+            [document_id]
+        );
+
+        return c.json(ResponseService.success("Auto-assign configuration retrieved.", {
+            enabled: Boolean(metaRows[0].enabled),
+            rules: ruleRows,
+        }), 200);
+    } catch (error: any) {
+        console.error("GET AUTO-ASSIGN CONFIG ERROR:", error);
+        return c.json(ResponseService.error(
+            "AutoAssignConfigError",
+            error.message || "Failed to fetch auto-assign configuration."
+        ), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// PUT /admin-docs/documents/:document_id/auto-assign
+// Body: { enabled: boolean, rules?: [{ departmentId?, role?, dueDays? }] }
+adminDocs.put('/documents/:document_id/auto-assign', async (c) => {
+    const { document_id } = c.req.param();
+    const body = await c.req.json().catch(() => ({}));
+    const { enabled, rules } = body as {
+        enabled?: boolean;
+        rules?: Array<{ departmentId?: number | null; role?: string | null; dueDays?: number }>;
+    };
+
+    if (typeof enabled !== 'boolean') {
+        return c.json(ResponseService.error(
+            "AutoAssignInvalidPayloadError",
+            "enabled (boolean) is required."
+        ), 400);
+    }
+
+    let connection: mysql.Connection | null = null;
+    try {
+        connection = await DatabaseService.createConnection();
+
+        const [docRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT id FROM documents WHERE id = ?`,
+            [document_id]
+        );
+        if (docRows.length === 0) {
+            return c.json(ResponseService.error("NotFound", `Document not found: ${document_id}`), 404);
+        }
+
+        await connection.execute(
+            `INSERT INTO document_training_metadata (document_id, auto_assign_new_users, createdAt, updatedAt)
+             VALUES (?, ?, NOW(), NOW())
+             ON DUPLICATE KEY UPDATE auto_assign_new_users = VALUES(auto_assign_new_users), updatedAt = NOW()`,
+            [document_id, enabled]
+        );
+
+        // Replace the scoping rules wholesale
+        await connection.execute(
+            `DELETE FROM document_auto_assign_rules WHERE document_id = ?`,
+            [document_id]
+        );
+        const cleanRules = (Array.isArray(rules) ? rules : []).filter(
+            (r) => r.departmentId != null || (r.role != null && r.role !== '') || r.dueDays != null
+        );
+        for (const rule of cleanRules) {
+            await connection.execute(
+                `INSERT IGNORE INTO document_auto_assign_rules (document_id, department_id, role, due_days, createdAt)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                [document_id, rule.departmentId ?? null, rule.role ?? null, rule.dueDays ?? 30]
+            );
+        }
+
+        return c.json(ResponseService.success("Auto-assign configuration saved.", {
+            enabled,
+            rulesSaved: cleanRules.length,
+        }), 200);
+    } catch (error: any) {
+        console.error("PUT AUTO-ASSIGN CONFIG ERROR:", error);
+        return c.json(ResponseService.error(
+            "AutoAssignConfigError",
+            error.message || "Failed to save auto-assign configuration."
+        ), 500);
     } finally {
         if (connection) await connection.end();
     }

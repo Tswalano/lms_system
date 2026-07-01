@@ -10,7 +10,7 @@ import {
     useSubmitReview,
     type ReviewQuestion,
 } from "@/hooks/usePerformanceReview";
-import { ArrowLeft, CheckCircle2, UserCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FlaskConical, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -131,6 +131,13 @@ const PerformanceReviewPeerPage = () => {
                     Back
                 </Button>
             </div>
+
+            {detail.cycle.isTest && (
+                <div className="flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+                    <FlaskConical className="w-4 h-4 flex-shrink-0" />
+                    <span><strong>Test cycle</strong> — this peer review is part of a test run and is excluded from reports.</span>
+                </div>
+            )}
 
             {/* Header card */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 border-l-4 border-l-blue-400 dark:border-l-blue-500 p-6">

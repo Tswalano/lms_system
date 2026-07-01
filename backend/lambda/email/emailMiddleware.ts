@@ -3,9 +3,12 @@ import {
     emailTemplate,
     managementEmailTemplate,
     documentReminderTemplate,
+    documentAssignedTemplate,
+    reviewCycleReminderTemplate,
     EmailTemplateData,
     ManagementTemplateData,
-    DocumentReminderData
+    DocumentReminderData,
+    ReviewCycleReminderData
 } from "./templateHtml";
 import { LeaveStatus } from "../helpers/leaveHelpers";
 
@@ -886,6 +889,153 @@ export async function senderDocumentReminder(
         return { success: true, messageId: data2.MessageId ?? "unknown", recipient: recipientEmail };
     } catch (err) {
         console.error("Error sending document reminder email:");
+        handleEmailError(err);
+        throw err;
+    }
+}
+
+/**
+ * Send new-document-assignment notification email via AWS SES
+ */
+export async function senderDocumentAssigned(
+    recipientEmail: string,
+    data: DocumentReminderData
+): Promise<EmailResult> {
+    console.log("=== Document Assigned Email Sending Started ===");
+    console.log("Recipient:", recipientEmail);
+    console.log("Employee:", data.employeeName);
+    console.log("Documents:", data.documents.length);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+        throw new Error(`Invalid recipient email: ${recipientEmail}`);
+    }
+    if (!data.employeeName?.trim()) {
+        throw new Error("Employee name is required");
+    }
+    if (!data.documents?.length) {
+        throw new Error("At least one document is required");
+    }
+
+    const emailConfig = getEmailConfiguration();
+    const subject = `New document${data.documents.length > 1 ? 's' : ''} assigned to you (${data.documents.length})`;
+    const html = documentAssignedTemplate(data);
+
+    const plainText = [
+        `Hi ${data.employeeName},`,
+        "",
+        "The following documents have been assigned to you for review and signature:",
+        "",
+        ...data.documents.map(doc =>
+            `- ${doc.name}${doc.isMandatory ? " [MANDATORY]" : ""}${doc.dueDate ? ` | Due: ${doc.dueDate}` : ` | Assigned: ${doc.assignedDate}`}`
+        ),
+        "",
+        `Please log in to the portal to review and sign: ${data.portalUrl}`,
+        "",
+        "---",
+        "This is an automated message from the Employee Management System.",
+    ].join("\n");
+
+    const params: SESEmailParams = {
+        Destination: { ToAddresses: [recipientEmail] },
+        Message: {
+            Body: {
+                Html: { Charset: CHARSET, Data: html },
+                Text: { Charset: CHARSET, Data: plainText },
+            },
+            Subject: {
+                Charset: CHARSET,
+                Data: emailConfig.environment === 'dev' ? `[DEV] ${subject}` : subject,
+            },
+        },
+        Source: SENDER_EMAIL,
+        ReplyToAddresses: [REPLY_TO_EMAIL],
+        Tags: [
+            { Name: "EmailType", Value: "DocumentAssigned" },
+            { Name: "Environment", Value: emailConfig.environment },
+        ],
+    };
+
+    try {
+        const sesClient = createSESClient();
+        const command = new SendEmailCommand(params as SendEmailCommandInput);
+        const result = await sesClient.send(command);
+
+        console.log("Document assigned email sent. MessageId:", result.MessageId);
+        return { success: true, messageId: result.MessageId ?? "unknown", recipient: recipientEmail };
+    } catch (err) {
+        console.error("Error sending document assigned email:");
+        handleEmailError(err);
+        throw err;
+    }
+}
+
+/**
+ * Send performance review cycle deadline reminder email via AWS SES
+ */
+export async function senderReviewCycleReminder(
+    recipientEmail: string,
+    data: ReviewCycleReminderData
+): Promise<EmailResult> {
+    console.log("=== Review Cycle Reminder Email Sending Started ===");
+    console.log("Recipient:", recipientEmail);
+    console.log("Cycle:", data.cycleName);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+        throw new Error(`Invalid recipient email: ${recipientEmail}`);
+    }
+    if (!data.pendingItems?.length) {
+        throw new Error("At least one pending item is required");
+    }
+
+    const emailConfig = getEmailConfiguration();
+    const subject = `Reminder: "${data.cycleName}" review cycle closes on ${data.endDate}`;
+    const html = reviewCycleReminderTemplate(data);
+
+    const plainText = [
+        `Hi ${data.employeeName},`,
+        "",
+        `The "${data.cycleName}" performance review cycle closes on ${data.endDate}.`,
+        "You still have the following items to complete:",
+        "",
+        ...data.pendingItems.map((item) => `- ${item}`),
+        "",
+        `Please log in to complete them: ${data.portalUrl}`,
+        "",
+        "---",
+        "This is an automated message from the Employee Management System.",
+    ].join("\n");
+
+    const params: SESEmailParams = {
+        Destination: { ToAddresses: [recipientEmail] },
+        Message: {
+            Body: {
+                Html: { Charset: CHARSET, Data: html },
+                Text: { Charset: CHARSET, Data: plainText },
+            },
+            Subject: {
+                Charset: CHARSET,
+                Data: emailConfig.environment === 'dev' ? `[DEV] ${subject}` : subject,
+            },
+        },
+        Source: SENDER_EMAIL,
+        ReplyToAddresses: [REPLY_TO_EMAIL],
+        Tags: [
+            { Name: "EmailType", Value: "ReviewCycleReminder" },
+            { Name: "Environment", Value: emailConfig.environment },
+        ],
+    };
+
+    try {
+        const sesClient = createSESClient();
+        const command = new SendEmailCommand(params as SendEmailCommandInput);
+        const result = await sesClient.send(command);
+
+        console.log("Review cycle reminder sent. MessageId:", result.MessageId);
+        return { success: true, messageId: result.MessageId ?? "unknown", recipient: recipientEmail };
+    } catch (err) {
+        console.error("Error sending review cycle reminder email:");
         handleEmailError(err);
         throw err;
     }
