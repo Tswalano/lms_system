@@ -11,6 +11,7 @@ import {
 } from '../middleware/auth';
 const { randomUUID } = require('crypto');
 import { DatabaseService } from '../helpers/databaseHeler';
+import { logDocumentAudit } from '../helpers/documentAudit';
 import { AdminCreateUserCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { RowDataPacket, OkPacket } from 'mysql2';
 
@@ -34,7 +35,7 @@ interface DocumentRow extends RowDataPacket {
     due_date: Date;
     assigned_at: Date;
     completed_at: Date;
-    version: string;
+    version: number;
     is_mandatory: boolean;
     expiry_date: Date;
     current_status: string;
@@ -72,7 +73,7 @@ interface CompletionRecordRow extends RowDataPacket {
     document_id: number;
     document_name: string;
     category_name: string;
-    version: string;
+    version: number;
     is_mandatory: boolean;
     completed_at: Date;
     signed_at: Date;
@@ -319,10 +320,11 @@ userDoc.post('/document-progress', async (c) => {
             `;
 
             const [viewRows] = await connection.execute(checkViewSql, [user_id, document_id]) as [any[], any];
+            const isFirstView = viewRows.length === 0;
 
-            if (viewRows.length === 0) {
+            if (isFirstView) {
                 const insertViewSql = `
-                    INSERT INTO document_views (user_id, document_id, viewed_at, duration, progress_data) 
+                    INSERT INTO document_views (user_id, document_id, viewed_at, duration, progress_data)
                     VALUES (?, ?, NOW(), ?, ?)
                 `;
                 await connection.execute<OkPacket>(insertViewSql, [
@@ -351,10 +353,12 @@ userDoc.post('/document-progress', async (c) => {
             }
 
             // --- 2. User Document Assignments ---
+            // Only advance pending -> viewed; never regress an already-signed/completed/overdue
+            // assignment just because the employee re-opened the document afterward.
             const updateAssignmentSql = `
                 UPDATE user_document_assignments
                 SET status = ?
-                WHERE user_id = ? AND document_id = ?
+                WHERE user_id = ? AND document_id = ? AND status = 'pending'
             `;
             await connection.execute<OkPacket>(updateAssignmentSql, [
                 status || 'viewed', // fallback if not provided
@@ -364,6 +368,14 @@ userDoc.post('/document-progress', async (c) => {
 
             // Commit transaction
             await connection.commit();
+
+            if (isFirstView) {
+                await logDocumentAudit(connection, {
+                    documentId: document_id,
+                    userId: user_id,
+                    action: 'viewed',
+                });
+            }
 
             const response = ResponseService.success(
                 "Document progress and assignment status saved successfully",
@@ -413,7 +425,9 @@ userDoc.post('/document-completion', async (c) => {
         const {
             user_id,
             document_id,
-            acknowledgement_checked
+            acknowledgement_checked,
+            signature_type,
+            signature_data
         } = await c.req.json();
 
         if (!user_id || !document_id || !acknowledgement_checked) {
@@ -424,11 +438,27 @@ userDoc.post('/document-completion', async (c) => {
             return c.json(response, 400);
         }
 
+        if (signature_type && signature_type !== 'typed' && signature_type !== 'drawn') {
+            const response = ResponseService.error(
+                "INVALID_INPUT",
+                "signature_type must be 'typed' or 'drawn'"
+            );
+            return c.json(response, 400);
+        }
+
+        if (signature_type && !signature_data?.trim()) {
+            const response = ResponseService.error(
+                "INVALID_INPUT",
+                "signature_data is required when signature_type is provided"
+            );
+            return c.json(response, 400);
+        }
+
         const connection = await DatabaseService.createConnection();
 
         try {
             const [viewCheck] = await connection.execute<RowDataPacket[]>(`
-                SELECT id FROM document_views 
+                SELECT id FROM document_views
                 WHERE user_id = ? AND document_id = ?
             `, [user_id, document_id]);
 
@@ -440,28 +470,44 @@ userDoc.post('/document-completion', async (c) => {
                 return c.json(response, 400);
             }
 
+            // IP/user-agent are read server-side from request headers, not trusted from
+            // the client payload, so they're reliable evidence of who actually signed.
             const ipAddress = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
             const userAgent = c.req.header('user-agent') || 'unknown';
+
+            const [metadataRows] = await connection.execute<RowDataPacket[]>(`
+                SELECT COALESCE(version, 1) AS version FROM document_training_metadata WHERE document_id = ?
+            `, [document_id]);
+            const documentVersion = metadataRows.length > 0 ? Number(metadataRows[0].version) : 1;
 
             await connection.beginTransaction();
 
             try {
-                // Record document signature/acknowledgement
+                // Record document signature/acknowledgement. The unique key is
+                // (user_id, document_id, document_version), so re-signing after a
+                // version bump inserts a new history row instead of overwriting the
+                // signature captured against the prior version.
                 const signatureSql = `
-                    INSERT INTO document_signatures 
-                    (user_id, document_id, signed_at)
-                    VALUES (?, ?, NOW())
-                    ON DUPLICATE KEY UPDATE 
+                    INSERT INTO document_signatures
+                    (user_id, document_id, document_version, signature_type, signature_data, ip_address, user_agent, signed_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                    ON DUPLICATE KEY UPDATE
+                        signature_type = VALUES(signature_type),
+                        signature_data = VALUES(signature_data),
+                        ip_address = VALUES(ip_address),
+                        user_agent = VALUES(user_agent),
                         signed_at = NOW()
                 `;
 
                 await connection.execute<OkPacket>(signatureSql, [
-                    user_id, document_id
+                    user_id, document_id, documentVersion,
+                    signature_type ?? null, signature_data ?? null,
+                    ipAddress, userAgent,
                 ]);
 
                 // Update assignment status
                 const updateAssignmentSql = `
-                    UPDATE user_document_assignments 
+                    UPDATE user_document_assignments
                     SET status = 'signed', completed_at = NOW()
                     WHERE user_id = ? AND document_id = ?
                 `;
@@ -470,11 +516,19 @@ userDoc.post('/document-completion', async (c) => {
 
                 await connection.commit();
 
+                await logDocumentAudit(connection, {
+                    documentId: document_id,
+                    userId: user_id,
+                    action: 'signed',
+                    metadata: { documentVersion, signatureType: signature_type ?? null },
+                });
+
                 const response = ResponseService.success(
                     "Document completed successfully",
                     {
                         user_id,
                         document_id,
+                        document_version: documentVersion,
                         completed_at: new Date().toISOString(),
                         acknowledgement_checked
                     }
@@ -695,6 +749,7 @@ userDoc.get('/completion-records/:userId', async (c) => {
                 JOIN document_categories dc ON d.category_id = dc.id
                 LEFT JOIN document_training_metadata dtm ON d.id = dtm.document_id
                 LEFT JOIN document_signatures ds ON d.id = ds.document_id AND ds.user_id = uda.user_id
+                    AND ds.document_version = COALESCE(dtm.version, 1)
                 LEFT JOIN document_views dv ON d.id = dv.document_id AND dv.user_id = uda.user_id
                 WHERE uda.user_id = ? AND uda.status = 'completed'
             `;
@@ -942,12 +997,15 @@ userDoc.get('/by-category/:userId', async (c) => {
                     ds.signed_at,
                     uda.status AS signature_status
                 FROM document_categories dc
-                INNER JOIN documents d 
+                INNER JOIN documents d
                     ON dc.id = d.category_id
                 INNER JOIN user_document_assignments uda
                     ON uda.document_id = d.id
+                LEFT JOIN document_training_metadata dtm
+                    ON dtm.document_id = d.id
                 LEFT JOIN document_signatures ds
                     ON ds.document_id = d.id AND ds.user_id = ?
+                    AND ds.document_version = COALESCE(dtm.version, 1)
                 WHERE uda.user_id = ?
                 ORDER BY dc.name ASC, d.name ASC
             `;

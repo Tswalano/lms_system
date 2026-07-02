@@ -169,6 +169,22 @@ const reviewCycleReminderTemplate = (data: ReviewCycleReminderData): string => {
     });
 };
 
+interface DocumentExpiringData {
+    employeeName: string;
+    documentName: string;
+    expiryDate: string;
+    portalUrl: string;
+}
+
+const documentExpiringTemplate = (data: DocumentExpiringData): string => {
+    return renderTemplate('documentExpiring', {
+        employeeName: data.employeeName,
+        documentName: data.documentName,
+        expiryDate: data.expiryDate,
+        portalUrl: data.portalUrl,
+    });
+};
+
 async function renderEmailTemplate(variables: TemplateVariables): Promise<string> {
     if (!variables.subject || !variables.name || !variables.status || !variables.body) {
         throw new Error('Missing required template variables. Required: subject, name, status, body');
@@ -259,6 +275,8 @@ export {
     documentAssignedTemplate,
     reviewCycleReminderTemplate,
     ReviewCycleReminderData,
+    documentExpiringTemplate,
+    DocumentExpiringData,
     generateEmail,
     generateManagementEmail,
     generateDocumentReminderEmail,

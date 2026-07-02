@@ -25,7 +25,8 @@ interface FolderType {
 interface NewDocumentState {
     name: string;
     folder: string;
-    expiryFrequency: string;
+    expiryDate: string;
+    renewalFrequencyDays: string;
     file?: File | null;
     url?: string | null;
     status: 'active' | 'draft' | 'archived';
@@ -49,7 +50,8 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({
     const [documentData, setDocumentData] = useState<NewDocumentState>({
         name: '',
         folder: '',
-        expiryFrequency: '',
+        expiryDate: '',
+        renewalFrequencyDays: '',
         file: null,
         url: null,
         status: 'draft'
@@ -65,7 +67,8 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({
         setDocumentData({
             name: '',
             folder: '',
-            expiryFrequency: '',
+            expiryDate: '',
+            renewalFrequencyDays: '',
             file: null,
             url: null,
             status: 'draft'
@@ -155,6 +158,35 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="doc-expiry" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                                Expiry Date (optional)
+                            </Label>
+                            <Input
+                                id="doc-expiry"
+                                type="date"
+                                value={documentData.expiryDate}
+                                onChange={(e) => setDocumentData(prev => ({ ...prev, expiryDate: e.target.value }))}
+                                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="doc-renewal" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                                Renewal Frequency (days)
+                            </Label>
+                            <Input
+                                id="doc-renewal"
+                                type="number"
+                                min={1}
+                                value={documentData.renewalFrequencyDays}
+                                onChange={(e) => setDocumentData(prev => ({ ...prev, renewalFrequencyDays: e.target.value }))}
+                                placeholder="e.g. 365"
+                                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                        </div>
                     </div>
 
                     {/* Tabs */}

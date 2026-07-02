@@ -1,6 +1,7 @@
 import React, { type FC, useState, useEffect } from 'react';
 import { X, Download, PenTool, FileText, ExternalLink, AlertCircle, Loader } from 'lucide-react';
 import { formatDate } from '@/lib/helper';
+import PdfPageViewer, { type PdfProgressData } from '@/components/documents/PdfPageViewer';
 
 interface DocumentType {
     id: number;
@@ -21,17 +22,21 @@ interface DocumentViewerProps {
     onClose: () => void;
     onSign?: (doc: DocumentType) => void;
     onDownload?: (doc: DocumentType) => void;
+    /** Fires with real page/scroll progress while viewing a PDF (debounced). */
+    onProgress?: (data: PdfProgressData) => void;
 }
 
 const DocumentViewer: FC<DocumentViewerProps> = ({
     document,
     onClose,
     onSign,
-    onDownload
+    onDownload,
+    onProgress
 }) => {
     const [viewerError, setViewerError] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [currentViewer, setCurrentViewer] = useState<'office' | 'google' | 'direct' | 'unsupported'>('office');
+    const [pdfJsFailed, setPdfJsFailed] = useState(false);
 
     // Get file extension - improved detection for real URLs
     const getFileExtension = (filename: string): string => {
@@ -163,6 +168,7 @@ const DocumentViewer: FC<DocumentViewerProps> = ({
         setViewerError(false);
         setIsLoading(true);
         setCurrentViewer('office');
+        setPdfJsFailed(false);
     }, [document.id]);
 
     // Get status configuration
@@ -325,26 +331,30 @@ const DocumentViewer: FC<DocumentViewerProps> = ({
             );
         }
 
-        // Handle PDF files
+        // Handle PDF files — PDF.js renders pages in-page (canvas) so real page/scroll
+        // progress can be tracked, unlike a native <iframe> PDF plugin which is an
+        // opaque nested browsing context. Falls back to the iframe if PDF.js fails
+        // (e.g. fetch/CORS/parse error).
         if (fileType === 'pdf') {
+            if (pdfJsFailed) {
+                return (
+                    <div className="relative h-full">
+                        <iframe
+                            src={`${document.fileUrl}#view=FitH`}
+                            className="w-full h-full border-0"
+                            title={document.name}
+                            onLoad={handleIframeLoad}
+                            onError={handleIframeError}
+                        />
+                    </div>
+                );
+            }
             return (
-                <div className="relative h-full">
-                    {isLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-900 z-10">
-                            <div className="text-center">
-                                <Loader className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-2" />
-                                <p className="text-gray-500 dark:text-gray-400">Loading PDF...</p>
-                            </div>
-                        </div>
-                    )}
-                    <iframe
-                        src={`${document.fileUrl}#view=FitH`}
-                        className="w-full h-full border-0"
-                        title={document.name}
-                        onLoad={handleIframeLoad}
-                        onError={handleIframeError}
-                    />
-                </div>
+                <PdfPageViewer
+                    fileUrl={document.fileUrl}
+                    onProgress={onProgress}
+                    onError={() => setPdfJsFailed(true)}
+                />
             );
         }
 

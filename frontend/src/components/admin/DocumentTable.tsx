@@ -128,7 +128,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                                         <div className="w-8 h-8 bg-gradient-to-br from-blue-500 via-cyan-500 to-green-500 rounded-full flex items-center justify-center">
                                             <span className="text-xs font-semibold text-white">{doc.avatar}</span>
                                         </div>
-                                        <span className="text-sm text-gray-900 dark:text-white">{doc.uploadedByDisplay}</span>
+                                        {/* <span className="text-sm text-gray-900 dark:text-white">{doc.uploadedByDisplay}</span> */}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">

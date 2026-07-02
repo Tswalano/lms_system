@@ -6,118 +6,108 @@
 
 ## 1. Document Signature Feature — Gaps & Improvements
 
-**Current state:** Employees can view documents and click a confirm button that records `acknowledgement_checked: true`. This is a simple boolean flag — there is no real signature, no audit trail, and no compliance-grade record.
+**Current state:** ✅ Fully implemented. Real signature capture (typed or drawn), real progress tracking, document versioning with re-signature enforcement, expiry & renewal, and a full admin audit trail are all in place. Two pre-existing bugs were discovered and fixed along the way: the admin "Edit Document" feature had no backend endpoint at all (silent 404), and document-progress was always reporting ~0 elapsed time because it fired only at viewer-open instead of viewer-close.
 
 ---
 
-### 1.1 Real Digital Signature Capture 🔲
-
-The current modal just shows a confirm button. A proper e-signature flow requires capturing something the employee actively provides.
+### 1.1 Real Digital Signature Capture ✅
 
 #### Backend
-- 🔲 Add `signature_data TEXT NULL` column to the signatures table (stores base64 or typed-name string)
-- 🔲 Add `signed_at TIMESTAMP`, `ip_address VARCHAR(45)`, `user_agent TEXT` columns to signatures table for audit evidence
-- 🔲 `PUT /user-docs/document-completion` — accept and persist `signatureData`, `ipAddress`, `userAgent` alongside the existing `acknowledgement_checked`
+- ✅ `document_signatures` gained `signature_type` (`typed`|`drawn`), `signature_data TEXT`, `ip_address`, `user_agent`, `document_version` — IP/user-agent are captured server-side from request headers, not trusted from the client, for integrity
+- ✅ Unique key widened to `(user_id, document_id, document_version)` so re-signing after a version bump inserts a new history row instead of overwriting
+- ✅ `POST /user-docs/document-completion` — accepts and persists `signature_type`/`signature_data`
+- ✅ `GET /admin-docs/:document_id/signatures` — returns each signer's captured signature, version, and whether it's still current
 
 #### Frontend
-- 🔲 Replace the confirm-button modal with a two-step signature modal:
-  - **Step 1 — Read & confirm:** checkbox "I have read and understood this document"
-  - **Step 2 — Sign:** choose method:
-    - *Type your name* — renders typed name in a signature font
-    - *Draw* — canvas pad using a lightweight lib (e.g. `signature_pad`)
-  - Preview of the captured signature before submitting
-- 🔲 Capture `ip_address` and `user_agent` client-side and send alongside signature payload
-- 🔲 Show the captured signature image/name in the admin "View Signatures" modal alongside each employee's record
+- ✅ Two-step signature modal in `EmployeeDocumentsPage.tsx`: Step 1 confirm-read checkbox, Step 2 choose Type (cursive-rendered) or Draw (`SignaturePad.tsx`, a small dependency-free canvas component)
+- ✅ Admin "View Signatures" modal shows each captured signature inline (cursive name or drawn PNG), a `v{n}` tag, and an "Outdated — re-signature required" badge when a signature predates the current version
 
 ---
 
-### 1.2 Document Progress Tracking 🔲
-
-**Current state:** `document-progress` API call sends random placeholder values for `page`, `scrollPercentage`, and `timeSpent`. There is a `TODO` comment in `EmployeeDocumentsPage.tsx` flagging this.
-
-#### Frontend
-- 🔲 Track real scroll position within the `DocumentViewer` iframe using `postMessage` (PDF.js supports this) or a wrapper `scroll` event listener on the container
-- 🔲 Track time-on-page using a `useEffect` timer that starts when the viewer opens and clears on close
-- 🔲 Track current page number for PDF files (PDF.js page change events)
-- 🔲 Send real values to `POST /user-docs/document-progress` instead of random numbers
-
----
-
-### 1.3 Document Versioning 🔲
-
-When an admin updates a document (new file upload), existing employee signatures become stale and employees should re-sign.
+### 1.2 Document Progress Tracking ✅
 
 #### Backend
-- 🔲 Add `version INT DEFAULT 1` to the documents table
-- 🔲 On `PUT /admin-docs/{docId}` with a new file: increment version, reset all related signatures to `pending`, insert audit log entry
-- 🔲 Store `signature_version INT` on the signatures table so a signature is only valid for the document version it was signed against
+- ✅ `document-progress` accepts a real `progress_data` shape (`fileType`, `pageNumber`, `totalPages`, `scrollPercentage`, `trackingMethod`)
+- ✅ Fixed: assignment status update no longer regresses `signed`/`completed` back to `viewed` if a document is re-opened after signing
 
 #### Frontend
-- 🔲 Show a "Version updated — re-signature required" banner on documents in the employee view
-- 🔲 Show the version number and last-updated date in the admin document table
+- ✅ Fixed the "always ~0 elapsed" bug: progress is now reported on viewer **close** (with real elapsed time) in addition to open, not only at open
+- ✅ PDFs render via PDF.js (`PdfPageViewer.tsx`) instead of a native `<iframe>` plugin, giving real current-page and scroll-percentage tracking (`IntersectionObserver` + scroll listener), with iframe fallback on load failure
+- ✅ Office/image/text documents remain time-on-page only — genuinely unreadable via JS since they render in a cross-origin Google/Microsoft iframe
 
 ---
 
-### 1.4 Document Assignment Automation 🔲
-
-Currently documents must be manually assigned. There is no automatic assignment when a new employee joins a department.
+### 1.3 Document Versioning ✅
 
 #### Backend
-- 🔲 `POST /admin-docs/{docId}/assign-department` — assign a document to all current members of a department
-- 🔲 Hook into the employee creation flow: when a new user is created and assigned a department, automatically assign that department's active documents to them
+- ✅ Built `PUT /admin-docs/:document_id` from scratch (this endpoint didn't exist — the admin edit feature was silently broken)
+- ✅ Repurposed the previously-unused `document_training_metadata.version` field (converted `String?` → `Int @default(1)`) rather than adding a redundant column
+- ✅ Uploading a new file increments the version, resets `signed`/`completed` assignments to `pending`, and logs a `version_updated` audit entry with `{fromVersion, toVersion}`; prior signatures are kept as history, not deleted
 
 #### Frontend
-- 🔲 "Assign to Department" button in the admin document edit modal (replaces or supplements the current individual assignment flow)
+- ✅ `EditDocumentModal.tsx` shows the current version and an amber warning when replacing the file ("creates version N+1... everyone who already signed will need to re-sign")
 
 ---
 
-### 1.5 Document Expiry & Renewal 🔲
+### 1.4 Document Assignment Automation ✅
 
-Policies and compliance documents typically expire and require annual re-acknowledgement.
+Implemented (branch `feat/performancce-review`):
 
 #### Backend
-- 🔲 Add `expires_at DATE NULL` and `renewal_period_days INT NULL` columns to the documents table
-- 🔲 Scheduled job: 14 days before `expires_at`, reset employee signatures to `pending` and notify employees
-- 🔲 Scheduled job: on `expires_at`, mark any still-signed records as `overdue`
+- ✅ `POST /admin-docs/assignments/bulk` — assign a document to many users at once (`userIds[]`, `departmentId`, or `all`); resolves to individual per-employee assignment records, idempotent
+- ✅ Employee creation flow hook: `POST /add-user` auto-assigns documents flagged `auto_assign_new_users`, scoped by optional `document_auto_assign_rules` (department/role, due-days)
+- ✅ `POST /admin-docs/assignments/sync-onboarding` — backfill auto-assign documents for one or all existing employees
+- ✅ Assignment email (`documentAssigned.html`) + in-app notification on assignment
 
 #### Frontend
-- 🔲 Expiry date picker in the AddDocument/EditDocument modals
-- 🔲 "Expires in X days" badge on the admin document table
-- 🔲 "Re-acknowledgement required" status in the employee document list
+- ✅ Multi-select "Assign to employee" panel in the admin document modal (search, select-all, bulk assign)
+- ✅ "Auto-assign to new employees" configuration panel (department/role scope + due window)
 
 ---
 
-### 1.6 Audit Trail Page (Admin) 🔲
-
-Admins currently have no log of when documents were signed, reminders sent, or versions changed.
+### 1.5 Document Expiry & Renewal ✅
 
 #### Backend
-- 🔲 Create `document_audit_log` table: `(id, document_id, user_id, action ENUM('signed','viewed','reminded','version_updated','assigned','unassigned'), performed_at, metadata JSON)`
-- 🔲 Write to audit log on every signature, reminder send, and version update
-- 🔲 `GET /admin-docs/{docId}/audit-log` — paginated log for one document
+- ✅ Reused the previously-unused `document_training_metadata.expiry_date`/`renewal_frequency` columns (already the right shape) rather than adding new ones
+- ✅ `backend/lambda/scheduled/documentExpiryScheduler.ts` — daily EventBridge job (not Mon–Fri; expiry doesn't respect weekends): 14 days before `expiry_date`, resets `signed`/`completed` assignments to `pending` and emails/notifies; past `expiry_date`, marks any still-`pending` assignment `overdue`. Naturally idempotent — reset assignments no longer match the "still signed" query, so no dedupe table is needed
+- ✅ New `documentExpiring.html` email template + `senderDocumentExpiring` sender
+- ✅ CDK: new scheduled Lambda mirroring the existing scheduler pattern (shared DLQ, CloudWatch alarm)
 
 #### Frontend
-- 🔲 "Audit Log" tab in the admin View Signatures modal
-- 🔲 Shows timestamped rows: action, user, date — sortable and filterable
+- ✅ Expiry date + renewal-frequency fields in `AddDocumentModal.tsx`/`EditDocumentModal.tsx` (replacing a previously-declared-but-unused `expiryFrequency` field)
+- ✅ "Expires in X days" / "Expired Xd ago" stat card in the admin document view modal, colour-coded by urgency
+
+---
+
+### 1.6 Audit Trail Page (Admin) ✅
+
+#### Backend
+- ✅ `document_audit_log` table exactly as specified, plus `expiring_soon`/`expired` actions
+- ✅ `backend/lambda/helpers/documentAudit.ts` — shared `logDocumentAudit()` helper, wired into signing, first-view, assign/bulk-assign, unassign, single/bulk reminders, version updates, and the expiry scheduler
+- ✅ `GET /admin-docs/:document_id/audit-log?page=&limit=` — paginated, joins user display names
+- ✅ Fixed several signature-listing/reminder queries that would have double-counted rows once signatures could have multiple versions per user (widened unique key from 1.1)
+
+#### Frontend
+- ✅ Collapsible "Audit Log" panel in the admin View Signatures modal (same pattern as the existing Assign/Auto-assign panels), with colour-coded action badges and pagination
 
 ---
 
 ## 2. Performance Review Feature — Gaps & Improvements
 
-**Current state:** All six frontend pages are built and wired to real API endpoints. Cycle management (create → activate → close), employee self-review, peer review, manager appraisal, submissions overview with score overrides, and CSV export all work. The following items are outstanding.
+**Current state:** All six frontend pages are built and wired to real API endpoints. Cycle management (create → activate → close), employee self-review, peer review, manager appraisal, submissions overview with score overrides, and CSV export all work. Admin question management, question sets with per-employee assignment, single-account **test cycles**, and the cycle-end reminder scheduler are also implemented (see FEATURE_GUIDE §2.7–2.8). The following items are outstanding.
 
 ---
 
-### 2.1 Scheduled Cycle-End Reminder 🔲
+### 2.1 Scheduled Cycle-End Reminder ✅
 
-The only remaining backend task from the original feature.
+Implemented (branch `feat/performancce-review`):
 
 #### Backend
-- 🔲 EventBridge rule: runs daily
-- 🔲 Handler: query `review_cycles WHERE status = 'active' AND end_date = CURDATE() + INTERVAL 3 DAY`
-- 🔲 For each such cycle: find employees whose self-review `status != 'submitted'`
-- 🔲 Send in-app notification + SES email: "Your self-review for [Cycle Name] is due in 3 days"
-- 🔲 Register new EventBridge rule and handler in CDK (same pattern as `documentReminderScheduler`)
+- ✅ `backend/lambda/scheduled/reviewCycleReminderScheduler.ts` — EventBridge rule, Mon–Fri 8 AM UTC
+- ✅ Queries active non-test cycles ending within 3 days
+- ✅ Reminds employees with an incomplete self-review or pending peer reviews (per-user digest)
+- ✅ In-app notification + SES email (`reviewCycleReminder.html`); deduped to one reminder per user per cycle per day via the notifications table
+- ✅ Registered in CDK with a shared dead-letter queue and a CloudWatch error alarm
 
 ---
 

@@ -319,7 +319,10 @@ export class LmsBackendStack extends cdk.Stack {
     });
     const distribution = new cloudfront.Distribution(this, 'LmsPolicyDocumentDistribution', {
       defaultBehavior: {
-        origin: s3Origin
+        origin: s3Origin,
+        // Required for the in-browser PDF.js viewer to fetch() document bytes
+        // cross-origin (this distribution's domain differs from the frontend's).
+        responseHeadersPolicy: cloudfront.ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS,
       },
     });
 
@@ -582,6 +585,51 @@ export class LmsBackendStack extends cdk.Stack {
     });
 
     // ============================================================================
+    // Document Expiry Scheduler — EventBridge + Lambda
+    // Runs daily (expiry doesn't respect weekends); resets already-signed assignments
+    // to pending 14 days before a document's expiry_date and notifies employees, then
+    // marks any still-unsigned assignment overdue once the expiry date has passed.
+    // ============================================================================
+    const documentExpiryLambda = new NodejsFunction(this, `lms-document-expiry-scheduler${resourceSuffix}`, {
+      entry: 'lambda/scheduled/documentExpiryScheduler.ts',
+      handler: 'handler',
+      functionName: `lms-document-expiry-scheduler${resourceSuffix}`,
+      description: `Document expiry & renewal scheduler - ${environment}`,
+      bundling: schedulerBundling,
+      runtime: lambda.Runtime.NODEJS_22_X,
+      role: lambdaRole,
+      layers: [dependenciesLayer],
+      environment: {
+        DATABASE_SECRET_ARN: databaseCredentials.secretArn,
+        NODE_ENV: environment === 'prod' ? 'production' : 'development',
+        ENVIRONMENT: environment,
+        SECRET_NAME: config.secretName,
+        FRONTEND_URL: environment === 'prod'
+          ? 'https://lms.disraptor.co.za/documents'
+          : 'http://localhost:3000/documents',
+      },
+      timeout: cdk.Duration.minutes(5),
+      memorySize: 512,
+      logRetention: environment === 'prod' ? logs.RetentionDays.ONE_WEEK : logs.RetentionDays.THREE_DAYS,
+    });
+
+    const documentExpiryRule = new events.Rule(this, `DailyDocumentExpiryRule${resourceSuffix}`, {
+      ruleName: `lms-daily-document-expiry${resourceSuffix}`,
+      description: 'Triggers document expiry/renewal resets and overdue marking',
+      schedule: events.Schedule.cron({ minute: '0', hour: '8' }),
+    });
+
+    documentExpiryRule.addTarget(new targets.LambdaFunction(documentExpiryLambda, {
+      retryAttempts: 2,
+      deadLetterQueue: schedulerDlq,
+    }));
+
+    new cdk.CfnOutput(this, 'DocumentExpiryLambdaName', {
+      value: documentExpiryLambda.functionName,
+      description: `Document expiry scheduler Lambda - ${environment}`,
+    });
+
+    // ============================================================================
     // CloudWatch Alarms — surface lambda errors instead of failing silently
     // ============================================================================
     new cloudwatch.Alarm(this, `BackendLambdaErrorAlarm${resourceSuffix}`, {
@@ -606,6 +654,15 @@ export class LmsBackendStack extends cdk.Stack {
       alarmName: `lms-review-scheduler-errors${resourceSuffix}`,
       alarmDescription: 'Review cycle reminder scheduler failed',
       metric: reviewReminderLambda.metricErrors({ period: cdk.Duration.hours(1) }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    new cloudwatch.Alarm(this, `DocumentExpirySchedulerErrorAlarm${resourceSuffix}`, {
+      alarmName: `lms-document-expiry-scheduler-errors${resourceSuffix}`,
+      alarmDescription: 'Document expiry scheduler failed',
+      metric: documentExpiryLambda.metricErrors({ period: cdk.Duration.hours(1) }),
       threshold: 1,
       evaluationPeriods: 1,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,

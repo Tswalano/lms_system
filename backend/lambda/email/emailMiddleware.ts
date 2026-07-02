@@ -5,10 +5,12 @@ import {
     documentReminderTemplate,
     documentAssignedTemplate,
     reviewCycleReminderTemplate,
+    documentExpiringTemplate,
     EmailTemplateData,
     ManagementTemplateData,
     DocumentReminderData,
-    ReviewCycleReminderData
+    ReviewCycleReminderData,
+    DocumentExpiringData
 } from "./templateHtml";
 import { LeaveStatus } from "../helpers/leaveHelpers";
 
@@ -1036,6 +1038,75 @@ export async function senderReviewCycleReminder(
         return { success: true, messageId: result.MessageId ?? "unknown", recipient: recipientEmail };
     } catch (err) {
         console.error("Error sending review cycle reminder email:");
+        handleEmailError(err);
+        throw err;
+    }
+}
+
+/**
+ * Send document expiry/renewal reminder email via AWS SES
+ */
+export async function senderDocumentExpiring(
+    recipientEmail: string,
+    data: DocumentExpiringData
+): Promise<EmailResult> {
+    console.log("=== Document Expiring Email Sending Started ===");
+    console.log("Recipient:", recipientEmail);
+    console.log("Document:", data.documentName);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+        throw new Error(`Invalid recipient email: ${recipientEmail}`);
+    }
+    if (!data.documentName?.trim()) {
+        throw new Error("Document name is required");
+    }
+
+    const emailConfig = getEmailConfiguration();
+    const subject = `Action required: "${data.documentName}" expires on ${data.expiryDate}`;
+    const html = documentExpiringTemplate(data);
+
+    const plainText = [
+        `Hi ${data.employeeName},`,
+        "",
+        `The document "${data.documentName}" expires on ${data.expiryDate}.`,
+        "Please review and re-sign it before then to stay compliant.",
+        "",
+        `Please log in to the portal: ${data.portalUrl}`,
+        "",
+        "---",
+        "This is an automated message from the Employee Management System.",
+    ].join("\n");
+
+    const params: SESEmailParams = {
+        Destination: { ToAddresses: [recipientEmail] },
+        Message: {
+            Body: {
+                Html: { Charset: CHARSET, Data: html },
+                Text: { Charset: CHARSET, Data: plainText },
+            },
+            Subject: {
+                Charset: CHARSET,
+                Data: emailConfig.environment === 'dev' ? `[DEV] ${subject}` : subject,
+            },
+        },
+        Source: SENDER_EMAIL,
+        ReplyToAddresses: [REPLY_TO_EMAIL],
+        Tags: [
+            { Name: "EmailType", Value: "DocumentExpiring" },
+            { Name: "Environment", Value: emailConfig.environment },
+        ],
+    };
+
+    try {
+        const sesClient = createSESClient();
+        const command = new SendEmailCommand(params as SendEmailCommandInput);
+        const result = await sesClient.send(command);
+
+        console.log("Document expiring email sent. MessageId:", result.MessageId);
+        return { success: true, messageId: result.MessageId ?? "unknown", recipient: recipientEmail };
+    } catch (err) {
+        console.error("Error sending document expiring email:");
         handleEmailError(err);
         throw err;
     }

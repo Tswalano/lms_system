@@ -12,6 +12,7 @@ import { ResponseService } from '../models/apiResponse';
 import { DocumentCategoryRow } from "../models/documentCategory";
 import { senderDocumentReminder, senderDocumentAssigned } from "../email/emailMiddleware";
 import { autoAssignOnboardingDocuments } from '../helpers/documentAssignment';
+import { logDocumentAudit } from '../helpers/documentAudit';
 import { getUserId } from '../middleware/auth';
 
 const adminDocs = new Hono();
@@ -167,15 +168,20 @@ adminDocs.get('/by-category', async (c) => {
                 d.createdat AS document_created_at,
                 d.created_by AS uploaded_by_id,
                 CONCAT(u.firstName, ' ', u.lastName) AS uploaded_by_display,
+                COALESCE(dtm.version, 1) AS version,
+                dtm.expiry_date,
+                dtm.renewal_frequency,
                 COUNT(uda.user_id) AS total_assignments,
                 COUNT(ds.user_id) AS total_signatures
             FROM
                 document_categories dc
                 LEFT JOIN documents d ON dc.id = d.category_id
                 LEFT JOIN users u ON u.id = d.created_by
+                LEFT JOIN document_training_metadata dtm ON dtm.document_id = d.id
                 LEFT JOIN user_document_assignments uda ON d.id = uda.document_id
                 LEFT JOIN document_signatures ds ON uda.user_id = ds.user_id
                 AND uda.document_id = ds.document_id
+                AND ds.document_version = COALESCE(dtm.version, 1)
                 LEFT JOIN departments dpt ON dc.departmentId = dpt.id
             GROUP BY
                 dc.id,
@@ -189,7 +195,10 @@ adminDocs.get('/by-category', async (c) => {
                 d.priority,
                 d.createdat,
                 d.created_by,
-                uploaded_by_display
+                uploaded_by_display,
+                dtm.version,
+                dtm.expiry_date,
+                dtm.renewal_frequency
             ORDER BY dc.name ASC, d.name ASC;
         `;
 
@@ -213,6 +222,9 @@ adminDocs.get('/by-category', async (c) => {
                 document_created_at,
                 uploaded_by_id,
                 uploaded_by_display,
+                version,
+                expiry_date,
+                renewal_frequency,
                 total_assignments,
                 total_signatures
             } = row;
@@ -248,6 +260,9 @@ adminDocs.get('/by-category', async (c) => {
                     createdAt: document_created_at,
                     uploadedById: uploaded_by_id,
                     uploadedByDisplay: uploaded_by_display,
+                    version,
+                    expiryDate: expiry_date,
+                    renewalFrequencyDays: renewal_frequency,
                     signatures: {
                         signed: total_signatures,
                         totalAssigned: total_assignments,
@@ -297,7 +312,9 @@ adminDocs.post('/', async (c) => {
         content,
         fileUrl,
         mimeType,
-        fileBase64
+        fileBase64,
+        expiryDate,
+        renewalFrequencyDays
     } = requestBody;
 
     let finalUrl;
@@ -390,6 +407,15 @@ adminDocs.post('/', async (c) => {
             uploadedById
         ]);
 
+        if (expiryDate || renewalFrequencyDays != null) {
+            const [newIdRows] = await connection.execute<RowDataPacket[]>(`SELECT LAST_INSERT_ID() AS id`);
+            await connection.execute(
+                `INSERT INTO document_training_metadata (document_id, version, expiry_date, renewal_frequency, createdAt, updatedAt)
+                 VALUES (?, 1, ?, ?, NOW(), NOW())`,
+                [newIdRows[0].id, expiryDate ? new Date(expiryDate) : null, renewalFrequencyDays ?? null]
+            );
+        }
+
         const fetchNewDocumentStatement = `
             select * 
             from documents
@@ -440,6 +466,200 @@ adminDocs.post('/', async (c) => {
         return c.json(databaseErrorResponse, 500);
     } finally {
         if (!!connection) await connection.end();
+    }
+});
+
+// PUT /admin-docs/:document_id — edit a document's metadata and/or replace its file.
+// This endpoint did not previously exist; the frontend's "Edit Document" feature was
+// calling it and silently 404ing. Replacing the file bumps document_training_metadata.version
+// and resets any already-signed assignments back to pending (re-signature required) — prior
+// document_signatures rows are kept as history rather than deleted.
+adminDocs.put('/:document_id', async (c) => {
+    console.log("PUT /admin-docs/:document_id");
+
+    const { document_id } = c.req.param();
+    const requestBody = await c.req.json().catch(() => ({}));
+    const {
+        name,
+        folder,
+        status,
+        keepExistingFile,
+        fileUrl,
+        mimeType,
+        fileBase64,
+        size,
+        content,
+        expiryDate,
+        renewalFrequencyDays,
+    } = requestBody as {
+        name?: string;
+        folder?: number | string;
+        status?: string;
+        keepExistingFile?: boolean;
+        fileUrl?: string | null;
+        mimeType?: string | null;
+        fileBase64?: string | null;
+        size?: string;
+        content?: string;
+        expiryDate?: string | null;
+        renewalFrequencyDays?: number | null;
+    };
+
+    if (!name?.trim() || !folder) {
+        return c.json(ResponseService.error(
+            "ValidationError",
+            "Document name and folder are required."
+        ), 400);
+    }
+
+    const wantsNewUrl = !keepExistingFile && !!fileUrl?.trim();
+    const wantsNewUpload = !keepExistingFile && !fileUrl?.trim() && !!fileBase64?.trim();
+
+    if (!keepExistingFile && !wantsNewUrl && !wantsNewUpload) {
+        return c.json(ResponseService.error(
+            "ValidationError",
+            "Either keep the existing file, provide a new file, or provide a URL."
+        ), 400);
+    }
+
+    let connection: mysql.Connection | null = null;
+    let uploadedToS3Key: string | null = null;
+    let s3Client: S3Client | null = null;
+
+    try {
+        connection = await DatabaseService.createConnection();
+
+        const [existingRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT d.id, d.file_url, COALESCE(dtm.version, 1) AS current_version
+             FROM documents d
+             LEFT JOIN document_training_metadata dtm ON dtm.document_id = d.id
+             WHERE d.id = ?`,
+            [document_id]
+        );
+
+        if (existingRows.length === 0) {
+            return c.json(ResponseService.error("NotFound", `Document not found: ${document_id}`), 404);
+        }
+
+        const currentVersion = Number(existingRows[0].current_version);
+        const isNewFileVersion = wantsNewUrl || wantsNewUpload;
+        const newVersion = isNewFileVersion ? currentVersion + 1 : currentVersion;
+
+        let finalUrl: string | null = null;
+        let finalSize: string | null = null;
+
+        if (wantsNewUrl) {
+            try {
+                const url = new URL(fileUrl!.trim());
+                if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('Invalid protocol');
+                finalUrl = fileUrl!.trim();
+                finalSize = size || 'External Link';
+            } catch {
+                return c.json(ResponseService.error(
+                    "InvalidUrlError",
+                    "Please provide a valid URL starting with http:// or https://"
+                ), 400);
+            }
+        } else if (wantsNewUpload) {
+            if (!mimeType?.trim()) {
+                return c.json(ResponseService.error("ValidationError", "MIME type is required for file uploads"), 400);
+            }
+            try {
+                const s3ClientConfig: S3ClientConfig = {};
+                s3Client = new S3Client(s3ClientConfig);
+
+                const objectNameExtension = extension(mimeType);
+                // Version-suffixed key so the new upload doesn't collide with the
+                // previous version's cached CloudFront object.
+                uploadedToS3Key = `${folder}/${name}-v${newVersion}.${objectNameExtension}`;
+                await s3Client.send(new PutObjectCommand({
+                    Bucket: process.env.POLICY_DOCUMENTS_BUCKET_NAME,
+                    Key: uploadedToS3Key,
+                    Body: Buffer.from(fileBase64!, 'base64'),
+                    ContentType: mimeType,
+                }));
+
+                finalUrl = `${process.env.POLICY_DOCUMENTS_DISTRIBUTION_URL}/${uploadedToS3Key}`;
+                finalSize = size || '0 KB';
+            } catch (s3UploadError: any) {
+                console.error("EDIT DOCUMENT ERROR: UPLOAD TO S3:", s3UploadError);
+                return c.json(ResponseService.error(
+                    "EditDocumentUploadToS3Error",
+                    s3UploadError.message || "Failed to upload document to S3."
+                ), 500);
+            }
+        }
+
+        await connection.execute(
+            `UPDATE documents
+             SET name = ?, category_id = ?, status = ?,
+                 file_url = COALESCE(?, file_url),
+                 file_size = COALESCE(?, file_size),
+                 content = COALESCE(?, content),
+                 updatedAt = NOW()
+             WHERE id = ?`,
+            [name, folder, status ?? 'active', finalUrl, finalSize, content ?? null, document_id]
+        );
+
+        // Upsert version / expiry / renewal metadata in one shot.
+        await connection.execute(
+            `INSERT INTO document_training_metadata (document_id, version, expiry_date, renewal_frequency, createdAt, updatedAt)
+             VALUES (?, ?, ?, ?, NOW(), NOW())
+             ON DUPLICATE KEY UPDATE
+                version = VALUES(version),
+                expiry_date = COALESCE(?, expiry_date),
+                renewal_frequency = COALESCE(?, renewal_frequency),
+                updatedAt = NOW()`,
+            [
+                document_id, newVersion,
+                expiryDate ? new Date(expiryDate) : null, renewalFrequencyDays ?? null,
+                expiryDate ? new Date(expiryDate) : null, renewalFrequencyDays ?? null,
+            ]
+        );
+
+        if (isNewFileVersion) {
+            // Prior signatures stay in document_signatures as history for the old version;
+            // employees who already signed must re-sign the new one.
+            await connection.execute(
+                `UPDATE user_document_assignments
+                 SET status = 'pending', completed_at = NULL
+                 WHERE document_id = ? AND status IN ('signed', 'completed')`,
+                [document_id]
+            );
+
+            await logDocumentAudit(connection, {
+                documentId: document_id,
+                userId: getUserId(c) ?? null,
+                action: 'version_updated',
+                metadata: { fromVersion: currentVersion, toVersion: newVersion },
+            });
+        }
+
+        const [updatedRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT * FROM documents WHERE id = ?`,
+            [document_id]
+        );
+
+        return c.json(ResponseService.success("Document updated successfully.", updatedRows[0]), 200);
+    } catch (error: any) {
+        console.error("EDIT DOCUMENT ERROR:", error);
+
+        let responseMessage = error.message || "Failed to update document.";
+        if (uploadedToS3Key && s3Client) {
+            try {
+                await s3Client.send(new DeleteObjectCommand({
+                    Bucket: process.env.POLICY_DOCUMENTS_BUCKET_NAME,
+                    Key: uploadedToS3Key,
+                }));
+                responseMessage += " Orphaned upload removed from S3.";
+            } catch (deleteErr: any) {
+                console.error("EDIT DOCUMENT ERROR: DELETE FROM S3:", deleteErr);
+            }
+        }
+
+        return c.json(ResponseService.error("EditDocumentError", responseMessage), 500);
+    } finally {
+        if (connection) await connection.end();
     }
 });
 
@@ -678,6 +898,13 @@ adminDocs.post('/assignments', async (c) => {
             console.error('ASSIGN DOCUMENT: notification failed (assignment still created):', notifyError);
         }
 
+        await logDocumentAudit(connection, {
+            documentId,
+            userId: getUserId(c) ?? null,
+            action: 'assigned',
+            metadata: { assignedTo: userId, dueDate },
+        });
+
         return c.json(response, 200);
     } catch (assignDocumentDatabaseError: any) {
         console.error("ASSIGN DOCUMENT ERROR: DATABASE:", assignDocumentDatabaseError);
@@ -831,6 +1058,15 @@ adminDocs.post('/assignments/bulk', async (c) => {
                 const failed = results.filter((r) => r.status === 'rejected').length;
                 if (failed) console.error(`BULK ASSIGN: ${failed} assignment email(s) failed`);
             });
+
+            for (const u of toCreate) {
+                await logDocumentAudit(connection, {
+                    documentId,
+                    userId: adminId,
+                    action: 'assigned',
+                    metadata: { assignedTo: u.id, dueDate, via: 'bulk' },
+                });
+            }
         }
 
         return c.json(ResponseService.success(
@@ -1022,13 +1258,16 @@ adminDocs.delete('/assignments/:assignmentId', async (c) => {
     try {
         connection = await DatabaseService.createConnection();
 
-        // Fetch the assignment with signature status
+        // Fetch the assignment with signature status. A user may have signature rows
+        // across multiple document versions, so use EXISTS rather than a LEFT JOIN
+        // to avoid multiplying rows.
         const [assignmentRows] = await connection.execute<any[]>(
             `SELECT uda.id, uda.user_id, uda.document_id,
-                    ds.signed_at IS NOT NULL AS has_signed
+                    EXISTS(
+                        SELECT 1 FROM document_signatures ds
+                        WHERE ds.user_id = uda.user_id AND ds.document_id = uda.document_id
+                    ) AS has_signed
              FROM user_document_assignments uda
-             LEFT JOIN document_signatures ds
-               ON ds.user_id = uda.user_id AND ds.document_id = uda.document_id
              WHERE uda.id = ?`,
             [assignmentId]
         );
@@ -1059,6 +1298,13 @@ adminDocs.delete('/assignments/:assignmentId', async (c) => {
             [assignmentId]
         );
 
+        await logDocumentAudit(connection, {
+            documentId: assignment.document_id,
+            userId: getUserId(c) ?? null,
+            action: 'unassigned',
+            metadata: { unassignedUser: assignment.user_id, forced: !!force },
+        });
+
         return c.json(
             ResponseService.success("Assignment removed successfully.", {
                 assignmentId: Number(assignmentId),
@@ -1087,8 +1333,15 @@ adminDocs.get('/:document_id/signatures', async (c) => {
 
         connection = await DatabaseService.createConnection();
 
-        // SQL query to get the list of all assigned users for a document
-        // and check if they have a corresponding signature record.
+        const [metadataRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT COALESCE(version, 1) AS version FROM document_training_metadata WHERE document_id = ?`,
+            [document_id]
+        );
+        const currentVersion = metadataRows.length > 0 ? Number(metadataRows[0].version) : 1;
+
+        // SQL query to get the list of all assigned users for a document and their
+        // most recent signature (a user may have signed multiple versions over time,
+        // so the inner derived table narrows to the highest document_version per user).
         const selectSql = `
             SELECT
                 uda.id AS assignment_id,
@@ -1096,15 +1349,30 @@ adminDocs.get('/:document_id/signatures', async (c) => {
                 CONCAT(u.firstName, ' ', u.lastName) AS user_name,
                 uda.status AS assignment_status,
                 ds.signed_at IS NOT NULL AS has_signed,
-                ds.signed_at
+                ds.signed_at,
+                ds.document_version,
+                ds.signature_type,
+                ds.signature_data
             FROM user_document_assignments uda
             LEFT JOIN users u ON uda.user_id = u.id
-            LEFT JOIN document_signatures ds ON ds.user_id = uda.user_id AND ds.document_id = uda.document_id
+            LEFT JOIN (
+                SELECT ds1.*
+                FROM document_signatures ds1
+                INNER JOIN (
+                    SELECT user_id, document_id, MAX(document_version) AS max_version
+                    FROM document_signatures
+                    WHERE document_id = ?
+                    GROUP BY user_id, document_id
+                ) latest
+                    ON latest.user_id = ds1.user_id
+                   AND latest.document_id = ds1.document_id
+                   AND latest.max_version = ds1.document_version
+            ) ds ON ds.user_id = uda.user_id AND ds.document_id = uda.document_id
             WHERE uda.document_id = ?
             ORDER BY has_signed DESC, user_name ASC;
         `;
 
-        const [rows] = await connection.execute<any[]>(selectSql, [document_id]);
+        const [rows] = await connection.execute<any[]>(selectSql, [document_id, document_id]);
 
         const signedUsers = rows.filter(row => row.has_signed);
         const notSignedUsers = rows.filter(row => !row.has_signed);
@@ -1116,14 +1384,19 @@ adminDocs.get('/:document_id/signatures', async (c) => {
                     assignmentId: u.assignment_id,
                     id: u.user_id,
                     name: u.user_name,
-                    signedAt: u.signed_at
+                    signedAt: u.signed_at,
+                    documentVersion: u.document_version,
+                    signatureType: u.signature_type,
+                    signatureData: u.signature_data,
+                    isCurrentVersion: u.document_version === currentVersion
                 })),
                 notSigned: notSignedUsers.map(u => ({
                     assignmentId: u.assignment_id,
                     id: u.user_id,
                     name: u.user_name,
                     status: u.assignment_status
-                }))
+                })),
+                currentVersion
             }
         );
 
@@ -1477,6 +1750,7 @@ adminDocs.post('/send-bulk-reminders', async (c) => {
              LEFT  JOIN document_training_metadata dtm ON uda.document_id = dtm.document_id
              LEFT  JOIN document_signatures ds
                 ON ds.user_id = uda.user_id AND ds.document_id = uda.document_id
+               AND ds.document_version = COALESCE(dtm.version, 1)
              LEFT  JOIN document_reminders dr
                 ON dr.user_id = uda.user_id AND dr.document_id = uda.document_id
              WHERE ds.id IS NULL
@@ -1553,6 +1827,12 @@ adminDocs.post('/send-bulk-reminders', async (c) => {
                         `INSERT INTO document_reminders (user_id, document_id, sent_at) VALUES (?, ?, NOW())`,
                         [u.userId, doc.documentId]
                     );
+                    await logDocumentAudit(connection!, {
+                        documentId: doc.documentId,
+                        userId: u.userId,
+                        action: 'reminded',
+                        metadata: { via: 'bulk' },
+                    });
                 }
 
                 // One in-app notification per user listing all documents
@@ -1646,6 +1926,7 @@ adminDocs.post('/:document_id/send-reminders', async (c) => {
             LEFT  JOIN document_training_metadata dtm ON uda.document_id = dtm.document_id
             LEFT  JOIN document_signatures ds
                 ON ds.user_id = uda.user_id AND ds.document_id = uda.document_id
+               AND ds.document_version = COALESCE(dtm.version, 1)
             LEFT  JOIN document_reminders dr
                 ON dr.user_id = uda.user_id AND dr.document_id = uda.document_id
             WHERE uda.document_id = ?
@@ -1693,6 +1974,12 @@ adminDocs.post('/:document_id/send-reminders', async (c) => {
                     `INSERT INTO document_reminders (user_id, document_id, sent_at) VALUES (?, ?, NOW())`,
                     [row.user_id, documentId]
                 );
+                await logDocumentAudit(connection!, {
+                    documentId,
+                    userId: row.user_id as string,
+                    action: 'reminded',
+                    metadata: { via: 'single' },
+                });
 
                 // Create in-app notification
                 const notifId = `not_${Date.now()}_${String(row.user_id).slice(0, 8)}_doc${documentId}`;
@@ -1759,11 +2046,12 @@ adminDocs.get('/:document_id/reminders', async (c) => {
                 u.id                                 AS user_id,
                 CONCAT(u.firstName, ' ', u.lastName) AS user_name,
                 u.email,
-                ds.signed_at IS NOT NULL             AS has_since_signed
+                EXISTS(
+                    SELECT 1 FROM document_signatures ds
+                    WHERE ds.user_id = dr.user_id AND ds.document_id = dr.document_id
+                )                                    AS has_since_signed
             FROM document_reminders dr
             INNER JOIN users u ON dr.user_id = u.id
-            LEFT  JOIN document_signatures ds
-                ON ds.user_id = dr.user_id AND ds.document_id = dr.document_id
             WHERE dr.document_id = ?
             ORDER BY dr.sent_at DESC`,
             [documentId]
@@ -1798,6 +2086,68 @@ adminDocs.get('/:document_id/reminders', async (c) => {
         return c.json(ResponseService.error(
             "ReminderHistoryError",
             error.message || "Failed to retrieve reminder history."
+        ), 500);
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// GET /admin-docs/:document_id/audit-log?page=&limit=
+// Paginated log of every signed/viewed/reminded/version_updated/expiring_soon/expired/
+// assigned/unassigned event recorded for this document.
+adminDocs.get('/:document_id/audit-log', async (c) => {
+    console.log("GET /admin-docs/:document_id/audit-log");
+
+    let connection;
+    try {
+        const { document_id } = c.req.param();
+        const documentId = parseInt(document_id);
+        if (isNaN(documentId)) {
+            return c.json(ResponseService.error("InvalidRequest", "Document ID must be a valid number."), 400);
+        }
+
+        const page = Math.max(1, parseInt(c.req.query('page') ?? '1') || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') ?? '25') || 25));
+        const offset = (page - 1) * limit;
+
+        connection = await DatabaseService.createConnection();
+
+        const [countRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT COUNT(*) AS total FROM document_audit_log WHERE document_id = ?`,
+            [documentId]
+        );
+        const total = Number(countRows[0].total);
+
+        const [rows] = await connection.execute<RowDataPacket[]>(
+            `SELECT
+                dal.id, dal.action, dal.performed_at, dal.metadata,
+                u.id AS user_id, CONCAT(u.firstName, ' ', u.lastName) AS user_name
+             FROM document_audit_log dal
+             LEFT JOIN users u ON u.id = dal.user_id
+             WHERE dal.document_id = ?
+             ORDER BY dal.performed_at DESC
+             LIMIT ? OFFSET ?`,
+            [documentId, limit, offset]
+        );
+
+        return c.json(ResponseService.success("Audit log retrieved successfully.", {
+            entries: rows.map((r) => ({
+                id: Number(r.id),
+                action: r.action,
+                performedAt: r.performed_at,
+                user: r.user_id ? { id: r.user_id, name: (r.user_name as string)?.trim() } : null,
+                metadata: r.metadata ? (typeof r.metadata === 'string' ? JSON.parse(r.metadata) : r.metadata) : null,
+            })),
+            page,
+            limit,
+            total,
+            totalPages: Math.max(1, Math.ceil(total / limit)),
+        }), 200);
+    } catch (error: any) {
+        console.error("Error retrieving document audit log:", error);
+        return c.json(ResponseService.error(
+            "AuditLogError",
+            error.message || "Failed to retrieve audit log."
         ), 500);
     } finally {
         if (connection) await connection.end();

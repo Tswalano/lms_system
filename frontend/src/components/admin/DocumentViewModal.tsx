@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FileText, CheckCircle, XCircle, X, AlertCircle, Clock, Clock10, UserPlus, Trash2, Loader2, Zap } from 'lucide-react';
+import { FileText, CheckCircle, XCircle, X, AlertCircle, Clock, Clock10, UserPlus, Trash2, Loader2, Zap, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toCamelCase } from '../../lib/helper';
+import { Pagination } from '@/components/ui/Pagination';
 
 interface Document {
     id: number;
@@ -18,6 +19,9 @@ interface Document {
     priority?: string;
     mimeType?: string;
     fileBase64?: string | null;
+    version?: number;
+    expiryDate?: string | null;
+    renewalFrequencyDays?: number | null;
 }
 
 interface AssignedUser {
@@ -26,11 +30,16 @@ interface AssignedUser {
     name: string;
     signedAt?: string;
     status?: string;
+    documentVersion?: number;
+    signatureType?: 'typed' | 'drawn' | null;
+    signatureData?: string | null;
+    isCurrentVersion?: boolean;
 }
 
 interface SignatureStatus {
     signed: AssignedUser[];
     notSigned: AssignedUser[];
+    currentVersion?: number;
 }
 
 interface ActiveUser {
@@ -230,6 +239,156 @@ const AutoAssignPanel: React.FC<{ documentId: number }> = ({ documentId }) => {
     );
 };
 
+interface AuditLogEntry {
+    id: number;
+    action: 'signed' | 'viewed' | 'reminded' | 'version_updated' | 'expiring_soon' | 'expired' | 'assigned' | 'unassigned';
+    performedAt: string;
+    user: { id: string; name: string } | null;
+    metadata: Record<string, unknown> | null;
+}
+
+const AUDIT_ACTION_LABELS: Record<AuditLogEntry['action'], string> = {
+    signed: 'Signed',
+    viewed: 'Viewed',
+    reminded: 'Reminded',
+    version_updated: 'Version updated',
+    expiring_soon: 'Expiring soon',
+    expired: 'Expired',
+    assigned: 'Assigned',
+    unassigned: 'Unassigned',
+};
+
+const AUDIT_ACTION_COLORS: Record<AuditLogEntry['action'], string> = {
+    signed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+    viewed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    reminded: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    version_updated: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+    expiring_soon: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+    expired: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    assigned: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
+    unassigned: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
+};
+
+function describeAuditMetadata(entry: AuditLogEntry): string | null {
+    const m = entry.metadata;
+    if (!m) return null;
+    if (entry.action === 'version_updated' && m.fromVersion != null && m.toVersion != null) {
+        return `v${m.fromVersion} → v${m.toVersion}`;
+    }
+    if (entry.action === 'signed' && m.signatureType) {
+        return `via ${m.signatureType} signature${m.documentVersion != null ? ` (v${m.documentVersion})` : ''}`;
+    }
+    if (entry.action === 'assigned' && m.via === 'bulk') {
+        return 'via bulk assignment';
+    }
+    return null;
+}
+
+const AuditLogPanel: React.FC<{ documentId: number }> = ({ documentId }) => {
+    const { authFetch } = useAuth();
+    const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [entries, setEntries] = useState<AuditLogEntry[]>([]);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [total, setTotal] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+
+    const fetchAuditLog = async (fetchPage: number, fetchLimit: number) => {
+        setLoading(true);
+        try {
+            const response = await authFetch(`/admin-docs/${documentId}/audit-log?page=${fetchPage}&limit=${fetchLimit}`, { method: 'GET' });
+            const data = await response.json();
+            if (data.payload) {
+                setEntries(data.payload.entries);
+                setTotal(data.payload.total);
+                setTotalPages(data.payload.totalPages);
+            }
+        } catch {
+            // silently fail — the panel will just show "no activity"
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleToggleOpen = () => {
+        if (!open) fetchAuditLog(page, pageSize);
+        setOpen((prev) => !prev);
+    };
+
+    const handlePageChange = (newPage: number) => {
+        setPage(newPage);
+        fetchAuditLog(newPage, pageSize);
+    };
+
+    const handlePageSizeChange = (newSize: number) => {
+        setPageSize(newSize);
+        setPage(1);
+        fetchAuditLog(1, newSize);
+    };
+
+    return (
+        <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+            <button
+                onClick={handleToggleOpen}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+                <span className="flex items-center gap-2">
+                    <Clock10 className="w-4 h-4 text-indigo-500" />
+                    Audit Log
+                </span>
+                <span className="text-gray-400">{open ? '▲' : '▼'}</span>
+            </button>
+            {open && (
+                <div className="border-t border-gray-200 dark:border-gray-700">
+                    {loading ? (
+                        <div className="flex items-center justify-center py-8">
+                            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                        </div>
+                    ) : entries.length === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">No activity recorded yet.</p>
+                    ) : (
+                        <>
+                            <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-72 overflow-y-auto">
+                                {entries.map((entry) => {
+                                    const detail = describeAuditMetadata(entry);
+                                    return (
+                                        <div key={entry.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${AUDIT_ACTION_COLORS[entry.action]}`}>
+                                                    {AUDIT_ACTION_LABELS[entry.action]}
+                                                </span>
+                                                <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                                                    {entry.user?.name || 'System'}
+                                                </span>
+                                                {detail && (
+                                                    <span className="text-xs text-gray-400 truncate">{detail}</span>
+                                                )}
+                                            </div>
+                                            <span className="text-xs text-gray-400 flex-shrink-0">
+                                                {new Date(entry.performedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <Pagination
+                                currentPage={page}
+                                totalPages={totalPages}
+                                pageSize={pageSize}
+                                totalItems={total}
+                                onPageChange={handlePageChange}
+                                onPageSizeChange={handlePageSizeChange}
+                                pageSizeOptions={[10, 25, 50]}
+                            />
+                        </>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
     showViewModal,
     setShowViewModal,
@@ -251,6 +410,7 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
     const [bulkAssigning, setBulkAssigning] = useState(false);
     const [removingAssignmentId, setRemovingAssignmentId] = useState<number | null>(null);
     const [forceRemoveId, setForceRemoveId] = useState<number | null>(null); // assignmentId pending force confirmation
+    const [expandedSignatureId, setExpandedSignatureId] = useState<number | null>(null);
 
     const fetchSignatures = useCallback(async () => {
         if (!selectedDocument) return;
@@ -427,6 +587,19 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
                                     <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Priority</div>
                                     <div className="text-sm font-semibold text-gray-900 dark:text-white">{toCamelCase(selectedDocument.priority || 'None')}</div>
                                 </div>
+                                {selectedDocument.expiryDate && (() => {
+                                    const daysLeft = Math.ceil((new Date(selectedDocument.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                                    const isExpired = daysLeft < 0;
+                                    const isSoon = daysLeft >= 0 && daysLeft <= 14;
+                                    return (
+                                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+                                            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Expires</div>
+                                            <div className={`text-sm font-semibold ${isExpired ? 'text-red-600 dark:text-red-400' : isSoon ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-white'}`}>
+                                                {isExpired ? `Expired ${Math.abs(daysLeft)}d ago` : `In ${daysLeft} day${daysLeft === 1 ? '' : 's'}`}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {/* Error Banner */}
@@ -532,6 +705,9 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
                             {/* Auto-assign for new employees */}
                             <AutoAssignPanel documentId={selectedDocument.id} />
 
+                            {/* Audit trail */}
+                            <AuditLogPanel documentId={selectedDocument.id} />
+
                             {/* Signature Progress */}
                             {loading ? (
                                 <div className="flex items-center justify-center py-8">
@@ -564,46 +740,82 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
                                             </h4>
                                             <div className="space-y-2">
                                                 {signatureStatus.signed.map(user => (
-                                                    <div key={user.assignmentId} className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-800 rounded-full flex items-center justify-center">
-                                                                <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                                                            </div>
-                                                            <div>
-                                                                <span className="font-medium text-gray-900 dark:text-white text-sm">{user.name}</span>
-                                                                {user.signedAt && (
-                                                                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                                                                        {new Date(user.signedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        {forceRemoveId === user.assignmentId ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs text-red-600 dark:text-red-400">Remove signed user?</span>
-                                                                <button
-                                                                    onClick={() => handleRemoveAssignment(user.assignmentId, true)}
-                                                                    disabled={removingAssignmentId === user.assignmentId}
-                                                                    className="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-60"
-                                                                >
-                                                                    {removingAssignmentId === user.assignmentId ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes, remove'}
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setForceRemoveId(null)}
-                                                                    className="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300"
-                                                                >
-                                                                    Cancel
-                                                                </button>
-                                                            </div>
-                                                        ) : (
+                                                    <div key={user.assignmentId} className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800 overflow-hidden">
+                                                        <div className="flex items-center justify-between p-3">
                                                             <button
-                                                                onClick={() => handleRemoveAssignment(user.assignmentId)}
-                                                                disabled={removingAssignmentId === user.assignmentId}
-                                                                title="Remove assignment"
-                                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-40"
+                                                                onClick={() => user.signatureData && setExpandedSignatureId(expandedSignatureId === user.assignmentId ? null : user.assignmentId)}
+                                                                disabled={!user.signatureData}
+                                                                className="flex items-center gap-3 flex-1 min-w-0 text-left disabled:cursor-default"
                                                             >
-                                                                {removingAssignmentId === user.assignmentId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                                <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-800 rounded-full flex items-center justify-center flex-shrink-0">
+                                                                    <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <span className="font-medium text-gray-900 dark:text-white text-sm">{user.name}</span>
+                                                                        {user.documentVersion != null && (
+                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400">
+                                                                                v{user.documentVersion}
+                                                                            </span>
+                                                                        )}
+                                                                        {user.isCurrentVersion === false && (
+                                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                                                <AlertTriangle className="w-2.5 h-2.5" /> Outdated — re-signature required
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    {user.signedAt && (
+                                                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                                                                            {new Date(user.signedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                                {user.signatureData && (
+                                                                    expandedSignatureId === user.assignmentId
+                                                                        ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                                                        : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                                                )}
                                                             </button>
+                                                            {forceRemoveId === user.assignmentId ? (
+                                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                                    <span className="text-xs text-red-600 dark:text-red-400">Remove signed user?</span>
+                                                                    <button
+                                                                        onClick={() => handleRemoveAssignment(user.assignmentId, true)}
+                                                                        disabled={removingAssignmentId === user.assignmentId}
+                                                                        className="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-60"
+                                                                    >
+                                                                        {removingAssignmentId === user.assignmentId ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes, remove'}
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setForceRemoveId(null)}
+                                                                        className="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300"
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={() => handleRemoveAssignment(user.assignmentId)}
+                                                                    disabled={removingAssignmentId === user.assignmentId}
+                                                                    title="Remove assignment"
+                                                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-40 flex-shrink-0"
+                                                                >
+                                                                    {removingAssignmentId === user.assignmentId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        {expandedSignatureId === user.assignmentId && user.signatureData && (
+                                                            <div className="px-3 pb-3">
+                                                                <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 p-4 flex items-center justify-center">
+                                                                    {user.signatureType === 'drawn' ? (
+                                                                        <img src={user.signatureData} alt={`${user.name}'s signature`} className="max-h-20" />
+                                                                    ) : (
+                                                                        <span className="font-signature text-3xl text-slate-800 dark:text-slate-100">
+                                                                            {user.signatureData}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 ))}

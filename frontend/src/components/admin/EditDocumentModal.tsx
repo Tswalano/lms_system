@@ -39,12 +39,16 @@ interface DocumentType {
     priority?: string;
     mimeType?: string;
     fileBase64?: string | null;
+    version?: number;
+    expiryDate?: string | null;
+    renewalFrequencyDays?: number | null;
 }
 
 interface EditDocumentState {
     name: string;
     folder: string;
-    expiryFrequency: string;
+    expiryDate: string;
+    renewalFrequencyDays: string;
     file?: File | null;
     url?: string | null;
     status: 'active' | 'draft' | 'archived';
@@ -71,7 +75,8 @@ const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
     const [documentData, setDocumentData] = useState<EditDocumentState>({
         name: '',
         folder: '',
-        expiryFrequency: '',
+        expiryDate: '',
+        renewalFrequencyDays: '',
         file: null,
         url: null,
         status: 'draft',
@@ -89,7 +94,8 @@ const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
             setDocumentData({
                 name: document.name,
                 folder: folderObj?.id.toString() || '',
-                expiryFrequency: '', // You might want to store this in the document object
+                expiryDate: document.expiryDate ? document.expiryDate.slice(0, 10) : '',
+                renewalFrequencyDays: document.renewalFrequencyDays != null ? String(document.renewalFrequencyDays) : '',
                 file: null,
                 url: isExternalLink ? document.fileUrl : null,
                 status: document.status,
@@ -110,7 +116,8 @@ const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
         setDocumentData({
             name: '',
             folder: '',
-            expiryFrequency: '',
+            expiryDate: '',
+            renewalFrequencyDays: '',
             file: null,
             url: null,
             status: 'draft',
@@ -238,6 +245,39 @@ const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
                         </Select>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="edit-doc-expiry" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                                Expiry Date (optional)
+                            </Label>
+                            <Input
+                                id="edit-doc-expiry"
+                                type="date"
+                                value={documentData.expiryDate}
+                                onChange={(e) => setDocumentData(prev => ({ ...prev, expiryDate: e.target.value }))}
+                                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="edit-doc-renewal" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                                Renewal Frequency (days)
+                            </Label>
+                            <Input
+                                id="edit-doc-renewal"
+                                type="number"
+                                min={1}
+                                value={documentData.renewalFrequencyDays}
+                                onChange={(e) => setDocumentData(prev => ({ ...prev, renewalFrequencyDays: e.target.value }))}
+                                placeholder="e.g. 365"
+                                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                        </div>
+                    </div>
+
+                    {document.version != null && (
+                        <p className="text-xs text-gray-400">Current version: v{document.version}</p>
+                    )}
+
                     {/* File/URL Management Tabs */}
                     <div className="flex gap-4 mb-4">
                         <button
@@ -268,6 +308,14 @@ const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
                             Replace with URL
                         </button>
                     </div>
+
+                    {(activeTab === "file" || activeTab === "url") && (
+                        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3">
+                            <p className="text-sm text-amber-800 dark:text-amber-400">
+                                Replacing the file creates version {(document.version ?? 1) + 1}. Everyone who already signed this document will need to re-sign.
+                            </p>
+                        </div>
+                    )}
 
                     {/* Tab Content */}
                     {activeTab === "keep" && (

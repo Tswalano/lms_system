@@ -33,6 +33,36 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app.
    cdk bootstrap
    ```
 
+## Database Migrations & Seeding
+
+The schema is managed with Prisma (`prisma/schema.prisma`); migrations are plain SQL files in `prisma/migrations/`. All commands read `DATABASE_URL` from `backend/.env`.
+
+```bash
+# 1. Apply pending migrations to the target database
+npx prisma migrate deploy
+
+# 2. Regenerate the Prisma client after any schema change
+#    (client is emitted to lib/generated/prisma — required before build/deploy)
+npx prisma generate
+
+# 3. Validate the schema
+npx prisma validate
+```
+
+### Seed scripts (run in this order)
+
+```bash
+# Review questions + the Default Review Set (required for Performance Review)
+npx ts-node -r dotenv/config prisma/seed-review-questions.ts
+
+# Core data: departments, users, leave requests (3 per month for the next 3 months),
+# documents with onboarding auto-assign examples, and an active TEST performance
+# cycle where each existing admin reviews themself (full-circle testing from one login)
+npx ts-node -r dotenv/config prisma/seed.ts
+```
+
+Both seeds are idempotent. See [FEATURE_GUIDE.md](../FEATURE_GUIDE.md) for what each seed creates.
+
 ## Multi-Environment CDK Deployment Guide
 
 This project supports multiple deployment environments (production and development) with environment-specific configurations.

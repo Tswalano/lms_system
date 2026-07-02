@@ -12,8 +12,12 @@ import {
     PenTool,
     X,
     Loader2,
+    Keyboard,
+    PencilLine,
     type LucideIcon
 } from 'lucide-react';
+import SignaturePad, { type SignaturePadHandle } from '@/components/documents/SignaturePad';
+import type { PdfProgressData } from '@/components/documents/PdfPageViewer';
 import {
     Select,
     SelectContent,
@@ -133,12 +137,21 @@ const EmployeeDocumentsPage: FC = () => {
     const [filterStatus, setFilterStatus] = useState<string>('all');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [showSignatureDialog, setShowSignatureDialog] = useState<boolean>(false);
+    const [signatureStep, setSignatureStep] = useState<'confirm' | 'sign'>('confirm');
+    const [hasReadDocument, setHasReadDocument] = useState<boolean>(false);
+    const [signatureMethod, setSignatureMethod] = useState<'type' | 'draw'>('type');
+    const [typedSignatureName, setTypedSignatureName] = useState<string>('');
+    const [hasDrawnSignature, setHasDrawnSignature] = useState<boolean>(false);
+    const signaturePadRef = useRef<SignaturePadHandle | null>(null);
     const [showViewModal, setShowViewModal] = useState<boolean>(false);
     const [showDocumentViewer, setShowDocumentViewer] = useState<boolean>(false);
     const [selectedDocument, setSelectedDocument] = useState<DocumentType | null>(null);
 
     // Track when the document viewer was opened so we can report real view duration
     const viewerOpenedAt = useRef<number | null>(null);
+    // Latest PDF.js page/scroll progress reported while the viewer is open, read
+    // when the viewer closes to report real progress instead of a placeholder.
+    const latestPdfProgress = useRef<PdfProgressData | null>(null);
 
     // State for categories and documents (will be populated from API)
     const [documentCategories, setDocumentCategories] = useState<DocumentCategoryType[]>([]);
@@ -206,7 +219,12 @@ const EmployeeDocumentsPage: FC = () => {
 
     // Document completion mutation
     const documentCompletionMutation = useMutation({
-        mutationFn: async ({ userId, documentId }: { userId: string; documentId: number }) => {
+        mutationFn: async ({ userId, documentId, signatureType, signatureData }: {
+            userId: string;
+            documentId: number;
+            signatureType: 'typed' | 'drawn';
+            signatureData: string;
+        }) => {
             const response = await authFetch('/user-docs/document-completion', {
                 method: 'POST',
                 headers: {
@@ -215,7 +233,9 @@ const EmployeeDocumentsPage: FC = () => {
                 body: JSON.stringify({
                     user_id: userId,
                     document_id: documentId,
-                    acknowledgement_checked: true
+                    acknowledgement_checked: true,
+                    signature_type: signatureType,
+                    signature_data: signatureData
                 }),
             });
 
@@ -269,13 +289,22 @@ const EmployeeDocumentsPage: FC = () => {
         },
     });
 
-    // Document view mutation
+    // Document view mutation. Called once when the viewer opens (page/scroll unknown
+    // yet, so progress_data is a placeholder) and again when it closes with the real
+    // elapsed time and — for PDFs — the real page/scroll position captured via PDF.js.
     const documentViewMutation = useMutation({
-        mutationFn: async ({ userId, documentId }: { userId: string; documentId: number }) => {
-            // Calculate how long the viewer has been open (seconds). Falls back to 0 on first open.
+        mutationFn: async ({ userId, documentId, progress }: {
+            userId: string;
+            documentId: number;
+            progress?: PdfProgressData;
+        }) => {
             const elapsedSeconds = viewerOpenedAt.current
                 ? Math.round((Date.now() - viewerOpenedAt.current) / 1000)
                 : 0;
+
+            const progressData = progress
+                ? { fileType: 'pdf', pageNumber: progress.page, totalPages: progress.totalPages, scrollPercentage: progress.scrollPercentage, trackingMethod: 'precise' as const }
+                : { trackingMethod: 'approximate' as const };
 
             const response = await authFetch('/user-docs/document-progress', {
                 method: 'POST',
@@ -285,7 +314,7 @@ const EmployeeDocumentsPage: FC = () => {
                 body: JSON.stringify({
                     user_id: userId,
                     document_id: documentId,
-                    progress_data: { page: 1, scrollPosition: 0 },
+                    progress_data: progressData,
                     time_spent: elapsedSeconds,
                     duration: elapsedSeconds,
                 }),
@@ -425,6 +454,7 @@ const EmployeeDocumentsPage: FC = () => {
     // Handle viewing a document (opens document viewer and marks as viewed)
     const handleViewDocument = (doc: DocumentType): void => {
         viewerOpenedAt.current = Date.now();
+        latestPdfProgress.current = null;
         setSelectedDocument(doc);
         setShowDocumentViewer(true);
 
@@ -435,6 +465,20 @@ const EmployeeDocumentsPage: FC = () => {
                 documentId: doc.id,
             });
         }
+    };
+
+    // Called when the document viewer closes — reports real elapsed time and,
+    // for PDFs, the real page/scroll position last captured by PDF.js.
+    const handleCloseDocumentViewer = (): void => {
+        if (selectedDocument && user?.id) {
+            documentViewMutation.mutate({
+                userId: user.id,
+                documentId: selectedDocument.id,
+                progress: latestPdfProgress.current ?? undefined,
+            });
+        }
+        setShowDocumentViewer(false);
+        setSelectedDocument(null);
     };
 
     // Handle downloading a document
@@ -450,20 +494,36 @@ const EmployeeDocumentsPage: FC = () => {
     };
 
 
-    // Handle signing a document (opens signature dialog)
+    // Handle signing a document (opens signature dialog, reset the wizard to step 1)
     const handleSignDocument = (doc: DocumentType): void => {
         setSelectedDocument(doc);
+        setSignatureStep('confirm');
+        setHasReadDocument(false);
+        setSignatureMethod('type');
+        setTypedSignatureName('');
+        setHasDrawnSignature(false);
         setShowSignatureDialog(true);
     };
 
+    const canSubmitSignature =
+        signatureMethod === 'type' ? typedSignatureName.trim().length > 0 : hasDrawnSignature;
+
     // Handle confirming signature with API call
     const handleConfirmSignature = (): void => {
-        if (selectedDocument && user?.id) {
-            documentCompletionMutation.mutate({
-                userId: user.id,
-                documentId: selectedDocument.id,
-            });
-        }
+        if (!selectedDocument || !user?.id || !canSubmitSignature) return;
+
+        const signatureData = signatureMethod === 'type'
+            ? typedSignatureName.trim()
+            : signaturePadRef.current?.toDataUrl();
+
+        if (!signatureData) return;
+
+        documentCompletionMutation.mutate({
+            userId: user.id,
+            documentId: selectedDocument.id,
+            signatureType: signatureMethod === 'type' ? 'typed' : 'drawn',
+            signatureData,
+        });
     };
 
     // Calculate pending document count
@@ -813,12 +873,10 @@ const EmployeeDocumentsPage: FC = () => {
             {showDocumentViewer && selectedDocument && (
                 <DocumentViewer
                     document={selectedDocument}
-                    onClose={() => {
-                        setShowDocumentViewer(false);
-                        setSelectedDocument(null);
-                    }}
+                    onClose={handleCloseDocumentViewer}
                     onSign={handleSignDocument}
                     onDownload={handleDownloadDocument}
+                    onProgress={(data) => { latestPdfProgress.current = data; }}
                 />
             )}
 
@@ -903,21 +961,99 @@ const EmployeeDocumentsPage: FC = () => {
                 )}
             </Modal>
 
-            {/* Signature Confirmation Dialog */}
+            {/* Signature Dialog — Step 1: read & confirm, Step 2: choose method and sign */}
             <Modal
                 show={showSignatureDialog}
                 onClose={() => setShowSignatureDialog(false)}
-                title="Confirm Signature"
+                title={signatureStep === 'confirm' ? 'Confirm Reading' : 'Sign Document'}
             >
-                {selectedDocument && (
+                {selectedDocument && signatureStep === 'confirm' && (
                     <div className="space-y-4 text-center">
                         <PenTool className="w-16 h-16 text-blue-500 mx-auto mb-4" />
                         <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                             Sign "{selectedDocument.name}"?
                         </h3>
                         <p className="text-gray-600 dark:text-gray-400">
-                            By clicking "Confirm Signature", you electronically sign this document. This action is legally binding.
+                            Electronically signing this document is legally binding. Please confirm you've read and understood it before continuing.
                         </p>
+
+                        <label className="flex items-start gap-3 text-left rounded-xl border border-gray-200 dark:border-gray-700 p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                            <input
+                                type="checkbox"
+                                checked={hasReadDocument}
+                                onChange={(e) => setHasReadDocument(e.target.checked)}
+                                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                                I have read and understood this document.
+                            </span>
+                        </label>
+
+                        <div className="flex gap-3 pt-4">
+                            <button
+                                onClick={() => setShowSignatureDialog(false)}
+                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => setSignatureStep('sign')}
+                                disabled={!hasReadDocument}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {selectedDocument && signatureStep === 'sign' && (
+                    <div className="space-y-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                            Choose how you'd like to sign "{selectedDocument.name}".
+                        </p>
+
+                        <div className="flex gap-1 p-1 rounded-xl bg-gray-100 dark:bg-slate-800 w-fit mx-auto">
+                            <button
+                                onClick={() => setSignatureMethod('type')}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${signatureMethod === 'type'
+                                    ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400'
+                                    }`}
+                            >
+                                <Keyboard className="w-3.5 h-3.5" /> Type
+                            </button>
+                            <button
+                                onClick={() => setSignatureMethod('draw')}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${signatureMethod === 'draw'
+                                    ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400'
+                                    }`}
+                            >
+                                <PencilLine className="w-3.5 h-3.5" /> Draw
+                            </button>
+                        </div>
+
+                        {signatureMethod === 'type' ? (
+                            <div className="space-y-2">
+                                <input
+                                    type="text"
+                                    value={typedSignatureName}
+                                    onChange={(e) => setTypedSignatureName(e.target.value)}
+                                    placeholder="Type your full name"
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                {typedSignatureName.trim() && (
+                                    <div className="rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 h-24 flex items-center justify-center">
+                                        <span className="font-signature text-4xl text-slate-800 dark:text-slate-100">
+                                            {typedSignatureName}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <SignaturePad ref={signaturePadRef} onChange={setHasDrawnSignature} />
+                        )}
 
                         {/* Show error if mutation failed */}
                         {documentCompletionMutation.isError && (
@@ -928,17 +1064,17 @@ const EmployeeDocumentsPage: FC = () => {
                             </div>
                         )}
 
-                        <div className="flex gap-3 pt-4">
+                        <div className="flex gap-3 pt-2">
                             <button
-                                onClick={() => setShowSignatureDialog(false)}
+                                onClick={() => setSignatureStep('confirm')}
                                 disabled={documentCompletionMutation.isPending}
                                 className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Cancel
+                                Back
                             </button>
                             <button
                                 onClick={handleConfirmSignature}
-                                disabled={documentCompletionMutation.isPending}
+                                disabled={documentCompletionMutation.isPending || !canSubmitSignature}
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {documentCompletionMutation.isPending ? (

@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import ConfirmationModal from "@/components/ConfirmationModal";
 import {
     useReviewQuestions,
     useCreateQuestion,
@@ -33,6 +34,12 @@ const appPrimaryButtonClass = "rounded-lg bg-gradient-to-r from-cyan-600 via-blu
 const appOutlineButtonClass = "rounded-lg border-gray-200 bg-white/90 shadow-sm hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800/90 dark:hover:bg-slate-700";
 const softPanelClass = "rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-slate-700/70 dark:bg-slate-900";
 
+// Shared dropdown styling — matches the Select pattern used across the rest of the app
+// (ManageEmployeesPage, ApplyLeavePage, document modals) instead of the shadcn defaults.
+const appSelectTriggerClass = "bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600";
+const appSelectContentClass = "bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600";
+const appSelectItemClass = "hover:bg-gray-100 dark:hover:bg-slate-800 focus:bg-gray-100 dark:focus:bg-slate-800";
+
 const REVIEW_TYPE_LABELS: Record<QuestionReviewType, string> = {
     self_review: "Self review",
     peer_review: "Peer review",
@@ -58,6 +65,8 @@ const PHASE_FOR_REVIEW_TYPE: Record<QuestionReviewType, 'self' | 'peer' | 'nomin
 interface QuestionFormState {
     id?: string;
     category: string;
+    // 'select' shows the category dropdown; 'custom' shows a text input for a brand-new category
+    categoryMode: 'select' | 'custom';
     subcategory: string;
     questionText: string;
     guidanceText: string;
@@ -68,6 +77,7 @@ interface QuestionFormState {
 
 const emptyQuestionForm: QuestionFormState = {
     category: "",
+    categoryMode: 'select',
     subcategory: "",
     questionText: "",
     guidanceText: "",
@@ -136,12 +146,22 @@ const PerformanceReviewQuestionsPage = () => {
 const QuestionsTab = () => {
     const [typeFilter, setTypeFilter] = useState<QuestionReviewType | 'all'>('all');
     const { data: questions = [], isLoading } = useReviewQuestions(typeFilter === 'all' ? undefined : typeFilter);
+    // Unfiltered/all-types fetch so the Category dropdown offers every category in use,
+    // not just ones matching the current type filter.
+    const { data: allQuestionsForCategories = [] } = useReviewQuestions(undefined, true);
     const createQuestion = useCreateQuestion();
     const updateQuestion = useUpdateQuestion();
     const deleteQuestion = useDeleteQuestion();
     const reorderQuestions = useReorderQuestions();
 
     const [form, setForm] = useState<QuestionFormState | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<AdminReviewQuestion | null>(null);
+
+    const existingCategories = useMemo(() => {
+        const set = new Set<string>();
+        for (const q of allQuestionsForCategories) set.add(q.category);
+        return [...set].sort((a, b) => a.localeCompare(b));
+    }, [allQuestionsForCategories]);
 
     const grouped = useMemo(() => {
         const map = new Map<QuestionReviewType, AdminReviewQuestion[]>();
@@ -153,6 +173,28 @@ const QuestionsTab = () => {
         for (const list of map.values()) list.sort((a, b) => a.displayOrder - b.displayOrder);
         return map;
     }, [questions]);
+
+    const openNewQuestionForm = () => {
+        setForm({
+            ...emptyQuestionForm,
+            reviewType: typeFilter === 'all' ? 'self_review' : typeFilter,
+            categoryMode: existingCategories.length > 0 ? 'select' : 'custom',
+        });
+    };
+
+    const openEditQuestionForm = (q: AdminReviewQuestion) => {
+        setForm({
+            id: q.id,
+            category: q.category,
+            categoryMode: existingCategories.includes(q.category) ? 'select' : 'custom',
+            subcategory: q.subcategory ?? "",
+            questionText: q.questionText,
+            guidanceText: q.guidanceText ?? "",
+            questionType: q.questionType,
+            reviewType: q.reviewType,
+            targetRole: q.targetRole ?? "",
+        });
+    };
 
     const handleSave = async () => {
         if (!form || !form.category.trim() || !form.questionText.trim()) return;
@@ -180,11 +222,12 @@ const QuestionsTab = () => {
         }
     };
 
-    const handleDelete = async (q: AdminReviewQuestion) => {
-        if (!window.confirm(`Delete "${q.questionText.slice(0, 80)}…"?${q.responseCount > 0 ? " It has recorded responses, so it will be deactivated instead of removed." : ""}`)) return;
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
         try {
-            const result = await deleteQuestion.mutateAsync(q.id);
+            const result = await deleteQuestion.mutateAsync(deleteTarget.id);
             toast.success(result?.softDeleted ? "Question deactivated (responses preserved)" : "Question deleted");
+            setDeleteTarget(null);
         } catch (e) {
             toast.error(e instanceof Error ? e.message : "Failed to delete question");
         }
@@ -219,18 +262,18 @@ const QuestionsTab = () => {
             <div className="flex items-center justify-between gap-3">
                 <div className="w-[220px]">
                     <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as QuestionReviewType | 'all')}>
-                        <SelectTrigger className="h-10 rounded-lg border-gray-200 bg-white/90 shadow-sm dark:border-slate-600 dark:bg-slate-800/90">
+                        <SelectTrigger className={cn(appSelectTriggerClass, "h-10 rounded-lg shadow-sm")}>
                             <SelectValue placeholder="Filter by type" />
                         </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All review types</SelectItem>
+                        <SelectContent className={appSelectContentClass}>
+                            <SelectItem value="all" className={appSelectItemClass}>All review types</SelectItem>
                             {(Object.keys(REVIEW_TYPE_LABELS) as QuestionReviewType[]).map((t) => (
-                                <SelectItem key={t} value={t}>{REVIEW_TYPE_LABELS[t]}</SelectItem>
+                                <SelectItem key={t} value={t} className={appSelectItemClass}>{REVIEW_TYPE_LABELS[t]}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
                 </div>
-                <Button onClick={() => setForm({ ...emptyQuestionForm, reviewType: typeFilter === 'all' ? 'self_review' : typeFilter })} className={cn(appPrimaryButtonClass, "gap-1.5")}>
+                <Button onClick={openNewQuestionForm} className={cn(appPrimaryButtonClass, "gap-1.5")}>
                     <Plus className="w-4 h-4" /> New question
                 </Button>
             </div>
@@ -295,16 +338,7 @@ const QuestionsTab = () => {
                                         <Button
                                             size="sm"
                                             variant="outline"
-                                            onClick={() => setForm({
-                                                id: q.id,
-                                                category: q.category,
-                                                subcategory: q.subcategory ?? "",
-                                                questionText: q.questionText,
-                                                guidanceText: q.guidanceText ?? "",
-                                                questionType: q.questionType,
-                                                reviewType: q.reviewType,
-                                                targetRole: q.targetRole ?? "",
-                                            })}
+                                            onClick={() => openEditQuestionForm(q)}
                                             className={cn(appOutlineButtonClass, "h-8 w-8 p-0")}
                                         >
                                             <Pencil className="w-3.5 h-3.5" />
@@ -312,7 +346,7 @@ const QuestionsTab = () => {
                                         <Button
                                             size="sm"
                                             variant="outline"
-                                            onClick={() => handleDelete(q)}
+                                            onClick={() => setDeleteTarget(q)}
                                             className="h-8 w-8 p-0 rounded-lg border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
                                         >
                                             <Trash2 className="w-3.5 h-3.5" />
@@ -342,10 +376,10 @@ const QuestionsTab = () => {
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Review type</label>
                                     <Select value={form.reviewType} onValueChange={(v) => setForm({ ...form, reviewType: v as QuestionReviewType })}>
-                                        <SelectTrigger className="rounded-xl border-gray-200 dark:border-slate-600"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
+                                        <SelectTrigger className={cn(appSelectTriggerClass, "rounded-xl")}><SelectValue /></SelectTrigger>
+                                        <SelectContent className={appSelectContentClass}>
                                             {(Object.keys(REVIEW_TYPE_LABELS) as QuestionReviewType[]).map((t) => (
-                                                <SelectItem key={t} value={t}>{REVIEW_TYPE_LABELS[t]}</SelectItem>
+                                                <SelectItem key={t} value={t} className={appSelectItemClass}>{REVIEW_TYPE_LABELS[t]}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -353,11 +387,11 @@ const QuestionsTab = () => {
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Answer type</label>
                                     <Select value={form.questionType} onValueChange={(v) => setForm({ ...form, questionType: v as QuestionType })}>
-                                        <SelectTrigger className="rounded-xl border-gray-200 dark:border-slate-600"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="rating">Rating (1–5)</SelectItem>
-                                            <SelectItem value="text">Text</SelectItem>
-                                            <SelectItem value="nomination">Nomination</SelectItem>
+                                        <SelectTrigger className={cn(appSelectTriggerClass, "rounded-xl")}><SelectValue /></SelectTrigger>
+                                        <SelectContent className={appSelectContentClass}>
+                                            <SelectItem value="rating" className={appSelectItemClass}>Rating (1–5)</SelectItem>
+                                            <SelectItem value="text" className={appSelectItemClass}>Text</SelectItem>
+                                            <SelectItem value="nomination" className={appSelectItemClass}>Nomination</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -365,7 +399,49 @@ const QuestionsTab = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
-                                    <Input placeholder="e.g. Technical Competence" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="rounded-xl border-gray-200 dark:border-slate-600" />
+                                    {form.categoryMode === 'select' ? (
+                                        <Select
+                                            value={existingCategories.includes(form.category) ? form.category : undefined}
+                                            onValueChange={(v) => {
+                                                if (v === '__new__') {
+                                                    setForm({ ...form, categoryMode: 'custom', category: '' });
+                                                } else {
+                                                    setForm({ ...form, category: v });
+                                                }
+                                            }}
+                                        >
+                                            <SelectTrigger className={cn(appSelectTriggerClass, "rounded-xl")}>
+                                                <SelectValue placeholder="Select category" />
+                                            </SelectTrigger>
+                                            <SelectContent className={appSelectContentClass}>
+                                                {existingCategories.map((c) => (
+                                                    <SelectItem key={c} value={c} className={appSelectItemClass}>{c}</SelectItem>
+                                                ))}
+                                                {existingCategories.length > 0 && <SelectSeparator />}
+                                                <SelectItem value="__new__" className={appSelectItemClass}>+ Add new category</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <Input
+                                                autoFocus
+                                                placeholder="e.g. Technical Competence"
+                                                value={form.category}
+                                                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                                                className="rounded-xl border-gray-200 dark:border-slate-600"
+                                            />
+                                            {existingCategories.length > 0 && (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => setForm({ ...form, categoryMode: 'select', category: '' })}
+                                                    className={cn(appOutlineButtonClass, "flex-shrink-0")}
+                                                >
+                                                    Choose existing
+                                                </Button>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Subcategory (optional)</label>
@@ -396,11 +472,11 @@ const QuestionsTab = () => {
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Target role</label>
                                     <Select value={form.targetRole || 'any'} onValueChange={(v) => setForm({ ...form, targetRole: v === 'any' ? '' : v })}>
-                                        <SelectTrigger className="rounded-xl border-gray-200 dark:border-slate-600"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="any">Any reviewee</SelectItem>
-                                            <SelectItem value="employee">Employees</SelectItem>
-                                            <SelectItem value="manager">Managers</SelectItem>
+                                        <SelectTrigger className={cn(appSelectTriggerClass, "rounded-xl")}><SelectValue /></SelectTrigger>
+                                        <SelectContent className={appSelectContentClass}>
+                                            <SelectItem value="any" className={appSelectItemClass}>Any reviewee</SelectItem>
+                                            <SelectItem value="employee" className={appSelectItemClass}>Employees</SelectItem>
+                                            <SelectItem value="manager" className={appSelectItemClass}>Managers</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <p className="text-xs text-gray-400">Manager-appraisal questions can differ for employee vs manager reviewees.</p>
@@ -420,6 +496,22 @@ const QuestionsTab = () => {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Question Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={!!deleteTarget}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={confirmDelete}
+                title="Delete Question"
+                message={
+                    deleteTarget
+                        ? `Are you sure you want to delete "${deleteTarget.questionText.slice(0, 120)}${deleteTarget.questionText.length > 120 ? "…" : ""}"?${deleteTarget.responseCount > 0 ? " It has recorded responses, so it will be deactivated instead of removed." : " This action cannot be undone."}`
+                        : ""
+                }
+                confirmText="Delete Question"
+                cancelText="Cancel"
+                isLoading={deleteQuestion.isPending}
+            />
         </div>
     );
 };
@@ -438,6 +530,7 @@ const QuestionSetsTab = () => {
     const [setForm, setSetForm] = useState<{ id?: string; name: string; description: string; isDefault: boolean } | null>(null);
     const [membersTarget, setMembersTarget] = useState<QuestionSetApi | null>(null);
     const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
+    const [deleteSetTarget, setDeleteSetTarget] = useState<QuestionSetApi | null>(null);
 
     const questionsByType = useMemo(() => {
         const map = new Map<QuestionReviewType, AdminReviewQuestion[]>();
@@ -466,11 +559,12 @@ const QuestionSetsTab = () => {
         }
     };
 
-    const handleDeleteSet = async (s: QuestionSetApi) => {
-        if (!window.confirm(`Delete question set "${s.name}"?`)) return;
+    const confirmDeleteSet = async () => {
+        if (!deleteSetTarget) return;
         try {
-            await deleteSet.mutateAsync(s.id);
+            await deleteSet.mutateAsync(deleteSetTarget.id);
             toast.success("Question set deleted");
+            setDeleteSetTarget(null);
         } catch (e) {
             toast.error(e instanceof Error ? e.message : "This set is assigned to employees — unassign it first");
         }
@@ -542,7 +636,7 @@ const QuestionSetsTab = () => {
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => handleDeleteSet(s)}
+                                        onClick={() => setDeleteSetTarget(s)}
                                         className="h-8 w-8 p-0 rounded-lg border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
                                     >
                                         <Trash2 className="w-3.5 h-3.5" />
@@ -651,6 +745,18 @@ const QuestionSetsTab = () => {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Question Set Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={!!deleteSetTarget}
+                onClose={() => setDeleteSetTarget(null)}
+                onConfirm={confirmDeleteSet}
+                title="Delete Question Set"
+                message={`Are you sure you want to delete the question set "${deleteSetTarget?.name}"? This action cannot be undone.`}
+                confirmText="Delete Set"
+                cancelText="Cancel"
+                isLoading={deleteSet.isPending}
+            />
         </div>
     );
 };
@@ -718,13 +824,13 @@ const AssignmentsTab = () => {
                 <div className="flex items-center gap-3">
                     <div className="w-[260px]">
                         <Select value={cycleScope} onValueChange={setCycleScope}>
-                            <SelectTrigger className="h-10 rounded-lg border-gray-200 bg-white/90 shadow-sm dark:border-slate-600 dark:bg-slate-800/90">
+                            <SelectTrigger className={cn(appSelectTriggerClass, "h-10 rounded-lg shadow-sm")}>
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="global">All cycles (global assignment)</SelectItem>
+                            <SelectContent className={appSelectContentClass}>
+                                <SelectItem value="global" className={appSelectItemClass}>All cycles (global assignment)</SelectItem>
                                 {openCycles.map((c) => (
-                                    <SelectItem key={c.id} value={c.id}>
+                                    <SelectItem key={c.id} value={c.id} className={appSelectItemClass}>
                                         {c.isTest ? "🧪 " : ""}{c.name} <span className="text-gray-400">({c.status})</span>
                                     </SelectItem>
                                 ))}
@@ -769,13 +875,13 @@ const AssignmentsTab = () => {
                                             onValueChange={(v) => handleAssign(item.employee.id, v === "none" ? null : v)}
                                             disabled={assignSet.isPending || sets.length === 0}
                                         >
-                                            <SelectTrigger className="h-9 rounded-lg border-gray-200 bg-white/90 text-sm dark:border-slate-600 dark:bg-slate-800/90">
+                                            <SelectTrigger className={cn(appSelectTriggerClass, "h-9 rounded-lg text-sm")}>
                                                 <SelectValue placeholder="Default questions" />
                                             </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">Default questions</SelectItem>
+                                            <SelectContent className={appSelectContentClass}>
+                                                <SelectItem value="none" className={appSelectItemClass}>Default questions</SelectItem>
                                                 {sets.map((s) => (
-                                                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                                    <SelectItem key={s.id} value={s.id} className={appSelectItemClass}>{s.name}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>

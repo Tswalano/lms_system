@@ -50,10 +50,11 @@ npx ts-node -r dotenv/config prisma/seed.ts
 - 4 existing admin users (Glen Mogane, Xolani Zulu, Hannes Swanepoel, Philemon Maitisa)
 - 8 additional employee users with randomised job titles
 - Department records (Engineering, etc.)
-- Sample leave requests covering the past 2 months to 2 months ahead
-- Sample document assignments and notifications
+- Leave requests for the **next 3 months** — 3 per month, scattered across each month (mostly pending, some pre-approved)
+- Sample documents, with onboarding auto-assignment configured on two of them (*Employee Handbook 2025* for everyone; *Code Review Guidelines* scoped to Engineering, due in 14 days)
+- An **active test performance review cycle** ("Seed Test Cycle", `isTest = true`) where each of the 4 existing admins is their own peer reviewer and manager appraiser — any of those accounts can walk the full review circle (self → peer → manager appraisal → admin review) immediately. Test cycles are excluded from reports and can be deleted from the admin page.
 
-**When to run:** Once on a fresh database, or to repopulate a wiped development database. It is safe to run multiple times — it uses upserts where possible.
+**When to run:** Once on a fresh database, or to repopulate a wiped development database. It is safe to run multiple times — it uses upserts where possible. Run `seed-review-questions.ts` first so the test cycle gets pre-created response stubs.
 
 ---
 
@@ -70,14 +71,15 @@ npx ts-node -r dotenv/config prisma/seed-review-questions.ts
 
 | Review Type | Categories |
 |---|---|
-| `manager_appraisal` | Technical Competence, Delivery & Reliability, Collaboration & Soft Skills, Growth & Initiative |
-| `peer_review` | Reliability & Delivery, Collaboration & Support, Infrastructure Contribution, Leadership, Security, AWS Expertise, Openness to Feedback, Engineering Efficiency, Mentorship |
-| `self_review` | Technical Contribution, Leadership, Learning & Application, Process & Automation, DevOps/AWS, Time Delivery, Strengths, Improvement Area, Team Contributions |
+| `manager_appraisal` (employees) | Technical Competence, Delivery & Reliability, Growth & Collaboration |
+| `manager_appraisal` (managers, `targetRole = 'manager'`) | Strategic Leadership, Team Development, Delivery & Accountability, Stakeholder Management, Culture & Collaboration |
+| `peer_review` | Communication Effectiveness, Client Alignment, Reliability and Delivery, Collaboration and Support, Contribution to Infrastructure |
+| `self_review` | Technical Contribution, Leadership in Projects, Learning and Application |
 | `next_steps` | Development goals and support needs |
 
-It also seeds **manager-specific** variants of the appraisal questions (for managers appraising other managers), differentiated by `targetRole = 'manager'`.
+It also creates the **Default Review Set** (`question_sets` with `isDefault = true`) containing every seeded question. Employees without an explicit question-set assignment answer this set; admins can create additional sets and assign them per employee at `/performance-review-admin/questions`.
 
-**When to run:** After any migration that adds or alters the `review_questions` table, or any time the questions seem missing. It uses `upsert` with a stable deterministic ID (SHA-256 hash of the question content), so running it multiple times will not create duplicates.
+**When to run:** After any migration that adds or alters the `review_questions` table, or any time the questions seem missing. It uses `upsert` with a stable deterministic ID (hash of the question content), so running it multiple times will not create duplicates.
 
 **Verify questions loaded correctly:**
 
@@ -90,10 +92,33 @@ Expected output:
 ```
 count | reviewType
 ------+-------------------
-   10 | manager_appraisal
-    9 | peer_review
-    9 | self_review
+   14 | manager_appraisal   (7 for employees + 7 for managers)
+    5 | peer_review
+    3 | self_review
     2 | next_steps
+```
+
+---
+
+### Seed Script 3 — `clear-review-questions.ts` (Wipe Question Bank)
+
+Deletes every review question, question set, and set membership so `seed-review-questions.ts` can be run again from a clean slate — useful after iterating on the question bank during development.
+
+```bash
+cd backend
+# Dry run first — reports what would be deleted, makes no changes
+npx ts-node -r dotenv/config prisma/clear-review-questions.ts
+
+# Actually delete
+npx ts-node -r dotenv/config prisma/clear-review-questions.ts --yes
+```
+
+**Important:** `review_responses` has a non-cascading foreign key to `review_questions`, so this script deletes **all recorded responses across every cycle** (self, peer, and manager answers) before it can remove the questions. `review_cycles` and `performance_reviews` themselves are left in place — just with their responses gone. If you also want a clean slate for cycles/reviews, run the reset queries in [§4](#4-testing-from-scratch--reset-queries) too.
+
+After clearing, reseed with:
+
+```bash
+npx ts-node -r dotenv/config prisma/seed-review-questions.ts
 ```
 
 ---
@@ -281,15 +306,39 @@ The history page is **read-only** — no edits, no re-submissions, no re-activat
 
 ---
 
-### 2.7 Database Tables Reference
+### 2.7 Question Management & Question Sets (Admin)
+
+Admins manage the question bank at **`/performance-review-admin/questions`** ("Manage questions" button on the admin page):
+
+- **Questions tab** — create, edit, reorder, activate/deactivate questions per review type. Questions with recorded responses are deactivated instead of deleted so history stays intact.
+- **Question Sets tab** — group questions into named sets. One set can be marked **default**; it is what employees answer when they have no specific assignment. The seed creates a "Default Review Set" containing all questions.
+- **Employee Assignments tab** — assign a set to an individual employee, either globally or for one cycle. Resolution order per employee: cycle-specific set → global set → default set → all active questions.
+
+Changing sets for an **active** cycle takes effect after running **Sync** on that cycle (button on the assignments tab / admin page).
+
+### 2.8 Test Cycles (Full-Circle Testing)
+
+A cycle created with the **"Test cycle"** checkbox lets a single account validate the whole flow before real users are onboarded:
+
+1. Create a cycle with *Test cycle* ticked, then **Activate** — a participant picker appears; select one or more employees.
+2. Each participant becomes **their own peer reviewer and manager appraiser**.
+3. From the participant's login: complete the self-review, the peer review (of themself), and the manager appraisal (button in the amber test banner).
+4. As admin: view submissions, apply overrides, close and export.
+5. Test cycles show amber **TEST** badges, are excluded from `/admin/summary` and exports by default, and can be **deleted** from the admin page (removes all reviews/responses/assignments they created).
+
+The seed creates an active "Seed Test Cycle" with the 4 existing admins as participants.
+
+### 2.9 Database Tables Reference
 
 | Table | Purpose |
 |---|---|
-| `review_cycles` | One row per review cycle |
+| `review_cycles` | One row per review cycle (`isTest` flags test cycles) |
 | `peer_review_assignments` | Which employee reviews which colleague per cycle |
 | `performance_reviews` | One row per (employee, cycle, reviewType) combination |
 | `review_responses` | Individual question answers — FK to `performance_reviews` |
-| `review_questions` | Question bank (seeded, do not delete) |
+| `review_questions` | Question bank (managed at /performance-review-admin/questions) |
+| `question_sets` / `question_set_questions` | Named question groupings with ordered membership |
+| `employee_question_set_assignments` | Per-employee set assignment (global or per cycle) |
 | `manager_feedback` | Admin calibration overrides and notes |
 
 ---
@@ -437,7 +486,15 @@ The system can send email reminders to employees who have not signed a document.
 
 ---
 
-### 3.8 Database Tables Reference
+### 3.8 Bulk & Automatic Assignment
+
+**Bulk assignment** — the "Assign to employee" panel in the admin document modal is a multi-select: search, tick multiple employees (or "Select all shown") and assign in one action (`POST /admin-docs/assignments/bulk`). Department-wide or company-wide selections resolve server-side to individual per-employee assignment records, so tracking stays per employee. Newly assigned employees receive an in-app notification and an email.
+
+**Onboarding auto-assignment** — the "Auto-assign to new employees" panel on a document enables the `auto_assign_new_users` flag, optionally scoped by department and/or role with a due window. When an admin creates a new employee (`POST /add-user`), matching documents are assigned automatically. `POST /admin-docs/assignments/sync-onboarding` backfills an existing employee (or all employees) idempotently.
+
+---
+
+### 3.9 Database Tables Reference
 
 | Table | Purpose |
 |---|---|
@@ -446,6 +503,8 @@ The system can send email reminders to employees who have not signed a document.
 | `user_document_assignments` | Per-employee assignment and status tracking |
 | `document_signatures` | Sign-off record — `signed_at` is the timestamp of acknowledgement |
 | `document_reminders` | Log of reminder emails sent (used for cooldown enforcement) |
+| `document_training_metadata` | Per-document flags incl. `auto_assign_new_users` |
+| `document_auto_assign_rules` | Optional department/role scoping + due-days for auto-assignment |
 | `document_tag_mappings` | Optional tags on documents |
 
 ---

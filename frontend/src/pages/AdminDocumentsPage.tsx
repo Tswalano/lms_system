@@ -27,6 +27,9 @@ interface ApiDocument {
     uploadedByDisplay: string;
     department: string;
     departmentId: number;
+    version?: number;
+    expiryDate?: string | null;
+    renewalFrequencyDays?: number | null;
     signatures: {
         signed: number;
         totalAssigned: number;
@@ -84,12 +87,16 @@ interface DocumentType {
     priority?: string;
     mimeType?: string;
     fileBase64?: string | null;
+    version?: number;
+    expiryDate?: string | null;
+    renewalFrequencyDays?: number | null;
 }
 
 interface NewDocumentState {
     name: string;
     folder: string;
-    expiryFrequency: string;
+    expiryDate: string;
+    renewalFrequencyDays: string;
     file?: File | null;
     url?: string | null;
     status: 'active' | 'draft' | 'archived';
@@ -98,7 +105,8 @@ interface NewDocumentState {
 interface EditDocumentState {
     name: string;
     folder: string;
-    expiryFrequency: string;
+    expiryDate: string;
+    renewalFrequencyDays: string;
     file?: File | null;
     url?: string | null;
     status: 'active' | 'draft' | 'archived';
@@ -578,7 +586,10 @@ const AdminDocumentsPage: FC = () => {
                     folder: category.name,
                     size: doc.file_size,
                     fileUrl: doc.file_url,
-                    priority: doc.priority
+                    priority: doc.priority,
+                    version: doc.version,
+                    expiryDate: doc.expiryDate,
+                    renewalFrequencyDays: doc.renewalFrequencyDays
                 };
 
                 categoryDocuments.push(transformedDoc);
@@ -665,6 +676,8 @@ const AdminDocumentsPage: FC = () => {
                     ? `This document is linked to: ${documentData.url}`
                     : 'Document content will be processed and displayed here once uploaded.',
                 status: documentData.status,
+                expiryDate: documentData.expiryDate || null,
+                renewalFrequencyDays: documentData.renewalFrequencyDays ? Number(documentData.renewalFrequencyDays) : null,
             };
 
             if (hasUrl) {
@@ -731,7 +744,9 @@ const AdminDocumentsPage: FC = () => {
                 name: documentData.name,
                 folder: documentData.folder,
                 status: documentData.status,
-                keepExistingFile: keepExisting
+                keepExistingFile: keepExisting,
+                expiryDate: documentData.expiryDate || null,
+                renewalFrequencyDays: documentData.renewalFrequencyDays ? Number(documentData.renewalFrequencyDays) : null,
             };
 
             if (hasUrl) {

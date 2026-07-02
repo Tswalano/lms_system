@@ -20,6 +20,7 @@ export default {
         extend: {
             fontFamily: {
                 sans: ['Geist', 'system-ui', 'sans-serif'],
+                signature: ['"Dancing Script"', 'cursive'],
             },
             colors: {
                 border: 'hsl(var(--border))',
