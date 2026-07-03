@@ -97,7 +97,7 @@ describe('Auth API Integration Tests', () => {
         it('should return 400 for invalid input (Zod validation)', async () => {
             const response = await request(server)
                 .post('/login')
-                .send({ username: 'short', password: 'P1!' })
+                .send({ username: '', password: '' })
                 .expect(400);
 
             expect(response.body.error).toBe(true);
@@ -192,7 +192,16 @@ describe('Auth API Integration Tests', () => {
         });
 
         it('should refresh token and verify if access token expired', async () => {
-            cognitoMock.on(GetUserCommand).rejectsOnce({ name: 'NotAuthorizedException' });
+            // Chained on the same builder so the once-queue applies in order: reject the
+            // first GetUserCommand call (expired token), then resolve the second (post-refresh).
+            // Two separate `.on(GetUserCommand)` calls would each start their own once-queue
+            // and the second registration would win for the first call too.
+            cognitoMock.on(GetUserCommand)
+                .rejectsOnce({ name: 'NotAuthorizedException' })
+                .resolvesOnce({
+                    Username: 'refreshedUser',
+                    UserAttributes: [{ Name: 'email', Value: 'refreshed@example.com' }]
+                });
             cognitoMock.on(InitiateAuthCommand, { AuthFlow: 'REFRESH_TOKEN_AUTH' }).resolvesOnce({
                 AuthenticationResult: {
                     AccessToken: 'newMockAccessToken',
@@ -201,10 +210,6 @@ describe('Auth API Integration Tests', () => {
                     ExpiresIn: 3600,
                     TokenType: 'Bearer'
                 }
-            });
-            cognitoMock.on(GetUserCommand).resolvesOnce({
-                Username: 'refreshedUser',
-                UserAttributes: [{ Name: 'email', Value: 'refreshed@example.com' }]
             });
 
             const response = await request(server)
@@ -404,7 +409,7 @@ describe('Auth API Integration Tests', () => {
         it('should return 400 for invalid input', async () => {
             const response = await request(server)
                 .post('/change-password')
-                .send({ accessToken: 'validAccessToken', currentPassword: 'P1!', newPassword: 'P2!' })
+                .send({ accessToken: 'validAccessToken', currentPassword: 'P1!' })
                 .expect(400);
 
             expect(response.body.success).toBe(false);

@@ -1086,7 +1086,7 @@ const CalendarSection = () => {
                                 onSelectEvent={handleSelectEvent}
                                 onNavigate={handleNavigate}
                                 date={currentDate}
-                                selectable
+                                selectable="ignoreEvents"
                                 onSelectSlot={handleSelectSlot}
                                 eventPropGetter={eventStyleGetter}
                                 dayPropGetter={dayPropGetter}
@@ -1196,7 +1196,7 @@ const CalendarSection = () => {
                                                     <span className="text-pink-600 dark:text-pink-300 text-lg">🎈</span>
                                                 </div>
                                                 <div className="flex-1">
-                                                    <p className="text-xs font-medium text-pink-600 dark:text-pink-400 uppercase tracking-wide">Birthday Message</p>
+                                                    <p className="text-xs font-medium text-pink-600 dark:text-pink-400 uppercase tracking-wide">Well Wishes</p>
                                                     {user && String(user.id) === String(person.userId) ? (
                                                         <p className="text-sm text-pink-800 dark:text-pink-200 font-semibold">
                                                             {selectedEvent.resource.isToday

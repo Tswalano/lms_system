@@ -8,7 +8,6 @@ import { WEIGHTS } from "@/lib/performanceReview";
 import { formatDate } from "@/lib/helper";
 
 const appPrimaryButtonClass = "rounded-lg bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 text-white shadow-sm hover:from-cyan-700 hover:via-blue-700 hover:to-indigo-700";
-const appOutlineButtonClass = "rounded-lg border-gray-200 bg-white/90 text-gray-700 shadow-sm hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200 dark:hover:bg-slate-700";
 
 const fmt = (n: number | null) => (n == null ? "—" : `${n.toFixed(1)}%`);
 

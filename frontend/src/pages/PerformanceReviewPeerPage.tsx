@@ -234,7 +234,7 @@ const PeerQuestionRow = ({
     disabled,
     onUpdate,
 }: {
-    question: ReviewQuestion;
+    question: Omit<ReviewQuestion, "response">;
     initialRating: RatingValue;
     initialText: string;
     disabled: boolean;

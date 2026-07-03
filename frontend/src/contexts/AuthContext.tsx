@@ -248,6 +248,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 localStorage.setItem('authToken', data.user.idToken);
                 localStorage.setItem('accessToken', data.user.accessToken);
                 localStorage.setItem('refreshToken', data.user.refreshToken);
+                // Clear any prior dismissal so the missing-DOB prompt (DashboardHeader) resurfaces on every login
+                localStorage.removeItem('dismissedBirthdayBanner');
 
                 const authOk = await checkAuthStatus();
                 if (!authOk) {

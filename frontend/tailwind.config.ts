@@ -96,5 +96,6 @@ export default {
             }
         }
     },
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- tailwind.config.ts runs outside the app's ESM bundle
     plugins: [require("tailwindcss-animate")],
 } satisfies Config;

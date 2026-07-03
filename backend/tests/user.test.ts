@@ -3,7 +3,7 @@ import { createAdaptorServer } from '@hono/node-server';
 import { userApp } from '../lambda/routes/user';
 import * as authMiddleware from '../lambda/middleware/auth';
 import * as dbHelper from '../lambda/helpers/databaseHeler';
-import { AdminCreateUserCommand, AdminDeleteUserCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import { AdminCreateUserCommand, AdminDisableUserCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { mockClient } from 'aws-sdk-client-mock';
 
 jest.mock('../lambda/middleware/auth', () => ({
@@ -117,10 +117,10 @@ describe('User API Integration Tests', () => {
             ];
 
             mockExecute.mockImplementation((sql: string, _params: any[]) => {
-                if (sql.includes('FROM users u JOIN departments d ON u.departmentId = d.id WHERE u.id = ?')) {
+                if (sql.includes('FROM users u') && sql.includes('WHERE u.id = ?')) {
                     return Promise.resolve([[mockUserData]]);
                 }
-                if (sql.includes('FROM leave_requests lr WHERE lr.uid = ? AND lr.status = \'approved\' GROUP BY lr.leave_type')) {
+                if (sql.includes('FROM leave_requests lr') && sql.includes("lr.status = 'approved'")) {
                     return Promise.resolve([mockLeaveData]);
                 }
                 return Promise.resolve([[]]);
@@ -152,7 +152,7 @@ describe('User API Integration Tests', () => {
 
         it('should return 404 if user not found in database', async () => {
             mockExecute.mockImplementation((sql: string) => {
-                if (sql.includes('FROM users u JOIN departments d ON u.departmentId = d.id WHERE u.id = ?')) {
+                if (sql.includes('FROM users u') && sql.includes('WHERE u.id = ?')) {
                     return Promise.resolve([[]]);
                 }
                 return Promise.resolve([[]]);
@@ -174,7 +174,7 @@ describe('User API Integration Tests', () => {
             const mockDepartments = [{ id: 1, name: 'IT' }];
 
             mockExecute.mockImplementation((sql: string) => {
-                if (sql.includes('FROM users u LEFT JOIN user_departments ud')) {
+                if (sql.includes('FROM users u') && sql.includes('LEFT JOIN user_departments ud')) {
                     return Promise.resolve([mockUsers]);
                 }
                 if (sql.includes('FROM departments')) {
@@ -313,14 +313,14 @@ describe('User API Integration Tests', () => {
     describe('DELETE /delete-user', () => {
         const deletePayload = { id: TEST_USER_ID, email: TEST_USER_EMAIL };
 
-        it('should successfully delete a user from DB and Cognito', async () => {
+        it('should successfully deactivate a user in DB and Cognito', async () => {
             mockExecute.mockImplementation((sql: string, _params: any[]) => {
                 if (sql.includes('FROM users WHERE id = ?')) {
-                    return Promise.resolve([[{ id: TEST_USER_ID }]]);
+                    return Promise.resolve([[{ id: TEST_USER_ID, email: TEST_USER_EMAIL }]]);
                 }
                 return Promise.resolve([{} as any]);
             });
-            cognitoMock.on(AdminDeleteUserCommand).resolves({});
+            cognitoMock.on(AdminDisableUserCommand).resolves({});
 
             const response = await request(server)
                 .delete('/delete-user')
@@ -328,25 +328,25 @@ describe('User API Integration Tests', () => {
                 .expect(200);
 
             expect(response.body.error).toBe(false);
-            expect(response.body.message).toBe('User deleted successfully');
-            expect(mockExecute).toHaveBeenCalledWith('DELETE FROM leave_requests WHERE uid = ?', [TEST_USER_ID]);
-            expect(mockExecute).toHaveBeenCalledWith('DELETE FROM users WHERE id = ?', [TEST_USER_ID]);
-            expect(cognitoMock.commandCalls(AdminDeleteUserCommand)).toHaveLength(1);
+            expect(response.body.message).toBe('User deactivated successfully');
+            expect(mockExecute).toHaveBeenCalledWith(
+                'UPDATE users SET isActive = 0, deactivatedAt = NOW(), updatedAt = NOW() WHERE id = ?',
+                [TEST_USER_ID]
+            );
+            expect(cognitoMock.commandCalls(AdminDisableUserCommand)).toHaveLength(1);
         });
 
-        it('should return 400 for missing ID or email', async () => {
-            const invalidPayload = { id: TEST_USER_ID };
-
+        it('should return 400 for missing ID', async () => {
             const response = await request(server)
                 .delete('/delete-user')
-                .send(invalidPayload)
+                .send({})
                 .expect(400);
 
             expect(response.body.error).toBe(true);
             expect(response.body.code).toBe('INVALID_INPUT');
-            expect(response.body.message).toBe('ID and email are required');
+            expect(response.body.message).toBe('ID is required');
             expect(mockExecute).not.toHaveBeenCalled();
-            expect(cognitoMock.commandCalls(AdminDeleteUserCommand)).toHaveLength(0);
+            expect(cognitoMock.commandCalls(AdminDisableUserCommand)).toHaveLength(0);
         });
 
         it('should return 404 if user not found in database', async () => {
@@ -366,17 +366,17 @@ describe('User API Integration Tests', () => {
             expect(response.body.code).toBe('USER_NOT_FOUND');
             expect(response.body.message).toBe('User not found');
             expect(mockExecute).toHaveBeenCalledTimes(1);
-            expect(cognitoMock.commandCalls(AdminDeleteUserCommand)).toHaveLength(0);
+            expect(cognitoMock.commandCalls(AdminDisableUserCommand)).toHaveLength(0);
         });
 
-        it('should proceed if Cognito deletion fails but DB deletion succeeds', async () => {
+        it('should proceed if Cognito disable fails but DB deactivation succeeds', async () => {
             mockExecute.mockImplementation((sql: string, _params: any[]) => {
                 if (sql.includes('FROM users WHERE id = ?')) {
-                    return Promise.resolve([[{ id: TEST_USER_ID }]]);
+                    return Promise.resolve([[{ id: TEST_USER_ID, email: TEST_USER_EMAIL }]]);
                 }
                 return Promise.resolve([{} as any]);
             });
-            cognitoMock.on(AdminDeleteUserCommand).rejectsOnce(new Error('Cognito error'));
+            cognitoMock.on(AdminDisableUserCommand).rejectsOnce(new Error('Cognito error'));
 
             const response = await request(server)
                 .delete('/delete-user')
@@ -384,9 +384,12 @@ describe('User API Integration Tests', () => {
                 .expect(200);
 
             expect(response.body.error).toBe(false);
-            expect(response.body.message).toBe('User deleted successfully');
-            expect(mockExecute).toHaveBeenCalledWith('DELETE FROM users WHERE id = ?', [TEST_USER_ID]);
-            expect(cognitoMock.commandCalls(AdminDeleteUserCommand)).toHaveLength(1);
+            expect(response.body.message).toBe('User deactivated successfully');
+            expect(mockExecute).toHaveBeenCalledWith(
+                'UPDATE users SET isActive = 0, deactivatedAt = NOW(), updatedAt = NOW() WHERE id = ?',
+                [TEST_USER_ID]
+            );
+            expect(cognitoMock.commandCalls(AdminDisableUserCommand)).toHaveLength(1);
         });
     });
 
@@ -411,7 +414,7 @@ describe('User API Integration Tests', () => {
             expect(response.body.error).toBe(false);
             expect(response.body.message).toBe('User updated successfully');
             expect(mockExecute).toHaveBeenCalledWith(
-                expect.stringContaining('UPDATE users SET firstName = ?, lastName = ?, jobTitle = ?, phoneNumber = ?, dob = ?, gender = ?, updatedAt = NOW() WHERE id = ? AND email = ?'),
+                expect.stringMatching(/UPDATE users\s+SET firstName = \?, lastName = \?, jobTitle = \?, phoneNumber = \?, dob = \?, gender = \?, updatedAt = NOW\(\)\s+WHERE id = \? AND email = \?/),
                 [
                     updatePayload.firstName,
                     updatePayload.lastName,
@@ -487,17 +490,26 @@ describe('User API Integration Tests', () => {
             expect(response.body.message).toBe('id, jobTitle, firstName, lastName are required');
         });
 
-        it('should return 400 for missing departmentId', async () => {
-            const invalidPayload = { ...adminUpdatePayload, departmentId: undefined };
+        it('should succeed without touching departmentId when it is omitted (optional field)', async () => {
+            mockExecute.mockResolvedValue([{} as any]);
+            const { departmentId: _omit, ...payloadWithoutDepartment } = adminUpdatePayload;
 
             const response = await request(server)
                 .post('/update-user')
-                .send(invalidPayload)
-                .expect(400);
+                .send(payloadWithoutDepartment)
+                .expect(200);
 
-            expect(response.body.error).toBe(true);
-            expect(response.body.code).toBe('INVALID_INPUT');
-            expect(response.body.message).toBe('User must be assigned to a department, but department is not provided');
+            expect(response.body.error).toBe(false);
+            expect(response.body.message).toBe('User updated successfully');
+            expect(mockExecute).toHaveBeenCalledWith(
+                expect.stringContaining('UPDATE users SET firstName = ?, lastName = ?, jobTitle = ?, updatedAt = NOW() WHERE id = ?'),
+                [
+                    adminUpdatePayload.firstName,
+                    adminUpdatePayload.lastName,
+                    adminUpdatePayload.jobTitle,
+                    adminUpdatePayload.id
+                ]
+            );
         });
     });
 

@@ -94,7 +94,7 @@ describe('Leave API Integration Tests', () => {
         mockFormatDateTime.mockReturnValue('2023-10-27 10:00:00');
 
         mockQuery.mockImplementation((sql: string, params: any[]) => {
-            if (sql.startsWith('INSERT')) {
+            if (sql.trim().startsWith('INSERT')) {
                 return Promise.resolve([{ insertId: TEST_LEAVE_ID }] as any);
             }
             if (sql.includes('SELECT * FROM leave_requests WHERE id = ? AND uid = ?')) {
@@ -203,13 +203,20 @@ describe('Leave API Integration Tests', () => {
 
         mockSender.mockResolvedValue(true);
         mockSenderManagement.mockResolvedValue(true);
+
+        // jest.clearAllMocks() (above) clears call history but not implementations set via
+        // mockReturnValue in a previous test, so give isWeekend an explicit default here —
+        // otherwise whichever test last set it "leaks" its return value into later tests.
+        mockIsWeekend.mockReturnValue(false);
     });
 
     describe('POST /apply-leave', () => {
+        // Deliberately far in the future so this fixture never becomes a "backdated"
+        // application just because real time has moved on since the test was written.
         const validLeaveData = {
             leave_type: 'Annual Leave',
-            leave_start: '2023-11-01',
-            leave_end: '2023-11-05',
+            leave_start: '2099-11-01',
+            leave_end: '2099-11-05',
             leave_length: 'full_day',
             leave_comment: 'Vacation trip'
         };
@@ -232,8 +239,8 @@ describe('Leave API Integration Tests', () => {
                     'Annual Leave',
                     'pending',
                     '5',
-                    new Date('2023-11-01T00:00:00.000Z'),
-                    new Date('2023-11-05T00:00:00.000Z'),
+                    new Date('2099-11-01T00:00:00.000Z'),
+                    new Date('2099-11-05T00:00:00.000Z'),
                     'A total of 5 leave days will be deducted from your balance.',
                     'Your leave request is Pending, please wait for approval',
                     'no supporting document',
@@ -280,7 +287,7 @@ describe('Leave API Integration Tests', () => {
         it('should return 400 for invalid leave data (Zod validation)', async () => {
             const invalidLeaveData = {
                 ...validLeaveData,
-                leave_type: 'InvalidType'
+                leave_length: 'InvalidLength'
             };
 
             const response = await request(server)
@@ -374,7 +381,7 @@ describe('Leave API Integration Tests', () => {
             expect(response.body.message).toBe('Leave history retrieved successfully');
             expect(response.body.data).toEqual([]);
             expect(mockQuery).toHaveBeenCalledWith(
-                expect.stringContaining('FROM leave_requests WHERE uid = ?'),
+                expect.stringMatching(/FROM leave_requests\s+WHERE uid = \?/),
                 [TEST_USER_ID]
             );
         });
@@ -560,7 +567,7 @@ describe('Leave API Integration Tests', () => {
 
         it('should delete a pending leave request successfully', async () => {
             mockQuery.mockImplementationOnce((sql: string, params: any[]) => {
-                if (sql.includes('SELECT * FROM leave_requests WHERE id = ? AND uid = ?') && params[0] === TEST_LEAVE_ID) {
+                if (sql.includes('SELECT * FROM leave_requests WHERE id = ? AND uid = ?') && String(params[0]) === String(TEST_LEAVE_ID)) {
                     return Promise.resolve([mockPendingLeave]);
                 }
                 return Promise.resolve([[]]);
@@ -575,14 +582,14 @@ describe('Leave API Integration Tests', () => {
             expect(response.body.message).toBe('Leave request deleted successfully');
             expect(mockQuery).toHaveBeenCalledWith(
                 'DELETE FROM leave_requests WHERE id = ? AND uid = ?',
-                [TEST_LEAVE_ID, TEST_USER_ID]
+                [String(TEST_LEAVE_ID), TEST_USER_ID]
             );
             expect(mockDeleteFromS3).not.toHaveBeenCalled();
         });
 
         it('should delete associated document from S3 if present', async () => {
             mockQuery.mockImplementationOnce((sql: string, params: any[]) => {
-                if (sql.includes('SELECT * FROM leave_requests WHERE id = ? AND uid = ?') && params[0] === TEST_LEAVE_ID) {
+                if (sql.includes('SELECT * FROM leave_requests WHERE id = ? AND uid = ?') && String(params[0]) === String(TEST_LEAVE_ID)) {
                     return Promise.resolve([mockPendingLeaveWithDoc]);
                 }
                 return Promise.resolve([[]]);
@@ -615,7 +622,7 @@ describe('Leave API Integration Tests', () => {
 
         it('should return 400 if leave request is not pending', async () => {
             mockQuery.mockImplementationOnce((sql: string, params: any[]) => {
-                if (sql.includes('SELECT * FROM leave_requests WHERE id = ? AND uid = ?') && params[0] === TEST_LEAVE_ID) {
+                if (sql.includes('SELECT * FROM leave_requests WHERE id = ? AND uid = ?') && String(params[0]) === String(TEST_LEAVE_ID)) {
                     return Promise.resolve([mockApprovedLeave]);
                 }
                 return Promise.resolve([[]]);

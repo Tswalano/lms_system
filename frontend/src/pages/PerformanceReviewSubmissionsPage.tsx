@@ -13,7 +13,7 @@ import {
     usePerformanceSubmissions,
     useSaveOverrides,
 } from "@/hooks/usePerformanceReview";
-import { ArrowLeft, ArrowRight, ClipboardList, Loader2, UserCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, ClipboardList, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";

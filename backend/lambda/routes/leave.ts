@@ -581,7 +581,7 @@ app.put('/:id/approve', async (c: Context): Promise<Response> => {
 
             return c.json<ApiResponse>({
                 success: true,
-                message: `Leave request ${action} successfully`,
+                message: `Leave request ${newStatus} successfully`,
                 data: {
                     leaveId: leaveId !== undefined ? parseInt(leaveId) : null,
                     action: action,

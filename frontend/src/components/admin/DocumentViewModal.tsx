@@ -454,7 +454,7 @@ const DocumentViewModal: React.FC<DocumentViewModalProps> = ({
             // GET /users returns { payload: { users: [...], departments: [...] } }
             const rawUsers = data.payload?.users ?? data.payload ?? data;
             const users: ActiveUser[] = Array.isArray(rawUsers)
-                ? rawUsers.filter((u: any) => u.isActive !== false && u.isActive !== 0)
+                ? rawUsers.filter((u: { isActive?: boolean | number }) => u.isActive !== false && u.isActive !== 0)
                 : [];
             setAllUsers(users);
         } catch {

@@ -6,6 +6,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -233,6 +234,7 @@ const ApproveLeavePage = () => {
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const [leaveToCancel, setLeaveToCancel] = useState<LeaveRequest | null>(null);
+    const [viewMode, setViewMode] = useState<'pending' | 'processed'>('pending');
 
     // Bulk selection state
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -492,15 +494,32 @@ const ApproveLeavePage = () => {
                             <p className="text-gray-600 dark:text-gray-400">Review and approve employee leave applications</p>
                         </div>
                     </div>
-                    <Button
-                        onClick={handleRefresh}
-                        variant="outline"
-                        className="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600"
-                        disabled={isFetching}
-                    >
-                        <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-                        Refresh
-                    </Button>
+                    <div className="flex items-center gap-3">
+                        <Select
+                            value={viewMode}
+                            onValueChange={(value) => {
+                                setViewMode(value as 'pending' | 'processed');
+                                setSelectedIds(new Set());
+                            }}
+                        >
+                            <SelectTrigger className="w-[240px] bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600">
+                                <SelectItem value="pending">Pending Requests ({pendingRequests.length})</SelectItem>
+                                <SelectItem value="processed">Approved / Rejected ({processedRequests.length})</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            onClick={handleRefresh}
+                            variant="outline"
+                            className="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600"
+                            disabled={isFetching}
+                        >
+                            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Statistics */}
@@ -547,33 +566,26 @@ const ApproveLeavePage = () => {
                 </div>
             ) : (
                 <>
-                    {/* Pending Requests */}
-                    <div className="mb-8">
-                        {/* Pending section header with select-all */}
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                                {pendingRequests.length > 0 && (
-                                    <button
-                                        onClick={toggleSelectAll}
-                                        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                                    >
-                                        {allPendingSelected ? (
-                                            <CheckSquare className="w-4 h-4 text-blue-500" />
-                                        ) : somePendingSelected ? (
-                                            <CheckSquare className="w-4 h-4 text-blue-300" />
-                                        ) : (
-                                            <Square className="w-4 h-4" />
-                                        )}
-                                        {allPendingSelected ? 'Deselect all' : 'Select all'}
-                                    </button>
+                    {viewMode === 'pending' && pendingRequests.length > 0 && (
+                        <div className="flex items-center justify-end mb-4">
+                            <button
+                                onClick={toggleSelectAll}
+                                className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                            >
+                                {allPendingSelected ? (
+                                    <CheckSquare className="w-4 h-4 text-blue-500" />
+                                ) : somePendingSelected ? (
+                                    <CheckSquare className="w-4 h-4 text-blue-300" />
+                                ) : (
+                                    <Square className="w-4 h-4" />
                                 )}
-                                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
-                                    Pending Requests ({pendingRequests.length})
-                                </h2>
-                            </div>
+                                {allPendingSelected ? 'Deselect all' : 'Select all'}
+                            </button>
                         </div>
+                    )}
 
-                        {pendingRequests.length > 0 ? (
+                    {viewMode === 'pending' ? (
+                        pendingRequests.length > 0 ? (
                             <div className="space-y-4">
                                 {pendingPagination.paginatedItems.map((request) => {
                                     const isSelected = selectedIds.has(request.id);
@@ -667,6 +679,15 @@ const ApproveLeavePage = () => {
                                         </div>
                                     );
                                 })}
+                                <Pagination
+                                    currentPage={pendingPagination.page}
+                                    totalPages={pendingPagination.totalPages}
+                                    pageSize={pendingPagination.pageSize}
+                                    totalItems={pendingPagination.totalItems}
+                                    onPageChange={pendingPagination.setPage}
+                                    onPageSizeChange={pendingPagination.setPageSize}
+                                    className="mt-2 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700"
+                                />
                             </div>
                         ) : (
                             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12 text-center text-gray-500 dark:text-gray-400">
@@ -674,15 +695,9 @@ const ApproveLeavePage = () => {
                                 <p className="font-medium">No pending leave requests</p>
                                 <p className="text-sm">All requests have been processed</p>
                             </div>
-                        )}
-                    </div>
-
-                    {/* Processed Requests */}
-                    {processedRequests.length > 0 && (
-                        <div>
-                            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
-                                Recently Processed ({processedRequests.length})
-                            </h2>
+                        )
+                    ) : (
+                        processedRequests.length > 0 ? (
                             <div className="space-y-3">
                                 {processedPagination.paginatedItems.map((request) => {
                                     const leftBorderColor = request.status === 'approved'
@@ -757,7 +772,12 @@ const ApproveLeavePage = () => {
                                     className="mt-2 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700"
                                 />
                             </div>
-                        </div>
+                        ) : (
+                            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-12 text-center text-gray-500 dark:text-gray-400">
+                                <CheckCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                <p className="font-medium">No approved or rejected requests yet</p>
+                            </div>
+                        )
                     )}
                 </>
             )}

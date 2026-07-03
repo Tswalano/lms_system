@@ -18,16 +18,20 @@ import z from 'zod';
 
 const app = new Hono();
 
-const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
+// Read fresh on every call (not captured at module-load time) so it reflects the
+// current env — important for tests that set process.env.COGNITO_CLIENT_ID per-case.
+const getClientId = () => process.env.COGNITO_CLIENT_ID;
 const client = new CognitoIdentityProviderClient({});
 
 const initiateAuth = async ({ username, password }: { username: string; password: string }) => {
+    const COGNITO_CLIENT_ID = getClientId();
 
     if (!username || !password || !COGNITO_CLIENT_ID) {
         return {
             success: false,
             statusCode: 400,
             data: {
+                success: false,
                 message: "Missing username, password, or client ID",
                 code: "InvalidRequestError",
                 error: true,
@@ -67,6 +71,7 @@ const initiateAuth = async ({ username, password }: { username: string; password
                 success: false,
                 statusCode: 401,
                 data: {
+                    success: false,
                     message: "Incorrect username or password. Please try again.",
                     code: "NotAuthorizedException",
                     error: true,
@@ -79,6 +84,7 @@ const initiateAuth = async ({ username, password }: { username: string; password
                 success: false,
                 statusCode: 403,
                 data: {
+                    success: false,
                     message: "User sign-in failed - Account not confirmed.",
                     code: "UserNotConfirmedException",
                     redirect: "/confirm-account",
@@ -92,6 +98,7 @@ const initiateAuth = async ({ username, password }: { username: string; password
             success: false,
             statusCode: 500,
             data: {
+                success: false,
                 message: "Sign-in failed - Username not found or password incorrect.",
                 code: "UserSignedInError",
                 error: true,
@@ -139,7 +146,7 @@ const refreshAccessToken = async (refreshToken: string) => {
             AuthParameters: {
                 REFRESH_TOKEN: refreshToken,
             },
-            ClientId: COGNITO_CLIENT_ID,
+            ClientId: getClientId(),
         });
 
         const { AuthenticationResult } = await client.send(command);
@@ -185,7 +192,7 @@ app.post('/login', async (c) => {
 
         // If authentication is successful, set cookies
         if (authResult.data.payload?.AccessToken) {
-            const tokenToStore = authResult.data.payload.AccessToken || authResult.data.payload.IdToken;
+            const tokenToStore = authResult.data.payload.IdToken || authResult.data.payload.AccessToken;
 
             setCookie(c, 'sessionId', tokenToStore, {
                 path: '/',
@@ -254,7 +261,7 @@ app.post('/otp', async (c) => {
             if (!otp) return c.json({ error: 'OTP is required' }, 400);
 
             const confirm = new ConfirmSignUpCommand({
-                ClientId: COGNITO_CLIENT_ID,
+                ClientId: getClientId(),
                 Username: email,
                 ConfirmationCode: otp,
             });
@@ -265,7 +272,7 @@ app.post('/otp', async (c) => {
 
         if (action === 'RESEND_OTP') {
             const resend = new ResendConfirmationCodeCommand({
-                ClientId: COGNITO_CLIENT_ID,
+                ClientId: getClientId(),
                 Username: email,
             });
 
@@ -311,8 +318,8 @@ app.get('/verify', async (c) => {
                 const refreshResult = await refreshAccessToken(refreshToken);
 
                 if (refreshResult.success && refreshResult.data?.AccessToken) {
-                    // Store the new token (prefer access token for API auth)
-                    const newTokenToStore = refreshResult.data.AccessToken || refreshResult.data.IdToken || '';
+                    // sessionId carries the ID token — getUserId/getUserEmail read claims (email, custom:userId) that only exist on ID tokens
+                    const newTokenToStore = refreshResult.data.IdToken || refreshResult.data.AccessToken || '';
 
                     setCookie(c, 'sessionId', newTokenToStore, {
                         path: '/',
@@ -381,9 +388,11 @@ app.post('/refresh', async (c) => {
         let refreshToken = getCookie(c, 'refreshToken');
 
         if (!refreshToken) {
-            const body = await c.req.json();
-            const { refreshToken: bodyRefreshToken } = refreshTokenSchema.parse(body);
-            refreshToken = bodyRefreshToken;
+            // No cookie and possibly no body at all (e.g. a bare POST) — treat a missing or
+            // unparsable body as "no token provided" rather than a validation error.
+            const body = await c.req.json().catch(() => ({}));
+            const parsed = refreshTokenSchema.safeParse(body);
+            if (parsed.success) refreshToken = parsed.data.refreshToken;
         }
 
         if (!refreshToken) {
@@ -402,9 +411,9 @@ app.post('/refresh', async (c) => {
             }, 401);
         }
 
-        // Update cookies with new tokens (prefer access token for API auth)
+        // sessionId carries the ID token — see the login handler for why
         if (refreshResult.data?.AccessToken) {
-            const tokenToStore = refreshResult.data.AccessToken || refreshResult.data.IdToken || '';
+            const tokenToStore = refreshResult.data.IdToken || refreshResult.data.AccessToken || '';
 
             setCookie(c, 'sessionId', tokenToStore, {
                 path: '/',
@@ -449,7 +458,7 @@ app.post('/forgot-password', async (c) => {
         const { email } = forgotPasswordSchema.parse(body);
 
         const command = new ForgotPasswordCommand({
-            ClientId: COGNITO_CLIENT_ID,
+            ClientId: getClientId(),
             Username: email
         });
 
@@ -492,7 +501,7 @@ app.post('/reset-password', async (c) => {
         const { email, code, newPassword } = resetPasswordSchema.parse(body);
 
         const command = new ConfirmForgotPasswordCommand({
-            ClientId: COGNITO_CLIENT_ID,
+            ClientId: getClientId(),
             Username: email,
             ConfirmationCode: code,
             Password: newPassword
