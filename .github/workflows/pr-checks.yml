@@ -13,11 +13,11 @@ jobs:
       run:
         working-directory: ./backend
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: "18.x"
+          node-version: "22.x"
           cache: "npm"
           cache-dependency-path: backend/package-lock.json
 
@@ -39,15 +39,18 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     defaults:
       run:
         working-directory: ./frontend
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: "18.x"
+          node-version: "22.x"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
@@ -65,7 +68,67 @@ jobs:
         run: npx tsc --noEmit -p tsconfig.app.json
 
       - name: Run tests
-        run: npm test
+        run: npm test -- --reporter=default --reporter=json --outputFile=test-results.json
+
+      - name: Comment test results on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- frontend-test-results -->';
+            const path = 'frontend/test-results.json';
+
+            let body;
+            if (!fs.existsSync(path)) {
+              body = `${marker}\n## 🧪 Frontend Test Results\n\n❌ Test run crashed before producing results. Check the workflow logs.`;
+            } else {
+              const results = JSON.parse(fs.readFileSync(path, 'utf8'));
+              const icon = results.numFailedTests > 0 ? '❌' : '✅';
+              const lines = [
+                marker,
+                '## 🧪 Frontend Test Results',
+                '',
+                `${icon} **${results.numPassedTests} passed**, ${results.numFailedTests} failed, ${results.numPendingTests} skipped (${results.numTotalTests} total)`,
+                '',
+              ];
+              for (const file of results.testResults) {
+                const rel = file.name.replace(`${process.env.GITHUB_WORKSPACE}/`, '');
+                const failed = file.assertionResults.some(t => t.status === 'failed');
+                lines.push(`<details${failed ? ' open' : ''}><summary>${failed ? '❌' : '✅'} <code>${rel}</code></summary>`, '');
+                for (const test of file.assertionResults) {
+                  const mark = test.status === 'passed' ? '✅' : test.status === 'failed' ? '❌' : '⏭️';
+                  lines.push(`- ${mark} ${test.fullName}`);
+                  if (test.status === 'failed' && test.failureMessages?.length) {
+                    lines.push('', '  ```', ...test.failureMessages[0].split('\n').slice(0, 15).map(l => '  ' + l), '  ```', '');
+                  }
+                }
+                lines.push('', '</details>', '');
+              }
+              body = lines.join('\n');
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
 
       - name: Build
         run: npm run build
