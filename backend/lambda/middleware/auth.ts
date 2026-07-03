@@ -36,20 +36,16 @@ export interface TokenValidationResult {
     error?: string;
 }
 
-// Get token from cookie or Authorization header
+// Get token from Authorization header or cookie
 export const getToken = (c: any): string | null => {
-    // First try to get from cookie
-    let accessToken = getCookie(c, 'sessionId');
-
-    // If not in cookie, try Authorization header
-    if (!accessToken) {
-        const authHeader = c.req.header('Authorization');
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            accessToken = authHeader.substring(7);
-        }
+    // The explicit per-request Authorization header wins over the ambient
+    // sessionId cookie — a stale cookie must not override a fresh idToken
+    const authHeader = c.req.header('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return authHeader.substring(7);
     }
 
-    return accessToken ?? null;
+    return getCookie(c, 'sessionId') ?? null;
 };
 
 // Simple token validation (decode only, no signature verification)

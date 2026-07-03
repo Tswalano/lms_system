@@ -107,6 +107,60 @@ export const API_BASE_URL: string =
 
 console.log(`[AuthContext] Environment set to: ${import.meta.env.MODE}`);
 
+const doRefreshAuthToken = async (): Promise<TokenRefreshResponse> => {
+    try {
+        const currentRefreshToken = localStorage.getItem('refreshToken');
+        if (!currentRefreshToken) {
+            return { success: false, error: 'No refresh token available' };
+        }
+
+        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ refreshToken: currentRefreshToken }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            // The backend role checks read custom: claims that only exist on the
+            // idToken — never store the accessToken as authToken
+            if (!data.idToken) {
+                return { success: false, error: 'Refresh response missing idToken' };
+            }
+            localStorage.setItem('authToken', data.idToken);
+            if (data.accessToken) localStorage.setItem('accessToken', data.accessToken);
+            // Cognito does not rotate the refresh token on refresh; only overwrite
+            // it when a new one is actually returned
+            if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+            return {
+                success: true,
+                idToken: data.idToken,
+                refreshToken: data.refreshToken
+            };
+        } else {
+            const errorData = await response.json();
+            return { success: false, error: errorData.message || 'Token refresh failed' };
+        }
+    } catch (error) {
+        console.error('Token refresh error:', error);
+        return { success: false, error: 'Network error during token refresh' };
+    }
+};
+
+let refreshInFlight: Promise<TokenRefreshResponse> | null = null;
+
+// Single-flight: parallel 401s (e.g. several queries expiring at once) share one
+// refresh call instead of racing each other
+export const refreshAuthToken = (): Promise<TokenRefreshResponse> => {
+    if (!refreshInFlight) {
+        refreshInFlight = doRefreshAuthToken().finally(() => {
+            refreshInFlight = null;
+        });
+    }
+    return refreshInFlight;
+};
 
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
@@ -127,41 +181,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const getAuthToken = (): string | null => {
         return localStorage.getItem('authToken');
-    };
-
-    const refreshAuthToken = async (): Promise<TokenRefreshResponse> => {
-        try {
-            const currentRefreshToken = localStorage.getItem('refreshToken');
-            if (!currentRefreshToken) {
-                return { success: false, error: 'No refresh token available' };
-            }
-
-            const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ refreshToken: currentRefreshToken }),
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                localStorage.setItem('authToken', data.idToken || data.accessToken);
-                localStorage.setItem('accessToken', data.accessToken);
-                localStorage.setItem('refreshToken', data.refreshToken);
-                return {
-                    success: true,
-                    idToken: data.idToken,
-                    refreshToken: data.refreshToken
-                };
-            } else {
-                const errorData = await response.json();
-                return { success: false, error: errorData.message || 'Token refresh failed' };
-            }
-        } catch (error) {
-            console.error('Token refresh error:', error);
-            return { success: false, error: 'Network error during token refresh' };
-        }
     };
 
     const checkAuthStatus = async (): Promise<boolean> => {

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { API_BASE_URL, useAuth } from '@/contexts/AuthContext';
+import { API_BASE_URL, refreshAuthToken, useAuth } from '@/contexts/AuthContext';
 
 // ─────────────────────────────────────────────
 // Types
@@ -139,10 +139,19 @@ function authHeaders(): HeadersInit {
 }
 
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-    const res = await fetch(`${API_BASE_URL}${path}`, {
+    let res = await fetch(`${API_BASE_URL}${path}`, {
         ...options,
         headers: { ...authHeaders(), ...(options?.headers ?? {}) },
     });
+    // The idToken expires hourly — refresh once and retry, like authFetch does
+    if (res.status === 401) {
+        const refreshed = await refreshAuthToken();
+        if (!refreshed.success) throw new Error('Session expired. Please login again.');
+        res = await fetch(`${API_BASE_URL}${path}`, {
+            ...options,
+            headers: { ...authHeaders(), ...(options?.headers ?? {}) },
+        });
+    }
     const json = await res.json();
     if (!json.success) throw new Error(json.message ?? 'Request failed');
     return json.data as T;
