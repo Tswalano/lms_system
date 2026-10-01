@@ -1,4 +1,4 @@
-import { API_BASE_URL, useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // Types based on your API response
@@ -41,25 +41,15 @@ interface NotificationFilters {
 
 // API client class
 class NotificationAPI_Client {
-    private baseUrl: string;
-    private getAuthHeaders: () => Record<string, string>;
+    private authFetch: typeof fetch;
 
-    constructor(baseUrl: string, getAuthHeaders: () => Record<string, string>) {
-        this.baseUrl = baseUrl;
-        this.getAuthHeaders = getAuthHeaders;
+    constructor(authFetch: typeof fetch) {
+        this.authFetch = authFetch;
     }
 
     private async request(endpoint: string, options: RequestInit = {}) {
-        const url = `${this.baseUrl}/notifications${endpoint}`;
-        const headers = {
-            'Content-Type': 'application/json',
-            ...this.getAuthHeaders(),
-            ...options.headers,
-        };
-
-        const response = await fetch(url, {
+        const response = await this.authFetch(`/notifications${endpoint}`, {
             ...options,
-            headers,
         });
 
         if (!response.ok) {
@@ -129,19 +119,9 @@ class NotificationAPI_Client {
 
 // Custom hooks
 export const useNotifications = (filters: NotificationFilters = {}) => {
-    const { user } = useAuth();
-    const token: string | null = localStorage.getItem('authToken');
+    const { authFetch, user } = useAuth();
 
-    const api = new NotificationAPI_Client(
-        API_BASE_URL,
-        () => ({
-
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-
-        })
-    );
+    const api = new NotificationAPI_Client(authFetch);
 
     return useQuery({
         queryKey: ['notifications', filters],
@@ -153,19 +133,9 @@ export const useNotifications = (filters: NotificationFilters = {}) => {
 };
 
 export const useNotificationCounts = () => {
-    const { user } = useAuth();
-    const token: string | null = localStorage.getItem('authToken');
+    const { authFetch, user } = useAuth();
 
-    const api = new NotificationAPI_Client(
-        API_BASE_URL,
-        () => ({
-
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-
-        })
-    );
+    const api = new NotificationAPI_Client(authFetch);
 
     return useQuery({
         queryKey: ['notification-counts'],
@@ -177,20 +147,10 @@ export const useNotificationCounts = () => {
 };
 
 export const useNotificationMutations = () => {
-    // const { user } = useAuth();
+    const { authFetch } = useAuth();
     const queryClient = useQueryClient();
-    const token: string | null = localStorage.getItem('authToken');
 
-    const api = new NotificationAPI_Client(
-        API_BASE_URL,
-        () => ({
-
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-
-        })
-    );
+    const api = new NotificationAPI_Client(authFetch);
 
     const invalidateQueries = () => {
         queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -245,18 +205,10 @@ export const useNotificationMutations = () => {
 };
 
 export const useNotificationSettings = () => {
-    const { user } = useAuth();
+    const { authFetch, user } = useAuth();
     const queryClient = useQueryClient();
-    const token: string | null = localStorage.getItem('authToken');
 
-    const api = new NotificationAPI_Client(
-        API_BASE_URL,
-        () => ({
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        })
-    );
+    const api = new NotificationAPI_Client(authFetch);
 
     const settings = useQuery({
         queryKey: ['notification-settings'],

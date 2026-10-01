@@ -162,6 +162,74 @@ export const refreshAuthToken = (): Promise<TokenRefreshResponse> => {
     return refreshInFlight;
 };
 
+const getStoredAuthToken = (): string | null => {
+    return localStorage.getItem('authToken');
+};
+
+const buildApiFetchUrl = (input: string | URL | Request): string | URL | Request => {
+    if (typeof input === 'string') {
+        return /^https?:\/\//i.test(input)
+            ? input
+            : `${API_BASE_URL}${input.startsWith('/') ? input : `/${input}`}`;
+    }
+
+    if (input instanceof URL) {
+        return input.toString();
+    }
+
+    return input;
+};
+
+const authenticatedFetch = async (
+    input: string | URL | Request,
+    init?: RequestInit,
+    onSessionExpired?: () => void | Promise<void>
+): Promise<Response> => {
+    const token = getStoredAuthToken();
+
+    if (!token) {
+        throw new Error('Sorry, you are not authenticated');
+    }
+
+    const options: RequestInit = { ...init };
+    const headers = new Headers(options.headers);
+
+    if (!headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+    }
+    if (!headers.has('Accept')) {
+        headers.set('Accept', 'application/json');
+    }
+    if (!headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    options.headers = headers;
+
+    const url = buildApiFetchUrl(input);
+    let response = await fetch(url, options);
+
+    if (response.status === 401) {
+        const refreshResult = await refreshAuthToken();
+
+        if (refreshResult.success && refreshResult.idToken) {
+            headers.set('Authorization', `Bearer ${refreshResult.idToken}`);
+            options.headers = headers;
+            response = await fetch(url, options);
+        } else {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            await onSessionExpired?.();
+            throw new Error('Session expired. Please login again.');
+        }
+    }
+
+    return response;
+};
+
+export const authFetch: typeof fetch = (input, init) => authenticatedFetch(input, init);
+
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
     if (!context) {
@@ -180,7 +248,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, []);
 
     const getAuthToken = (): string | null => {
-        return localStorage.getItem('authToken');
+        return getStoredAuthToken();
+    };
+
+    const clearAuthState = (): void => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        setUser(null);
+        setIsAuthenticated(false);
     };
 
     const checkAuthStatus = async (): Promise<boolean> => {
@@ -192,32 +268,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 return false;
             }
 
-            let response = await fetch(`${API_BASE_URL}/users/me`, {
+            const response = await authenticatedFetch('/users/me', {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-            });
+            }, clearAuthState);
 
             console.log('[Auth] /users/me response status:', response.status);
-
-            if (response.status === 401) {
-                const refreshResult = await refreshAuthToken();
-                if (refreshResult.success && refreshResult.idToken) {
-                    response = await fetch(`${API_BASE_URL}/users/me`, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${refreshResult.idToken}`,
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        },
-                    });
-                } else {
-                    throw new Error('Session expired. Please login again.');
-                }
-            }
 
             if (response.ok) {
                 const userData: ApiAuthResponse = await response.json();
@@ -229,10 +288,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
         } catch (error) {
             console.error('Auth check failed:', error);
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('refreshToken');
-            setUser(null);
-            setIsAuthenticated(false);
+            clearAuthState();
             return false;
         } finally {
             setLoading(false);
@@ -292,21 +348,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
             const token = getAuthToken();
             if (token) {
-                await fetch(`${API_BASE_URL}/auth/logout`, {
+                await authenticatedFetch('/auth/logout', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
-                });
+                }, clearAuthState);
             }
         } catch (error) {
             console.error('Logout error:', error);
         } finally {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('refreshToken');
-            setUser(null);
-            setIsAuthenticated(false);
+            clearAuthState();
         }
     };
 
@@ -398,57 +450,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
-    const authFetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-        const token = getAuthToken();
-        const options = init || {};
-
-        // if token is not available, throw an error
-        if (!token) {
-            // user is no authenticated
-            throw new Error('Sorry, you are not authenticated');
-        }
-
-        // Set default headers if not provided
-        const headers = new Headers(options.headers);
-        if (!headers.has('Content-Type')) {
-            headers.set('Content-Type', 'application/json');
-        }
-        if (!headers.has('Accept')) {
-            headers.set('Accept', 'application/json');
-        }
-        if (token && !headers.has('Authorization')) {
-            headers.set('Authorization', `Bearer ${token}`);
-        }
-
-        options.headers = headers;
-
-        // Handle different input types
-        const url = typeof input === 'string'
-            ? `${API_BASE_URL}${input}`
-            : input instanceof URL
-                ? `${API_BASE_URL}${input.pathname}${input.search}`
-                : input;
-
-        let response = await fetch(url, options);
-
-        // If unauthorized, try to refresh token and retry
-        if (response.status === 401) {
-            const refreshResult = await refreshAuthToken();
-            if (refreshResult.success && refreshResult.idToken) {
-                // Update the Authorization header with new token
-                headers.set('Authorization', `Bearer ${refreshResult.idToken}`);
-                options.headers = headers;
-
-                // Retry the original request with new token
-                response = await fetch(url, options);
-            } else {
-                await logout();
-                throw new Error('Session expired. Please login again.');
-            }
-        }
-
-        return response;
-    };
+    const authFetchWithLogout: typeof fetch = (input, init) => authenticatedFetch(input, init, clearAuthState);
 
     const value: AuthContextType = {
         user,
@@ -459,7 +461,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         forgotPassword,
         changePassword,
         checkAuthStatus,
-        authFetch,
+        authFetch: authFetchWithLogout,
         getAuthToken,
         resetPassword
     };

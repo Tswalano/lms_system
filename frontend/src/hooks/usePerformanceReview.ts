@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { API_BASE_URL, refreshAuthToken, useAuth } from '@/contexts/AuthContext';
+import { authFetch, useAuth } from '@/contexts/AuthContext';
 
 // ─────────────────────────────────────────────
 // Types
@@ -126,34 +126,17 @@ export interface ManagerAppraisalDetailApi {
 }
 
 // ─────────────────────────────────────────────
-// Auth headers helper
+// API helper
 // ─────────────────────────────────────────────
 
-function authHeaders(): HeadersInit {
-    const token = localStorage.getItem('authToken');
-    return {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-    };
-}
-
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-    let res = await fetch(`${API_BASE_URL}${path}`, {
-        ...options,
-        headers: { ...authHeaders(), ...(options?.headers ?? {}) },
-    });
-    // The idToken expires hourly — refresh once and retry, like authFetch does
-    if (res.status === 401) {
-        const refreshed = await refreshAuthToken();
-        if (!refreshed.success) throw new Error('Session expired. Please login again.');
-        res = await fetch(`${API_BASE_URL}${path}`, {
-            ...options,
-            headers: { ...authHeaders(), ...(options?.headers ?? {}) },
-        });
+    const res = await authFetch(path, options);
+    const json = await res.json().catch(() => null);
+
+    if (!res.ok) {
+        throw new Error(json?.message ?? `HTTP ${res.status}`);
     }
-    const json = await res.json();
-    if (!json.success) throw new Error(json.message ?? 'Request failed');
+    if (!json?.success) throw new Error(json?.message ?? 'Request failed');
     return json.data as T;
 }
 
